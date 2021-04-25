@@ -74,8 +74,8 @@ static void SetVolume()
 
 void core_audio_sample(int16_t left, int16_t right)
 {
-    if (input_ffwd_requested)
-        return;
+    /*if (input_ffwd_requested)
+        return;*/
 
     SetVolume();
 

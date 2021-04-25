@@ -59,7 +59,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
                                             * 'data' points to an unsigned variable
                                             */
 
-extern go2_battery_state_t batteryState;
+//extern go2_battery_state_t batteryState;
 
 
 retro_hw_context_reset_t retro_context_reset;
@@ -908,12 +908,12 @@ int main(int argc, char *argv[])
 
     printf("Entering render loop.\n");
 
-    const char* batteryStateDesc[] = { "UNK", "DSC", "CHG", "FUL" };
+    //const char* batteryStateDesc[] = { "UNK", "DSC", "CHG", "FUL" };
 
     struct timeval startTime;
     struct timeval endTime;
     double elapsed = 0;
-    int totalFrames = 0;
+    //int totalFrames = 0;
     bool isRunning = true;
     while(isRunning)
     {
@@ -940,12 +940,12 @@ int main(int argc, char *argv[])
         }
 
         gettimeofday(&endTime, NULL);
-        ++totalFrames;
+        //++totalFrames;
 
-        double seconds = (endTime.tv_sec - startTime.tv_sec);
-	    double milliseconds = ((double)(endTime.tv_usec - startTime.tv_usec)) / 1000000.0;
+        //double seconds = (endTime.tv_sec - startTime.tv_sec);
+	    //double milliseconds = ((double)(endTime.tv_usec - startTime.tv_usec)) / 1000000.0;
 
-        elapsed += seconds + milliseconds;
+        //elapsed += seconds + milliseconds;
 
         /*if (elapsed >= 1.0)
         {

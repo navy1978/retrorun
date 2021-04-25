@@ -33,7 +33,7 @@ extern int opt_volume;
 bool input_exit_requested = false;
 bool input_reset_requested = false;
 bool input_pause_requested = false;
-bool input_ffwd_requested = false;
+//bool input_ffwd_requested = false;
 go2_battery_state_t batteryState;
 
 static go2_input_state_t* gamepadState;
@@ -99,12 +99,12 @@ void core_input_poll(void)
 
     if (go2_input_state_button_get(gamepadState, Hotkey) == ButtonState_Pressed)
     {
-        if (go2_input_state_button_get(gamepadState, Go2InputButton_B) == ButtonState_Pressed &&
+        /*if (go2_input_state_button_get(gamepadState, Go2InputButton_B) == ButtonState_Pressed &&
             go2_input_state_button_get(prevGamepadState, Go2InputButton_B) == ButtonState_Released)
         {
             input_ffwd_requested = !input_ffwd_requested;
             printf("Fast-forward %s\n", input_ffwd_requested ? "on" : "off");
-        }
+        }*/
         if (go2_input_state_button_get(gamepadState, Go2InputButton_A) == ButtonState_Pressed &&
             go2_input_state_button_get(prevGamepadState, Go2InputButton_A) == ButtonState_Released)
         {
