@@ -66,7 +66,7 @@ retro_hw_context_reset_t retro_context_reset;
 
 const char* opt_savedir = ".";
 const char* opt_systemdir = ".";
-float opt_aspect = 0.0f;
+// float opt_aspect = 0.0f;
 int opt_backlight = -1;
 int opt_volume = -1;
 bool opt_restart = false;

@@ -11,3 +11,5 @@ extern RETRORUN_CORE_TYPE Retrorun_Core;
 extern bool Retrorun_UseAnalogStick;
 
 extern bool opt_triggers;
+extern float opt_aspect;
+extern float aspect_ratio;

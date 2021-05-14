@@ -19,6 +19,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include "video.h"
 
+#include "globals.h"
+
 #include "input.h"
 #include "libretro.h"
 
@@ -40,7 +42,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define FBO_DIRECT 1
 #define ALIGN(val, align)	(((val) + (align) - 1) & ~((align) - 1))
 
-extern float opt_aspect;
+//extern float opt_aspect;
 extern int opt_backlight;
 
 go2_display_t* display;
@@ -49,7 +51,7 @@ go2_surface_t* display_surface;
 go2_frame_buffer_t* frame_buffer;
 go2_presenter_t* presenter;
 go2_context_t* context3D;
-float aspect_ratio;
+// float aspect_ratio;
 uint32_t color_format;
 
 bool isOpenGL = false;
@@ -59,6 +61,8 @@ GLuint fbo;
 int hasStencil = false;
 bool screenshot_requested = false;
 int prevBacklight;
+bool isTate = false;
+
 
 extern retro_hw_context_reset_t retro_context_reset;
 
@@ -254,8 +258,8 @@ void core_video_refresh(const void * data, unsigned width, unsigned height, size
 
         x = (go2_display_height_get(display) / 2) - (w / 2);
         y = 0;
+	
 
-        //printf("x=%d, y=%d, w=%d, h=%d\n", x, y, w, h);
     }
     else
     {
@@ -263,6 +267,7 @@ void core_video_refresh(const void * data, unsigned width, unsigned height, size
         y = 0;
         w = go2_display_height_get(display);
         h = go2_display_width_get(display);
+	isTate = true;
     }
 
 
@@ -288,12 +293,12 @@ void core_video_refresh(const void * data, unsigned width, unsigned height, size
 
         int ss_w = go2_surface_width_get(gles_surface);
         int ss_h = go2_surface_height_get(gles_surface);
-
+	go2_rotation_t _351Rotation = isTate ? GO2_ROTATION_DEGREES_90 : GO2_ROTATION_DEGREES_270;
         go2_presenter_post(presenter,
                     gles_surface,
                     0, ss_h - height, width, height,
                     y, x, h, w,
-                    GO2_ROTATION_DEGREES_270);
+                    _351Rotation);
 
         go2_context_surface_unlock(context3D, gles_surface);
  #else
