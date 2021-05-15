@@ -59,7 +59,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
                                             * 'data' points to an unsigned variable
                                             */
 
-//extern go2_battery_state_t batteryState;
+extern go2_battery_state_t batteryState;
 
 
 retro_hw_context_reset_t retro_context_reset;
@@ -72,20 +72,22 @@ int opt_volume = -1;
 bool opt_restart = false;
 const char* arg_core = "";
 const char* arg_rom = "";
+bool opt_show_fps = false;
 
 typedef std::map<std::string, std::string> varmap_t ;
 varmap_t variables;
 
 struct option longopts[] = {
 	{ "savedir", required_argument, NULL, 's' },
-    { "systemdir", required_argument, NULL, 'd' },
-    { "aspect", required_argument, NULL, 'a' },
-    { "backlight", required_argument, NULL, 'b' },
-    { "volume", required_argument, NULL, 'v' },
-    { "restart", no_argument, NULL, 'r' },
-    { "triggers", no_argument, NULL, 't' },
-    { "analog", no_argument, NULL, 'n' },
-    { 0, 0, 0, 0 }};
+    	{ "systemdir", required_argument, NULL, 'd' },
+    	{ "aspect", required_argument, NULL, 'a' },
+    	{ "backlight", required_argument, NULL, 'b' },
+    	{ "volume", required_argument, NULL, 'v' },
+    	{ "restart", no_argument, NULL, 'r' },
+    	{ "triggers", no_argument, NULL, 't' },
+    	{ "analog", no_argument, NULL, 'n' },
+    	{ "fps", no_argument, NULL, 'f' },
+	{ 0, 0, 0, 0 }};
 
 
 static struct {
@@ -790,7 +792,7 @@ int main(int argc, char *argv[])
     int c;
     int option_index = 0;
 
-	while ((c = getopt_long(argc, argv, "s:d:a:b:v:rtn", longopts, &option_index)) != -1)
+	while ((c = getopt_long(argc, argv, "s:d:a:b:v:rtnf", longopts, &option_index)) != -1)
 	{
 		switch (c)
 		{
@@ -806,25 +808,29 @@ int main(int argc, char *argv[])
 				opt_aspect = atof(optarg);
 				break;
 
-            case 'b':
-                opt_backlight = atoi(optarg);
-                break;
+            		case 'b':
+		                opt_backlight = atoi(optarg);
+                		break;
             
-            case 'v':
-                opt_volume = atoi(optarg);
-                break;
+            		case 'v':
+                		opt_volume = atoi(optarg);
+                		break;
 
-            case 'r':
-                opt_restart = true;
-                break;
+            		case 'r':
+                		opt_restart = true;
+                		break;
 
-            case 't':
-                opt_triggers = true;
-                break;
+            		case 't':
+                		opt_triggers = true;
+                		break;
 
-            case 'n':
-                Retrorun_UseAnalogStick = true;
-                break;
+            		case 'n':
+                		Retrorun_UseAnalogStick = true;
+                		break;
+			case 'f':
+                                opt_show_fps = true;
+                                break;
+
 
 			default:
 				printf("Unknown option. '%s'\n", longopts[option_index].name);
@@ -908,12 +914,11 @@ int main(int argc, char *argv[])
 
     printf("Entering render loop.\n");
 
-    //const char* batteryStateDesc[] = { "UNK", "DSC", "CHG", "FUL" };
 
     struct timeval startTime;
     struct timeval endTime;
     double elapsed = 0;
-    //int totalFrames = 0;
+    int totalFrames = 0;
     bool isRunning = true;
     while(isRunning)
     {
@@ -940,21 +945,25 @@ int main(int argc, char *argv[])
         }
 
         gettimeofday(&endTime, NULL);
-        //++totalFrames;
+        
+	if (opt_show_fps){
+		const char* batteryStateDesc[] = { "UNK", "DSC", "CHG", "FUL" };
+		++totalFrames;
 
-        //double seconds = (endTime.tv_sec - startTime.tv_sec);
-	    //double milliseconds = ((double)(endTime.tv_usec - startTime.tv_usec)) / 1000000.0;
+        	double seconds = (endTime.tv_sec - startTime.tv_sec);
+	    	double milliseconds = ((double)(endTime.tv_usec - startTime.tv_usec)) / 1000000.0;
 
-        //elapsed += seconds + milliseconds;
+        	elapsed += seconds + milliseconds;
 
-        /*if (elapsed >= 1.0)
-        {
-            int fps = (int)(totalFrames / elapsed);
-            printf("FPS: %i, BATT: %d [%s]\n", fps, batteryState.level, batteryStateDesc[batteryState.status]);
+        	if (elapsed >= 1.0)
+        	{
+            		int fps = (int)(totalFrames / elapsed);
+            		printf("FPS: %i, BATT: %d [%s]\n", fps, batteryState.level, batteryStateDesc[batteryState.status]);
 
-            totalFrames = 0;
-            elapsed = 0;
-        }*/
+            		totalFrames = 0;
+            		elapsed = 0;
+        	}
+	}
     }
 
     SaveSram(sramPath);

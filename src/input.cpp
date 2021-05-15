@@ -167,9 +167,8 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
 
     if (!Retrorun_UseAnalogStick)
     {
-        // Map thumbstick to dpad
+        // Map thumbstick to dpad (force to enable the left analog stick mapping to it the DPAD)
         const float TRIM = 0.35f;
-        // printf("==============>:( we cannot use the Analog Stick!  Map thumbstick to dpad\n");
         go2_thumb_t thumb = go2_input_state_thumbstick_get(gamepadState, Go2InputThumbstick_Left);
 
         if (thumb.y < -TRIM) go2_input_state_button_set(gamepadState, Go2InputButton_DPadUp, ButtonState_Pressed);
@@ -180,7 +179,7 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
 
 
 
-if (isTate)
+    if (isTate)
     {
         const float TRIM = 0.35f;
         go2_thumb_t thumb = go2_input_state_thumbstick_get(gamepadState, Go2InputThumbstick_Right);
