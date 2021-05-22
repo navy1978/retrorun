@@ -49,7 +49,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 
 #define RETRO_DEVICE_ATARI_JOYSTICK RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_JOYPAD, 1)
-#define RETRO_DEVICE_ANALOG_JOYPAD RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG, 5)
 #define RETRO_ENVIRONMENT_GET_PREFERRED_HW_RENDER 56
                                            /* unsigned * --
                                             *
@@ -549,9 +548,9 @@ static void core_load(const char* sofile)
     if (strcmp(system.library_name, "Atari800") == 0){
         Retrorun_Core = RETRORUN_CORE_ATARI800;
         g_retro.retro_set_controller_port_device(0, RETRO_DEVICE_ATARI_JOYSTICK);
-    } else if (strcmp(system.library_name, "ParaLLEl N64") == 0){
+    } else if (strcmp(system.library_name, "ParaLLEl N64") == 0 
+		|| strcmp(system.library_name, "ParaLLEl N64 GLN64") == 0){
         Retrorun_Core = RETRORUN_CORE_PARALLEL_N64;
-        g_retro.retro_set_controller_port_device(0, RETRO_DEVICE_ATARI_JOYSTICK);
     }
 
 }
