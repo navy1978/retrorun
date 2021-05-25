@@ -74,6 +74,7 @@ const char* arg_core = "";
 const char* arg_rom = "";
 bool opt_show_fps = false;
 
+
 typedef std::map<std::string, std::string> varmap_t ;
 varmap_t variables;
 
@@ -693,15 +694,20 @@ static int LoadState(const char* saveName)
 static int LoadSram(const char* saveName)
 {
     FILE* file = fopen(saveName, "rb");
-	if (!file)
+	if (!file){
+		printf("File srm not found!\n");
 		return -1;
+        }
 
 	fseek(file, 0, SEEK_END);
 	long size = ftell(file);
 	rewind(file);
 
     size_t sramSize = g_retro.retro_get_memory_size(0);
-    if (size < 1) return -1;
+    if (size < 1) {
+	printf("File srm size is wrong!\n");
+	return -1;
+	}
     if (size != (long)sramSize)
     {
         printf("LoadSram: File size mismatch (%ld != %zu)\n", size, sramSize);
@@ -709,12 +715,16 @@ static int LoadSram(const char* saveName)
     }
 
     void* ptr = g_retro.retro_get_memory_data(0);
-    if (!ptr) abort();
+    if (!ptr) {
+	printf("File srm contains wrong memory data!\n");
+	abort();
+	}
 
     size_t count = fread(ptr, 1, size, file);
     if ((size_t)size != count)
     {
-        abort();
+        printf("File srm size mismatch!\n");
+	abort();
     }
 
     fclose(file);
@@ -772,6 +782,15 @@ static void SaveSram(const char* saveName)
 
     fclose(file);
 }
+
+
+
+static std::string removeExtension(const std::string& filename) {
+    size_t lastdot = filename.find_last_of(".");
+    if (lastdot == std::string::npos) return filename;
+    return filename.substr(0, lastdot); 
+}
+
 
 int main(int argc, char *argv[])
 {
@@ -892,12 +911,12 @@ int main(int argc, char *argv[])
     strcat(saveName, ".sav");
 
     char* savePath = PathCombine(opt_savedir, saveName);
-    printf("savePath='%s'\n", savePath);
-    
-    char* sramName = (char*)malloc(strlen(fileName) + 4 + 1);
-    strcpy(sramName, fileName);
+    // printf("savePath='%s'\n", savePath);
+    std::string fakeString(fileName);
+    std::string rawName = removeExtension(fakeString);
+    char sramName[rawName.size() + 1];
+    strcpy(sramName, rawName.c_str());
     strcat(sramName, ".srm");
-
     char* sramPath = PathCombine(opt_savedir, sramName);
     printf("sramPath='%s'\n", sramPath);
 
@@ -908,10 +927,10 @@ int main(int argc, char *argv[])
     }
     else
     {
-        printf("Loading.\n");
-        LoadState(savePath);
+        /*printf("Loading.\n");
+        LoadState(savePath);*/
     }
-
+    printf("Loading sram...\n");
     LoadSram(sramPath);
 
 
@@ -968,18 +987,22 @@ int main(int argc, char *argv[])
         	}
 	}
     }
-
+ 
+    printf("Exiting from render loop...\n");	
+    printf("Saving srm...\n");
     SaveSram(sramPath);
     free(sramPath);
-    free(sramName);
+    // free(sramName);
 
-    SaveState(savePath);
+   /* SaveState(savePath);
     free(savePath);
-    free(saveName);
-
+    free(saveName);*/
+    printf("Unloading core...\n");
     core_unload();
 
     printf("Exiting.\n");
 
     return 0;
 }
+
+
