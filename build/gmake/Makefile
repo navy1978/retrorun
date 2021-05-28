@@ -64,6 +64,7 @@ ifeq ($(config),release)
 endif
 
 OBJECTS := \
+	$(OBJDIR)/conf.o \
 	$(OBJDIR)/input.o \
 	$(OBJDIR)/audio.o \
 	$(OBJDIR)/video.o \
@@ -128,7 +129,9 @@ $(GCH): $(PCH)
 	-$(SILENT) cp $< $(OBJDIR)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 endif
-
+$(OBJDIR)/conf.o: ../../src/conf.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/input.o: ../../src/input.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
