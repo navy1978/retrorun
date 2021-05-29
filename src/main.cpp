@@ -797,8 +797,28 @@ int main(int argc, char *argv[])
     int totalFrames = 0;
     while (isRunning)
     {
-        
-gettimeofday(&startTime, NULL);
+
+	if (opt_show_fps)
+        {
+            // const char* batteryStateDesc[] = { "UNK", "DSC", "CHG", "FUL" };
+            ++totalFrames;
+
+            double seconds = (endTime.tv_sec - startTime.tv_sec);
+            double milliseconds = ((double)(endTime.tv_usec - startTime.tv_usec)) / 1000000.0;
+
+            elapsed += seconds + milliseconds;
+
+            if (elapsed >= 1.0)
+            {
+                int fps = (int)(totalFrames / elapsed);
+                printf("FPS: %i\n", fps);
+
+                totalFrames = 0;
+                elapsed = 0;
+            }
+        }
+
+	gettimeofday(&startTime, NULL);
         if (input_exit_requested)
         {
             isRunning = false;
@@ -819,25 +839,6 @@ gettimeofday(&startTime, NULL);
         }
         gettimeofday(&endTime, NULL);
 
-        if (opt_show_fps)
-        {
-            // const char* batteryStateDesc[] = { "UNK", "DSC", "CHG", "FUL" };
-            ++totalFrames;
-
-            double seconds = (endTime.tv_sec - startTime.tv_sec);
-            double milliseconds = ((double)(endTime.tv_usec - startTime.tv_usec)) / 1000000.0;
-
-            elapsed += seconds + milliseconds;
-
-            if (elapsed >= 1.0)
-            {
-                int fps = (int)(totalFrames / elapsed);
-                printf("FPS: %i\n", fps);
-
-                totalFrames = 0;
-                elapsed = 0;
-            }
-        }
     }
 
     printf("Exiting from render loop...\n");
