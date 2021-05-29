@@ -787,6 +787,7 @@ int main(int argc, char *argv[])
     }
     printf("Loading sram...\n");
     LoadSram(sramPath);
+    bool isRunning = true;
 
     printf("Entering render loop.\n");
 
@@ -794,11 +795,10 @@ int main(int argc, char *argv[])
     struct timeval endTime;
     double elapsed = 0;
     int totalFrames = 0;
-    bool isRunning = true;
     while (isRunning)
     {
-        gettimeofday(&startTime, NULL);
-
+        
+gettimeofday(&startTime, NULL);
         if (input_exit_requested)
         {
             isRunning = false;
@@ -808,7 +808,6 @@ int main(int argc, char *argv[])
             input_reset_requested = false;
             g_retro.retro_reset();
         }
-
         if (!input_pause_requested)
         {
             g_retro.retro_run();
@@ -818,7 +817,6 @@ int main(int argc, char *argv[])
             // must poll to unpause
             core_input_poll();
         }
-
         gettimeofday(&endTime, NULL);
 
         if (opt_show_fps)
