@@ -284,7 +284,7 @@ static bool core_environment(unsigned cmd, void *data)
     {
         retro_variable *var = (retro_variable *)data;
         // printf("GET_VAR: %s\n", var->key);
-        std::map<std::string, std::string> my_map = mapConfigFile("setting.cfg");
+        std::map<std::string, std::string> my_map = mapConfigFile(opt_setting_file);
         bool found = false;
         
         for (const auto &kv : my_map)
@@ -712,8 +712,10 @@ int main(int argc, char *argv[])
     }
 
     std::ifstream infile(opt_setting_file);
-    if (infile.good()){
-     printf("ERROR! cofiguration file:'%s' doesn't exist default core settings will be used\n", opt_setting_file);  
+    if (!infile.good()){
+        printf("ERROR! cofiguration file:'%s' doesn't exist default core settings will be used\n", opt_setting_file);  
+    } else{
+        printf("reading configuration file:'%s'\n", opt_setting_file);  
     }
 
 
