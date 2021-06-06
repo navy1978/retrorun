@@ -40,17 +40,17 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <drm/drm_fourcc.h>
 
 #define FBO_DIRECT 1
-#define ALIGN(val, align)	(((val) + (align) - 1) & ~((align) - 1))
+#define ALIGN(val, align) (((val) + (align)-1) & ~((align)-1))
 
 //extern float opt_aspect;
 extern int opt_backlight;
 
-go2_display_t* display;
-go2_surface_t* surface;
-go2_surface_t* display_surface;
-go2_frame_buffer_t* frame_buffer;
-go2_presenter_t* presenter;
-go2_context_t* context3D;
+go2_display_t *display;
+go2_surface_t *surface;
+go2_surface_t *display_surface;
+go2_frame_buffer_t *frame_buffer;
+go2_presenter_t *presenter;
+go2_context_t *context3D;
 // float aspect_ratio;
 uint32_t color_format;
 
@@ -63,21 +63,17 @@ bool screenshot_requested = false;
 int prevBacklight;
 bool isTate = false;
 
-
 extern retro_hw_context_reset_t retro_context_reset;
 
-
-void video_configure(const struct retro_game_geometry* geom)
+void video_configure(const struct retro_game_geometry *geom)
 {
-	printf("video_configure: base_width=%d, base_height=%d, max_width=%d, max_height=%d, aspect_ratio=%f\n",
-        geom->base_width, geom->base_height,
-        geom->max_width, geom->max_height,
-        geom->aspect_ratio);
+    printf("video_configure: base_width=%d, base_height=%d, max_width=%d, max_height=%d, aspect_ratio=%f\n",
+           geom->base_width, geom->base_height,
+           geom->max_width, geom->max_height,
+           geom->aspect_ratio);
 
-    
     display = go2_display_create();
-    presenter = go2_presenter_create(display, DRM_FORMAT_RGB565, 0xff080808);  // ABGR
-
+    presenter = go2_presenter_create(display, DRM_FORMAT_RGB565, 0xff080808); // ABGR
 
     if (opt_backlight > -1)
     {
@@ -87,13 +83,12 @@ void video_configure(const struct retro_game_geometry* geom)
     {
         opt_backlight = go2_display_backlight_get(display);
     }
-    prevBacklight = opt_backlight;    
-
+    prevBacklight = opt_backlight;
 
     aspect_ratio = opt_aspect == 0.0f ? geom->aspect_ratio : opt_aspect;
 
     if (isOpenGL)
-    {        
+    {
         go2_context_attributes_t attr;
         attr.major = 3;
         attr.minor = 2;
@@ -132,11 +127,11 @@ void video_configure(const struct retro_game_geometry* geom)
             EGL_DMA_BUF_PLANE0_FD_EXT, drmfd,
             EGL_DMA_BUF_PLANE0_OFFSET_EXT, 0,
             EGL_DMA_BUF_PLANE0_PITCH_EXT, go2_surface_stride_get(surface),
-            EGL_NONE
-        };
+            EGL_NONE};
 
         PFNEGLCREATEIMAGEKHRPROC p_eglCreateImageKHR = (PFNEGLCREATEIMAGEKHRPROC)eglGetProcAddress("eglCreateImageKHR");
-        if (!p_eglCreateImageKHR) abort();
+        if (!p_eglCreateImageKHR)
+            abort();
 
         EGLImageKHR image = p_eglCreateImageKHR((EGLDisplay)go2_context_egldisplay_get(context3D), EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, 0, img_attrs);
         fprintf(stderr, "EGLImageKHR = %p\n", image);
@@ -149,9 +144,10 @@ void video_configure(const struct retro_game_geometry* geom)
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
         PFNGLEGLIMAGETARGETTEXTURE2DOESPROC p_glEGLImageTargetTexture2DOES = (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)eglGetProcAddress("glEGLImageTargetTexture2DOES");
-        if (!p_glEGLImageTargetTexture2DOES) abort();
+        if (!p_glEGLImageTargetTexture2DOES)
+            abort();
 
-        p_glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, image);   
+        p_glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, image);
 #endif
 
         GLuint depthBuffer;
@@ -164,7 +160,7 @@ void video_configure(const struct retro_game_geometry* geom)
 #if 0
         glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, colorBuffer);
 #else
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,	texture2D, 0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture2D, 0);
 #endif
         glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthBuffer);
 
@@ -180,11 +176,12 @@ void video_configure(const struct retro_game_geometry* geom)
     }
     else
     {
-        if (surface) abort();
+        if (surface)
+            abort();
 
         int aw = ALIGN(geom->max_width, 32);
         int ah = ALIGN(geom->max_height, 32);
-        printf ("video_configure: aw=%d, ah=%d\n", aw, ah);
+        printf("video_configure: aw=%d, ah=%d\n", aw, ah);
 
         if (color_format == DRM_FORMAT_RGBA5551)
         {
@@ -200,18 +197,32 @@ void video_configure(const struct retro_game_geometry* geom)
             printf("go2_surface_create failed.\n");
             throw std::exception();
         }
-        
 
-        
         //printf("video_configure: rect=%d, %d, %d, %d\n", y, x, h, w);
     }
 }
 
 void video_deinit()
 {
+    /*printf("destroy status surface...\n");
+	if (status_surface != NULL)
+		go2_surface_destroy(status_surface);
+    */
+    printf("destroying surface...\n");
+    if (surface != NULL)
+        go2_surface_destroy(surface);
 
+    printf("destroying context3D...\n");
+    if (context3D != NULL)
+        go2_context_destroy(context3D);
+
+    printf("destroying presenter...\n");
+    if (presenter != NULL)
+        go2_presenter_destroy(presenter);
+    printf("destroying presenter...\n");
+    if (display != NULL)
+        go2_display_destroy(display);
 }
-
 
 uintptr_t core_video_get_current_framebuffer()
 {
@@ -226,7 +237,7 @@ uintptr_t core_video_get_current_framebuffer()
 
 //static int frame_count = 0;
 
-void core_video_refresh(const void * data, unsigned width, unsigned height, size_t pitch)
+void core_video_refresh(const void *data, unsigned width, unsigned height, size_t pitch)
 {
     //printf("core_video_refresh: data=%p, width=%d, height=%d, pitch=%d\n", data, width, height, pitch);
 
@@ -244,7 +255,6 @@ void core_video_refresh(const void * data, unsigned width, unsigned height, size
         //printf("Backlight = %d\n", opt_backlight);
     }
 
-
     int x;
     int y;
     int w;
@@ -252,14 +262,12 @@ void core_video_refresh(const void * data, unsigned width, unsigned height, size
     if (aspect_ratio >= 1.0f)
     {
         h = go2_display_width_get(display);
-        
+
         w = h * aspect_ratio;
         w = (w > go2_display_height_get(display)) ? go2_display_height_get(display) : w;
 
         x = (go2_display_height_get(display) / 2) - (w / 2);
         y = 0;
-	
-
     }
     else
     {
@@ -267,14 +275,14 @@ void core_video_refresh(const void * data, unsigned width, unsigned height, size
         y = 0;
         w = go2_display_height_get(display);
         h = go2_display_width_get(display);
-	isTate = true;
+        isTate = true;
     }
-
 
     if (isOpenGL)
     {
-        if (data != RETRO_HW_FRAME_BUFFER_VALID) return;
-        
+        if (data != RETRO_HW_FRAME_BUFFER_VALID)
+            return;
+
 #if 0
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
         
@@ -284,52 +292,52 @@ void core_video_refresh(const void * data, unsigned width, unsigned height, size
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 #endif
 
-
 #ifdef FBO_DIRECT
         // Swap
         go2_context_swap_buffers(context3D);
 
-        go2_surface_t* gles_surface = go2_context_surface_lock(context3D);
+        go2_surface_t *gles_surface = go2_context_surface_lock(context3D);
 
         int ss_w = go2_surface_width_get(gles_surface);
         int ss_h = go2_surface_height_get(gles_surface);
-	go2_rotation_t _351Rotation = isTate ? GO2_ROTATION_DEGREES_90 : GO2_ROTATION_DEGREES_270;
+        go2_rotation_t _351Rotation = isTate ? GO2_ROTATION_DEGREES_90 : GO2_ROTATION_DEGREES_270;
         go2_presenter_post(presenter,
-                    gles_surface,
-                    0, ss_h - height, width, height,
-                    y, x, h, w,
-                    _351Rotation);
+                           gles_surface,
+                           0, ss_h - height, width, height,
+                           y, x, h, w,
+                           _351Rotation);
 
         go2_context_surface_unlock(context3D, gles_surface);
- #else
+#else
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         go2_presenter_post(presenter,
-                    surface,
-                    0, 0, width, height,
-                    y, x, h, w,
-                    GO2_ROTATION_DEGREES_90);
+                           surface,
+                           0, 0, width, height,
+                           y, x, h, w,
+                           GO2_ROTATION_DEGREES_90);
 #endif
         //glBindFramebuffer(GL_FRAMEBUFFER, fbo);
     }
     else
     {
-        if (!data) return;
+        if (!data)
+            return;
 
-        uint8_t* src = (uint8_t*)data;
-        uint8_t* dst = (uint8_t*)go2_surface_map(surface);
+        uint8_t *src = (uint8_t *)data;
+        uint8_t *dst = (uint8_t *)go2_surface_map(surface);
         int bpp = go2_drm_format_get_bpp(go2_surface_format_get(surface)) / 8;
 
         int yy = height;
-        while(yy > 0)
+        while (yy > 0)
         {
             if (color_format == DRM_FORMAT_RGBA5551)
             {
                 // uint16_t* src2 = (uint16_t*)src;
                 // uint16_t* dst2 = (uint16_t*)dst;
 
-                uint32_t* src2 = (uint32_t*)src;
-                uint32_t* dst2 = (uint32_t*)dst;
+                uint32_t *src2 = (uint32_t *)src;
+                uint32_t *dst2 = (uint32_t *)dst;
 
                 for (int x = 0; x < width / 2; ++x)
                 {
@@ -346,10 +354,10 @@ void core_video_refresh(const void * data, unsigned width, unsigned height, size
             {
                 memcpy(dst, src, width * bpp);
             }
-            
+
             src += pitch;
             dst += go2_surface_stride_get(surface);
-            
+
             --yy;
         }
 
@@ -359,7 +367,7 @@ void core_video_refresh(const void * data, unsigned width, unsigned height, size
 
             int ss_w = go2_surface_width_get(surface);
             int ss_h = go2_surface_height_get(surface);
-            go2_surface_t* screenshot = go2_surface_create(display, ss_w, ss_h, DRM_FORMAT_RGB888);
+            go2_surface_t *screenshot = go2_surface_create(display, ss_w, ss_h, DRM_FORMAT_RGB888);
             if (!screenshot)
             {
                 printf("go2_surface_create failed.\n");

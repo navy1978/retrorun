@@ -47,6 +47,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <drm/drm_fourcc.h>
 #include <sys/time.h>
 #include <go2/input.h>
+#include <thread>
 
 #define RETRO_DEVICE_ATARI_JOYSTICK RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_JOYPAD, 1)
 #define RETRO_ENVIRONMENT_GET_PREFERRED_HW_RENDER 56
@@ -76,6 +77,7 @@ bool opt_show_fps = false;
 
 typedef std::map<std::string, std::string> varmap_t;
 varmap_t variables;
+int exitFlag;
 
 struct option longopts[] = {
     {"savedir", required_argument, NULL, 's'},
@@ -473,11 +475,14 @@ libc_error:
 
 static void core_unload()
 {
-    if (g_retro.initialized)
+    
+    if (g_retro.initialized){    
         g_retro.retro_deinit();
-
-    if (g_retro.handle)
-        dlclose(g_retro.handle);
+    }
+    
+    if (g_retro.handle){
+        exitFlag = dlclose(g_retro.handle);
+    }
 }
 
 static const char *FileNameFromPath(const char *fullpath)
@@ -851,8 +856,13 @@ int main(int argc, char *argv[])
     free(savePath);
     free(saveName);*/
     printf("Unloading core...\n");
-    core_unload();
 
+    std::thread t1(core_unload);
+    // core_unload();
+    if (exitFlag == NULL){
+        usleep(500);
+    }
+    
     printf("Exiting.\n");
 
     return 0;
