@@ -77,7 +77,7 @@ bool opt_show_fps = false;
 
 typedef std::map<std::string, std::string> varmap_t;
 varmap_t variables;
-int exitFlag=-1;
+int exitFlag = -1;
 
 struct option longopts[] = {
     {"savedir", required_argument, NULL, 's'},
@@ -483,7 +483,8 @@ static void core_unload()
 
     if (g_retro.handle)
     {
-        exitFlag = dlclose(g_retro.handle);
+        dlclose(g_retro.handle);
+        exitFlag = 0;
     }
 }
 
@@ -862,14 +863,11 @@ int main(int argc, char *argv[])
     video_deinit();
     audio_deinit();
     std::thread t1(core_unload);
-    
-
-    usleep(800); // wait a little bit
+    sleep(1); // wait a little bit
     if (exitFlag == 0)
-    { // if everything is ok we join the thread otherwise we exit without joining  
+    { // if everything is ok we join the thread otherwise we exit without joining
         t1.join();
     }
-
     printf("Exiting.\n");
     return 0;
 }
