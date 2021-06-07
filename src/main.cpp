@@ -288,7 +288,7 @@ static bool core_environment(unsigned cmd, void *data)
         // printf("GET_VAR: %s\n", var->key);
         std::map<std::string, std::string> my_map = mapConfigFile(opt_setting_file);
         bool found = false;
-        
+
         for (const auto &kv : my_map)
         {
             if (strcmp(var->key, kv.first.c_str()) == 0)
@@ -475,12 +475,14 @@ libc_error:
 
 static void core_unload()
 {
-    
-    if (g_retro.initialized){    
+
+    if (g_retro.initialized)
+    {
         g_retro.retro_deinit();
     }
-    
-    if (g_retro.handle){
+
+    if (g_retro.handle)
+    {
         exitFlag = dlclose(g_retro.handle);
     }
 }
@@ -717,12 +719,14 @@ int main(int argc, char *argv[])
     }
 
     std::ifstream infile(opt_setting_file);
-    if (!infile.good()){
-        printf("ERROR! cofiguration file:'%s' doesn't exist default core settings will be used\n", opt_setting_file);  
-    } else{
-        printf("reading configuration file:'%s'\n", opt_setting_file);  
+    if (!infile.good())
+    {
+        printf("ERROR! cofiguration file:'%s' doesn't exist default core settings will be used\n", opt_setting_file);
     }
-
+    else
+    {
+        printf("reading configuration file:'%s'\n", opt_setting_file);
+    }
 
     printf("opt_save='%s', opt_systemdir='%s', opt_aspect=%f\n", opt_savedir, opt_systemdir, opt_aspect);
 
@@ -803,7 +807,7 @@ int main(int argc, char *argv[])
     while (isRunning)
     {
 
-	if (opt_show_fps)
+        if (opt_show_fps)
         {
             // const char* batteryStateDesc[] = { "UNK", "DSC", "CHG", "FUL" };
             ++totalFrames;
@@ -823,7 +827,7 @@ int main(int argc, char *argv[])
             }
         }
 
-	gettimeofday(&startTime, NULL);
+        gettimeofday(&startTime, NULL);
         if (input_exit_requested)
         {
             isRunning = false;
@@ -843,7 +847,6 @@ int main(int argc, char *argv[])
             core_input_poll();
         }
         gettimeofday(&endTime, NULL);
-
     }
 
     printf("Exiting from render loop...\n");
@@ -855,15 +858,17 @@ int main(int argc, char *argv[])
     /* SaveState(savePath);
     free(savePath);
     free(saveName);*/
-    printf("Unloading core...\n");
-
+    printf("Unloading core and deinit audio and video...\n");
     std::thread t1(core_unload);
-    // core_unload();
-    if (exitFlag == NULL){
-        usleep(500);
-    }
-    
-    printf("Exiting.\n");
+    video_deinit();
+    audio_deinit();
 
+    usleep(800); // wait a little bit
+    if (exitFlag == 0)
+    { // if everything is ok we join the thread otherwise we exit without joining
+        t1.join();
+    }
+
+    printf("Exiting.\n");
     return 0;
 }

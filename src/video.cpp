@@ -208,18 +208,13 @@ void video_deinit()
 	if (status_surface != NULL)
 		go2_surface_destroy(status_surface);
     */
-    printf("destroying surface...\n");
+
     if (surface != NULL)
         go2_surface_destroy(surface);
-
-    printf("destroying context3D...\n");
     if (context3D != NULL)
         go2_context_destroy(context3D);
-
-    printf("destroying presenter...\n");
     if (presenter != NULL)
         go2_presenter_destroy(presenter);
-    printf("destroying presenter...\n");
     if (display != NULL)
         go2_display_destroy(display);
 }
