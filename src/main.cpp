@@ -48,6 +48,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <sys/time.h>
 #include <go2/input.h>
 #include <thread>
+#include <signal.h>
 
 #define RETRO_DEVICE_ATARI_JOYSTICK RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_JOYPAD, 1)
 #define RETRO_ENVIRONMENT_GET_PREFERRED_HW_RENDER 56
@@ -473,7 +474,8 @@ libc_error:
     abort();
 }
 
-static void core_unload()
+// static void core_unload()
+void *core_unload(void *arg)
 {
 
     if (g_retro.initialized)
@@ -862,11 +864,18 @@ int main(int argc, char *argv[])
     printf("Unloading core and deinit audio and video...\n");
     video_deinit();
     audio_deinit();
-    std::thread t1(core_unload);
+    pthread_t threadId;
+    pthread_create(&threadId, NULL, &core_unload, NULL);
+
     sleep(1); // wait a little bit
     if (exitFlag == 0)
     { // if everything is ok we join the thread otherwise we exit without joining
-        t1.join();
+        pthread_join(threadId, NULL);
+    }
+    else
+    { // if it hangs we kill the thread and we exit
+        pthread_kill(threadId, SIGUSR1);
+        pthread_join(threadId, NULL);
     }
     printf("Exiting.\n");
     return 0;
