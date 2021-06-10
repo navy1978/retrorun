@@ -264,10 +264,9 @@ static bool core_environment(unsigned cmd, void *data)
         while (var->key != NULL)
         {
             std::string key = var->key;
-
+            printf("----- (INFO_VAR:%s ) -----\n",var->value );
             const char *start = strchr(var->value, ';');
             start += 2;
-
             std::string value;
             while (*start != '|' && *start != 0)
             {
@@ -276,7 +275,8 @@ static bool core_environment(unsigned cmd, void *data)
             }
 
             variables[key] = value;
-            printf("SET_VAR: %s=%s\n", key.c_str(), value.c_str());
+            printf(" -> SET_VAR: %s=%s\n", key.c_str(), value.c_str());
+            
             ++var;
         }
 
@@ -807,11 +807,12 @@ int main(int argc, char *argv[])
     struct timeval endTime;
     double elapsed = 0;
     int totalFrames = 0;
+    sleep(1); // some cores (like yabasanshiro) from time to time hans on retro_run otherwise
     while (isRunning)
     {
-
         if (opt_show_fps)
         {
+
             // const char* batteryStateDesc[] = { "UNK", "DSC", "CHG", "FUL" };
             ++totalFrames;
 
@@ -824,12 +825,10 @@ int main(int argc, char *argv[])
             {
                 int fps = (int)(totalFrames / elapsed);
                 printf("FPS: %i\n", fps);
-
                 totalFrames = 0;
                 elapsed = 0;
             }
         }
-
         gettimeofday(&startTime, NULL);
         if (input_exit_requested)
         {
@@ -874,6 +873,7 @@ int main(int argc, char *argv[])
     }
     else
     { // if it hangs we kill the thread and we exit
+        printf("It looks like core_unload hangs, trying to exit...\n");
         pthread_kill(threadId, SIGUSR1);
         pthread_join(threadId, NULL);
     }
