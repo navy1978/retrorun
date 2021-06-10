@@ -1,1 +1,1 @@
-build/gmake/obj/**/*.o
+build/gmake/obj/**/*.*
