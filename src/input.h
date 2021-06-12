@@ -25,6 +25,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 
 extern bool input_exit_requested;
+extern bool input_fps_requested;
 extern bool input_reset_requested;
 //extern bool input_ffwd_requested;
 extern bool input_pause_requested;

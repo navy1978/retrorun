@@ -39,6 +39,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <GLES2/gl2ext.h>
 #include <drm/drm_fourcc.h>
 
+#include "fonts.h"
+
 #define FBO_DIRECT 1
 #define ALIGN(val, align) (((val) + (align)-1) & ~((align)-1))
 
@@ -47,6 +49,7 @@ extern int opt_backlight;
 
 go2_display_t *display;
 go2_surface_t *surface;
+go2_surface_t *status_surface = NULL;
 go2_surface_t *display_surface;
 go2_frame_buffer_t *frame_buffer;
 go2_presenter_t *presenter;
@@ -62,9 +65,9 @@ int hasStencil = false;
 bool screenshot_requested = false;
 int prevBacklight;
 bool isTate = false;
+int go2_w, go2_h;
 
 extern retro_hw_context_reset_t retro_context_reset;
-
 void video_configure(const struct retro_game_geometry *geom)
 {
     printf("video_configure: base_width=%d, base_height=%d, max_width=%d, max_height=%d, aspect_ratio=%f\n",
@@ -73,6 +76,12 @@ void video_configure(const struct retro_game_geometry *geom)
            geom->aspect_ratio);
 
     display = go2_display_create();
+    go2_w = go2_display_height_get(display);
+    go2_h = go2_display_width_get(display);
+
+    // old
+    //presenter = go2_presenter_create(display, DRM_FORMAT_XRGB8888, 0xff080808);  // ABGR
+    // new
     presenter = go2_presenter_create(display, DRM_FORMAT_RGB565, 0xff080808); // ABGR
 
     if (opt_backlight > -1)
@@ -99,8 +108,8 @@ void video_configure(const struct retro_game_geometry *geom)
         attr.depth_bits = 24;
         attr.stencil_bits = 8;
 
-        //context3D = go2_context_create(display, geom->base_width, geom->base_height, &attr);
-        context3D = go2_context_create(display, geom->max_width, geom->max_height, &attr);
+        context3D = go2_context_create(display, geom->base_width, geom->base_height, &attr);
+        //context3D = go2_context_create(display, geom->max_width, geom->max_height, &attr);
         go2_context_make_current(context3D);
 
 #ifndef FBO_DIRECT
@@ -200,14 +209,21 @@ void video_configure(const struct retro_game_geometry *geom)
 
         //printf("video_configure: rect=%d, %d, %d, %d\n", y, x, h, w);
     }
+
+    status_surface = go2_surface_create(display, go2_w /*480*/, go2_h /*320*/, DRM_FORMAT_RGB565);
+    if (!status_surface)
+    {
+        printf("go2_surface_create failed.:status_surface\n");
+        throw std::exception();
+    }
 }
+
 
 void video_deinit()
 {
-    /*printf("destroy status surface...\n");
-	if (status_surface != NULL)
-		go2_surface_destroy(status_surface);
-    */
+
+    if (status_surface != NULL)
+        go2_surface_destroy(status_surface);
 
     if (surface != NULL)
         go2_surface_destroy(surface);
@@ -232,15 +248,27 @@ uintptr_t core_video_get_current_framebuffer()
 
 //static int frame_count = 0;
 
+void showFPS()
+{
+    uint8_t *dst = (uint8_t *)go2_surface_map(status_surface);
+    int dst_stride = go2_surface_stride_get(status_surface);
+
+    //basic_text_out_uyvy_nf(dst, dst_stride/2/*go2_w*//*480*//*width*/, 1, 1, "MMMMM" );
+    // basic_text_out16_color(dst, dst_stride / 2 /*go2_w*/ /*480*/ /*width*/, 50, 30, 0x0000,"##################");
+    // basic_text_out16_color(dst, dst_stride / 2 /*go2_w*/ /*480*/ /*width*/, 50, 30, 0x0000,"WWWW");
+    int x = go2_w -90;
+    int y = 30;
+    basic_text_out16(dst, dst_stride / 2 /*go2_w*/ /*480*/ /*width*/, x, y, "FPS:%d", fps);
+    
+}
+
+
+
 void core_video_refresh(const void *data, unsigned width, unsigned height, size_t pitch)
 {
     //printf("core_video_refresh: data=%p, width=%d, height=%d, pitch=%d\n", data, width, height, pitch);
 
-    /*frame_count++;
-    if (input_ffwd_requested && (frame_count % 4) != 0)
-    {
-        return;
-    }*/
+
 
     if (opt_backlight != prevBacklight)
     {
@@ -254,6 +282,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
     int y;
     int w;
     int h;
+
     if (aspect_ratio >= 1.0f)
     {
         h = go2_display_width_get(display);
@@ -263,6 +292,8 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
 
         x = (go2_display_height_get(display) / 2) - (w / 2);
         y = 0;
+
+        //printf("x=%d, y=%d, w=%d, h=%d\n", x, y, w, h);
     }
     else
     {
@@ -272,19 +303,19 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         h = go2_display_width_get(display);
         isTate = true;
     }
-
-    if (isOpenGL)
+    go2_rotation_t _351Rotation = isTate ? GO2_ROTATION_DEGREES_90 : GO2_ROTATION_DEGREES_270;
+    if (isOpenGL) // n64, saturn core excute this code
     {
         if (data != RETRO_HW_FRAME_BUFFER_VALID)
             return;
 
 #if 0
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+       /* glBindFramebuffer(GL_FRAMEBUFFER, fbo);
         
         glClearColor(1, 0, 0, 1);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);*/
 #endif
 
 #ifdef FBO_DIRECT
@@ -295,22 +326,65 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
 
         int ss_w = go2_surface_width_get(gles_surface);
         int ss_h = go2_surface_height_get(gles_surface);
-        go2_rotation_t _351Rotation = isTate ? GO2_ROTATION_DEGREES_90 : GO2_ROTATION_DEGREES_270;
-        go2_presenter_post(presenter,
+
+        if (screenshot_requested)
+        {
+            printf("Screenshot.\n");
+
+            //int ss_w = go2_surface_width_get(gles_surface);
+            //int ss_h = go2_surface_height_get(gles_surface);
+            //go2_surface_t* screenshot = go2_surface_create(display, ss_w, ss_h, DRM_FORMAT_RGB888);
+
+            go2_surface_t *screenshot;
+
+            go2_surface_destroy(screenshot);
+
+            screenshot_requested = false;
+        }
+
+        // clear status_surface
+        {
+            uint8_t *dst = (uint8_t *)go2_surface_map(status_surface);
+
+            memset(dst, 0x0000, sizeof(short) * go2_w * go2_h /*480 * 320*/);
+        }
+
+        //status_surface
+        go2_surface_blit(gles_surface, 0, 0, width, height, status_surface, x, y, w, h,
+                         go2_rotation_t(4 % 4));
+
+#if 0
+		// display texts for current status
+		{
+			uint8_t* dst = (uint8_t*)go2_surface_map(status_surface);
+			
+			basic_text_out16(dst, go2_w/*480*/ /*width*/, 0, 32, "F:%d, B:%d, L:%d, V:%d", 
+				fps, batteryState.level, opt_backlight, opt_volume);	
+		}
+#endif
+
+        go2_context_surface_unlock(context3D, gles_surface);
+
+#if 0		
+        /*go2_presenter_post(presenter,
+                    gles_surface,
+                    0, 0, width, height,
+                    y, x, h, w,
+                    GO2_ROTATION_DEGREES_270);*/
+#endif
+
+#else
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+ go2_presenter_post(presenter,
                            gles_surface,
                            0, ss_h - height, width, height,
                            y, x, h, w,
-                           _351Rotation);
-
-        go2_context_surface_unlock(context3D, gles_surface);
-#else
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-        go2_presenter_post(presenter,
+                           GO2_ROTATION_DEGREES_90);
+/*        go2_presenter_post(presenter,
                            surface,
                            0, 0, width, height,
                            y, x, h, w,
-                           GO2_ROTATION_DEGREES_90);
+                           GO2_ROTATION_DEGREES_90);*/
 #endif
         //glBindFramebuffer(GL_FRAMEBUFFER, fbo);
     }
@@ -341,7 +415,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
                     // dst2[x] = pixel;
 
                     uint32_t pixel = src2[x];
-                    pixel = ((pixel << 1) & (~0x3f003f)) | (pixel & 0x1f001f);
+                    pixel = (pixel << 1) & (~0x1f001f) | pixel & 0x1f001f;
                     dst2[x] = pixel;
                 }
             }
@@ -360,30 +434,50 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         {
             printf("Screenshot.\n");
 
-            int ss_w = go2_surface_width_get(surface);
-            int ss_h = go2_surface_height_get(surface);
-            go2_surface_t *screenshot = go2_surface_create(display, ss_w, ss_h, DRM_FORMAT_RGB888);
-            if (!screenshot)
-            {
-                printf("go2_surface_create failed.\n");
-                throw std::exception();
-            }
+            //int ss_w = go2_surface_width_get(surface);
+            //int ss_h = go2_surface_height_get(surface);
+            //go2_surface_t* screenshot = go2_surface_create(display, ss_w, ss_h, DRM_FORMAT_RGB888);
 
-            go2_surface_blit(surface, 0, 0, ss_w, ss_h,
+#if 0
+            /*go2_surface_blit(surface, 0, 0, ss_w, ss_h,
                              screenshot, 0, 0, ss_w, ss_h,
-                             GO2_ROTATION_DEGREES_0);
-
-            go2_surface_save_as_png(screenshot, "ScreenShot.png");
-
-            go2_surface_destroy(screenshot);
-
-            screenshot_requested = false;
+                             GO2_ROTATION_DEGREES_0);*/
+#endif
         }
 
-        go2_presenter_post(presenter,
+        // clear status_surface
+        {
+            uint8_t *dst = (uint8_t *)go2_surface_map(status_surface);
+
+            memset(dst, 0x0000, sizeof(short) * go2_w * go2_h /*480 * 320*/);
+        }
+
+        //status_surface
+        go2_surface_blit(surface, 0, 0, width, height, status_surface, x, y, w, h,
+                         go2_rotation_t(4 % 4));
+        //printf("bpp=%d, width=%d, height=%d, w=%d, h=%d\n", bpp, width, height, h, w);
+    }
+
+    if (input_fps_requested)
+    {
+        showFPS();
+    }
+
+#if 0		
+        /*go2_presenter_post(presenter,
                            surface,
                            0, 0, width, height,
                            y, x, h, w,
-                           GO2_ROTATION_DEGREES_270);
-    }
+                           go2_rotation_t((4+(unsigned char)GO2_ROTATION_DEGREES_270-ucScreen_rotate) % 4));*/
+#else
+
+    go2_presenter_post(presenter,
+                       status_surface,
+                       0, 0, go2_w, go2_h, 
+                       0, 0, go2_h, go2_w, 
+                       _351Rotation);
+
+#endif
+
+    //}
 }

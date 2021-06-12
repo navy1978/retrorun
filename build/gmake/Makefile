@@ -65,6 +65,7 @@ endif
 
 OBJECTS := \
 	$(OBJDIR)/conf.o \
+	$(OBJDIR)/fonts.o \
 	$(OBJDIR)/input.o \
 	$(OBJDIR)/audio.o \
 	$(OBJDIR)/video.o \
@@ -130,6 +131,9 @@ $(GCH): $(PCH)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 endif
 $(OBJDIR)/conf.o: ../../src/conf.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/fonts.o: ../../src/fonts.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/input.o: ../../src/input.cpp

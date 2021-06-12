@@ -25,12 +25,16 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include <go2/input.h>
 #include <stdio.h>
+#include <sys/time.h>
 
 
 extern int opt_backlight;
 extern int opt_volume;
 
 bool input_exit_requested = false;
+bool input_fps_requested = false;
+struct timeval valTime;
+double lastFPSrequestTime=-1;
 bool input_reset_requested = false;
 bool input_pause_requested = false;
 //bool input_ffwd_requested = false;
@@ -53,9 +57,7 @@ void input_gamepad_read()
 		// printf("We are in Tate mode!\n");
         	isTate = true;
 	}
-
-
-
+    
 	if (Go2InputFeatureFlags_RightAnalog){
 		// printf("Right analog is enabled!\n");
 
@@ -116,6 +118,29 @@ void core_input_poll(void)
         go2_input_state_button_get(gamepadState, Go2InputButton_F6) == ButtonState_Pressed)
     {
         input_exit_requested = true;
+    }
+
+
+    if (go2_input_state_button_get(gamepadState, Go2InputButton_F1) == ButtonState_Pressed &&
+        go2_input_state_button_get(gamepadState, Go2InputButton_Y) == ButtonState_Pressed)
+    {
+        printf("input: requested FPS.\n");
+        
+        gettimeofday(&valTime, NULL);
+        double currentTime = valTime.tv_sec+(valTime.tv_usec/1000000.0);
+        bool updateFPSRequest=false;
+        double elapsed = currentTime -lastFPSrequestTime;
+            if (elapsed >= 0.5)
+            {
+                updateFPSRequest =true;
+            }else {
+                updateFPSRequest =false;    
+            }
+        if (updateFPSRequest){
+            input_fps_requested = !input_fps_requested;
+            gettimeofday(&valTime, NULL);
+            lastFPSrequestTime = valTime.tv_sec+(valTime.tv_usec/1000000.0);    
+        }
     }
 
     // if (!prevGamepadState.buttons.f2 && gamepadState.buttons.f2)

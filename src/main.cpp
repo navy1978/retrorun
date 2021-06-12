@@ -807,10 +807,10 @@ int main(int argc, char *argv[])
     struct timeval endTime;
     double elapsed = 0;
     int totalFrames = 0;
-    sleep(1); // some cores (like yabasanshiro) from time to time hans on retro_run otherwise
+    sleep(1); // some cores (like yabasanshiro) from time to time hangs on retro_run otherwise
     while (isRunning)
     {
-        if (opt_show_fps)
+        if (opt_show_fps || input_fps_requested)
         {
 
             // const char* batteryStateDesc[] = { "UNK", "DSC", "CHG", "FUL" };
@@ -820,11 +820,13 @@ int main(int argc, char *argv[])
             double milliseconds = ((double)(endTime.tv_usec - startTime.tv_usec)) / 1000000.0;
 
             elapsed += seconds + milliseconds;
-
-            if (elapsed >= 1.0)
+            int newFps = (int)(totalFrames / elapsed);
+            if (abs(newFps -fps)<=60 && elapsed >= 0.5)
             {
-                int fps = (int)(totalFrames / elapsed);
-                printf("FPS: %i\n", fps);
+                fps = newFps;
+                if (opt_show_fps && elapsed >= 1.0){
+                    printf("FPS: %i\n", fps);
+                }
                 totalFrames = 0;
                 elapsed = 0;
             }
