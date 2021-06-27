@@ -821,7 +821,7 @@ int main(int argc, char *argv[])
 
             elapsed += seconds + milliseconds;
             int newFps = (int)(totalFrames / elapsed);
-            if (abs(newFps -fps)<=60 && elapsed >= 0.5)
+            if (abs(newFps -fps)<=60 && elapsed >= 0.8)
             {
                 fps = newFps;
                 if (opt_show_fps && elapsed >= 1.0){
