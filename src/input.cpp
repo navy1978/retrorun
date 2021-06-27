@@ -124,7 +124,7 @@ void core_input_poll(void)
     if (go2_input_state_button_get(gamepadState, Go2InputButton_F1) == ButtonState_Pressed &&
         go2_input_state_button_get(gamepadState, Go2InputButton_Y) == ButtonState_Pressed)
     {
-        printf("input: requested FPS.\n");
+        // printf("input: requested FPS.\n");
         
         gettimeofday(&valTime, NULL);
         double currentTime = valTime.tv_sec+(valTime.tv_usec/1000000.0);
