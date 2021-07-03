@@ -674,7 +674,7 @@ int main(int argc, char *argv[])
     int c;
     int option_index = 0;
 
-    while ((c = getopt_long(argc, argv, "s:d:a:b:v:rtnfc", longopts, &option_index)) != -1)
+    while ((c = getopt_long(argc, argv, "s:d:a:b:v:rtnfc:", longopts, &option_index)) != -1)
     {
         switch (c)
         {
@@ -724,7 +724,7 @@ int main(int argc, char *argv[])
     std::ifstream infile(opt_setting_file);
     if (!infile.good())
     {
-        printf("ERROR! cofiguration file:'%s' doesn't exist default core settings will be used\n", opt_setting_file);
+        printf("ERROR! configuration file:'%s' doesn't exist default core settings will be used\n", opt_setting_file);
     }
     else
     {
