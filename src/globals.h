@@ -1,4 +1,5 @@
 #pragma once
+#include <string>
 
 enum RETRORUN_CORE_TYPE
 {
@@ -15,3 +16,5 @@ extern int fps;
 extern bool opt_triggers;
 extern float opt_aspect;
 extern float aspect_ratio;
+extern std::string romName;
+extern std::string screenShotFolder;

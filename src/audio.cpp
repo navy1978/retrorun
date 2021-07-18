@@ -92,15 +92,15 @@ void core_audio_sample(int16_t left, int16_t right)
 size_t core_audio_sample_batch(const int16_t *data, size_t frames)
 {
     SetVolume();
-
-    if (audioFrameCount + frames > audioFrameLimit)
+    int frameInt = (int) frames;
+    if (audioFrameCount + frameInt > audioFrameLimit)
     {
         go2_audio_submit(audio, (const short *)audioBuffer, audioFrameCount);
         audioFrameCount = 0;
     }
 
-    memcpy(audioBuffer + (audioFrameCount * CHANNELS), data, frames * sizeof(int16_t) * CHANNELS);
-    audioFrameCount += frames;
+    memcpy(audioBuffer + (audioFrameCount * CHANNELS), data, frameInt * sizeof(int16_t) * CHANNELS);
+    audioFrameCount += frameInt;
 
     return frames;
 }

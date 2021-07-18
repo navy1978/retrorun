@@ -46,7 +46,7 @@ static go2_input_t* input;
 static bool has_triggers = false;
 static bool has_right_analog = false;
 static bool isTate = false;
-static unsigned lastId = 0;
+// static unsigned lastId = 0;
 static constexpr go2_input_button_t Hotkey = Go2InputButton_F2;
 
 
@@ -58,10 +58,10 @@ void input_gamepad_read()
         	isTate = true;
 	}
     
-	if (Go2InputFeatureFlags_RightAnalog){
+	/*if (Go2InputFeatureFlags_RightAnalog){
 		// printf("Right analog is enabled!\n");
 
-	}
+	}*/
 	if (!input)
     {
         input = go2_input_create();
@@ -143,6 +143,13 @@ void core_input_poll(void)
         }
     }
 
+     if (go2_input_state_button_get(gamepadState, Go2InputButton_F1) == ButtonState_Pressed &&
+            go2_input_state_button_get(gamepadState, Go2InputButton_B) == ButtonState_Pressed)
+        {
+            screenshot_requested = true;
+            printf("input: Screenshot requested\n");
+        }
+
     // if (!prevGamepadState.buttons.f2 && gamepadState.buttons.f2)
     // {
     //     screenshot_requested = true;
@@ -168,12 +175,7 @@ void core_input_poll(void)
             input_reset_requested = true;
             printf("Reset requested\n");
         }*/
-        /*if (go2_input_state_button_get(gamepadState, Go2InputButton_Y) == ButtonState_Pressed &&
-            go2_input_state_button_get(prevGamepadState, Go2InputButton_Y) == ButtonState_Released)
-        {
-            screenshot_requested = true;
-            printf("Screenshot requested\n");
-        }*/
+       
     }
 }
 

@@ -17,13 +17,15 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 
-#include "video.h"
 
+#include "conf.h"
 #include "globals.h"
+#include "video.h"
 
 #include "input.h"
 #include "libretro.h"
 
+#include <ctime>
 #include <stdlib.h>
 #include <stdio.h>
 #include <exception>
@@ -38,8 +40,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 #include <drm/drm_fourcc.h>
-
+#include <map>
 #include "fonts.h"
+
+#include <chrono>
 
 #define FBO_DIRECT 1
 #define ALIGN(val, align) (((val) + (align)-1) & ~((align)-1))
@@ -70,6 +74,8 @@ int aw, ah;
 go2_surface_t *gles_surface;
 bool isWideScreen = false;
 extern retro_hw_context_reset_t retro_context_reset;
+auto t_flash_start = std::chrono::high_resolution_clock::now();
+bool flash = false;
 
 
 void video_configure(const struct retro_game_geometry *geom)
@@ -182,6 +188,43 @@ void showFPS(int w)
 }
 
 
+void showTextForSeconds(int w, int h, char *text)
+{
+    uint8_t *dst = (uint8_t *)go2_surface_map(status_surface);
+    int dst_stride = go2_surface_stride_get(status_surface);
+    int x = w - 90;
+    int y = 30;
+    basic_text_out16(dst, dst_stride / 2, x, y, text);
+}
+
+
+std::string getCurrentTimeForFileName()
+{
+      time_t t = time(0);   // get time now
+     struct tm * now = localtime( & t );
+   char buffer [80];
+     strftime (buffer,80,"%y%m%d-%H%M%S",now);
+     std::string str(buffer);
+     return str;
+}
+
+// it simulates a flash for some milliseconds to give the user the impression the screenhsot has been taken
+void flashEffect(){
+    glClearColor(1, 1, 1, 1);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+     auto t_end = std::chrono::high_resolution_clock::now();
+     double elapsed_time_ms = std::chrono::duration<double, std::milli>(t_end-t_flash_start).count();
+     if (elapsed_time_ms>20){
+            flash = false;
+            glClearColor(0, 0, 0, 1);
+            glClear(GL_COLOR_BUFFER_BIT);
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }  
+}
+
+
+ 
 
 
 
@@ -234,6 +277,32 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
     int ss_h = go2_surface_height_get(status_surface);
 
     go2_context_surface_unlock(context3D, gles_surface);
+    // screenshot requested
+    if (screenshot_requested )
+        {
+            printf("Screenshot.\n");
+            go2_surface_t* screenshot = go2_surface_create(display, w, h, DRM_FORMAT_RGB888);
+			if (!screenshot)
+            {
+                printf("go2_surface_create for screenshot failed.\n");
+                throw std::exception();
+            }
+			go2_surface_blit(gles_surface, 0, 0, width, height,
+								 screenshot, 0, 0, w, h,
+								 GO2_ROTATION_DEGREES_0);
+			
+			// snap in screenshot directory
+            std::string fullPath = screenShotFolder+"/"+romName+"-"+getCurrentTimeForFileName()+".png";
+            go2_surface_save_as_png(screenshot, fullPath.c_str());
+            printf("Screenshot saved:'%s'\n", fullPath.c_str());
+            go2_surface_destroy(screenshot);
+            screenshot_requested = false;
+            flash = true;
+            t_flash_start = std::chrono::high_resolution_clock::now();
+		}
+    
+
+
 
     // let's copy the content of gles_surface on status_surface (with the current roration based on the device)
     if (isWideScreen)
@@ -260,8 +329,13 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
     {
         showFPS(gs_w);
     }
+    if (flash)
+    {
+        flashEffect();
+    }
 
-    // post the result on the presenter
+
+      // post the result on the presenter
     go2_presenter_post(presenter,
                        status_surface,
                        0, 0, ss_w, ss_h,

@@ -49,6 +49,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <go2/input.h>
 #include <thread>
 #include <signal.h>
+#include <string>
+#include <iostream>
 
 #define RETRO_DEVICE_ATARI_JOYSTICK RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_JOYPAD, 1)
 #define RETRO_ENVIRONMENT_GET_PREFERRED_HW_RENDER 56
@@ -67,6 +69,7 @@ retro_hw_context_reset_t retro_context_reset;
 
 const char *opt_savedir = ".";
 const char *opt_setting_file = "/storage/.config/distribution/configs/retrorun.cfg";
+
 const char *opt_systemdir = ".";
 // float opt_aspect = 0.0f;
 int opt_backlight = -1;
@@ -287,7 +290,7 @@ static bool core_environment(unsigned cmd, void *data)
     {
         retro_variable *var = (retro_variable *)data;
         // printf("GET_VAR: %s\n", var->key);
-        std::map<std::string, std::string> my_map = mapConfigFile(opt_setting_file);
+        std::map<std::string, std::string> my_map = getConfigMap();
         bool found = false;
 
         for (const auto &kv : my_map)
@@ -488,6 +491,7 @@ void *core_unload(void *arg)
         dlclose(g_retro.handle);
         exitFlag = 0;
     }
+    return 0;
 }
 
 static const char *FileNameFromPath(const char *fullpath)
@@ -531,7 +535,7 @@ static char *PathCombine(const char *path, const char *filename)
     return result;
 }
 
-static int LoadState(const char *saveName)
+/*static int LoadState(const char *saveName)
 {
     FILE *file = fopen(saveName, "rb");
     if (!file)
@@ -561,7 +565,7 @@ static int LoadState(const char *saveName)
     free(ptr);
 
     return 0;
-}
+}*/
 
 static int LoadSram(const char *saveName)
 {
@@ -607,7 +611,7 @@ static int LoadSram(const char *saveName)
     return 0;
 }
 
-static void SaveState(const char *saveName)
+/*static void SaveState(const char *saveName)
 {
     size_t size = g_retro.retro_serialize_size();
 
@@ -633,7 +637,7 @@ static void SaveState(const char *saveName)
 
     fclose(file);
     free(ptr);
-}
+}*/
 
 static void SaveSram(const char *saveName)
 {
@@ -724,11 +728,21 @@ int main(int argc, char *argv[])
     std::ifstream infile(opt_setting_file);
     if (!infile.good())
     {
-        printf("ERROR! configuration file:'%s' doesn't exist default core settings will be used\n", opt_setting_file);
+        printf("ERROR! Configuration file:'%s' doesn't exist default core settings will be used\n", opt_setting_file);
     }
     else
     {
-        printf("reading configuration file:'%s'\n", opt_setting_file);
+        printf("Reading configuration file:'%s'\n", opt_setting_file);
+        std::map<std::string, std::string> confMap = initMapConfig(opt_setting_file);
+        try{
+            const std::string &value = confMap.at("retrorun_screenshot_folder");
+            screenShotFolder = value;
+        }catch(...){
+            printf("Error: retrorun_screenshot_folder parameter not found in retrorun.cfg using default folder (/storage/roms/screenshots).\n");    
+            screenShotFolder = "/storage/roms/screenshots";
+        }
+        printf("Configuration initialized.\n");
+
     }
 
     printf("opt_save='%s', opt_systemdir='%s', opt_aspect=%f\n", opt_savedir, opt_systemdir, opt_aspect);
@@ -778,11 +792,14 @@ int main(int argc, char *argv[])
     strcpy(saveName, fileName);
     strcat(saveName, ".sav");
 
-    char *savePath = PathCombine(opt_savedir, saveName);
+    // char *savePath = PathCombine(opt_savedir, saveName);
     // printf("savePath='%s'\n", savePath);
     std::string fakeString(fileName);
     std::string rawName = removeExtension(fakeString);
     char sramName[rawName.size() + 1];
+    romName = rawName;
+    // std::cout << "Rom name is  : " << romName << std::endl ;
+    // strcpy(romName, rawName.c_str());
     strcpy(sramName, rawName.c_str());
     strcat(sramName, ".srm");
     char *sramPath = PathCombine(opt_savedir, sramName);
@@ -797,7 +814,7 @@ int main(int argc, char *argv[])
         /*printf("Loading.\n");
         LoadState(savePath);*/
     }
-    printf("Loading sram...\n");
+    printf("Loading sram...\n"); 
     LoadSram(sramPath);
     bool isRunning = true;
 
@@ -810,6 +827,9 @@ int main(int argc, char *argv[])
     sleep(1); // some cores (like yabasanshiro) from time to time hangs on retro_run otherwise
     while (isRunning)
     {
+        
+        
+        
         if (opt_show_fps || input_fps_requested)
         {
 
