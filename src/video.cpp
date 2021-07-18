@@ -277,29 +277,6 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
     int ss_h = go2_surface_height_get(status_surface);
 
     go2_context_surface_unlock(context3D, gles_surface);
-    // screenshot requested
-    if (screenshot_requested )
-        {
-            printf("Screenshot.\n");
-            go2_surface_t* screenshot = go2_surface_create(display, w, h, DRM_FORMAT_RGB888);
-			if (!screenshot)
-            {
-                printf("go2_surface_create for screenshot failed.\n");
-                throw std::exception();
-            }
-			go2_surface_blit(gles_surface, 0, 0, width, height,
-								 screenshot, 0, 0, w, h,
-								 GO2_ROTATION_DEGREES_0);
-			
-			// snap in screenshot directory
-            std::string fullPath = screenShotFolder+"/"+romName+"-"+getCurrentTimeForFileName()+".png";
-            go2_surface_save_as_png(screenshot, fullPath.c_str());
-            printf("Screenshot saved:'%s'\n", fullPath.c_str());
-            go2_surface_destroy(screenshot);
-            screenshot_requested = false;
-            flash = true;
-            t_flash_start = std::chrono::high_resolution_clock::now();
-		}
     
 
 
@@ -325,6 +302,35 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
                          0, 0, ss_w, ss_h,
                          _351BlitRotation);
     }
+
+    // screenshot requested
+    if (screenshot_requested )
+        {
+            printf("Screenshot.\n");
+            go2_surface_t* screenshot = go2_surface_create(display, ss_w, ss_h, DRM_FORMAT_RGB888);
+			if (!screenshot)
+            {
+                printf("go2_surface_create for screenshot failed.\n");
+                throw std::exception();
+            }
+			 go2_surface_blit(status_surface,
+                        0, 0, ss_w, ss_h,
+                         screenshot,
+                        0, 0, ss_w, ss_h,
+                         _351BlitRotation);
+			
+			// snap in screenshot directory
+            std::string fullPath = screenShotFolder+"/"+romName+"-"+getCurrentTimeForFileName()+".png";
+            go2_surface_save_as_png(screenshot, fullPath.c_str());
+            printf("Screenshot saved:'%s'\n", fullPath.c_str());
+            go2_surface_destroy(screenshot);
+            screenshot_requested = false;
+            flash = true;
+            t_flash_start = std::chrono::high_resolution_clock::now();
+		}
+   
+
+
     if (input_fps_requested)
     {
         showFPS(gs_w);
