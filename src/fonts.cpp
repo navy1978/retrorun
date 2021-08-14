@@ -221,6 +221,23 @@ unsigned char fontdata6x8[256][8] = {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 void basic_text_out16_nf_color(void *fb, int w, int x, int y, const char *text, unsigned short color)
 {
 	int i, l;

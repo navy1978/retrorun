@@ -63,7 +63,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
                                             * 'data' points to an unsigned variable
                                             */
 
-// extern go2_battery_state_t batteryState;
+
 
 retro_hw_context_reset_t retro_context_reset;
 
@@ -713,12 +713,15 @@ int main(int argc, char *argv[])
         case 'n':
             Retrorun_UseAnalogStick = true;
             break;
+
         case 'f':
             opt_show_fps = true;
             break;
+
         case 'c':
             opt_setting_file = optarg;
             break;
+            
         default:
             printf("Unknown option. '%s'\n", longopts[option_index].name);
             exit(EXIT_FAILURE);

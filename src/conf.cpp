@@ -87,7 +87,7 @@ for (it = conf_map.begin(); it != conf_map.end(); it++)
 }
     
     std::cout << "........................................ \n"  << std::endl;*/
-    try
+   /* try
     {
         const std::string &value = conf_map.at(findMe);
         std::cout << "Value of key \"" << findMe.c_str() << "\": " << value.c_str() << std::endl;
@@ -100,5 +100,5 @@ for (it = conf_map.begin(); it != conf_map.end(); it++)
     {
         std::cout << "Key \"" << findMe.c_str() << "\" not found" << std::endl;
         return;
-    }
+    }*/
 }

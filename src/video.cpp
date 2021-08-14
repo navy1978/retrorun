@@ -30,6 +30,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <stdio.h>
 #include <exception>
 #include <string.h>
+#include <string>
+#include <vector>
+#include <cmath>
+
 
 #include <go2/display.h>
 
@@ -44,6 +48,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "fonts.h"
 
 #include <chrono>
+
+
+#include "imgs_press.h"
+#include "imgs_numbers.h"
+
 
 #define FBO_DIRECT 1
 #define ALIGN(val, align) (((val) + (align)-1) & ~((align)-1))
@@ -70,13 +79,15 @@ bool screenshot_requested = false;
 int prevBacklight;
 bool isTate = false;
 int display_width, display_height;
+int base_width, base_height;
 int aw, ah;
 go2_surface_t *gles_surface;
 bool isWideScreen = false;
 extern retro_hw_context_reset_t retro_context_reset;
 auto t_flash_start = std::chrono::high_resolution_clock::now();
 bool flash = false;
-
+extern go2_battery_state_t batteryState;
+const char* batteryStateDesc[] = { "UNK", "DSC", "CHG", "FUL" };
 
 void video_configure(const struct retro_game_geometry *geom)
 {
@@ -113,7 +124,10 @@ void video_configure(const struct retro_game_geometry *geom)
 
     printf("-- Display info: width=%d, height=%d\n", display_width, display_height);
     printf("-- Game info: base_width=%d, base_height=%d, max_width=%d, max_height=%d\n", geom->base_width, geom->base_height,geom->max_width, geom->max_height);
+    base_width = geom->base_width; 
+    base_height = geom->base_height;
 
+ 
     float aspect_ratio_display = (float)display_width / (float)display_height;
     if (aspect_ratio_display > 1)
     {
@@ -178,31 +192,34 @@ uintptr_t core_video_get_current_framebuffer()
 #endif
 }
 
-void showFPS(int w)
+
+void showText(int x, int y, const char* text)
 {
+    
     uint8_t *dst = (uint8_t *)go2_surface_map(status_surface);
     int dst_stride = go2_surface_stride_get(status_surface);
-    int x = w - 90;
-    int y = 30;
-    basic_text_out16(dst, dst_stride / 2, x, y, "FPS:%d", fps);
+    basic_text_out16(dst, dst_stride / 2, x, y, text);
+    
 }
 
-
-void showTextForSeconds(int w, int h, char *text)
+void showInfo(int w)
 {
-    uint8_t *dst = (uint8_t *)go2_surface_map(status_surface);
-    int dst_stride = go2_surface_stride_get(status_surface);
-    int x = w - 90;
-    int y = 30;
-    basic_text_out16(dst, dst_stride / 2, x, y, text);
+    // batteryState.level, batteryStateDesc[batteryState.status]
+    showText( 0, 0, "Retrorun (RG351* version)");
+    showText( 0, 10, "Release: 1.1");
+    std::string res ="Resolution:";
+    showText( 0, 20, const_cast<char*>(res.append( std::to_string(base_width)).append("x").append( std::to_string(base_height) ).c_str()));
+    std::string bat ="Battery:";
+    showText( 0, 30, const_cast<char*>(bat.append( std::to_string(batteryState.level)).append("%%").c_str()));
+    
 }
 
 
 std::string getCurrentTimeForFileName()
 {
-      time_t t = time(0);   // get time now
-     struct tm * now = localtime( & t );
-   char buffer [80];
+    time_t t = time(0);   // get time now
+    struct tm * now = localtime( & t );
+    char buffer [80];
      strftime (buffer,80,"%y%m%d-%H%M%S",now);
      std::string str(buffer);
      return str;
@@ -224,7 +241,86 @@ void flashEffect(){
 }
 
 
+
  
+void showNumberSprite(int x,int y, int number, int width, int height, const uint8_t* src)
+    {
+    int height_sprite = height / 10; //10 are the total number of sprites present in the image
+	int src_stride = width * sizeof(short);
+	uint8_t* dst = (uint8_t*)go2_surface_map(status_surface);
+	int dst_stride = go2_surface_stride_get(status_surface);
+	int brightnessIndex =  number;
+	src += (brightnessIndex * height_sprite * src_stride); //18
+	dst += x * sizeof(short) + y * dst_stride;
+	for (int y = 0; y < height_sprite; ++y) //16
+	{
+		memcpy(dst, src, width * sizeof(short));
+		src += src_stride;
+		dst += dst_stride;
+	}
+}
+
+std::vector<int> intToDigits(int num_)
+{
+    std::vector<int> ret;
+    std::string iStr = std::to_string(num_);
+    for (int i = iStr.size() - 1; i >= 0; --i)
+    {
+        int units = pow(10, i);
+        int digit = num_ / units % 10;
+        ret.push_back(digit);
+    }   
+    return ret;
+}
+
+
+void showFPSImage(int w){
+   
+std::vector<int> fps_v =intToDigits(fps);
+if (base_width == 640 || base_height == 640) {
+     int x = w - (numbers_image_high.width*2) -10; //depends on the width of the image
+    int y = 10;
+    showNumberSprite(x,y,fps_v[0], numbers_image_high.width, numbers_image_high.height, numbers_image_high.pixel_data);
+    showNumberSprite(x+numbers_image_high.width,y, fps_v[1], numbers_image_high.width, numbers_image_high.height, numbers_image_high.pixel_data);
+} else {
+      int x = w - (numbers_image_low.width*2) -10; //depends on the width of the image
+    int y = 10;
+    showNumberSprite(x,y,fps_v[0], numbers_image_low.width, numbers_image_low.height, numbers_image_low.pixel_data);
+    showNumberSprite(x+numbers_image_low.width,y, fps_v[1], numbers_image_low.width, numbers_image_low.height, numbers_image_low.pixel_data);
+}
+}
+
+
+void showFullImage(int x, int y, int width, int height, const uint8_t* src )
+{
+    y = y-height;
+	
+	int src_stride = width * sizeof(short);
+	uint8_t* dst = (uint8_t*)go2_surface_map(status_surface);
+	int dst_stride = go2_surface_stride_get(status_surface);
+	src +=0;
+	dst += x * sizeof(short) + y * dst_stride;
+	for (int y = 0; y < height; ++y)
+	{
+		memcpy(dst, src, width * sizeof(short));
+		src += src_stride;
+		dst += dst_stride;
+	}		
+}
+
+void showQuitImage()
+{
+	int x,y;
+    if (base_width == 640 || base_height == 640) {
+       x = 0; 
+        y = base_height - press_high.height/2 ;
+        showFullImage(x, y, press_high.width, press_high.height, press_high.pixel_data);   
+    }else {
+       x = 0; 
+        y = base_height - press_low.height/2 ;
+        showFullImage(x, y, press_low.width, press_low.height, press_low.pixel_data);   
+    }
+}
 
 
 
@@ -333,11 +429,18 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
 
     if (input_fps_requested)
     {
-        showFPS(gs_w);
+        showFPSImage(gs_w);
+    }
+    if (input_info_requested)
+    {
+        showInfo(gs_w);
     }
     if (flash)
     {
         flashEffect();
+    }
+    if (input_exit_requested_firstTime){
+        showQuitImage();
     }
 
 
