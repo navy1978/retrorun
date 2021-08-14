@@ -31,7 +31,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <exception>
 #include <string.h>
 #include <string>
-#include <vector>
+
 #include <cmath>
 
 
@@ -206,7 +206,7 @@ void showInfo(int w)
 {
     // batteryState.level, batteryStateDesc[batteryState.status]
     showText( 0, 0, "Retrorun (RG351* version)");
-    showText( 0, 10, "Release: 1.1");
+    showText( 0, 10, "Release: 1.1.1");
     std::string res ="Resolution:";
     showText( 0, 20, const_cast<char*>(res.append( std::to_string(base_width)).append("x").append( std::to_string(base_height) ).c_str()));
     std::string bat ="Battery:";
@@ -260,33 +260,28 @@ void showNumberSprite(int x,int y, int number, int width, int height, const uint
 	}
 }
 
-std::vector<int> intToDigits(int num_)
-{
-    std::vector<int> ret;
-    std::string iStr = std::to_string(num_);
-    for (int i = iStr.size() - 1; i >= 0; --i)
-    {
-        int units = pow(10, i);
-        int digit = num_ / units % 10;
-        ret.push_back(digit);
-    }   
-    return ret;
+
+
+int getDigit(int n, int position) {
+    int res = (int)(n/pow(10,(position-1))) % 10;
+    if (res > 9) res =9;
+    if (res < 0) res =0;
+    return res;
 }
 
 
-void showFPSImage(int w){
-   
-std::vector<int> fps_v =intToDigits(fps);
+void showFPSImage(){
+ 
 if (base_width == 640 || base_height == 640) {
-     int x = w - (numbers_image_high.width*2) -10; //depends on the width of the image
+    int x = base_width - (numbers_image_high.width*2) -10; //depends on the width of the image
     int y = 10;
-    showNumberSprite(x,y,fps_v[0], numbers_image_high.width, numbers_image_high.height, numbers_image_high.pixel_data);
-    showNumberSprite(x+numbers_image_high.width,y, fps_v[1], numbers_image_high.width, numbers_image_high.height, numbers_image_high.pixel_data);
+    showNumberSprite(x,y,getDigit(fps,2), numbers_image_high.width, numbers_image_high.height, numbers_image_high.pixel_data);
+    showNumberSprite(x+numbers_image_high.width,y, getDigit(fps,1), numbers_image_high.width, numbers_image_high.height, numbers_image_high.pixel_data);
 } else {
-      int x = w - (numbers_image_low.width*2) -10; //depends on the width of the image
+    int x = base_width - (numbers_image_low.width*2) -10; //depends on the width of the image
     int y = 10;
-    showNumberSprite(x,y,fps_v[0], numbers_image_low.width, numbers_image_low.height, numbers_image_low.pixel_data);
-    showNumberSprite(x+numbers_image_low.width,y, fps_v[1], numbers_image_low.width, numbers_image_low.height, numbers_image_low.pixel_data);
+    showNumberSprite(x,y,getDigit(fps,2), numbers_image_low.width, numbers_image_low.height, numbers_image_low.pixel_data);
+    showNumberSprite(x+numbers_image_low.width,y, getDigit(fps,1), numbers_image_low.width, numbers_image_low.height, numbers_image_low.pixel_data);
 }
 }
 
@@ -429,7 +424,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
 
     if (input_fps_requested)
     {
-        showFPSImage(gs_w);
+        showFPSImage();
     }
     if (input_info_requested)
     {
