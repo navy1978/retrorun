@@ -63,8 +63,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
                                             * 'data' points to an unsigned variable
                                             */
 
-
-
 retro_hw_context_reset_t retro_context_reset;
 
 const char *opt_savedir = ".";
@@ -78,6 +76,7 @@ bool opt_restart = false;
 const char *arg_core = "";
 const char *arg_rom = "";
 bool opt_show_fps = false;
+bool auto_save = false;
 
 typedef std::map<std::string, std::string> varmap_t;
 varmap_t variables;
@@ -267,7 +266,7 @@ static bool core_environment(unsigned cmd, void *data)
         while (var->key != NULL)
         {
             std::string key = var->key;
-            printf("----- (INFO_VAR:%s ) -----\n",var->value );
+            printf("----- (INFO_VAR:%s ) -----\n", var->value);
             const char *start = strchr(var->value, ';');
             start += 2;
             std::string value;
@@ -279,7 +278,7 @@ static bool core_environment(unsigned cmd, void *data)
 
             variables[key] = value;
             printf(" -> SET_VAR: %s=%s\n", key.c_str(), value.c_str());
-            
+
             ++var;
         }
 
@@ -512,6 +511,7 @@ static const char *FileNameFromPath(const char *fullpath)
 
 static char *PathCombine(const char *path, const char *filename)
 {
+
     int len = strlen(path);
     int total_len = len + strlen(filename);
 
@@ -535,19 +535,23 @@ static char *PathCombine(const char *path, const char *filename)
     return result;
 }
 
-/*static int LoadState(const char *saveName)
+static int LoadState(const char *saveName)
 {
     FILE *file = fopen(saveName, "rb");
-    if (!file)
+    {
+        printf("File sav not found!\n");
         return -1;
+    }
 
     fseek(file, 0, SEEK_END);
     long size = ftell(file);
     rewind(file);
 
     if (size < 1)
+    {
+        printf("File sav size is wrong!\n");
         return -1;
-
+    }
     void *ptr = malloc(size);
     if (!ptr)
         abort();
@@ -555,6 +559,7 @@ static char *PathCombine(const char *path, const char *filename)
     size_t count = fread(ptr, 1, size, file);
     if ((size_t)size != count)
     {
+        printf("File sav size mismatch!\n");
         free(ptr);
         abort();
     }
@@ -563,9 +568,9 @@ static char *PathCombine(const char *path, const char *filename)
 
     g_retro.retro_unserialize(ptr, size);
     free(ptr);
-
+    printf("File sav loaded correctly!\n");
     return 0;
-}*/
+}
 
 static int LoadSram(const char *saveName)
 {
@@ -607,23 +612,27 @@ static int LoadSram(const char *saveName)
     }
 
     fclose(file);
-
+    printf("File srm loaded correctly!\n");
     return 0;
 }
 
-/*static void SaveState(const char *saveName)
+static void SaveState(const char *saveName)
 {
     size_t size = g_retro.retro_serialize_size();
 
     void *ptr = malloc(size);
+
     if (!ptr)
+    {
+        printf("Saving state error: ptr not valid!\n");
         abort();
-
+    }
     g_retro.retro_serialize(ptr, size);
-
     FILE *file = fopen(saveName, "wb");
+
     if (!file)
     {
+        printf("Saving state error: file not found!\n");
         free(ptr);
         abort();
     }
@@ -631,13 +640,15 @@ static int LoadSram(const char *saveName)
     size_t count = fwrite(ptr, 1, size, file);
     if (count != size)
     {
+        printf("Saving state error: count not valid!\n");
         free(ptr);
         abort();
     }
 
     fclose(file);
     free(ptr);
-}*/
+    printf("File sav saved correctly!\n");
+}
 
 static void SaveSram(const char *saveName)
 {
@@ -647,29 +658,48 @@ static void SaveSram(const char *saveName)
 
     void *ptr = g_retro.retro_get_memory_data(0);
     if (!ptr)
+    {
+        printf("Saving sram error: ptr not valid!\n");
         abort();
+    }
 
     FILE *file = fopen(saveName, "wb");
     if (!file)
     {
+        printf("Saving sram error: file not found!\n");
+        free(ptr);
         abort();
     }
 
     size_t count = fwrite(ptr, 1, size, file);
     if (count != size)
     {
+        printf("Saving sram error: count not valid!\n");
+        free(ptr);
         abort();
     }
 
     fclose(file);
+    printf("File srm saved correctly!\n");
 }
 
-static std::string removeExtension(const std::string &filename)
+float getAspectRatio(const std::string aspect)
 {
-    size_t lastdot = filename.find_last_of(".");
-    if (lastdot == std::string::npos)
-        return filename;
-    return filename.substr(0, lastdot);
+
+    if (aspect == "2:1")
+        return 2.0f;
+    else if (aspect == "4:3")
+        return 1.333333f;
+    else if (aspect == "5:4")
+        return 1.25f;
+    else if (aspect == "16:9")
+        return 1.777777f;
+    else if (aspect == "16:10")
+        return 1.6f;
+    else if (aspect == "1:1")
+        return 1.0f;
+    else
+        return 0.0f; // will be the default (provided by core)
 }
 
 int main(int argc, char *argv[])
@@ -721,7 +751,7 @@ int main(int argc, char *argv[])
         case 'c':
             opt_setting_file = optarg;
             break;
-            
+
         default:
             printf("Unknown option. '%s'\n", longopts[option_index].name);
             exit(EXIT_FAILURE);
@@ -737,15 +767,44 @@ int main(int argc, char *argv[])
     {
         printf("Reading configuration file:'%s'\n", opt_setting_file);
         std::map<std::string, std::string> confMap = initMapConfig(opt_setting_file);
-        try{
-            const std::string &value = confMap.at("retrorun_screenshot_folder");
-            screenShotFolder = value;
-        }catch(...){
-            printf("Error: retrorun_screenshot_folder parameter not found in retrorun.cfg using default folder (/storage/roms/screenshots).\n");    
+        try
+        {
+            const std::string &ssFolderValue = confMap.at("retrorun_screenshot_folder");
+            screenShotFolder = ssFolderValue;
+        }
+        catch (...)
+        {
+            printf("Warning: retrorun_screenshot_folder parameter not found in retrorun.cfg using default folder (/storage/roms/screenshots).\n");
             screenShotFolder = "/storage/roms/screenshots";
         }
-        printf("Configuration initialized.\n");
 
+        if (opt_aspect != 0.0f)
+        {
+            printf("Info: aspect_ratio forced from command line.\n");
+        }
+        else
+        {
+            try
+            {
+                const std::string &arValue = confMap.at("retrorun_aspect_ratio");
+                opt_aspect = getAspectRatio(arValue);
+            }
+            catch (...)
+            {
+                printf("Warning: retrorun_aspect_ratio parameter not found in retrorun.cfg using default value (core provided).\n");
+            }
+        }
+        try
+        {
+            const std::string &asValue = confMap.at("retrorun_auto_save");
+            auto_save = asValue == "true" ? true : false;
+        }
+        catch (...)
+        {
+            printf("Warning: retrorun_auto_save parameter not found in retrorun.cfg using default value (false).\n");
+        }
+
+        printf("Configuration initialized.\n");
     }
 
     printf("opt_save='%s', opt_systemdir='%s', opt_aspect=%f\n", opt_savedir, opt_systemdir, opt_aspect);
@@ -787,38 +846,40 @@ int main(int argc, char *argv[])
         printf("Forcing restart due to button press (F1).\n");
         opt_restart = true;
     }
-
-    // State
-    const char *fileName = FileNameFromPath(arg_rom);
-
-    char *saveName = (char *)malloc(strlen(fileName) + 4 + 1);
-    strcpy(saveName, fileName);
-    strcat(saveName, ".sav");
-
-    // char *savePath = PathCombine(opt_savedir, saveName);
-    // printf("savePath='%s'\n", savePath);
-    std::string fakeString(fileName);
-    std::string rawName = removeExtension(fakeString);
-    char sramName[rawName.size() + 1];
-    romName = rawName;
-    // std::cout << "Rom name is  : " << romName << std::endl ;
-    // strcpy(romName, rawName.c_str());
-    strcpy(sramName, rawName.c_str());
-    strcat(sramName, ".srm");
-    char *sramPath = PathCombine(opt_savedir, sramName);
-    printf("sramPath='%s'\n", sramPath);
-
-    if (opt_restart)
+    char *sramPath = NULL;
+    char *savePath = NULL;
+    if (auto_save)
     {
-        printf("Restarting.\n");
+        // State
+        const char *fileName = FileNameFromPath(arg_rom);
+
+        std::string fullNameString(fileName);
+        //removing extension
+        size_t lastindex = fullNameString.find_last_of(".");
+        std::string rawname = fullNameString.substr(0, lastindex);
+        romName = rawname;
+        std::string sramFileName = rawname + ".srm";
+        std::string savFileName = rawname + ".sav";
+
+        sramPath = PathCombine(opt_savedir, sramFileName.c_str());
+        printf("sramPath='%s'\n", sramPath);
+
+        savePath = PathCombine(opt_savedir, savFileName.c_str());
+        printf("savePath='%s'\n", savePath);
+
+        if (opt_restart)
+        {
+            printf("Restarting.\n");
+        }
+        else
+        {
+            printf("Loading sav file:%s\n", savePath);
+            LoadState(savePath);
+        }
+        printf("Loading sram file:%s\n", sramPath);
+        LoadSram(sramPath);
     }
-    else
-    {
-        /*printf("Loading.\n");
-        LoadState(savePath);*/
-    }
-    printf("Loading sram...\n"); 
-    LoadSram(sramPath);
+
     bool isRunning = true;
 
     printf("Entering render loop.\n");
@@ -830,13 +891,10 @@ int main(int argc, char *argv[])
     sleep(1); // some cores (like yabasanshiro) from time to time hangs on retro_run otherwise
     while (isRunning)
     {
-        
-        
-        
+
         if (opt_show_fps || input_fps_requested)
         {
 
-            // const char* batteryStateDesc[] = { "UNK", "DSC", "CHG", "FUL" };
             ++totalFrames;
 
             double seconds = (endTime.tv_sec - startTime.tv_sec);
@@ -844,10 +902,11 @@ int main(int argc, char *argv[])
 
             elapsed += seconds + milliseconds;
             int newFps = (int)(totalFrames / elapsed);
-            if (abs(newFps -fps)<=60 && elapsed >= 0.8)
+            if (abs(newFps - fps) <= 60 && elapsed >= 0.8)
             {
                 fps = newFps;
-                if (opt_show_fps && elapsed >= 1.0){
+                if (opt_show_fps && elapsed >= 1.0)
+                {
                     printf("FPS: %i\n", fps);
                 }
                 totalFrames = 0;
@@ -877,14 +936,18 @@ int main(int argc, char *argv[])
     }
 
     printf("Exiting from render loop...\n");
-    printf("Saving srm...\n");
-    SaveSram(sramPath);
-    free(sramPath);
-    // free(sramName);
 
-    /* SaveState(savePath);
-    free(savePath);
-    free(saveName);*/
+    if (auto_save)
+    {
+        printf("Saving sram into file:%s\n", sramPath);
+        SaveSram(sramPath);
+        free(sramPath);
+        // free(sramName);
+        printf("Saving sav into file:%s\n", savePath);
+        SaveState(savePath);
+        free(savePath);
+    }
+    // free(saveName);
     printf("Unloading core and deinit audio and video...\n");
     video_deinit();
     audio_deinit();

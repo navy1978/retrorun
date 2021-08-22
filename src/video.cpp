@@ -17,7 +17,6 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 
-
 #include "conf.h"
 #include "globals.h"
 #include "video.h"
@@ -34,7 +33,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include <cmath>
 
-
 #include <go2/display.h>
 
 #define EGL_EGLEXT_PROTOTYPES
@@ -49,10 +47,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include <chrono>
 
-
 #include "imgs_press.h"
 #include "imgs_numbers.h"
-
 
 #define FBO_DIRECT 1
 #define ALIGN(val, align) (((val) + (align)-1) & ~((align)-1))
@@ -87,7 +83,16 @@ extern retro_hw_context_reset_t retro_context_reset;
 auto t_flash_start = std::chrono::high_resolution_clock::now();
 bool flash = false;
 extern go2_battery_state_t batteryState;
-const char* batteryStateDesc[] = { "UNK", "DSC", "CHG", "FUL" };
+const char *batteryStateDesc[] = {"UNK", "DSC", "CHG", "FUL"};
+bool first_video_refresh = true;
+float real_aspect_ratio = 0.0f;
+enum Device
+{
+    P_M,
+    V,
+    UNKNOWN
+};
+Device device = UNKNOWN;
 
 void video_configure(const struct retro_game_geometry *geom)
 {
@@ -123,11 +128,26 @@ void video_configure(const struct retro_game_geometry *geom)
     }
 
     printf("-- Display info: width=%d, height=%d\n", display_width, display_height);
-    printf("-- Game info: base_width=%d, base_height=%d, max_width=%d, max_height=%d\n", geom->base_width, geom->base_height,geom->max_width, geom->max_height);
-    base_width = geom->base_width; 
+    //Display info: width=480, height=320
+    if (display_width == 480 && display_height == 320)
+    {
+        printf("-- Device info: RG351 P/M\n");
+        device = P_M;
+    }
+    else if (display_width == 480 && display_height == 640)
+    {
+        printf("-- Device info: RG351 V\n");
+        device = V;
+    }
+    else
+    {
+        printf("-- Device info: unknown! V\n");
+        device = UNKNOWN;
+    }
+    printf("-- Game info: base_width=%d, base_height=%d, max_width=%d, max_height=%d\n", geom->base_width, geom->base_height, geom->max_width, geom->max_height);
+    base_width = geom->base_width;
     base_height = geom->base_height;
 
- 
     float aspect_ratio_display = (float)display_width / (float)display_height;
     if (aspect_ratio_display > 1)
     {
@@ -156,15 +176,55 @@ void video_configure(const struct retro_game_geometry *geom)
         }
         go2_context_make_current(context3D);
         retro_context_reset();
-    }
 
-    // printf("geom->base_width>%d, geom->base_height:%d, display_width:%d display_height:%d \n", geom->base_width, geom->base_height, display_width, display_height);
-    status_surface = go2_surface_create(display, geom->base_width, geom->base_height, DRM_FORMAT_RGB565);
-    // status_surface = go2_surface_create(display, display_width, display_height, DRM_FORMAT_RGB565);
-    if (!status_surface)
+        // printf("geom->base_width>%d, geom->base_height:%d, display_width:%d display_height:%d \n", geom->base_width, geom->base_height, display_width, display_height);
+        status_surface = go2_surface_create(display, geom->base_width, geom->base_height, DRM_FORMAT_RGB565);
+        // status_surface = go2_surface_create(display, display_width, display_height, DRM_FORMAT_RGB565);
+        if (!status_surface)
+        {
+            printf("go2_surface_create failed.:status_surface\n");
+            throw std::exception();
+        }
+    }
+    else
     {
-        printf("go2_surface_create failed.:status_surface\n");
-        throw std::exception();
+        if (surface)
+            abort();
+
+        int aw = ALIGN(geom->max_width, 32);
+        int ah = ALIGN(geom->max_height, 32);
+        printf("video_configure: aw=%d, ah=%d\n", aw, ah);
+
+        if (color_format == DRM_FORMAT_RGBA5551)
+        {
+            surface = go2_surface_create(display, aw, ah, DRM_FORMAT_RGB565);
+        }
+        else
+        {
+            surface = go2_surface_create(display, aw, ah, color_format);
+        }
+
+        if (!surface)
+        {
+            printf("go2_surface_create failed.\n");
+            throw std::exception();
+        }
+
+        if (color_format == DRM_FORMAT_RGBA5551)
+        {
+            status_surface = go2_surface_create(display, geom->base_width, geom->base_height, DRM_FORMAT_RGB565);
+        }
+        else
+        {
+            status_surface = go2_surface_create(display, geom->base_width, geom->base_height, color_format);
+        }
+
+        if (!status_surface)
+        {
+            printf("go2_surface_create failed.:status_surface\n");
+            throw std::exception();
+        }
+        //printf("video_configure: rect=%d, %d, %d, %d\n", y, x, h, w);
     }
 }
 
@@ -192,132 +252,157 @@ uintptr_t core_video_get_current_framebuffer()
 #endif
 }
 
-
-void showText(int x, int y, const char* text)
+void showText(int x, int y, const char *text)
 {
-    
+
     uint8_t *dst = (uint8_t *)go2_surface_map(status_surface);
     int dst_stride = go2_surface_stride_get(status_surface);
     basic_text_out16(dst, dst_stride / 2, x, y, text);
-    
 }
 
 void showInfo(int w)
 {
     // batteryState.level, batteryStateDesc[batteryState.status]
-    showText( 0, 0, "Retrorun (RG351* version)");
-    showText( 0, 10, "Release: 1.1.1");
-    std::string res ="Resolution:";
-    showText( 0, 20, const_cast<char*>(res.append( std::to_string(base_width)).append("x").append( std::to_string(base_height) ).c_str()));
-    std::string bat ="Battery:";
-    showText( 0, 30, const_cast<char*>(bat.append( std::to_string(batteryState.level)).append("%%").c_str()));
-    
+    showText(0, 0, "Retrorun (RG351* version)");
+    showText(0, 10, "Release: 1.1.1");
+    std::string res = "Resolution:";
+    showText(0, 20, const_cast<char *>(res.append(std::to_string(base_width)).append("x").append(std::to_string(base_height)).c_str()));
+    std::string bat = "Battery:";
+    showText(0, 30, const_cast<char *>(bat.append(std::to_string(batteryState.level)).append("%%").c_str()));
 }
-
 
 std::string getCurrentTimeForFileName()
 {
-    time_t t = time(0);   // get time now
-    struct tm * now = localtime( & t );
-    char buffer [80];
-     strftime (buffer,80,"%y%m%d-%H%M%S",now);
-     std::string str(buffer);
-     return str;
+    time_t t = time(0); // get time now
+    struct tm *now = localtime(&t);
+    char buffer[80];
+    strftime(buffer, 80, "%y%m%d-%H%M%S", now);
+    std::string str(buffer);
+    return str;
 }
 
 // it simulates a flash for some milliseconds to give the user the impression the screenhsot has been taken
-void flashEffect(){
+void flashEffect()
+{
     glClearColor(1, 1, 1, 1);
     glClear(GL_COLOR_BUFFER_BIT);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-     auto t_end = std::chrono::high_resolution_clock::now();
-     double elapsed_time_ms = std::chrono::duration<double, std::milli>(t_end-t_flash_start).count();
-     if (elapsed_time_ms>20){
-            flash = false;
-            glClearColor(0, 0, 0, 1);
-            glClear(GL_COLOR_BUFFER_BIT);
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    }  
-}
 
-
-
- 
-void showNumberSprite(int x,int y, int number, int width, int height, const uint8_t* src)
+    auto t_end = std::chrono::high_resolution_clock::now();
+    double elapsed_time_ms = std::chrono::duration<double, std::milli>(t_end - t_flash_start).count();
+    if (elapsed_time_ms > 1000)
     {
-    int height_sprite = height / 10; //10 are the total number of sprites present in the image
-	int src_stride = width * sizeof(short);
-	uint8_t* dst = (uint8_t*)go2_surface_map(status_surface);
-	int dst_stride = go2_surface_stride_get(status_surface);
-	int brightnessIndex =  number;
-	src += (brightnessIndex * height_sprite * src_stride); //18
-	dst += x * sizeof(short) + y * dst_stride;
-	for (int y = 0; y < height_sprite; ++y) //16
-	{
-		memcpy(dst, src, width * sizeof(short));
-		src += src_stride;
-		dst += dst_stride;
-	}
+        flash = false;
+        glClearColor(0, 0, 0, 1);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
 }
 
+void showNumberSprite(int x, int y, int number, int width, int height, const uint8_t *src)
+{
+    int height_sprite = height / 10; //10 are the total number of sprites present in the image
+    int src_stride = width * sizeof(short);
+    uint8_t *dst = (uint8_t *)go2_surface_map(status_surface);
+    int dst_stride = go2_surface_stride_get(status_surface);
+    int brightnessIndex = number;
+    src += (brightnessIndex * height_sprite * src_stride); //18
+    dst += x * sizeof(short) + y * dst_stride;
+    for (int y = 0; y < height_sprite; ++y) //16
+    {
+        memcpy(dst, src, width * sizeof(short));
+        src += src_stride;
+        dst += dst_stride;
+    }
+}
 
-
-int getDigit(int n, int position) {
-    int res = (int)(n/pow(10,(position-1))) % 10;
-    if (res > 9) res =9;
-    if (res < 0) res =0;
+int getDigit(int n, int position)
+{
+    int res = (int)(n / pow(10, (position - 1))) % 10;
+    if (res > 9)
+        res = 9;
+    if (res < 0)
+        res = 0;
     return res;
 }
 
-
-void showFPSImage(){
- 
-if (base_width == 640 || base_height == 640) {
-    int x = base_width - (numbers_image_high.width*2) -10; //depends on the width of the image
-    int y = 10;
-    showNumberSprite(x,y,getDigit(fps,2), numbers_image_high.width, numbers_image_high.height, numbers_image_high.pixel_data);
-    showNumberSprite(x+numbers_image_high.width,y, getDigit(fps,1), numbers_image_high.width, numbers_image_high.height, numbers_image_high.pixel_data);
-} else {
-    int x = base_width - (numbers_image_low.width*2) -10; //depends on the width of the image
-    int y = 10;
-    showNumberSprite(x,y,getDigit(fps,2), numbers_image_low.width, numbers_image_low.height, numbers_image_low.pixel_data);
-    showNumberSprite(x+numbers_image_low.width,y, getDigit(fps,1), numbers_image_low.width, numbers_image_low.height, numbers_image_low.pixel_data);
-}
-}
-
-
-void showFullImage(int x, int y, int width, int height, const uint8_t* src )
+void showFPSImage()
 {
-    y = y-height;
-	
-	int src_stride = width * sizeof(short);
-	uint8_t* dst = (uint8_t*)go2_surface_map(status_surface);
-	int dst_stride = go2_surface_stride_get(status_surface);
-	src +=0;
-	dst += x * sizeof(short) + y * dst_stride;
-	for (int y = 0; y < height; ++y)
-	{
-		memcpy(dst, src, width * sizeof(short));
-		src += src_stride;
-		dst += dst_stride;
-	}		
+
+    if (base_width == 640 || base_height == 640)
+    {
+        int x = base_width - (numbers_image_high.width * 2) - 10; //depends on the width of the image
+        int y = 10;
+        showNumberSprite(x, y, getDigit(fps, 2), numbers_image_high.width, numbers_image_high.height, numbers_image_high.pixel_data);
+        showNumberSprite(x + numbers_image_high.width, y, getDigit(fps, 1), numbers_image_high.width, numbers_image_high.height, numbers_image_high.pixel_data);
+    }
+    else
+    {
+        int x = base_width - (numbers_image_low.width * 2) - 10; //depends on the width of the image
+        int y = 10;
+        showNumberSprite(x, y, getDigit(fps, 2), numbers_image_low.width, numbers_image_low.height, numbers_image_low.pixel_data);
+        showNumberSprite(x + numbers_image_low.width, y, getDigit(fps, 1), numbers_image_low.width, numbers_image_low.height, numbers_image_low.pixel_data);
+    }
+}
+
+void showFullImage(int x, int y, int width, int height, const uint8_t *src)
+{
+    y = y - height;
+
+    int src_stride = width * sizeof(short);
+    uint8_t *dst = (uint8_t *)go2_surface_map(status_surface);
+    int dst_stride = go2_surface_stride_get(status_surface);
+    src += 0;
+    dst += x * sizeof(short) + y * dst_stride;
+    for (int y = 0; y < height; ++y)
+    {
+        memcpy(dst, src, width * sizeof(short));
+        src += src_stride;
+        dst += dst_stride;
+    }
 }
 
 void showQuitImage()
 {
-	int x,y;
-    if (base_width == 640 || base_height == 640) {
-       x = 0; 
-        y = base_height - press_high.height/2 ;
-        showFullImage(x, y, press_high.width, press_high.height, press_high.pixel_data);   
-    }else {
-       x = 0; 
-        y = base_height - press_low.height/2 ;
-        showFullImage(x, y, press_low.width, press_low.height, press_low.pixel_data);   
+    int x, y;
+    if (base_width == 640 || base_height == 640)
+    {
+        x = 0;
+        y = base_height - press_high.height / 2;
+        showFullImage(x, y, press_high.width, press_high.height, press_high.pixel_data);
+    }
+    else
+    {
+        x = 0;
+        y = base_height - press_low.height / 2;
+        showFullImage(x, y, press_low.width, press_low.height, press_low.pixel_data);
     }
 }
 
+void takeScreenshot(int ss_w, int ss_h, go2_rotation_t _351BlitRotation)
+{
+    printf("Screenshot.\n");
+    go2_surface_t *screenshot = go2_surface_create(display, ss_w, ss_h, DRM_FORMAT_RGB888);
+    if (!screenshot)
+    {
+        printf("go2_surface_create for screenshot failed.\n");
+        throw std::exception();
+    }
+    go2_surface_blit(status_surface,
+                     0, 0, ss_w, ss_h,
+                     screenshot,
+                     0, 0, ss_w, ss_h,
+                     _351BlitRotation);
 
+    // snap in screenshot directory
+    std::string fullPath = screenShotFolder + "/" + romName + "-" + getCurrentTimeForFileName() + ".png";
+    go2_surface_save_as_png(screenshot, fullPath.c_str());
+    printf("Screenshot saved:'%s'\n", fullPath.c_str());
+    go2_surface_destroy(screenshot);
+    screenshot_requested = false;
+    flash = true;
+    t_flash_start = std::chrono::high_resolution_clock::now();
+}
 
 void core_video_refresh(const void *data, unsigned width, unsigned height, size_t pitch)
 {
@@ -331,11 +416,22 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
     int h;
     if (aspect_ratio >= 1.0f)
     {
-        w = go2_display_width_get(display);
-        h = w * aspect_ratio;
-        h = (h > go2_display_height_get(display)) ? go2_display_height_get(display) : h;
-        y = (go2_display_height_get(display) / 2) - (h / 2);
-        x = 0;
+        if (isWideScreen)
+        {
+            w = go2_display_width_get(display);
+            h = w * aspect_ratio;
+            h = (h > go2_display_height_get(display)) ? go2_display_height_get(display) : h;
+            y = (go2_display_height_get(display) / 2) - (h / 2);
+            x = 0;
+        }
+        else
+        {
+            w = go2_display_width_get(display);
+            h = w / aspect_ratio;
+            h = (h > go2_display_height_get(display)) ? go2_display_height_get(display) : h;
+            y = (go2_display_height_get(display) / 2) - (h / 2);
+            x = 0;
+        }
     }
     else
     {
@@ -345,105 +441,180 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         w = go2_display_width_get(display);
         isTate = true;
     }
-    if (data != RETRO_HW_FRAME_BUFFER_VALID)
-        return;
+    if (first_video_refresh)
+    {
+        printf("-- Real aspect_ratio=%f\n", aspect_ratio);
+        printf("-- Drawing info: w=%d, h=%d, x=%d, y=%d\n", w, h, x, y);
+        real_aspect_ratio = aspect_ratio;
+        first_video_refresh = false;
+    }
 
     go2_rotation_t _351BlitRotation = isTate ? GO2_ROTATION_DEGREES_270 : GO2_ROTATION_DEGREES_0;
     go2_rotation_t _351Rotation = isTate ? GO2_ROTATION_DEGREES_180 : GO2_ROTATION_DEGREES_270;
-    /*if (!isWideScreen)
+    if (isOpenGL)
+    {
+        if (data != RETRO_HW_FRAME_BUFFER_VALID)
+            return;
+
+        /*if (!isWideScreen)
     {  //on V tate games should be rotated on the opposide side
         _351BlitRotation = GO2_ROTATION_DEGREES_270;
         _351Rotation = GO2_ROTATION_DEGREES_90;
         
     }*/
 
-    // Swap
-    go2_context_swap_buffers(context3D);
+        // Swap
+        go2_context_swap_buffers(context3D);
 
-    gles_surface = go2_context_surface_lock(context3D);
-    //get some util info
-    gs_w = go2_surface_width_get(gles_surface);
-    gs_h = go2_surface_height_get(gles_surface);
-    int ss_w = go2_surface_width_get(status_surface);
-    int ss_h = go2_surface_height_get(status_surface);
+        gles_surface = go2_context_surface_lock(context3D);
+        //get some util info
+        gs_w = go2_surface_width_get(gles_surface);
+        gs_h = go2_surface_height_get(gles_surface);
+        int ss_w = go2_surface_width_get(status_surface);
+        int ss_h = go2_surface_height_get(status_surface);
 
-    go2_context_surface_unlock(context3D, gles_surface);
-    
+        go2_context_surface_unlock(context3D, gles_surface);
 
+        // let's copy the content of gles_surface on status_surface (with the current roration based on the device)
 
+        if (isWideScreen)
+        {
 
-    // let's copy the content of gles_surface on status_surface (with the current roration based on the device)
-    if (isWideScreen)
-    {
-        go2_surface_blit(gles_surface,
-                         0, 0, gs_w, gs_h,
-                         status_surface,
-                         0, 0, ss_w, ss_h,
-                         _351BlitRotation);
+            go2_surface_blit(gles_surface,
+                             0, 0, gs_w, gs_h,
+                             status_surface,
+                             0, 0, ss_w, ss_h,
+                             _351BlitRotation);
+        }
+        else
+        {
+            go2_surface_blit(gles_surface,
+                             0, gs_h - height, width, height,
+                             status_surface,
+                             0, 0, ss_w, ss_h,
+                             _351BlitRotation);
+        }
+
+        // screenshot requested
+        if (screenshot_requested)
+        {
+            takeScreenshot(ss_w,ss_h, _351BlitRotation);
+        }
+
+        if (input_fps_requested)
+        {
+            showFPSImage();
+        }
+        if (input_info_requested)
+        {
+            showInfo(gs_w);
+        }
+        if (flash)
+        {
+            flashEffect();
+        }
+        if (input_exit_requested_firstTime)
+        {
+            showQuitImage();
+        }
+
+        // post the result on the presenter
+
+        go2_presenter_post(presenter,
+                           status_surface,
+                           0, 0, ss_w, ss_h,
+                           x, y, w, h,
+                           _351Rotation);
     }
     else
     {
+        if (!data)
+            return;
+        gs_w = go2_surface_width_get(surface);
+        gs_h = go2_surface_height_get(surface);
+        int ss_w = go2_surface_width_get(status_surface);
+        int ss_h = go2_surface_height_get(status_surface);
 
-       //printf("Blit from > x:0, y:%d, width:%d, height:%d, (gs_h:%d,height:%d)  \n", gs_h - height, width, height, gs_h,height );
-       //printf("Blit to > x:0, y:0, width:%d, height:%d,  \n", ss_w, ss_h );
-    
-        go2_surface_blit(gles_surface,
-                         0, gs_h - height, width, height,
-                         status_surface,
-                         0, 0, ss_w, ss_h,
-                         _351BlitRotation);
-    }
-
-    // screenshot requested
-    if (screenshot_requested )
+        if (isWideScreen)
         {
-            printf("Screenshot.\n");
-            go2_surface_t* screenshot = go2_surface_create(display, ss_w, ss_h, DRM_FORMAT_RGB888);
-			if (!screenshot)
+
+            go2_surface_blit(surface,
+                             0, 0, gs_w, gs_h,
+                             status_surface,
+                             0, 0, ss_w, ss_h,
+                             _351BlitRotation);
+        }
+        else
+        {
+            go2_surface_blit(surface,
+                             0, gs_h - height, width, height,
+                             status_surface,
+                             0, 0, ss_w, ss_h,
+                             _351BlitRotation);
+        }
+
+        uint8_t *src = (uint8_t *)data;
+        uint8_t *dst = (uint8_t *)go2_surface_map(status_surface);
+        int bpp = go2_drm_format_get_bpp(go2_surface_format_get(status_surface)) / 8;
+
+        int yy = height;
+        while (yy > 0)
+        {
+            if (color_format == DRM_FORMAT_RGBA5551)
             {
-                printf("go2_surface_create for screenshot failed.\n");
-                throw std::exception();
+                // uint16_t* src2 = (uint16_t*)src;
+                // uint16_t* dst2 = (uint16_t*)dst;
+
+                uint32_t *src2 = (uint32_t *)src;
+                uint32_t *dst2 = (uint32_t *)dst;
+
+                for (int x = 0; x < width / 2; ++x)
+                {
+                    // uint16_t pixel = src2[x];
+                    // pixel = (pixel << 1) & (~0x1f) | pixel & 0x1f;
+                    // dst2[x] = pixel;
+
+                    uint32_t pixel = src2[x];
+                    pixel = ((pixel << 1) & (~0x3f003f)) | (pixel & 0x1f001f);
+                    dst2[x] = pixel;
+                }
             }
-			 go2_surface_blit(status_surface,
-                        0, 0, ss_w, ss_h,
-                         screenshot,
-                        0, 0, ss_w, ss_h,
-                         _351BlitRotation);
-			
-			// snap in screenshot directory
-            std::string fullPath = screenShotFolder+"/"+romName+"-"+getCurrentTimeForFileName()+".png";
-            go2_surface_save_as_png(screenshot, fullPath.c_str());
-            printf("Screenshot saved:'%s'\n", fullPath.c_str());
-            go2_surface_destroy(screenshot);
-            screenshot_requested = false;
-            flash = true;
-            t_flash_start = std::chrono::high_resolution_clock::now();
-		}
-   
+            else
+            {
+                memcpy(dst, src, width * bpp);
+            }
 
+            src += pitch;
+            dst += go2_surface_stride_get(status_surface);
 
-    if (input_fps_requested)
-    {
-        showFPSImage();
+            --yy;
+        }
+
+        if (screenshot_requested)
+        {
+            takeScreenshot(ss_w,ss_h, _351BlitRotation);
+        }
+
+        if (input_fps_requested)
+        {
+            showFPSImage();
+        }
+        if (input_info_requested)
+        {
+            showInfo(gs_w);
+        }
+        if (flash)
+        {
+            flashEffect();
+        }
+        if (input_exit_requested_firstTime)
+        {
+            showQuitImage();
+        }
+        go2_presenter_post(presenter,
+                           status_surface,
+                           0, 0, ss_w, ss_h,
+                           x, y, w, h,
+                           _351Rotation);
     }
-    if (input_info_requested)
-    {
-        showInfo(gs_w);
-    }
-    if (flash)
-    {
-        flashEffect();
-    }
-    if (input_exit_requested_firstTime){
-        showQuitImage();
-    }
-
-
-      // post the result on the presenter
-    go2_presenter_post(presenter,
-                       status_surface,
-                       0, 0, ss_w, ss_h,
-                       x, y, w, h,
-                       _351Rotation);
-
 }
