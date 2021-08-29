@@ -264,7 +264,7 @@ void showInfo(int w)
 {
     // batteryState.level, batteryStateDesc[batteryState.status]
     showText(0, 0, "Retrorun (RG351* version)");
-    showText(0, 10, "Release: 1.1.1");
+    showText(0, 10, "Release: 1.1.2");
     std::string res = "Resolution:";
     showText(0, 20, const_cast<char *>(res.append(std::to_string(base_width)).append("x").append(std::to_string(base_height)).c_str()));
     std::string bat = "Battery:";
