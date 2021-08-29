@@ -17,7 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 
-#include "conf.h"
+
 #include "globals.h"
 #include "video.h"
 
@@ -445,6 +445,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
     {
         printf("-- Real aspect_ratio=%f\n", aspect_ratio);
         printf("-- Drawing info: w=%d, h=%d, x=%d, y=%d\n", w, h, x, y);
+        printf("-- OpenGL=%s\n", isOpenGL ? "true" : "false");
         real_aspect_ratio = aspect_ratio;
         first_video_refresh = false;
     }
@@ -498,7 +499,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         // screenshot requested
         if (screenshot_requested)
         {
-            takeScreenshot(ss_w,ss_h, _351BlitRotation);
+            takeScreenshot(ss_w, ss_h, _351BlitRotation);
         }
 
         if (input_fps_requested)
@@ -592,7 +593,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
 
         if (screenshot_requested)
         {
-            takeScreenshot(ss_w,ss_h, _351BlitRotation);
+            takeScreenshot(ss_w, ss_h, _351BlitRotation);
         }
 
         if (input_fps_requested)
@@ -611,6 +612,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         {
             showQuitImage();
         }
+
         go2_presenter_post(presenter,
                            status_surface,
                            0, 0, ss_w, ss_h,

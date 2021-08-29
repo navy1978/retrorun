@@ -16,12 +16,11 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
-#include "conf.h"
+
 #include "globals.h"
 #include "video.h"
 #include "audio.h"
 #include "input.h"
-#include <fstream>
 
 #include <unistd.h>
 
@@ -47,10 +46,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <drm/drm_fourcc.h>
 #include <sys/time.h>
 #include <go2/input.h>
+
 #include <thread>
 #include <signal.h>
 #include <string>
 #include <iostream>
+#include <fstream>
+#include <sstream>
+#include <cstring>
 
 #define RETRO_DEVICE_ATARI_JOYSTICK RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_JOYPAD, 1)
 #define RETRO_ENVIRONMENT_GET_PREFERRED_HW_RENDER 56
@@ -63,24 +66,27 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
                                             * 'data' points to an unsigned variable
                                             */
 
+//extern go2_battery_state_t batteryState;
+
 retro_hw_context_reset_t retro_context_reset;
 
 const char *opt_savedir = ".";
-const char *opt_setting_file = "/storage/.config/distribution/configs/retrorun.cfg";
-
 const char *opt_systemdir = ".";
-// float opt_aspect = 0.0f;
+
 int opt_backlight = -1;
 int opt_volume = -1;
 bool opt_restart = false;
 const char *arg_core = "";
 const char *arg_rom = "";
-bool opt_show_fps = false;
-bool auto_save = false;
 
 typedef std::map<std::string, std::string> varmap_t;
 varmap_t variables;
 int exitFlag = -1;
+const char *opt_setting_file = "/storage/.config/distribution/configs/retrorun.cfg";
+std::map<std::string, std::string> conf_map;
+bool opt_show_fps = false;
+bool auto_save = false;
+const char *ws = " \t\n\r\f\v";
 
 struct option longopts[] = {
     {"savedir", required_argument, NULL, 's'},
@@ -131,6 +137,67 @@ static struct
     } while (0)
 
 #define load_retro_sym(S) load_sym(g_retro.S, S)
+
+// trim from end of string (right)
+inline std::string &rtrim(std::string &s)
+{
+    s.erase(s.find_last_not_of(ws) + 1);
+    return s;
+}
+
+// trim from beginning of string (left)
+inline std::string &ltrim(std::string &s)
+{
+    s.erase(0, s.find_first_not_of(ws));
+    return s;
+}
+
+// trim from both ends of string (right then left)
+inline std::string &trim(std::string &s)
+{
+    return ltrim(rtrim(s));
+}
+
+/**
+ * Read a config file passed as parameter and create a map with all entries < key = value >
+ * */
+
+void initMapConfig(std::string pathConfFile)
+{
+    std::ifstream file_in(pathConfFile);
+    // std::cout << file_in.rdbuf(); // debug
+
+    std::string key;
+    std::string value;
+
+    while (std::getline(file_in, key, '=') && std::getline(file_in, value))
+    {
+        try
+        {
+            std::size_t pos_sharp = key.find("#");
+            if (pos_sharp == 0)
+            {
+
+                key = key.substr(key.find("\n") + 1, key.length());
+                std::istringstream iss(key);
+                std::getline(iss, key, '=');
+                std::getline(iss, value);
+            }
+            key = trim(key);
+            value = trim(value);
+            // printf("Map values: key:%s ==> value:%s\n", key.c_str(), value.c_str());
+            conf_map.insert(std::pair<std::string, std::string>(key, value));
+        }
+        catch (...)
+        {
+            std::cout << "Error reading configuration file, key: " << key << "\n";
+        }
+    }
+    std::cout << "--- Configuration loaded! ---\n"
+              << std::endl;
+    // std::cout << "After init ====>mymap.size() is " << conf_map.size() << '\n';
+    file_in.close();
+}
 
 static void core_log(enum retro_log_level level, const char *fmt, ...)
 {
@@ -266,9 +333,10 @@ static bool core_environment(unsigned cmd, void *data)
         while (var->key != NULL)
         {
             std::string key = var->key;
-            printf("----- (INFO_VAR:%s ) -----\n", var->value);
+
             const char *start = strchr(var->value, ';');
             start += 2;
+
             std::string value;
             while (*start != '|' && *start != 0)
             {
@@ -278,7 +346,6 @@ static bool core_environment(unsigned cmd, void *data)
 
             variables[key] = value;
             printf(" -> SET_VAR: %s=%s\n", key.c_str(), value.c_str());
-
             ++var;
         }
 
@@ -289,11 +356,13 @@ static bool core_environment(unsigned cmd, void *data)
     {
         retro_variable *var = (retro_variable *)data;
         // printf("GET_VAR: %s\n", var->key);
-        std::map<std::string, std::string> my_map = getConfigMap();
+        // std::cout << "2 ====>mymap.size() is " << conf_map.size() << '\n';
         bool found = false;
 
-        for (const auto &kv : my_map)
+        /*for (const auto &kv : conf_map)
         {
+
+            // printf("Try to find this : %s  with: %s\n", var->key, kv.second.c_str());
             if (strcmp(var->key, kv.first.c_str()) == 0)
             {
                 printf("key found: %s  value: %s\n", kv.first.c_str(), kv.second.c_str());
@@ -301,8 +370,16 @@ static bool core_environment(unsigned cmd, void *data)
                 found = true;
                 return true;
             }
-        }
+        }*/
 
+        std::map<std::string, std::string>::iterator it = conf_map.find(var->key);
+        if (it != conf_map.end())
+        {
+            printf("key found: %s  value: %s\n", it->first.c_str(), it->second.c_str());
+            var->value = it->second.c_str();
+            found = true;
+            return true;
+        }
         if (!found)
         {
             // printf("key not found: settign to default...\n");
@@ -476,7 +553,6 @@ libc_error:
     abort();
 }
 
-// static void core_unload()
 void *core_unload(void *arg)
 {
 
@@ -511,7 +587,6 @@ static const char *FileNameFromPath(const char *fullpath)
 
 static char *PathCombine(const char *path, const char *filename)
 {
-
     int len = strlen(path);
     int total_len = len + strlen(filename);
 
@@ -538,18 +613,17 @@ static char *PathCombine(const char *path, const char *filename)
 static int LoadState(const char *saveName)
 {
     FILE *file = fopen(saveName, "rb");
+    if (!file)
     {
-        printf("File sav not found!\n");
+        printf("Error loading state: File '%s' not found!\n", saveName);
         return -1;
     }
-
     fseek(file, 0, SEEK_END);
     long size = ftell(file);
     rewind(file);
-
     if (size < 1)
     {
-        printf("File sav size is wrong!\n");
+        printf("Error loading state, in file '%s': size is wrong!\n", saveName);
         return -1;
     }
     void *ptr = malloc(size);
@@ -557,18 +631,17 @@ static int LoadState(const char *saveName)
         abort();
 
     size_t count = fread(ptr, 1, size, file);
+
     if ((size_t)size != count)
     {
-        printf("File sav size mismatch!\n");
+        printf("Error loading state, in file '%s': size mismatch!\n", saveName);
         free(ptr);
         abort();
     }
-
     fclose(file);
-
     g_retro.retro_unserialize(ptr, size);
     free(ptr);
-    printf("File sav loaded correctly!\n");
+    printf("File '%s': loaded correctly!\n", saveName);
     return 0;
 }
 
@@ -576,10 +649,8 @@ static int LoadSram(const char *saveName)
 {
     FILE *file = fopen(saveName, "rb");
     if (!file)
-    {
-        printf("File srm not found!\n");
-        return -1;
-    }
+        printf("Error loading sram: File '%s' not found!\n", saveName);
+    return -1;
 
     fseek(file, 0, SEEK_END);
     long size = ftell(file);
@@ -587,67 +658,62 @@ static int LoadSram(const char *saveName)
 
     size_t sramSize = g_retro.retro_get_memory_size(0);
     if (size < 1)
-    {
-        printf("File srm size is wrong!\n");
         return -1;
-    }
     if (size != (long)sramSize)
     {
-        printf("LoadSram: File size mismatch (%ld != %zu)\n", size, sramSize);
+        printf("Error loading sram, in file '%s': size mismatch!\n", saveName);
         return -1;
     }
 
     void *ptr = g_retro.retro_get_memory_data(0);
     if (!ptr)
     {
-        printf("File srm contains wrong memory data!\n");
+        printf("Error loading sram, file '%s': contains wrong memory data!\n", saveName);
         abort();
     }
 
     size_t count = fread(ptr, 1, size, file);
     if ((size_t)size != count)
     {
-        printf("File srm size mismatch!\n");
+        printf("Error loading sram, in file '%s': size mismatch!\n", saveName);
         abort();
     }
 
     fclose(file);
-    printf("File srm loaded correctly!\n");
+    printf("File '%s': loaded correctly!\n", saveName);
+
     return 0;
 }
 
 static void SaveState(const char *saveName)
 {
     size_t size = g_retro.retro_serialize_size();
-
     void *ptr = malloc(size);
-
     if (!ptr)
     {
-        printf("Saving state error: ptr not valid!\n");
+        printf("Error saving state: ptr not valid!\n");
         abort();
     }
     g_retro.retro_serialize(ptr, size);
     FILE *file = fopen(saveName, "wb");
-
     if (!file)
     {
-        printf("Saving state error: file not found!\n");
+        printf("Error saving state: File '%s' cannot be opened!\n", saveName);
         free(ptr);
         abort();
     }
-
     size_t count = fwrite(ptr, 1, size, file);
     if (count != size)
     {
-        printf("Saving state error: count not valid!\n");
+        printf("Error saving state: File '%s' count not valid!\n", saveName);
         free(ptr);
         abort();
     }
-
     fclose(file);
     free(ptr);
-    printf("File sav saved correctly!\n");
+    printf("File '%s': saved correctly!\n", saveName);
+
+    return;
 }
 
 static void SaveSram(const char *saveName)
@@ -659,28 +725,47 @@ static void SaveSram(const char *saveName)
     void *ptr = g_retro.retro_get_memory_data(0);
     if (!ptr)
     {
-        printf("Saving sram error: ptr not valid!\n");
+        printf("Error saving sram: ptr not valid!\n");
         abort();
     }
 
     FILE *file = fopen(saveName, "wb");
     if (!file)
     {
-        printf("Saving sram error: file not found!\n");
-        free(ptr);
+        printf("Error saving sram: File '%s' cannot be opened!\n", saveName);
+
         abort();
     }
 
     size_t count = fwrite(ptr, 1, size, file);
     if (count != size)
     {
-        printf("Saving sram error: count not valid!\n");
-        free(ptr);
+        printf("Error saving sram: File '%s' count not valid!\n", saveName);
+
         abort();
     }
 
     fclose(file);
-    printf("File srm saved correctly!\n");
+}
+
+std::string getSystemFromRomPath(const char *fullpath)
+{
+    std::string arg_rom_string(fullpath);
+    size_t slash = arg_rom_string.find_last_of("\\/");
+    std::string dirPath = (slash != std::string::npos) ? arg_rom_string.substr(0, slash) : arg_rom_string;
+    size_t slash2 = dirPath.find_last_of("\\/");
+    std::string system = (slash2 != std::string::npos) ? dirPath.substr(slash2 + 1, dirPath.length()) : dirPath;
+    printf("system='%s'\n", system.c_str());
+    return system;
+}
+
+std::string replace(std::string &str, const std::string &from, const std::string &to)
+{
+    size_t start_pos = str.find(from);
+    if (start_pos == std::string::npos)
+        return "";
+    std::string replaced = str.replace(start_pos, from.length(), to);
+    return replaced;
 }
 
 float getAspectRatio(const std::string aspect)
@@ -702,8 +787,65 @@ float getAspectRatio(const std::string aspect)
         return 0.0f; // will be the default (provided by core)
 }
 
+void initConfig()
+{
+    std::ifstream infile(opt_setting_file);
+    if (!infile.good())
+    {
+        printf("ERROR! Configuration file:'%s' doesn't exist default core settings will be used\n", opt_setting_file);
+    }
+    else
+    {
+        printf("Reading configuration file:'%s'\n", opt_setting_file);
+        initMapConfig(opt_setting_file);
+        try
+        {
+            const std::string &ssFolderValue = conf_map.at("retrorun_screenshot_folder");
+            screenShotFolder = ssFolderValue;
+        }
+        catch (...)
+        {
+            printf("Warning: retrorun_screenshot_folder parameter not found in retrorun.cfg using default folder (/storage/roms/screenshots).\n");
+            screenShotFolder = "/storage/roms/screenshots";
+        }
+
+        if (opt_aspect != 0.0f)
+        {
+            printf("Info: aspect_ratio forced from command line.\n");
+        }
+        else
+        {
+            try
+            {
+                const std::string &arValue = conf_map.at("retrorun_aspect_ratio");
+                opt_aspect = getAspectRatio(arValue);
+            }
+            catch (...)
+            {
+                printf("Warning: retrorun_aspect_ratio parameter not found in retrorun.cfg using default value (core provided).\n");
+            }
+        }
+        try
+        {
+            const std::string &asValue = conf_map.at("retrorun_auto_save");
+            auto_save = asValue == "true" ? true : false;
+            printf("Autosave: %s.\n", auto_save ? "true" : "false");
+        }
+        catch (...)
+        {
+            printf("Warning: retrorun_auto_save parameter not found in retrorun.cfg using default value (false).\n");
+        }
+
+        printf("Configuration initialized.\n");
+    }
+    infile.close();
+}
+
 int main(int argc, char *argv[])
 {
+    //printf("argc=%d, argv=%p\n", argc, argv);
+
+    initConfig();
 
     int c;
     int option_index = 0;
@@ -758,57 +900,6 @@ int main(int argc, char *argv[])
         }
     }
 
-    std::ifstream infile(opt_setting_file);
-    if (!infile.good())
-    {
-        printf("ERROR! Configuration file:'%s' doesn't exist default core settings will be used\n", opt_setting_file);
-    }
-    else
-    {
-        printf("Reading configuration file:'%s'\n", opt_setting_file);
-        std::map<std::string, std::string> confMap = initMapConfig(opt_setting_file);
-        try
-        {
-            const std::string &ssFolderValue = confMap.at("retrorun_screenshot_folder");
-            screenShotFolder = ssFolderValue;
-        }
-        catch (...)
-        {
-            printf("Warning: retrorun_screenshot_folder parameter not found in retrorun.cfg using default folder (/storage/roms/screenshots).\n");
-            screenShotFolder = "/storage/roms/screenshots";
-        }
-
-        if (opt_aspect != 0.0f)
-        {
-            printf("Info: aspect_ratio forced from command line.\n");
-        }
-        else
-        {
-            try
-            {
-                const std::string &arValue = confMap.at("retrorun_aspect_ratio");
-                opt_aspect = getAspectRatio(arValue);
-            }
-            catch (...)
-            {
-                printf("Warning: retrorun_aspect_ratio parameter not found in retrorun.cfg using default value (core provided).\n");
-            }
-        }
-        try
-        {
-            const std::string &asValue = confMap.at("retrorun_auto_save");
-            auto_save = asValue == "true" ? true : false;
-        }
-        catch (...)
-        {
-            printf("Warning: retrorun_auto_save parameter not found in retrorun.cfg using default value (false).\n");
-        }
-
-        printf("Configuration initialized.\n");
-    }
-
-    printf("opt_save='%s', opt_systemdir='%s', opt_aspect=%f\n", opt_savedir, opt_systemdir, opt_aspect);
-
     int remaining_args = argc - optind;
     int remaining_index = optind;
     printf("remaining_args=%d\n", remaining_args);
@@ -830,15 +921,17 @@ int main(int argc, char *argv[])
 
     arg_core = argv[remaining_index++];
     arg_rom = argv[remaining_index++];
-    printf("core loading: %s\n", arg_core);
-    core_load(arg_core);
-    printf("rom loading: %s\n", arg_rom);
-    core_load_game(arg_rom);
 
     // Overrides
     printf("Checking overrides.\n");
 
     input_gamepad_read();
+
+    core_load(arg_core);
+    // conf_map.clear();
+
+    core_load_game(arg_rom);
+    // conf_map.clear();
 
     go2_input_state_t *gamepadState = input_gampad_current_get();
     if (go2_input_state_button_get(gamepadState, Go2InputButton_F1) == ButtonState_Pressed)
@@ -846,11 +939,14 @@ int main(int argc, char *argv[])
         printf("Forcing restart due to button press (F1).\n");
         opt_restart = true;
     }
+
+    // State
     char *sramPath = NULL;
     char *savePath = NULL;
+
     if (auto_save)
     {
-        // State
+
         const char *fileName = FileNameFromPath(arg_rom);
 
         std::string fullNameString(fileName);
@@ -858,36 +954,48 @@ int main(int argc, char *argv[])
         size_t lastindex = fullNameString.find_last_of(".");
         std::string rawname = fullNameString.substr(0, lastindex);
         romName = rawname;
+
+        std::string system = getSystemFromRomPath(arg_rom);
+        std::string stateAutoPath = "/storage/roms/savestates/<system>/<gameName>.rrstate.auto";
+        std::string tempStatePAth = replace(stateAutoPath, "<system>", system);
+        std::string statePathIvanFinal = replace(tempStatePAth, "<gameName>", romName);
+
         std::string sramFileName = rawname + ".srm";
         std::string savFileName = rawname + ".sav";
 
         sramPath = PathCombine(opt_savedir, sramFileName.c_str());
         printf("sramPath='%s'\n", sramPath);
-
-        savePath = PathCombine(opt_savedir, savFileName.c_str());
+        savePath = (char *)malloc(statePathIvanFinal.length() + 1);
+        savePath = strcpy(savePath, const_cast<char *>(statePathIvanFinal.c_str())); // const_cast<char *>(statePathIvanFinal.c_str());
+        //PathCombine(opt_savedir, savFileName.c_str());
         printf("savePath='%s'\n", savePath);
-
-        if (opt_restart)
+    }
+    if (opt_restart)
+    {
+        printf("Restarting.\n");
+    }
+    else
+    {
+        if (auto_save)
         {
-            printf("Restarting.\n");
-        }
-        else
-        {
-            printf("Loading sav file:%s\n", savePath);
+            printf("Loading.\n");
             LoadState(savePath);
         }
-        printf("Loading sram file:%s\n", sramPath);
-        LoadSram(sramPath);
     }
 
-    bool isRunning = true;
-
+    if (auto_save)
+    {
+        LoadSram(sramPath);
+    }
     printf("Entering render loop.\n");
+
+    //const char* batteryStateDesc[] = { "UNK", "DSC", "CHG", "FUL" };
 
     struct timeval startTime;
     struct timeval endTime;
     double elapsed = 0;
     int totalFrames = 0;
+    bool isRunning = true;
     sleep(1); // some cores (like yabasanshiro) from time to time hangs on retro_run otherwise
     while (isRunning)
     {
@@ -939,9 +1047,10 @@ int main(int argc, char *argv[])
 
     if (auto_save)
     {
+        // sleep(1); // wait a little bit
         printf("Saving sram into file:%s\n", sramPath);
         SaveSram(sramPath);
-        free(sramPath);
+        //free(sramPath);
         // free(sramName);
         printf("Saving sav into file:%s\n", savePath);
         SaveState(savePath);

@@ -23,7 +23,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "video.h"
 #include "libretro.h"
 
-#include <chrono>
+
 
 #include <go2/input.h>
 #include <stdio.h>
@@ -34,12 +34,15 @@ extern int opt_volume;
 
 bool input_exit_requested = false;
 bool input_exit_requested_firstTime = false;
-auto input_exit_requested_start = std::chrono::high_resolution_clock::now();
+
 
 bool input_fps_requested = false;
 bool input_info_requested = false;
 struct timeval valTime;
+struct timeval exitTimeStop;
+struct timeval exitTimeStart;
 double lastFPSrequestTime = -1;
+
 bool input_reset_requested = false;
 bool input_pause_requested = false;
 //bool input_ffwd_requested = false;
@@ -56,17 +59,11 @@ static constexpr go2_input_button_t Hotkey = Go2InputButton_F2;
 
 void input_gamepad_read()
 {
-    //printf("============>aspect: %f\n", aspect_ratio);
+    
     if (aspect_ratio < 1.0f)
     {
-        // printf("We are in Tate mode!\n");
         isTate = true;
     }
-
-    /*if (Go2InputFeatureFlags_RightAnalog){
-		// printf("Right analog is enabled!\n");
-
-	}*/
     if (!input)
     {
         input = go2_input_create();
@@ -74,7 +71,6 @@ void input_gamepad_read()
         if (go2_input_features_get(input) & Go2InputFeatureFlags_Triggers)
         {
             has_triggers = true;
-
             printf("input: Hardware triggers enabled.\n");
         }
 
@@ -85,7 +81,7 @@ void input_gamepad_read()
         }
         else if (isTate)
         {
-            printf("******* input error: tate mode will work bad due to missing right analog stick.********\n");
+            printf("******* input error: tate mode will work wrongly due to missing right analog stick.********\n");
         }
 
         gamepadState = go2_input_state_create();
@@ -115,10 +111,13 @@ void core_input_poll(void)
     // Read inputs
     input_gamepad_read();
     go2_input_battery_read(input, &batteryState);
-
-    auto t_now = std::chrono::high_resolution_clock::now();
-    double elapsed_time_ms = std::chrono::duration<double, std::milli>(t_now - input_exit_requested_start).count();
-    if (elapsed_time_ms > 2500)
+    gettimeofday(&exitTimeStop, NULL);
+    //double now = exitTime.tv_sec + (exitTime.tv_usec / 1000000.0);
+    double now_seconds = (exitTimeStop.tv_sec - exitTimeStart.tv_sec);
+    double now_milliseconds = ((double)(exitTimeStop.tv_usec - exitTimeStart.tv_usec)) / 1000000.0;
+    // double elapsed_time_ms = now - lastExitTime;
+    double elapsed_time_ms = now_seconds + now_milliseconds;
+    if (elapsed_time_ms > 2.5)
     {
         input_exit_requested_firstTime = false;
     }
@@ -127,28 +126,21 @@ void core_input_poll(void)
     if (go2_input_state_button_get(gamepadState, Go2InputButton_F1) == ButtonState_Pressed &&
         go2_input_state_button_get(gamepadState, Go2InputButton_F6) == ButtonState_Pressed)
     {
-        
-        // printf("input: elapsed_time_ms: %f\n", elapsed_time_ms);
-        if (input_exit_requested_firstTime && elapsed_time_ms >500)
+        if (input_exit_requested_firstTime && elapsed_time_ms >0.5)
         {
-            printf("input: input_exit_requested!.\n");
-            input_exit_requested = true;   
-            
+            input_exit_requested = true;
         }
         else if (!input_exit_requested_firstTime)
         {
-            input_exit_requested_start = std::chrono::high_resolution_clock::now();
-            input_exit_requested_firstTime = true;
-            // printf("input: input_exit_requested_firstTime.\n");
-            
+            gettimeofday(&exitTimeStart, NULL);
+            input_exit_requested_firstTime = true;    
         }
     }
 
     if (go2_input_state_button_get(gamepadState, Go2InputButton_F1) == ButtonState_Pressed &&
         go2_input_state_button_get(gamepadState, Go2InputButton_Y) == ButtonState_Pressed)
     {
-        // printf("input: requested FPS.\n");
-
+        
         gettimeofday(&valTime, NULL);
         double currentTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
         bool updateFPSRequest = false;
