@@ -9,15 +9,9 @@ bool Retrorun_UseAnalogStick = false;
 bool opt_triggers = false;
 float opt_aspect = 0.0f;
 float aspect_ratio = 0.0f;
-float fps=0.0f;
+
 std::string romName;
 std::string screenShotFolder;
 
+float fps=0.0f;
 
-void setFps(float fpsInput){
-    fps = fpsInput;
-} 
-
-float getFps(){ 
-    return fps;
-}

@@ -1011,12 +1011,12 @@ int main(int argc, char *argv[])
 
             elapsed += seconds + milliseconds;
             int newFps = (int)(totalFrames / elapsed);
-            if (abs(newFps - getFps()) <= 60 && elapsed >= 0.8)
+            if (abs(newFps - fps) <= 60 && elapsed >= 0.8)
             {
-                setFps(newFps);
+                fps = newFps;
                 if (opt_show_fps && elapsed >= 1.0)
                 {
-                    printf("FPS: %d\n", getFps());
+                    printf("FPS: %f\n", fps);
                 }
                 totalFrames = 0;
                 elapsed = 0;

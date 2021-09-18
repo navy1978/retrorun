@@ -35,7 +35,7 @@ extern int opt_volume;
 bool input_exit_requested = false;
 bool input_exit_requested_firstTime = false;
 
-
+extern float fps;
 bool input_fps_requested = false;
 bool input_info_requested = false;
 struct timeval valTime;
