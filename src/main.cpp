@@ -88,6 +88,7 @@ bool opt_show_fps = false;
 bool auto_save = false;
 const char *ws = " \t\n\r\f\v";
 
+
 struct option longopts[] = {
     {"savedir", required_argument, NULL, 's'},
     {"systemdir", required_argument, NULL, 'd'},
@@ -1010,12 +1011,12 @@ int main(int argc, char *argv[])
 
             elapsed += seconds + milliseconds;
             int newFps = (int)(totalFrames / elapsed);
-            if (abs(newFps - fps) <= 60 && elapsed >= 0.8)
+            if (abs(newFps - getFps()) <= 60 && elapsed >= 0.8)
             {
-                fps = newFps;
+                setFps(newFps);
                 if (opt_show_fps && elapsed >= 1.0)
                 {
-                    printf("FPS: %i\n", fps);
+                    printf("FPS: %d\n", getFps());
                 }
                 totalFrames = 0;
                 elapsed = 0;

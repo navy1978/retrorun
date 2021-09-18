@@ -323,27 +323,26 @@ int getDigit(int n, int position)
         res = 9;
     if (res < 0)
         res = 0;
-    printf("->res: %i\n", res);    
     return res;
 }
 
 void showFPSImage()
 {
-    printf("->FPS: %i\n", fps);
+    
 
     if (base_width == 640 || base_height == 640)
     {
         int x = base_width - (numbers_image_high.width * 2) - 10; //depends on the width of the image
         int y = 10;
-        showNumberSprite(x, y, getDigit(fps, 2), numbers_image_high.width, numbers_image_high.height, numbers_image_high.pixel_data);
-        showNumberSprite(x + numbers_image_high.width, y, getDigit(fps, 1), numbers_image_high.width, numbers_image_high.height, numbers_image_high.pixel_data);
+        showNumberSprite(x, y, getDigit(getFps(), 2), numbers_image_high.width, numbers_image_high.height, numbers_image_high.pixel_data);
+        showNumberSprite(x + numbers_image_high.width, y, getDigit(getFps(), 1), numbers_image_high.width, numbers_image_high.height, numbers_image_high.pixel_data);
     }
     else
     {
         int x = base_width - (numbers_image_low.width * 2) - 10; //depends on the width of the image
         int y = 10;
-        showNumberSprite(x, y, getDigit(fps, 2), numbers_image_low.width, numbers_image_low.height, numbers_image_low.pixel_data);
-        showNumberSprite(x + numbers_image_low.width, y, getDigit(fps, 1), numbers_image_low.width, numbers_image_low.height, numbers_image_low.pixel_data);
+        showNumberSprite(x, y, getDigit(getFps(), 2), numbers_image_low.width, numbers_image_low.height, numbers_image_low.pixel_data);
+        showNumberSprite(x + numbers_image_low.width, y, getDigit(getFps(), 1), numbers_image_low.width, numbers_image_low.height, numbers_image_low.pixel_data);
     }
 }
 
