@@ -323,11 +323,13 @@ int getDigit(int n, int position)
         res = 9;
     if (res < 0)
         res = 0;
+    printf("->res: %i\n", res);    
     return res;
 }
 
 void showFPSImage()
 {
+    printf("->FPS: %i\n", fps);
 
     if (base_width == 640 || base_height == 640)
     {
