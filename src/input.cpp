@@ -59,11 +59,8 @@ static constexpr go2_input_button_t Hotkey = Go2InputButton_F2;
 
 void input_gamepad_read()
 {
-    
-    if (aspect_ratio < 1.0f)
-    {
-        isTate = true;
-    }
+   
+   
     if (!input)
     {
         input = go2_input_create();
@@ -78,10 +75,6 @@ void input_gamepad_read()
         {
             has_right_analog = true;
             printf("input: Right analog enabled.\n");
-        }
-        else if (isTate)
-        {
-            printf("******* input error: tate mode will work wrongly due to missing right analog stick.********\n");
         }
 
         gamepadState = go2_input_state_create();
@@ -208,6 +201,11 @@ void core_input_poll(void)
 int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigned id)
 {
 
+    if (aspect_ratio < 1.0f)
+    {
+        isTate = true;
+        
+    }
     //int16_t result;
 
     // if (port || index || device != RETRO_DEVICE_JOYPAD)
@@ -246,7 +244,7 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
             go2_input_state_button_set(gamepadState, Go2InputButton_DPadLeft, ButtonState_Pressed);
         if (thumb.x > TRIM)
             go2_input_state_button_set(gamepadState, Go2InputButton_DPadRight, ButtonState_Pressed);
-    }
+    }    
     else if (isTate)
     {
         const float TRIM = 0.35f;

@@ -330,7 +330,6 @@ int getDigit(int n, int position)
 
 void showFPSImage()
 {
-    
 
     if (base_width == 640 || base_height == 640)
     {
@@ -444,11 +443,13 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         w = go2_display_width_get(display);
         isTate = true;
     }
+    
     if (first_video_refresh)
     {
         printf("-- Real aspect_ratio=%f\n", aspect_ratio);
         printf("-- Drawing info: w=%d, h=%d, x=%d, y=%d\n", w, h, x, y);
         printf("-- OpenGL=%s\n", isOpenGL ? "true" : "false");
+        printf("-- isTate=%s\n", isTate ? "true" : "false");
         real_aspect_ratio = aspect_ratio;
         first_video_refresh = false;
     }
