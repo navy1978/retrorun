@@ -133,12 +133,12 @@ void video_configure(const struct retro_game_geometry *geom)
     //Display info: width=480, height=320
     if (display_width == 480 && display_height == 320)
     {
-        printf("-- Device info: RG351 P/M\n");
+        printf("-- Device info: RG351-P / RG351-M\n");
         device = P_M;
     }
     else if (display_width == 480 && display_height == 640)
     {
-        printf("-- Device info: RG351 V\n");
+        printf("-- Device info: RG351-V / RG351-MP\n");
         device = V;
     }
     else
@@ -266,7 +266,7 @@ void showInfo(int w)
 {
     // batteryState.level, batteryStateDesc[batteryState.status]
     showText(0, 0, "Retrorun (RG351* version)");
-    showText(0, 10, "Release: 1.1.2");
+    showText(0, 10, "Release: 1.1.3");
     std::string res = "Resolution:";
     showText(0, 20, const_cast<char *>(res.append(std::to_string(base_width)).append("x").append(std::to_string(base_height)).c_str()));
     std::string bat = "Battery:";

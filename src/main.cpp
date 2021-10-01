@@ -851,7 +851,7 @@ int main(int argc, char *argv[])
     int c;
     int option_index = 0;
 
-    while ((c = getopt_long(argc, argv, "s:d:a:b:v:rtnfc:", longopts, &option_index)) != -1)
+    while ((c = getopt_long(argc, argv, "s:d:a:b:v:grtnfc:", longopts, &option_index)) != -1)
     {
         switch (c)
         {
@@ -890,7 +890,9 @@ int main(int argc, char *argv[])
         case 'f':
             opt_show_fps = true;
             break;
-
+        case 'g':
+            gpio_joypad = true;
+            break;
         case 'c':
             opt_setting_file = optarg;
             break;
