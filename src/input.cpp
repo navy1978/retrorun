@@ -317,8 +317,8 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
     // if (port || index || device != RETRO_DEVICE_JOYPAD)
     //         return 0;
 
-    if (go2_input_state_button_get(gamepadState, Hotkey) == ButtonState_Pressed)
-        return 0;
+    //if (go2_input_state_button_get(gamepadState, Hotkey) == ButtonState_Pressed)
+    //    return 0;
 
     if (!Retrorun_UseAnalogStick)
     {
