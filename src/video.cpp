@@ -264,8 +264,8 @@ void showText(int x, int y, const char *text)
 void showInfo(int w)
 {
     // batteryState.level, batteryStateDesc[batteryState.status]
-    showText(0, 0, "Retrorun (RG351* version)");
-    showText(0, 10, "Release: 1.1.3");
+    showText(0, 0, "Retrorun (RG351 version)");
+    showText(0, 10, "Release: 1.1.4");
     std::string res = "Resolution:";
     showText(0, 20, const_cast<char *>(res.append(std::to_string(base_width)).append("x").append(std::to_string(base_height)).c_str()));
     std::string bat = "Battery:";
@@ -503,9 +503,13 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
 
             // let's copy the content of gles_surface on status_surface (with the current roration based on the device)
             surface_blit(isWideScreen, gles_surface, _351BlitRotation, gs_w, gs_h, ss_w, ss_h, width, height);
-            input_fps_requested ? showFPSImage() : 
-            (screenshot_requested ? takeScreenshot(ss_w, ss_h, _351BlitRotation) : 
-                        (input_exit_requested_firstTime ? showQuitImage() : showInfo(gs_w)) );
+            
+            if (input_fps_requested){showFPSImage();}
+            if (screenshot_requested){takeScreenshot(ss_w, ss_h, _351BlitRotation);}
+            if (input_exit_requested_firstTime){showQuitImage();}
+            if (input_info_requested){showInfo(gs_w);}
+
+
             go2_presenter_post(presenter,
                                status_surface,
                                0, 0, ss_w, ss_h,
@@ -561,18 +565,11 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         {
             if (color_format == DRM_FORMAT_RGBA5551)
             {
-                // uint16_t* src2 = (uint16_t*)src;
-                // uint16_t* dst2 = (uint16_t*)dst;
-
                 uint32_t *src2 = (uint32_t *)src;
                 uint32_t *dst2 = (uint32_t *)dst;
 
                 for (int x = 0; x < width / 2; ++x)
                 {
-                    // uint16_t pixel = src2[x];
-                    // pixel = (pixel << 1) & (~0x1f) | pixel & 0x1f;
-                    // dst2[x] = pixel;
-
                     uint32_t pixel = src2[x];
                     pixel = ((pixel << 1) & (~0x3f003f)) | (pixel & 0x1f001f);
                     dst2[x] = pixel;
@@ -585,31 +582,14 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
 
             src += pitch;
             dst += go2_surface_stride_get(status_surface);
-
             --yy;
         }
 
-        if (screenshot_requested)
-        {
-            takeScreenshot(ss_w, ss_h, _351BlitRotation);
-        }
-
-        if (input_fps_requested)
-        {
-            showFPSImage();
-        }
-        if (input_info_requested)
-        {
-            showInfo(gs_w);
-        }
-        if (flash)
-        {
-            flashEffect();
-        }
-        if (input_exit_requested_firstTime)
-        {
-            showQuitImage();
-        }
+        if (screenshot_requested){takeScreenshot(ss_w, ss_h, _351BlitRotation);}
+        if (input_fps_requested){showFPSImage();}
+        if (input_info_requested){showInfo(gs_w);}
+        if (flash){flashEffect();}
+        if (input_exit_requested_firstTime){showQuitImage();}
 
         go2_presenter_post(presenter,
                            status_surface,
