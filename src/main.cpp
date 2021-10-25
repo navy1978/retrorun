@@ -784,6 +784,10 @@ float getAspectRatio(const std::string aspect)
         return 1.6f;
     else if (aspect == "1:1")
         return 1.0f;
+    else if (aspect == "3:2")
+        return 1.5f;
+    else if (aspect == "auto")
+        return 0.0f;    
     else
         return 0.0f; // will be the default (provided by core)
 }
