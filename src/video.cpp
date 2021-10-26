@@ -95,6 +95,20 @@ Device device = UNKNOWN;
 
 extern float fps;
 
+//screen info
+    int gs_w;
+    int gs_h;
+
+    int x;
+    int y;
+    int w;
+    int h;
+    float screen_aspect_ratio ;
+    go2_rotation_t _351BlitRotation ;
+    go2_rotation_t _351Rotation ;
+
+
+
 void video_configure(const struct retro_game_geometry *geom)
 {
 
@@ -426,56 +440,93 @@ void surface_blit(bool isWideScreen, go2_surface_t *go2_surface, go2_rotation_t 
     }
 }
 
-void core_video_refresh(const void *data, unsigned width, unsigned height, size_t pitch)
+
+bool cmpf(float A, float B, float epsilon = 0.005f)
 {
+    return (fabs(A - B) < epsilon);
+}
 
-    int gs_w;
-    int gs_h;
 
-    int x;
-    int y;
-    int w;
-    int h;
-    if (aspect_ratio >= 1.0f)
+void prepareScreen(){
+    screen_aspect_ratio =  (float)go2_display_height_get(display) / (float)go2_display_width_get(display)  ;
+     if (aspect_ratio >= 1.0f)
     {
         if (isWideScreen)
         {
-            w = go2_display_width_get(display);
-            h = w * aspect_ratio;
-            h = (h > go2_display_height_get(display)) ? go2_display_height_get(display) : h;
-            y = (go2_display_height_get(display) / 2) - (h / 2);
-            x = 0;
+             if (cmpf(aspect_ratio , screen_aspect_ratio)){
+                h = go2_display_height_get(display);
+                w = go2_display_width_get(display);
+                x = 0;
+                y=0;
+
+             }else if (aspect_ratio < screen_aspect_ratio)   {
+                w = go2_display_width_get(display);
+                h = w * aspect_ratio;
+                h = (h > go2_display_height_get(display)) ? go2_display_height_get(display) : h;
+                y = (go2_display_height_get(display) / 2) - (h / 2);
+                x = 0;
+            }else if (aspect_ratio > screen_aspect_ratio)   {
+                 h = go2_display_height_get(display);
+                w = h / aspect_ratio;
+                w = (w > go2_display_width_get(display)) ? go2_display_width_get(display) : w;
+                x = (go2_display_width_get(display) / 2) - (w / 2);
+                y = 0;
+            }
         }
         else
         {
-            w = go2_display_width_get(display);
-            h = w / aspect_ratio;
-            h = (h > go2_display_height_get(display)) ? go2_display_height_get(display) : h;
-            y = (go2_display_height_get(display) / 2) - (h / 2);
-            x = 0;
+             screen_aspect_ratio  = 1 / screen_aspect_ratio ; //screen is rotated
+             
+             if (cmpf(aspect_ratio , screen_aspect_ratio)){
+                h = go2_display_height_get(display);
+                w = go2_display_width_get(display);
+                x = 0;
+                y=0;
+             }else if (aspect_ratio < screen_aspect_ratio)   {
+                 h = go2_display_height_get(display);
+                w = h / aspect_ratio;
+                w = (w > go2_display_width_get(display)) ? go2_display_width_get(display) : w;
+                x = (go2_display_width_get(display) / 2) - (w / 2);
+                y = 0;
+            }else if (aspect_ratio > screen_aspect_ratio)   {
+                w = go2_display_width_get(display);
+                h = w / aspect_ratio;
+                h = (h > go2_display_height_get(display)) ? go2_display_height_get(display) : h;
+                y = (go2_display_height_get(display) / 2) - (h / 2);
+                x = 0;
+            }
         }
     }
     else
     {
+        // tate mode
         x = 0;
         y = 0;
         h = go2_display_height_get(display);
         w = go2_display_width_get(display);
         isTate = true;
     }
+}
+
+
+void core_video_refresh(const void *data, unsigned width, unsigned height, size_t pitch)
+{
 
     if (first_video_refresh)
     {
+        prepareScreen();
         printf("-- Real aspect_ratio=%f\n", aspect_ratio);
+        printf("-- Screen aspect_ratio=%f\n", screen_aspect_ratio );
         printf("-- Drawing info: w=%d, h=%d, x=%d, y=%d\n", w, h, x, y);
         printf("-- OpenGL=%s\n", isOpenGL ? "true" : "false");
         printf("-- isTate=%s\n", isTate ? "true" : "false");
         real_aspect_ratio = aspect_ratio;
+        _351BlitRotation = isTate ? GO2_ROTATION_DEGREES_270 : GO2_ROTATION_DEGREES_0;
+        _351Rotation = isTate ? GO2_ROTATION_DEGREES_180 : GO2_ROTATION_DEGREES_270;
         first_video_refresh = false;
     }
 
-    go2_rotation_t _351BlitRotation = isTate ? GO2_ROTATION_DEGREES_270 : GO2_ROTATION_DEGREES_0;
-    go2_rotation_t _351Rotation = isTate ? GO2_ROTATION_DEGREES_180 : GO2_ROTATION_DEGREES_270;
+    
     if (isOpenGL)
     {
         if (data != RETRO_HW_FRAME_BUFFER_VALID)
