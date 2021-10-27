@@ -336,7 +336,7 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
             go2_input_state_button_set(gamepadState, Go2InputButton_DPadRight, ButtonState_Pressed);
     }
 
-    if (Retrorun_Core == RETRORUN_CORE_PARALLEL_N64)
+    /*if (Retrorun_Core == RETRORUN_CORE_PARALLEL_N64)
     {
         // Map thumbstick to dpad (force to enable the right analog stick mapping to it the DPAD)
         const float TRIM = 0.35f;
@@ -350,7 +350,7 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
             go2_input_state_button_set(gamepadState, Go2InputButton_DPadLeft, ButtonState_Pressed);
         if (thumb.x > TRIM)
             go2_input_state_button_set(gamepadState, Go2InputButton_DPadRight, ButtonState_Pressed);
-    }
+    }*/
     else if (isTate)
     {
         const float TRIM = 0.35f;
