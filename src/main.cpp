@@ -814,6 +814,18 @@ void initConfig()
             screenShotFolder = "/storage/roms/screenshots";
         }
 
+       /* try
+        {
+            const std::string &ssFps_counter = conf_map.at("retrorun_fps_counter");
+            input_fps_requested = ssFps_counter == "enabled" ? true : false;
+        }
+        catch (...)
+        {
+            printf("Warning: retrorun_fps_counter parameter not found in retrorun.cfg using defaulf value (disabled).\n");
+            input_fps_requested = false;
+        }*/
+
+
         if (opt_aspect != 0.0f)
         {
             printf("Info: aspect_ratio forced from command line.\n");
