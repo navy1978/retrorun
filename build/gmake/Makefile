@@ -48,7 +48,7 @@ ifeq ($(config),release)
   DEFINES   += -DNDEBUG
   INCLUDES  += -I../../src -I../..
   CPPFLAGS  += -MMD -MP $(DEFINES) $(INCLUDES)
-  CFLAGS    += $(CPPFLAGS) $(ARCH) -O3 -std=c++11 -Wall -D__GBM__
+  CFLAGS    += $(CPPFLAGS) $(ARCH) -Ofast -std=c++11 -Wall -D__GBM__
   CXXFLAGS  += $(CFLAGS) 
   LDFLAGS   += -s -Wl,-rpath=. -L../../. -lgo2 -ldl -lEGL -lGLESv2 -lrga -pthread
   LIBS      += 
