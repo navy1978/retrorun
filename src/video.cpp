@@ -85,13 +85,7 @@ extern go2_battery_state_t batteryState;
 const char *batteryStateDesc[] = {"UNK", "DSC", "CHG", "FUL"};
 bool first_video_refresh = true;
 float real_aspect_ratio = 0.0f;
-enum Device
-{
-    P_M,
-    V,
-    UNKNOWN
-};
-Device device = UNKNOWN;
+
 
 extern float fps;
 
@@ -152,7 +146,7 @@ void video_configure(const struct retro_game_geometry *geom)
     else if (display_width == 480 && display_height == 640)
     {
         printf("-- Device info: RG351-V / RG351-MP\n");
-        device = V;
+        device = V_MP;
     }
     else
     {
@@ -279,7 +273,7 @@ void showInfo(int w)
 {
     // batteryState.level, batteryStateDesc[batteryState.status]
     showText(0, 0, "Retrorun (RG351 version)");
-    showText(0, 10, "Release: 1.1.4");
+    showText(0, 10, "Release: 1.2.0");
     std::string res = "Resolution:";
     showText(0, 20, const_cast<char *>(res.append(std::to_string(base_width)).append("x").append(std::to_string(base_height)).c_str()));
     std::string bat = "Battery:";
@@ -619,7 +613,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
                 uint32_t *src2 = (uint32_t *)src;
                 uint32_t *dst2 = (uint32_t *)dst;
 
-                for (int x = 0; x < width / 2; ++x)
+                for (int x = 0; x < (short)width / 2; ++x)
                 {
                     uint32_t pixel = src2[x];
                     pixel = ((pixel << 1) & (~0x3f003f)) | (pixel & 0x1f001f);
