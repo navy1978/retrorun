@@ -915,6 +915,7 @@ int main(int argc, char *argv[])
 
         case 'n':
             force_left_analog_stick = false;
+            printf("using '-n' as parameter, forces left analog stick to false!. '%s'\n");
             break;
 
         case 'f':
