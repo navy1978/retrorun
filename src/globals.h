@@ -10,8 +10,18 @@ enum RETRORUN_CORE_TYPE
 
 };
 
+
+enum Device
+{
+    P_M,
+    V_MP,
+    UNKNOWN
+};
+extern Device device;
+
+
 extern RETRORUN_CORE_TYPE Retrorun_Core;
-extern bool Retrorun_UseAnalogStick;
+extern bool force_left_analog_stick;
 
 extern float fps;
 extern bool opt_triggers;

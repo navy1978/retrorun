@@ -4,7 +4,8 @@
 
 
 RETRORUN_CORE_TYPE Retrorun_Core = RETRORUN_CORE_UNKNOWN;
-bool Retrorun_UseAnalogStick = false;
+Device device = UNKNOWN;
+bool force_left_analog_stick = true;
 
 bool opt_triggers = false;
 bool gpio_joypad = false;

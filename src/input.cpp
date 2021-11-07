@@ -320,7 +320,7 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
     //if (go2_input_state_button_get(gamepadState, Hotkey) == ButtonState_Pressed)
     //    return 0;
 
-    if (!Retrorun_UseAnalogStick)
+    if (force_left_analog_stick)
     {
         // Map thumbstick to dpad (force to enable the left analog stick mapping to it the DPAD)
         const float TRIM = 0.35f;
@@ -336,7 +336,7 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
             go2_input_state_button_set(gamepadState, Go2InputButton_DPadRight, ButtonState_Pressed);
     }
 
-    /*if (Retrorun_Core == RETRORUN_CORE_PARALLEL_N64)
+   /*if (Retrorun_Core == RETRORUN_CORE_PARALLEL_N64)
     {
         // Map thumbstick to dpad (force to enable the right analog stick mapping to it the DPAD)
         const float TRIM = 0.35f;
@@ -502,12 +502,21 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
                 }
                 break;
 
+
+            /*case RETRO_DEVICE_ID_JOYPAD_R3:
+                return go2_input_state_button_get(gamepadState, startButton);
+                break;
+
+            case RETRO_DEVICE_ID_JOYPAD_L3:
+                return go2_input_state_button_get(gamepadState, startButton);
+                break;
+            */
             default:
                 return 0;
                 break;
             }
         }
-        else if (Retrorun_UseAnalogStick && device == RETRO_DEVICE_ANALOG && index == RETRO_DEVICE_INDEX_ANALOG_LEFT)
+        else if (force_left_analog_stick && device == RETRO_DEVICE_ANALOG && index == RETRO_DEVICE_INDEX_ANALOG_LEFT)
         {
 
             if (isTate)

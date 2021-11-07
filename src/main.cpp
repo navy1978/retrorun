@@ -853,6 +853,20 @@ void initConfig()
             printf("Warning: retrorun_auto_save parameter not found in retrorun.cfg using default value (false).\n");
         }
 
+
+        try
+        {
+            const std::string &lasValue = conf_map.at("retrorun_force_left_analog_stick");
+            
+            force_left_analog_stick = lasValue == "true" ? true : false; 
+            printf("Froce analog stick: %s.\n", force_left_analog_stick ? "true" : "false");
+        }
+        catch (...)
+        {
+            printf("Warning: retrorun_force_left_analog_stick parameter not found in retrorun.cfg using default value (false).\n");
+        }
+
+
         printf("Configuration initialized.\n");
     }
     infile.close();
@@ -900,7 +914,8 @@ int main(int argc, char *argv[])
             break;
 
         case 'n':
-            Retrorun_UseAnalogStick = true;
+            force_left_analog_stick = false;
+            printf("using '-n' as parameter, forces left analog stick to false!. '%s'\n");
             break;
 
         case 'f':
