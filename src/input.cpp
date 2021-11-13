@@ -537,7 +537,7 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
                 break;
             }
         }
-        else if (force_left_analog_stick && device == RETRO_DEVICE_ANALOG && index == RETRO_DEVICE_INDEX_ANALOG_LEFT)
+        else if (!force_left_analog_stick && device == RETRO_DEVICE_ANALOG && index == RETRO_DEVICE_INDEX_ANALOG_LEFT)
         {
 
             if (isTate)
