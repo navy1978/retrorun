@@ -503,14 +503,24 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
                 break;
 
 
-            /*case RETRO_DEVICE_ID_JOYPAD_R3:
-                return go2_input_state_button_get(gamepadState, startButton);
+            case RETRO_DEVICE_ID_JOYPAD_R3:
+                return go2_input_state_button_get(gamepadState, Go2InputButton_H1);
+                return go2_input_state_button_get(gamepadState, Go2InputButton_H2);
+                return go2_input_state_button_get(gamepadState, Go2InputButton_H3);
+                return go2_input_state_button_get(gamepadState, Go2InputButton_H4);
+                return go2_input_state_button_get(gamepadState, Go2InputButton_H5);
+                
+
                 break;
 
             case RETRO_DEVICE_ID_JOYPAD_L3:
-                return go2_input_state_button_get(gamepadState, startButton);
+                return go2_input_state_button_get(gamepadState, Go2InputButton_H6);
+                return go2_input_state_button_get(gamepadState, Go2InputButton_H7);
+                return go2_input_state_button_get(gamepadState, Go2InputButton_H8);
+                return go2_input_state_button_get(gamepadState, Go2InputButton_H9);
+                return go2_input_state_button_get(gamepadState, Go2InputButton_H10);
                 break;
-            */
+            
             default:
                 return 0;
                 break;
