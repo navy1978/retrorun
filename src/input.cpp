@@ -359,19 +359,19 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
         go2_thumb_t thumb = go2_input_state_thumbstick_get(gamepadState, Go2InputThumbstick_Right);
 
         if (thumb.y < -TRIM){
-            go2_input_state_button_set(gamepadState, l2Button, ButtonState_Pressed);
+            go2_input_state_button_set(gamepadState, Go2InputButton_TopRight, ButtonState_Pressed);
             go2_input_state_button_set(gamepadState, Go2InputButton_X, ButtonState_Pressed);
         }
         if (thumb.y > TRIM){
-            go2_input_state_button_set(gamepadState, l2Button, ButtonState_Pressed);
+            go2_input_state_button_set(gamepadState, Go2InputButton_TopRight, ButtonState_Pressed);
             go2_input_state_button_set(gamepadState, Go2InputButton_B, ButtonState_Pressed);
         }
         if (thumb.x < -TRIM){
-            go2_input_state_button_set(gamepadState, l2Button, ButtonState_Pressed);
+            go2_input_state_button_set(gamepadState, Go2InputButton_TopRight, ButtonState_Pressed);
             go2_input_state_button_set(gamepadState, Go2InputButton_Y, ButtonState_Pressed);
         }
         if (thumb.x > TRIM){
-            go2_input_state_button_set(gamepadState, l2Button, ButtonState_Pressed);
+            go2_input_state_button_set(gamepadState, Go2InputButton_TopRight, ButtonState_Pressed);
             go2_input_state_button_set(gamepadState, Go2InputButton_A, ButtonState_Pressed);
         }
     }
