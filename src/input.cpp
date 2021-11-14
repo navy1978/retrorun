@@ -336,7 +336,7 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
             go2_input_state_button_set(gamepadState, Go2InputButton_DPadRight, ButtonState_Pressed);
     }
 
-   /*if (Retrorun_Core == RETRORUN_CORE_PARALLEL_N64)
+   /*if (Retrorun_Core == RETRORUN_CORE_PARALLEL_N64) old stuff
     {
         // Map thumbstick to dpad (force to enable the right analog stick mapping to it the DPAD)
         const float TRIM = 0.35f;
@@ -351,6 +351,33 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
         if (thumb.x > TRIM)
             go2_input_state_button_set(gamepadState, Go2InputButton_DPadRight, ButtonState_Pressed);
     }*/
+
+ if (Retrorun_Core == RETRORUN_CORE_PARALLEL_N64) // C buttons
+    {
+        
+        const float TRIM = 0.35f;
+        go2_thumb_t thumb = go2_input_state_thumbstick_get(gamepadState, Go2InputThumbstick_Right);
+
+        if (thumb.y < -TRIM){
+            go2_input_state_button_set(gamepadState, Go2InputButton_TopRight, ButtonState_Pressed);
+            go2_input_state_button_set(gamepadState, Go2InputButton_X, ButtonState_Pressed);
+        }
+        if (thumb.y > TRIM){
+            go2_input_state_button_set(gamepadState, Go2InputButton_TopRight, ButtonState_Pressed);
+            go2_input_state_button_set(gamepadState, Go2InputButton_B, ButtonState_Pressed);
+        }
+        if (thumb.x < -TRIM){
+            go2_input_state_button_set(gamepadState, Go2InputButton_TopRight, ButtonState_Pressed);
+            go2_input_state_button_set(gamepadState, Go2InputButton_Y, ButtonState_Pressed);
+        }
+        if (thumb.x > TRIM){
+            go2_input_state_button_set(gamepadState, Go2InputButton_TopRight, ButtonState_Pressed);
+            go2_input_state_button_set(gamepadState, Go2InputButton_A, ButtonState_Pressed);
+        }
+    }
+
+
+
     else if (isTate)
     {
         const float TRIM = 0.35f;
@@ -503,20 +530,14 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
                 break;
 
 
-            /*case RETRO_DEVICE_ID_JOYPAD_R3:
-                return go2_input_state_button_get(gamepadState, startButton);
-                break;
-
-            case RETRO_DEVICE_ID_JOYPAD_L3:
-                return go2_input_state_button_get(gamepadState, startButton);
-                break;
-            */
+            
+            
             default:
                 return 0;
                 break;
             }
         }
-        else if (force_left_analog_stick && device == RETRO_DEVICE_ANALOG && index == RETRO_DEVICE_INDEX_ANALOG_LEFT)
+        else if (!force_left_analog_stick && device == RETRO_DEVICE_ANALOG && index == RETRO_DEVICE_INDEX_ANALOG_LEFT)
         {
 
             if (isTate)
