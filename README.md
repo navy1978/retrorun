@@ -1,6 +1,6 @@
 # retrorun-go2 for RG351 M/P/V/MP 
 libretro frontend for ODROID-GO Advance \
-Use this for RG351P with rg351p-js2box available [here](https://github.com/christianhaitian/RG351P_virtual-gamepad).
+Use this for RG351* with rg351p-js2box available [here](https://github.com/christianhaitian/RG351P_virtual-gamepad).
 
 # This branch adds the following features:
 1) Tate mode (useful for naomi and atomiswave games)
