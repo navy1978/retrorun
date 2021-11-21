@@ -1017,10 +1017,10 @@ int main(int argc, char *argv[])
         }
     }
 
-    if (auto_save)
-    {
-        LoadSram(sramPath);
-    }
+    
+    
+     LoadSram(sramPath);
+    
     printf("Entering render loop.\n");
 
     //const char* batteryStateDesc[] = { "UNK", "DSC", "CHG", "FUL" };
@@ -1079,13 +1079,12 @@ int main(int argc, char *argv[])
 
     printf("Exiting from render loop...\n");
 
+
+    printf("Saving sram into file:%s\n", sramPath);
+    SaveSram(sramPath);
+
     if (auto_save)
     {
-        // sleep(1); // wait a little bit
-        printf("Saving sram into file:%s\n", sramPath);
-        SaveSram(sramPath);
-        //free(sramPath);
-        // free(sramName);
         printf("Saving sav into file:%s\n", savePath);
         SaveState(savePath);
         free(savePath);
