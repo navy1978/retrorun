@@ -85,23 +85,24 @@ extern go2_battery_state_t batteryState;
 const char *batteryStateDesc[] = {"UNK", "DSC", "CHG", "FUL"};
 bool first_video_refresh = true;
 float real_aspect_ratio = 0.0f;
+unsigned currentWidth = 0;
+unsigned currentHeight = 0;
 
+int rowForText = 0;
 
 extern float fps;
 
 //screen info
-    int gs_w;
-    int gs_h;
+int gs_w;
+int gs_h;
 
-    int x;
-    int y;
-    int w;
-    int h;
-    float screen_aspect_ratio ;
-    go2_rotation_t _351BlitRotation ;
-    go2_rotation_t _351Rotation ;
-
-
+int x;
+int y;
+int w;
+int h;
+float screen_aspect_ratio;
+go2_rotation_t _351BlitRotation;
+go2_rotation_t _351Rotation;
 
 void video_configure(const struct retro_game_geometry *geom)
 {
@@ -202,7 +203,8 @@ void video_configure(const struct retro_game_geometry *geom)
 
         int aw = ALIGN(geom->max_width, 32);
         int ah = ALIGN(geom->max_height, 32);
-        printf("video_configure: aw=%d, ah=%d\n", aw, ah);
+        printf(" (******) video_configure: aw=%d, ah=%d\n", aw, ah);
+        printf(" (******) video_configure: base_width=%d, base_height=%d\n", geom->base_width, geom->base_height);
 
         if (color_format == DRM_FORMAT_RGBA5551)
         {
@@ -221,11 +223,11 @@ void video_configure(const struct retro_game_geometry *geom)
 
         if (color_format == DRM_FORMAT_RGBA5551)
         {
-            status_surface = go2_surface_create(display, geom->base_width, geom->base_height, DRM_FORMAT_RGB565);
+            status_surface = go2_surface_create(display, geom->max_width, geom->max_height, DRM_FORMAT_RGB565);
         }
         else
         {
-            status_surface = go2_surface_create(display, geom->base_width, geom->base_height, color_format);
+            status_surface = go2_surface_create(display, geom->max_width, geom->max_height, color_format);
         }
 
         if (!status_surface)
@@ -261,23 +263,40 @@ uintptr_t core_video_get_current_framebuffer()
 #endif
 }
 
-void showText(int x, int y, const char *text)
+void showText(int x, int y, const char *text, unsigned short color)
 {
 
     uint8_t *dst = (uint8_t *)go2_surface_map(status_surface);
     int dst_stride = go2_surface_stride_get(status_surface);
-    basic_text_out16(dst, dst_stride / 2, x, y, text);
+    basic_text_out16_nf_color(dst, dst_stride / 2, x, y, text, color);
+}
+
+int getRowForText()
+{
+    rowForText = rowForText + 10;
+    return rowForText;
 }
 
 void showInfo(int w)
 {
     // batteryState.level, batteryStateDesc[batteryState.status]
-    showText(0, 0, "Retrorun (RG351 version)");
-    showText(0, 10, "Release: 1.2.0");
-    std::string res = "Resolution:";
-    showText(0, 20, const_cast<char *>(res.append(std::to_string(base_width)).append("x").append(std::to_string(base_height)).c_str()));
-    std::string bat = "Battery:";
-    showText(0, 30, const_cast<char *>(bat.append(std::to_string(batteryState.level)).append("%%").c_str()));
+    rowForText = 0;
+    int posX = 10;
+    showText(posX, getRowForText(), "Retrorun (RG351 version)", 0xf800);
+    showText(posX, getRowForText(), "------------------------", 0xf800);
+    showText(posX, getRowForText(), "Release: 1.3.0", 0xffff);
+    std::string res = "Resolution: ";
+    showText(posX, getRowForText(), const_cast<char *>(res.append(std::to_string(base_width)).append("x").append(std::to_string(base_height)).c_str()), 0xffff);
+    std::string core = "Core: ";
+    showText(posX, getRowForText(), const_cast<char *>(core.append(coreName).c_str()), 0xffff);
+    std::string res2 = "Int. Resolution: ";
+    showText(posX, getRowForText(), const_cast<char *>(res2.append(std::to_string(currentWidth)).append("x").append(std::to_string(currentHeight)).c_str()), 0xffff);
+
+    std::string bat = "Battery: ";
+    showText(posX, getRowForText(), const_cast<char *>(bat.append(std::to_string(batteryState.level)).append("%").c_str()), 0xffff);
+
+    showText(posX, getRowForText(), " ", 0xf800);
+    showText(posX, getRowForText(), "-> Press L3 + R3 to resume", 0x07E0);
 }
 
 std::string getCurrentTimeForFileName()
@@ -338,16 +357,16 @@ int getDigit(int n, int position)
 void showFPSImage()
 {
 
-    if (base_width == 640 || base_height == 640)
+    if (base_width >= 640 || base_height >= 640)
     {
-        int x = base_width - (numbers_image_high.width * 2) - 10; //depends on the width of the image
+        int x = currentWidth - (numbers_image_high.width * 2) - 10; //depends on the width of the image
         int y = 10;
         showNumberSprite(x, y, getDigit(fps, 2), numbers_image_high.width, numbers_image_high.height, numbers_image_high.pixel_data);
         showNumberSprite(x + numbers_image_high.width, y, getDigit(fps, 1), numbers_image_high.width, numbers_image_high.height, numbers_image_high.pixel_data);
     }
     else
     {
-        int x = base_width - (numbers_image_low.width * 2) - 10; //depends on the width of the image
+        int x = currentWidth - (numbers_image_low.width * 2) - 10; //depends on the width of the image
         int y = 10;
         showNumberSprite(x, y, getDigit(fps, 2), numbers_image_low.width, numbers_image_low.height, numbers_image_low.pixel_data);
         showNumberSprite(x + numbers_image_low.width, y, getDigit(fps, 1), numbers_image_low.width, numbers_image_low.height, numbers_image_low.pixel_data);
@@ -374,16 +393,16 @@ void showFullImage(int x, int y, int width, int height, const uint8_t *src)
 void showQuitImage()
 {
     int x, y;
-    if (base_width == 640 || base_height == 640)
+    if (base_width >= 640 || base_height >= 640)
     {
         x = 0;
-        y = base_height - press_high.height / 2;
+        y = currentHeight - press_high.height / 2;
         showFullImage(x, y, press_high.width, press_high.height, press_high.pixel_data);
     }
     else
     {
         x = 0;
-        y = base_height - press_low.height / 2;
+        y = currentHeight - press_low.height / 2;
         showFullImage(x, y, press_low.width, press_low.height, press_low.pixel_data);
     }
 }
@@ -434,33 +453,36 @@ void surface_blit(bool isWideScreen, go2_surface_t *go2_surface, go2_rotation_t 
     }
 }
 
-
 bool cmpf(float A, float B, float epsilon = 0.005f)
 {
     return (fabs(A - B) < epsilon);
 }
 
-
-void prepareScreen(){
-    screen_aspect_ratio =  (float)go2_display_height_get(display) / (float)go2_display_width_get(display)  ;
-     if (aspect_ratio >= 1.0f)
+void prepareScreen()
+{
+    screen_aspect_ratio = (float)go2_display_height_get(display) / (float)go2_display_width_get(display);
+    if (aspect_ratio >= 1.0f)
     {
         if (isWideScreen)
         {
-             if (cmpf(aspect_ratio , screen_aspect_ratio)){
+            if (cmpf(aspect_ratio, screen_aspect_ratio))
+            {
                 h = go2_display_height_get(display);
                 w = go2_display_width_get(display);
                 x = 0;
-                y=0;
-
-             }else if (aspect_ratio < screen_aspect_ratio)   {
+                y = 0;
+            }
+            else if (aspect_ratio < screen_aspect_ratio)
+            {
                 w = go2_display_width_get(display);
                 h = w * aspect_ratio;
                 h = (h > go2_display_height_get(display)) ? go2_display_height_get(display) : h;
                 y = (go2_display_height_get(display) / 2) - (h / 2);
                 x = 0;
-            }else if (aspect_ratio > screen_aspect_ratio)   {
-                 h = go2_display_height_get(display);
+            }
+            else if (aspect_ratio > screen_aspect_ratio)
+            {
+                h = go2_display_height_get(display);
                 w = h / aspect_ratio;
                 w = (w > go2_display_width_get(display)) ? go2_display_width_get(display) : w;
                 x = (go2_display_width_get(display) / 2) - (w / 2);
@@ -469,20 +491,25 @@ void prepareScreen(){
         }
         else
         {
-             screen_aspect_ratio  = 1 / screen_aspect_ratio ; //screen is rotated
-             
-             if (cmpf(aspect_ratio , screen_aspect_ratio)){
+            screen_aspect_ratio = 1 / screen_aspect_ratio; //screen is rotated
+
+            if (cmpf(aspect_ratio, screen_aspect_ratio))
+            {
                 h = go2_display_height_get(display);
                 w = go2_display_width_get(display);
                 x = 0;
-                y=0;
-             }else if (aspect_ratio < screen_aspect_ratio)   {
-                 h = go2_display_height_get(display);
+                y = 0;
+            }
+            else if (aspect_ratio < screen_aspect_ratio)
+            {
+                h = go2_display_height_get(display);
                 w = h / aspect_ratio;
                 w = (w > go2_display_width_get(display)) ? go2_display_width_get(display) : w;
                 x = (go2_display_width_get(display) / 2) - (w / 2);
                 y = 0;
-            }else if (aspect_ratio > screen_aspect_ratio)   {
+            }
+            else if (aspect_ratio > screen_aspect_ratio)
+            {
                 w = go2_display_width_get(display);
                 h = w / aspect_ratio;
                 h = (h > go2_display_height_get(display)) ? go2_display_height_get(display) : h;
@@ -502,6 +529,28 @@ void prepareScreen(){
     }
 }
 
+void makeScreenBlack(go2_surface_t *go2_surface, int res_width, int res_height)
+{
+    uint8_t *dst = (uint8_t *)go2_surface_map(go2_surface);
+    int yy = res_height;
+    while (yy > 0)
+    {
+        if (color_format == DRM_FORMAT_RGBA5551)
+        {
+            uint32_t *dst2 = (uint32_t *)dst;
+            for (int x = 0; x < (short)res_width / 2; ++x)
+            {
+                dst2[x] = 0x000000;
+            }
+        }
+        for (int x = 0; x < (short)res_width * 2; ++x)
+        {
+            dst[x] = 0x000000;
+        }
+        dst += go2_surface_stride_get(go2_surface);
+        --yy;
+    }
+}
 
 void core_video_refresh(const void *data, unsigned width, unsigned height, size_t pitch)
 {
@@ -509,18 +558,31 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
     if (first_video_refresh)
     {
         prepareScreen();
+        /*         h = 480;
+                w = 640;
+                x = 0;
+                y=0;
+*/
         printf("-- Real aspect_ratio=%f\n", aspect_ratio);
-        printf("-- Screen aspect_ratio=%f\n", screen_aspect_ratio );
+        printf("-- Screen aspect_ratio=%f\n", screen_aspect_ratio);
         printf("-- Drawing info: w=%d, h=%d, x=%d, y=%d\n", w, h, x, y);
         printf("-- OpenGL=%s\n", isOpenGL ? "true" : "false");
         printf("-- isTate=%s\n", isTate ? "true" : "false");
+
+        printf("Color format:%s\n", color_format == DRM_FORMAT_RGBA5551 ? "DRM_FORMAT_RGBA5551" : "NOT DRM_FORMAT_RGBA5551");
+
         real_aspect_ratio = aspect_ratio;
         _351BlitRotation = isTate ? GO2_ROTATION_DEGREES_270 : GO2_ROTATION_DEGREES_0;
         _351Rotation = isTate ? GO2_ROTATION_DEGREES_180 : GO2_ROTATION_DEGREES_270;
         first_video_refresh = false;
     }
+    if (height != currentHeight || width != currentWidth)
+    {
+        printf("-- Resolution switched to width=%d, height=%d\n", width, height);
+        currentWidth = width;
+        currentHeight = height;
+    }
 
-    
     if (isOpenGL)
     {
         if (data != RETRO_HW_FRAME_BUFFER_VALID)
@@ -547,17 +609,40 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         {
 
             // let's copy the content of gles_surface on status_surface (with the current roration based on the device)
-            surface_blit(isWideScreen, gles_surface, _351BlitRotation, gs_w, gs_h, ss_w, ss_h, width, height);
-            
-            if (input_fps_requested){showFPSImage();}
-            if (screenshot_requested){takeScreenshot(ss_w, ss_h, _351BlitRotation);}
-            if (input_exit_requested_firstTime){showQuitImage();}
-            if (input_info_requested){showInfo(gs_w);}
+            int res_width = width;
+            int res_height = height;
 
+            if (input_info_requested)
+            {
+
+                if (266 < width && 200 < height)
+                { //240 x 160 is better maybe
+                    res_width = 266;
+                    res_height = 200;
+                }
+                makeScreenBlack(status_surface, res_width, res_height);
+                showInfo(gs_w);
+            }
+            else
+            {
+                surface_blit(isWideScreen, gles_surface, _351BlitRotation, gs_w, gs_h, ss_w, ss_h, width, height);
+            }
+            if (input_fps_requested && !input_info_requested)
+            {
+                showFPSImage();
+            }
+            if (screenshot_requested && !input_info_requested)
+            {
+                takeScreenshot(ss_w, ss_h, _351BlitRotation);
+            }
+            if (input_exit_requested_firstTime && !input_info_requested)
+            {
+                showQuitImage();
+            }
 
             go2_presenter_post(presenter,
                                status_surface,
-                               0, 0, ss_w, ss_h,
+                               0, 0, res_width, res_height,
                                x, y, w, h,
                                _351Rotation);
         }
@@ -566,7 +651,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
             //draw as fast as possible
             go2_presenter_post(presenter,
                                gles_surface,
-                               0, isWideScreen ? 0 : gs_h - height, ss_w, ss_h,
+                               0, isWideScreen ? 0 : gs_h - height, width, height,
                                x, y, w, h,
                                _351Rotation);
         }
@@ -575,31 +660,97 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
     else
     {
 
-
         if (!data)
             return;
         gs_w = go2_surface_width_get(surface);
         gs_h = go2_surface_height_get(surface);
         int ss_w = go2_surface_width_get(status_surface);
         int ss_h = go2_surface_height_get(status_surface);
-        // A similar refactoring should be done here... for emulators that dont use OpenGL
-        if (isWideScreen)
-        {
 
-            go2_surface_blit(surface,
-                             0, 0, gs_w, gs_h,
-                             status_surface,
-                             0, 0, ss_w, ss_h,
-                             _351BlitRotation);
+        // let's copy the content of gles_surface on status_surface (with the current roration based on the device)
+        int res_width = width;
+        int res_height = height;
+
+        if (input_info_requested)
+        {
+            if (266 < width && 200 < height)
+            { //240 x 160 is better maybe
+                res_width = 266;
+                res_height = 200;
+            }
+            makeScreenBlack(status_surface, res_width, res_height);
+            showInfo(gs_w);
         }
         else
         {
-            go2_surface_blit(surface,
-                             0, gs_h - height, width, height,
-                             status_surface,
-                             0, 0, ss_w, ss_h,
-                             _351BlitRotation);
+            // A similar refactoring should be done here... for emulators that dont use OpenGL
+            if (isWideScreen)
+            {
+
+                go2_surface_blit(surface,
+                                 0, 0, gs_w, gs_h,
+                                 status_surface,
+                                 0, 0, ss_w, ss_h,
+                                 _351BlitRotation);
+            }
+            else
+            {
+                go2_surface_blit(surface,
+                                 0, gs_h - height, width, height,
+                                 status_surface,
+                                 0, 0, ss_w, ss_h,
+                                 _351BlitRotation);
+            }
+            uint8_t *src = (uint8_t *)data;
+            uint8_t *dst = (uint8_t *)go2_surface_map(status_surface);
+            int bpp = go2_drm_format_get_bpp(go2_surface_format_get(status_surface)) / 8;
+
+            int yy = height;
+            while (yy > 0)
+            {
+                if (color_format == DRM_FORMAT_RGBA5551)
+                {
+                    uint32_t *src2 = (uint32_t *)src;
+                    uint32_t *dst2 = (uint32_t *)dst;
+
+                    for (int x = 0; x < (short)width / 2; ++x)
+                    {
+                        uint32_t pixel = src2[x];
+                        pixel = ((pixel << 1) & (~0x3f003f)) | (pixel & 0x1f001f);
+                        dst2[x] = pixel;
+                    }
+                }
+                else
+                {
+                    memcpy(dst, src, width * bpp);
+                }
+
+                src += pitch;
+                dst += go2_surface_stride_get(status_surface);
+                --yy;
+            }
         }
+        if (input_fps_requested && !input_info_requested)
+        {
+            showFPSImage();
+        }
+        if (screenshot_requested && !input_info_requested)
+        {
+            takeScreenshot(ss_w, ss_h, _351BlitRotation);
+        }
+        if (input_exit_requested_firstTime && !input_info_requested)
+        {
+            showQuitImage();
+        }
+
+        go2_presenter_post(presenter,
+                           status_surface,
+                           0, 0, res_width, res_height,
+                           x, y, w, h,
+                           _351Rotation);
+
+        // A similar refactoring should be done here... for emulators that dont use OpenGL
+        /*surface_blit(isWideScreen, gles_surface, _351BlitRotation, gs_w, gs_h, ss_w, ss_h, width, height);
 
         uint8_t *src = (uint8_t *)data;
         uint8_t *dst = (uint8_t *)go2_surface_map(status_surface);
@@ -630,16 +781,31 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
             --yy;
         }
 
-        if (screenshot_requested){takeScreenshot(ss_w, ss_h, _351BlitRotation);}
-        if (input_fps_requested){showFPSImage();}
-        if (input_info_requested){showInfo(gs_w);}
-        if (flash){flashEffect();}
-        if (input_exit_requested_firstTime){showQuitImage();}
+        if (screenshot_requested)
+        {
+            takeScreenshot(ss_w, ss_h, _351BlitRotation);
+        }
+        if (input_fps_requested)
+        {
+            showFPSImage();
+        }
+        if (input_info_requested)
+        {
+            showInfo(gs_w);
+        }
+        if (flash)
+        {
+            flashEffect();
+        }
+        if (input_exit_requested_firstTime)
+        {
+            showQuitImage();
+        }
 
         go2_presenter_post(presenter,
                            status_surface,
-                           0, 0, ss_w, ss_h,
+                           0, 0, width, height,
                            x, y, w, h,
-                           _351Rotation);
+                           _351Rotation);*/
     }
 }

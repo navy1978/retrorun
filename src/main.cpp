@@ -501,6 +501,8 @@ static void core_load(const char *sofile)
     {
         Retrorun_Core = RETRORUN_CORE_PARALLEL_N64;
     }
+    coreName= system.library_name;
+    printf("Core:'%s'\n", system.library_name);
 }
 
 static void core_load_game(const char *filename)
@@ -915,7 +917,7 @@ int main(int argc, char *argv[])
 
         case 'n':
             force_left_analog_stick = false;
-            printf("using '-n' as parameter, forces left analog stick to false!. '%s'\n");
+            printf("using '-n' as parameter, forces left analog stick to false!.\n");
             break;
 
         case 'f':

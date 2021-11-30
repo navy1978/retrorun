@@ -13,6 +13,7 @@ float opt_aspect = 0.0f;
 float aspect_ratio = 0.0f;
 
 std::string romName;
+std::string coreName;
 std::string screenShotFolder;
 
 float fps=0.0f;
