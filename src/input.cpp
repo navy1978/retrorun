@@ -458,6 +458,9 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
             go2_input_state_button_set(gamepadState, Go2InputButton_DPadUp, ButtonState_Pressed);
         if (thumb.x > TRIM)
             go2_input_state_button_set(gamepadState, Go2InputButton_DPadDown, ButtonState_Pressed);
+        thumb.x = 0;
+        thumb.y = 0;    
+        
     }
 
     /*
