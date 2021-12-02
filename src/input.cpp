@@ -443,6 +443,8 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
             go2_input_state_button_set(gamepadState, r2Button, ButtonState_Pressed);
             go2_input_state_button_set(gamepadState, Go2InputButton_A, ButtonState_Pressed);
         }
+        thumb.x = 0;
+        thumb.y = 0;    
     }
 
     else if (isTate)
@@ -458,9 +460,7 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
             go2_input_state_button_set(gamepadState, Go2InputButton_DPadUp, ButtonState_Pressed);
         if (thumb.x > TRIM)
             go2_input_state_button_set(gamepadState, Go2InputButton_DPadDown, ButtonState_Pressed);
-        thumb.x = 0;
-        thumb.y = 0;    
-        
+
     }
 
     /*
