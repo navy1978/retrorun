@@ -32,6 +32,8 @@ extern bool input_reset_requested;
 //extern bool input_ffwd_requested;
 extern bool input_pause_requested;
 
+extern double lastScreenhotrequestTime;
+
 void input_gamepad_read();
 go2_input_state_t* input_gampad_current_get();
 void core_input_poll(void);

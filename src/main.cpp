@@ -1067,14 +1067,13 @@ int main(int argc, char *argv[])
             input_reset_requested = false;
             g_retro.retro_reset();
         }
-        if (!input_pause_requested)
-        {
-            g_retro.retro_run();
-        }
-        else
+        
+        if (pause_requested && input_pause_requested)
         {
             // must poll to unpause
             core_input_poll();
+        }else{
+            g_retro.retro_run();
         }
         gettimeofday(&endTime, NULL);
     }

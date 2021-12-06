@@ -39,6 +39,8 @@ double lastFPSrequestTime = -1;
 bool input_info_requested = false;
 double lastInforequestTime = -1;
 
+double lastScreenhotrequestTime = -1;
+
 
 double pauseRequestTime = -1;
 
@@ -326,6 +328,8 @@ void core_input_poll(void)
         go2_input_state_button_get(gamepadState, Go2InputButton_B) == ButtonState_Pressed)
     {
         screenshot_requested = true;
+        gettimeofday(&valTime, NULL);
+        lastScreenhotrequestTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
         printf("input: Screenshot requested\n");
     }
 
@@ -335,10 +339,14 @@ void core_input_poll(void)
         gettimeofday(&valTime, NULL);
         double currentTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
         double elapsed = currentTime - pauseRequestTime;
-        printf("input: pause requested\n");
+        
         if (elapsed >= 0.5)
         {
+            printf("input: pause requested\n");
             input_pause_requested = !input_pause_requested;
+            if (!input_pause_requested){
+                pause_requested = false;
+            }
             printf("%s\n", input_pause_requested ? "Paused" : "Un-paused");
             pauseRequestTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
         }else{
@@ -361,7 +369,7 @@ void core_input_poll(void)
             input_pause_requested = !input_pause_requested;
             printf("%s\n", input_pause_requested ? "Paused" : "Un-paused");
         }
-        //if (go2_input_state_button_get(gamepadState, Go2InputButton_X) == ButtonState_Pressed &&
+        /if (go2_input_state_button_get(gamepadState, Go2InputButton_X) == ButtonState_Pressed &&
         //    go2_input_state_button_get(prevGamepadState, Go2InputButton_X) == ButtonState_Released)
         //{
         //    input_reset_requested = true;

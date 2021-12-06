@@ -29,6 +29,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <exception>
 #include <string.h>
 #include <string>
+#include <sys/time.h>
 
 #include <cmath>
 
@@ -48,6 +49,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include "imgs_press.h"
 #include "imgs_numbers.h"
+#include "imgs_pause.h"
+#include "imgs_screenshot.h"
 
 #define FBO_DIRECT 1
 #define ALIGN(val, align) (((val) + (align)-1) & ~((align)-1))
@@ -71,6 +74,7 @@ int GLContextMinor = 0;
 GLuint fbo;
 int hasStencil = false;
 bool screenshot_requested = false;
+bool pause_requested = false;
 int prevBacklight;
 bool isTate = false;
 int display_width, display_height;
@@ -91,6 +95,8 @@ unsigned currentHeight = 0;
 int rowForText = 0;
 
 extern float fps;
+
+struct timeval valTime2;
 
 //screen info
 int gs_w;
@@ -292,6 +298,9 @@ void showInfo(int w)
     std::string res2 = "Int. Resolution: ";
     showText(posX, getRowForText(), const_cast<char *>(res2.append(std::to_string(currentWidth)).append("x").append(std::to_string(currentHeight)).c_str()), 0xffff);
 
+    std::string openGl = "Is openGL: ";
+    showText(posX, getRowForText(), const_cast<char *>(openGl.append(isOpenGL ? "true" :"false").c_str()), 0xffff);
+
     std::string bat = "Battery: ";
     showText(posX, getRowForText(), const_cast<char *>(bat.append(std::to_string(batteryState.level)).append("%").c_str()), 0xffff);
 
@@ -406,6 +415,42 @@ void showQuitImage()
         showFullImage(x, y, press_low.width, press_low.height, press_low.pixel_data);
     }
 }
+
+void showPauseImage()
+{
+    int x, y;
+    if (base_width >= 640 || base_height >= 640)
+    {
+        x = 0;
+        y = currentHeight - paused_img_high.height / 2;
+        showFullImage(x, y, paused_img_high.width, paused_img_high.height, paused_img_high.pixel_data);
+    }
+    else
+    {
+        x = 0;
+        y = currentHeight - paused_img_low.height / 2;
+        showFullImage(x, y, paused_img_low.width, paused_img_low.height, paused_img_low.pixel_data);
+    }
+}
+
+
+void showScreenshotImage()
+{
+    int x, y;
+    if (base_width >= 640 || base_height >= 640)
+    {
+        x = 0;
+        y = currentHeight - sreenshot_high.height / 2;
+        showFullImage(x, y, sreenshot_high.width, sreenshot_high.height, sreenshot_high.pixel_data);
+    }
+    else
+    {
+        x = 0;
+        y = currentHeight - sreenshot_low.height / 2;
+        showFullImage(x, y, sreenshot_low.width, sreenshot_low.height, sreenshot_low.pixel_data);
+    }
+}
+
 
 void takeScreenshot(int ss_w, int ss_h, go2_rotation_t _351BlitRotation)
 {
@@ -552,9 +597,49 @@ void makeScreenBlack(go2_surface_t *go2_surface, int res_width, int res_height)
     }
 }
 
+bool continueToShowScreenshotImage(){
+    gettimeofday(&valTime2, NULL);
+    double currentTime = valTime2.tv_sec + (valTime2.tv_usec / 1000000.0);
+    double elapsed = currentTime - lastScreenhotrequestTime;
+    if (elapsed < 1){
+        return true;
+    }else{
+        return false;
+    }
+}
+
+
+void status_post(int res_width, int res_height){
+    go2_presenter_post( presenter,
+                        status_surface,
+                        0, 0, res_width, res_height,
+                        x, y, w, h,
+                        _351Rotation);
+    
+}
+
+void checkPaused(){
+    if (input_pause_requested){
+        pause_requested = true;
+    }else{
+        pause_requested = false;
+    }
+}
+
+void presenter_post(int width, int height){
+   go2_presenter_post(presenter,
+        gles_surface,
+        0, isWideScreen ? 0 : gs_h - height, width, height,
+        x, y, w, h,
+        _351Rotation);
+}
+
+
 void core_video_refresh(const void *data, unsigned width, unsigned height, size_t pitch)
 {
 
+    
+    
     if (first_video_refresh)
     {
         prepareScreen();
@@ -605,7 +690,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         int ss_w = go2_surface_width_get(status_surface);
         int ss_h = go2_surface_height_get(status_surface);
 
-        if (input_fps_requested || screenshot_requested || input_exit_requested_firstTime || input_info_requested)
+        if (input_fps_requested || screenshot_requested || input_exit_requested_firstTime || input_info_requested || input_pause_requested)
         {
 
             // let's copy the content of gles_surface on status_surface (with the current roration based on the device)
@@ -634,26 +719,30 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
             if (screenshot_requested && !input_info_requested)
             {
                 takeScreenshot(ss_w, ss_h, _351BlitRotation);
+                
             }
             if (input_exit_requested_firstTime && !input_info_requested)
             {
                 showQuitImage();
             }
+            if (input_pause_requested && !input_info_requested)
+            {
+                showPauseImage();
+            }
 
-            go2_presenter_post(presenter,
-                               status_surface,
-                               0, 0, res_width, res_height,
-                               x, y, w, h,
-                               _351Rotation);
+            status_post(res_width, res_height);
+            checkPaused();
         }
         else
         {
-            //draw as fast as possible
-            go2_presenter_post(presenter,
-                               gles_surface,
-                               0, isWideScreen ? 0 : gs_h - height, width, height,
-                               x, y, w, h,
-                               _351Rotation);
+            if (continueToShowScreenshotImage()){
+                showScreenshotImage();
+                status_post(width, height);
+                checkPaused();
+            }else{
+                //draw as fast as possible
+                presenter_post(width, height);
+            }
         }
         go2_context_surface_unlock(context3D, gles_surface);
     }
@@ -684,23 +773,8 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         else
         {
             // A similar refactoring should be done here... for emulators that dont use OpenGL
-            if (isWideScreen)
-            {
-
-                go2_surface_blit(surface,
-                                 0, 0, gs_w, gs_h,
-                                 status_surface,
-                                 0, 0, ss_w, ss_h,
-                                 _351BlitRotation);
-            }
-            else
-            {
-                go2_surface_blit(surface,
-                                 0, gs_h - height, width, height,
-                                 status_surface,
-                                 0, 0, ss_w, ss_h,
-                                 _351BlitRotation);
-            }
+            surface_blit(isWideScreen, surface, _351BlitRotation, gs_w, gs_h, ss_w, ss_h, width, height);
+            
             uint8_t *src = (uint8_t *)data;
             uint8_t *dst = (uint8_t *)go2_surface_map(status_surface);
             int bpp = go2_drm_format_get_bpp(go2_surface_format_get(status_surface)) / 8;
@@ -738,11 +812,19 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         {
             takeScreenshot(ss_w, ss_h, _351BlitRotation);
         }
+        if (continueToShowScreenshotImage()){
+                showScreenshotImage();
+                
+            }
         if (input_exit_requested_firstTime && !input_info_requested)
         {
             showQuitImage();
         }
-
+        if (input_pause_requested && !input_info_requested)
+            {
+                showPauseImage();
+            }
+        checkPaused();
         go2_presenter_post(presenter,
                            status_surface,
                            0, 0, res_width, res_height,
