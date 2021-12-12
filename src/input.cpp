@@ -311,15 +311,16 @@ void core_input_poll(void)
         if (elapsed >= 0.5)
         {
             input_info_requested = !input_info_requested;
-            if (input_pause_requested){
-                input_pause_requested = true;
-            }
+            pause_requested = input_info_requested;
+            // printf("pause_requested:%s input_info_requested:%s\n", pause_requested? "true": "false", input_info_requested? "true": "false");
             lastInforequestTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);    
             printf("input: Info requested OK\n");
         }else{
           //  printf("input: Info requested NOT OK (too quick)\n");
-          if (!input_pause_requested)
-          input_pause_requested = false;
+          
+          
+          /*input_info_requested = false;
+            pause_requested = false;*/
         }
         
     }

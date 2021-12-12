@@ -500,6 +500,10 @@ static void core_load(const char *sofile)
     else if (strcmp(system.library_name, "ParaLLEl N64") == 0 || strcmp(system.library_name, "ParaLLEl N64 GLN64") == 0)
     {
         Retrorun_Core = RETRORUN_CORE_PARALLEL_N64;
+    } 
+    else if (strcmp(system.library_name, "Flycast") == 0 )
+    {
+        Retrorun_Core = RETRORUN_CORE_FLYCAST;
     }
     coreName= system.library_name;
     printf("Core:'%s'\n", system.library_name);
@@ -1038,12 +1042,9 @@ int main(int argc, char *argv[])
 
         if (opt_show_fps || input_fps_requested)
         {
-
             ++totalFrames;
-
             double seconds = (endTime.tv_sec - startTime.tv_sec);
             double milliseconds = ((double)(endTime.tv_usec - startTime.tv_usec)) / 1000000.0;
-
             elapsed += seconds + milliseconds;
             int newFps = (int)(totalFrames / elapsed);
             if (abs(newFps - fps) <= 60 && elapsed >= 0.8)
@@ -1068,14 +1069,16 @@ int main(int argc, char *argv[])
             g_retro.retro_reset();
         }
         
-        if (pause_requested && input_pause_requested)
+        if ((pause_requested && input_pause_requested) || (pause_requested && input_info_requested) ) 
         {
             // must poll to unpause
+            totalFrames =0; // reset total frames otherwise in next loop FPS are not accurate anymore
             core_input_poll();
         }else{
+            // printf("MAIN: pause_requested:%s input_info_requested:%s\n", pause_requested? "true": "false", input_info_requested? "true": "false");
             g_retro.retro_run();
         }
-        gettimeofday(&endTime, NULL);
+         gettimeofday(&endTime, NULL);
     }
 
     printf("Exiting from render loop...\n");
