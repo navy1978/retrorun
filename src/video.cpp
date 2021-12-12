@@ -393,13 +393,19 @@ int getDigit(int n, int position)
 }
 
 int getStatusWidth(){
-    // change this with the appropiate method
-    return isWideScreen ? base_width : max_width;
+    if (isOpenGL){
+        return go2_surface_width_get(status_surface);
+    }else{
+        return currentWidth;
+    }
 }
 
 int getStatusHeight(){
-    // change this with the appropiate method
-    return isWideScreen ? base_height : max_height;
+    if (isOpenGL){
+        return go2_surface_height_get(status_surface);
+    }else{
+        return currentHeight;
+    }
 }
 
 void showFPSImage()
@@ -532,12 +538,20 @@ void surface_blit(bool isWideScreen, go2_surface_t *go2_surface, go2_rotation_t 
     }
     else
     {
-        go2_surface_blit(go2_surface,
-                         /*  0, 0, gs_w, gs_h,*/
+        if (isOpenGL){
+            go2_surface_blit(go2_surface,
                           0, gs_h - height, width, height,
                          status_surface,
                          0, 0, ss_w, ss_h,
                          _351BlitRotation);
+        }else{
+            go2_surface_blit(go2_surface,
+                           0, 0, gs_w, gs_h,            
+                         status_surface,
+                         0, 0, ss_w, ss_h,
+                         _351BlitRotation);
+        }
+        
     }
 }
 
@@ -732,7 +746,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         gs_h = go2_surface_height_get(gles_surface);
         int ss_w = go2_surface_width_get(status_surface);
         int ss_h = go2_surface_height_get(status_surface);
-
+        //printf("-- gles_surface_w=%d, gles_surface_h=%d - status_surface=%d, status_surface=%d  - width=%d, height=%d\n", gs_w, gs_h,ss_w,ss_h, width, height);
         if (input_fps_requested || screenshot_requested || input_exit_requested_firstTime || input_info_requested || input_pause_requested){
             // let's copy the content of gles_surface on status_surface (with the current roration based on the device)
             int res_width = width;
@@ -790,7 +804,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         gs_h = go2_surface_height_get(surface);
         int ss_w = go2_surface_width_get(status_surface);
         int ss_h = go2_surface_height_get(status_surface);
-
+// printf("-- gles_surface_w=%d, gles_surface_h=%d - status_surface=%d, status_surface=%d  - width=%d, height=%d\n", gs_w, gs_h,ss_w,ss_h, width, height);
         // let's copy the content of gles_surface on status_surface (with the current roration based on the device)
         int res_width = width;
         int res_height = height;
