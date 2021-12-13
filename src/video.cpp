@@ -163,33 +163,33 @@ void video_configure(const struct retro_game_geometry *geom)
 
     if (opt_aspect == 0.0f)
     {
-        printf("Using original game aspect ratio.\n");
+        printf("-RR- Using original game aspect ratio.\n");
         aspect_ratio = geom->aspect_ratio; // dont print the value here because is wrong
     }
     else
     {
-        printf("Forcing aspect ratio to: %f.\n", opt_aspect);
+        printf("-RR- Forcing aspect ratio to: %f.\n", opt_aspect);
         aspect_ratio = opt_aspect;
     }
 
-    printf("-- Display info: width=%d, height=%d\n", display_width, display_height);
+    printf("-RR- Display info: width=%d, height=%d\n", display_width, display_height);
     //Display info: width=480, height=320
     if (display_width == 480 && display_height == 320)
     {
-        printf("-- Device info: RG351-P / RG351-M\n");
+        printf("-RR- Device info: RG351-P / RG351-M\n");
         device = P_M;
     }
     else if (display_width == 480 && display_height == 640)
     {
-        printf("-- Device info: RG351-V / RG351-MP\n");
+        printf("-RR- Device info: RG351-V / RG351-MP\n");
         device = V_MP;
     }
     else
     {
-        printf("-- Device info: unknown! V\n");
+        printf("-RR- Device info: unknown! V\n");
         device = UNKNOWN;
     }
-    printf("-- Game info: base_width=%d, base_height=%d, max_width=%d, max_height=%d\n", geom->base_width, geom->base_height, geom->max_width, geom->max_height);
+    printf("-RR- Game info: base_width=%d, base_height=%d, max_width=%d, max_height=%d\n", geom->base_width, geom->base_height, geom->max_width, geom->max_height);
     base_width = geom->base_width;
     base_height = geom->base_height;
     max_width = geom->max_width;
@@ -201,7 +201,7 @@ void video_configure(const struct retro_game_geometry *geom)
     {
         isWideScreen = true;
     }
-    printf("-- Are we on wide screen? %s\n", isWideScreen == true ? "true" : "false");
+    printf("-RR- Are we on wide screen? %s\n", isWideScreen == true ? "true" : "false");
 
     if (isOpenGL)
     {
@@ -231,7 +231,7 @@ void video_configure(const struct retro_game_geometry *geom)
         // status_surface = go2_surface_create(display, display_width, display_height, DRM_FORMAT_RGB565);
         if (!status_surface)
         {
-            printf("go2_surface_create failed.:status_surface\n");
+            printf("-RR- go2_surface_create failed.:status_surface\n");
             throw std::exception();
         }
     }
@@ -242,8 +242,8 @@ void video_configure(const struct retro_game_geometry *geom)
 
         int aw = ALIGN(geom->max_width, 32);
         int ah = ALIGN(geom->max_height, 32);
-        printf(" (******) video_configure: aw=%d, ah=%d\n", aw, ah);
-        printf(" (******) video_configure: base_width=%d, base_height=%d\n", geom->base_width, geom->base_height);
+        printf("-RR- video_configure: aw=%d, ah=%d\n", aw, ah);
+        printf("-RR- video_configure: base_width=%d, base_height=%d\n", geom->base_width, geom->base_height);
 
         if (color_format == DRM_FORMAT_RGBA5551)
         {
@@ -256,7 +256,7 @@ void video_configure(const struct retro_game_geometry *geom)
 
         if (!surface)
         {
-            printf("go2_surface_create failed.\n");
+            printf("-RR- go2_surface_create failed.\n");
             throw std::exception();
         }
 
@@ -271,7 +271,7 @@ void video_configure(const struct retro_game_geometry *geom)
 
         if (!status_surface)
         {
-            printf("go2_surface_create failed.:status_surface\n");
+            printf("-RR- go2_surface_create failed.:status_surface\n");
             throw std::exception();
         }
         //printf("video_configure: rect=%d, %d, %d, %d\n", y, x, h, w);
@@ -472,11 +472,11 @@ void showImage(rrImg img)
 
 void takeScreenshot(int ss_w, int ss_h, go2_rotation_t _351BlitRotation)
 {
-    printf("Screenshot.\n");
+    printf("-RR- Screenshot.\n");
     go2_surface_t *screenshot = go2_surface_create(display, ss_w, ss_h, DRM_FORMAT_RGB888);
     if (!screenshot)
     {
-        printf("go2_surface_create for screenshot failed.\n");
+        printf("-RR- go2_surface_create for screenshot failed.\n");
         throw std::exception();
     }
     go2_surface_blit(status_surface,
@@ -488,7 +488,7 @@ void takeScreenshot(int ss_w, int ss_h, go2_rotation_t _351BlitRotation)
     // snap in screenshot directory
     std::string fullPath = screenShotFolder + "/" + romName + "-" + getCurrentTimeForFileName() + ".png";
     go2_surface_save_as_png(screenshot, fullPath.c_str());
-    printf("Screenshot saved:'%s'\n", fullPath.c_str());
+    printf("-RR- Screenshot saved:'%s'\n", fullPath.c_str());
     go2_surface_destroy(screenshot);
     screenshot_requested = false;
     flash = true;
@@ -675,13 +675,13 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
                 x = 0;
                 y=0;
 */
-        printf("-- Real aspect_ratio=%f\n", aspect_ratio);
-        printf("-- Screen aspect_ratio=%f\n", screen_aspect_ratio);
-        printf("-- Drawing info: w=%d, h=%d, x=%d, y=%d\n", w, h, x, y);
-        printf("-- OpenGL=%s\n", isOpenGL ? "true" : "false");
-        printf("-- isTate=%s\n", isTate ? "true" : "false");
+        printf("-RR- Real aspect_ratio=%f\n", aspect_ratio);
+        printf("-RR- Screen aspect_ratio=%f\n", screen_aspect_ratio);
+        printf("-RR- Drawing info: w=%d, h=%d, x=%d, y=%d\n", w, h, x, y);
+        printf("-RR- OpenGL=%s\n", isOpenGL ? "true" : "false");
+        printf("-RR- isTate=%s\n", isTate ? "true" : "false");
 
-        printf("Color format:%s\n", color_format == DRM_FORMAT_RGBA5551 ? "DRM_FORMAT_RGBA5551" : "NOT DRM_FORMAT_RGBA5551");
+        printf("-RR- Color format:%s\n", color_format == DRM_FORMAT_RGBA5551 ? "DRM_FORMAT_RGBA5551" : "NOT DRM_FORMAT_RGBA5551");
 
         real_aspect_ratio = aspect_ratio;
         _351BlitRotation = isTate ? GO2_ROTATION_DEGREES_270 : GO2_ROTATION_DEGREES_0;
@@ -690,7 +690,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
     }
     if (height != currentHeight || width != currentWidth)
     {
-        printf("-- Resolution switched to width=%d, height=%d\n", width, height);
+        printf("-RR- Resolution switched to width=%d, height=%d\n", width, height);
         currentWidth = width;
         currentHeight = height;
     }
