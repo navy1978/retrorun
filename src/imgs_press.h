@@ -1,11 +1,7 @@
 /* GIMP RGB C-Source image dump (premi_high.c) */
+#include "globals.h"
 
-static const struct {
-  unsigned int 	 width;
-  unsigned int 	 height;
-  unsigned int 	 bytes_per_pixel; /* 2:RGB16, 3:RGB, 4:RGBA */ 
-  unsigned char	 pixel_data[304 * 98 * 2 + 1];
-} press_high = {
+static bigImg press_high = {
   304, 98, 2,
   "\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206"
   "\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061"
@@ -1697,12 +1693,7 @@ static const struct {
 
 /* GIMP RGB C-Source image dump (premi_low.c) */
 
-static const struct {
-  unsigned int 	 width;
-  unsigned int 	 height;
-  unsigned int 	 bytes_per_pixel; /* 2:RGB16, 3:RGB, 4:RGBA */ 
-  unsigned char	 pixel_data[152 * 49 * 2 + 1];
-} press_low = {
+static smallImg press_low = {
   152, 49, 2,
   "\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206"
   "\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061"

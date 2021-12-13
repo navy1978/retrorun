@@ -1,11 +1,7 @@
 /* GIMP RGB C-Source image dump (paused_img_high.c) */
+#include "globals.h"
 
-static const struct {
-  unsigned int 	   width;
-  unsigned int  	 height;
-  unsigned int  	 bytes_per_pixel; /* 2:RGB16, 3:RGB, 4:RGBA */ 
-  unsigned char 	 pixel_data[152 * 49 * 2 + 1];
-} paused_img_low = {
+static smallImg paused_img_low = {
   152, 49, 2,
   "\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206"
   "\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061"
@@ -428,12 +424,7 @@ static const struct {
 
 /* GIMP RGBA C-Source image dump (351vPaused.c) */
 
-static const struct {
-  unsigned int 	 width;
-  unsigned int  	 height;
-  unsigned int  	 bytes_per_pixel; /* 2:RGB16, 3:RGB, 4:RGBA */ 
-  unsigned char 	 pixel_data[304 * 98 * 2 + 1];
-} paused_img_high = {
+static bigImg paused_img_high = {
   304, 98, 2,
   "\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206"
   "\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061"

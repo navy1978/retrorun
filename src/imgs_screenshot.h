@@ -1,11 +1,7 @@
 /* GIMP RGB C-Source image dump (sreenshot_low.c) */
+#include "globals.h"
 
-static const struct {
-  unsigned int 	 width;
-  unsigned int 	 height;
-  unsigned int 	 bytes_per_pixel; /* 2:RGB16, 3:RGB, 4:RGBA */ 
-  unsigned char 	 pixel_data[152 * 49 * 2 + 1];
-} sreenshot_low = {
+static smallImg sreenshot_low = {
   152, 49, 2,
   "\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206"
   "\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061"
@@ -432,12 +428,7 @@ static const struct {
 
 /* GIMP RGBA C-Source image dump (351vScreenshot.c) */
 
-static const struct {
-  unsigned int 	 width;
-  unsigned int 	 height;
-  unsigned int 	 bytes_per_pixel; /* 2:RGB16, 3:RGB, 4:RGBA */ 
-  unsigned char	 pixel_data[304 * 98 * 2 + 1];
-} sreenshot_high = {
+static bigImg sreenshot_high = {
   304, 98, 2,
   "\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206"
   "\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061\206\061"

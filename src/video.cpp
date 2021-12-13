@@ -110,6 +110,10 @@ float screen_aspect_ratio;
 go2_rotation_t _351BlitRotation;
 go2_rotation_t _351Rotation;
 
+rrImg quit_img = { press_high, press_low};
+rrImg pause_img = { paused_img_high, paused_img_low};
+rrImg screenshot_img = { sreenshot_high, sreenshot_low};
+
 
 void createNormalStatusSurface(){
     if (status_surface != NULL){
@@ -447,57 +451,23 @@ void showFullImage(int x, int y, int width, int height, const uint8_t *src)
     }
 }
 // refactor
-void showQuitImage()
+void showImage(rrImg img)
 {
     int x, y;
     if (base_width >= 640 || base_height >= 640)
     {
         x = 0;
-        y = getStatusHeight() - (press_high.height / 2);
-        showFullImage(x, y, press_high.width, press_high.height, press_high.pixel_data);
+        y = getStatusHeight() - (img.big.height / 2);
+        showFullImage(x, y, img.big.width, img.big.height, img.big.pixel_data);
     }
     else
     {
         x = 0;
-        y = getStatusHeight() - (press_low.height / 2);
-        showFullImage(x, y, press_low.width, press_low.height, press_low.pixel_data);
-    }
-}
-// refactor
-void showPauseImage()
-{
-    int x, y;
-    if (base_width >= 640 || base_height >= 640)
-    {
-        x = 0;
-        y = getStatusHeight() - paused_img_high.height / 2;
-        showFullImage(x, y, paused_img_high.width, paused_img_high.height, paused_img_high.pixel_data);
-    }
-    else
-    {
-        x = 0;
-        y = getStatusHeight() - paused_img_low.height / 2;
-        showFullImage(x, y, paused_img_low.width, paused_img_low.height, paused_img_low.pixel_data);
+        y = getStatusHeight() - (img.small.height / 2);
+        showFullImage(x, y, img.small.width, img.small.height, img.small.pixel_data);
     }
 }
 
-// refactor
-void showScreenshotImage()
-{
-    int x, y;
-    if (base_width >= 640 || base_height >= 640)
-    {
-        x = 0;
-        y = getStatusHeight() - sreenshot_high.height / 2;
-        showFullImage(x, y, sreenshot_high.width, sreenshot_high.height, sreenshot_high.pixel_data);
-    }
-    else
-    {
-        x = 0;
-        y = getStatusHeight() - sreenshot_low.height / 2;
-        showFullImage(x, y, sreenshot_low.width, sreenshot_low.height, sreenshot_low.pixel_data);
-    }
-}
 
 
 void takeScreenshot(int ss_w, int ss_h, go2_rotation_t _351BlitRotation)
@@ -658,7 +628,7 @@ bool continueToShowScreenshotImage(){
     gettimeofday(&valTime2, NULL);
     double currentTime = valTime2.tv_sec + (valTime2.tv_usec / 1000000.0);
     double elapsed = currentTime - lastScreenhotrequestTime;
-    if (elapsed < 1){
+    if (elapsed < 2){
         return true;
     }else{
         return false;
@@ -773,10 +743,10 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
                 
             }
             if (input_exit_requested_firstTime && !input_info_requested){
-                showQuitImage();
+                showImage(quit_img);
             }
             if (input_pause_requested && !input_info_requested){
-                showPauseImage();
+                showImage(pause_img);
             }
 
             status_post(res_width, res_height, input_info_requested);
@@ -785,7 +755,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         else
         {
             if (continueToShowScreenshotImage()){
-                showScreenshotImage();
+                showImage(screenshot_img);
                 status_post(width, height, input_info_requested);
                 checkPaused();
             }else{
@@ -862,16 +832,16 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
             takeScreenshot(ss_w, ss_h, _351BlitRotation);
         }
         if (continueToShowScreenshotImage()){
-                showScreenshotImage();
+                showImage(screenshot_img);
                 
             }
         if (input_exit_requested_firstTime && !input_info_requested)
         {
-            showQuitImage();
+            showImage(quit_img);
         }
         if (input_pause_requested && !input_info_requested)
             {
-                showPauseImage();
+                showImage(pause_img);
             }
         checkPaused();
         go2_presenter_post(presenter,
