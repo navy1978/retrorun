@@ -344,21 +344,21 @@ void showInfo(int w)
     int posX = 10;
     showText(posX, getRowForText(), "Retrorun (RG351 version)", 0xf800);
     showText(posX, getRowForText(), "------------------------", 0xf800);
-    showText(posX, getRowForText(), "Release: 1.3.0", 0xffff);
-    std::string res = "Resolution: ";
-    showText(posX, getRowForText(), const_cast<char *>(res.append(std::to_string(base_width)).append("x").append(std::to_string(base_height)).c_str()), 0xffff);
+    showText(posX, getRowForText(), "Release: 1.3.1", 0xffff);
+    
     std::string core = "Core: ";
     showText(posX, getRowForText(), const_cast<char *>(core.append(coreName).c_str()), 0xffff);
-    std::string res2 = "Int. Resolution: ";
-    showText(posX, getRowForText(), const_cast<char *>(res2.append(std::to_string(currentWidth)).append("x").append(std::to_string(currentHeight)).c_str()), 0xffff);
-
-    std::string displ = "Display Resolution: ";
-    showText(posX, getRowForText(), const_cast<char *>(displ.append(std::to_string(w)).append("x").append(std::to_string(h)).c_str()), 0xffff);
-
-
     std::string openGl = "Is openGL: ";
     showText(posX, getRowForText(), const_cast<char *>(openGl.append(isOpenGL ? "true" : "false").c_str()), 0xffff);
 
+    std::string res = "Resolution (base): ";
+    showText(posX, getRowForText(), const_cast<char *>(res.append(std::to_string(base_width)).append("x").append(std::to_string(base_height)).c_str()), 0xffff);
+    std::string res2 = "Resolution (int.): ";
+    showText(posX, getRowForText(), const_cast<char *>(res2.append(std::to_string(currentWidth)).append("x").append(std::to_string(currentHeight)).c_str()), 0xffff);
+
+    std::string displ = "Resolution (dis.): ";
+    showText(posX, getRowForText(), const_cast<char *>(displ.append(std::to_string(w)).append("x").append(std::to_string(h)).c_str()), 0xffff);
+    
     std::string bat = "Battery: ";
     showText(posX, getRowForText(), const_cast<char *>(bat.append(std::to_string(batteryState.level)).append("%").c_str()), 0xffff);
 
@@ -572,6 +572,8 @@ bool cmpf(float A, float B, float epsilon = 0.005f)
     return (fabs(A - B) < epsilon);
 }
 
+
+
 void prepareScreen(int width, int height)
 {
     screen_aspect_ratio = (float)go2_display_height_get(display) / (float)go2_display_width_get(display);
@@ -684,13 +686,13 @@ bool continueToShowScreenshotImage()
 void status_post(int res_width, int res_height, bool isInfo)
 {
     
-    unsigned int new_width = isInfo ? res_width : gs_w;
+  /*  unsigned int new_width = isInfo ? res_width : gs_w;
     unsigned int new_height = isInfo ? res_height : gs_h;
 
 if (new_width > currentWidth  || new_height > currentHeight){
     new_width = currentWidth;
     new_height = currentHeight;
-}
+}*/
 if (isWideScreen){
     go2_presenter_post(presenter,
                        status_surface,
@@ -806,6 +808,14 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
                     res_width = 266;
                     res_height = 200;
                 }
+                if (266 > base_width || 200 > base_height)
+                { //240 x 160 is better maybe
+                    res_width = base_width;
+                    res_height = base_height;
+                } 
+
+
+                
                 makeScreenBlack(status_surface, res_width, res_height);
                 showInfo(gs_w);
             }
@@ -871,6 +881,11 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
                 res_width = 266;
                 res_height = 200;
             }
+            if (266 > base_width || 200 > base_height)
+                { //240 x 160 is better maybe
+                    res_width = base_width;
+                    res_height = base_height;
+                } 
             makeScreenBlack(status_surface, res_width, res_height);
             showInfo(gs_w);
         }
