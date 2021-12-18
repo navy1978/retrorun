@@ -5,3 +5,4 @@ void basic_text_out16_nf(void *fb, int w, int x, int y, const char *text);
 void basic_text_out16(void *fb, int w, int x, int y, const char *texto, ...);
 void basic_text_out16_color(void *fb, int w, int x, int y, unsigned short color, const char *texto, ...);
 void basic_text_out_uyvy_nf(void *fb, int w, int x, int y, const char *text);
+void basic_text_out16_nf_color(void *fb, int w, int x, int y, const char *text, unsigned short color);
