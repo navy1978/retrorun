@@ -16,6 +16,7 @@ enum Device
 {
     P_M,
     V_MP,
+    RG_552,
     UNKNOWN
 };
 extern Device device;
