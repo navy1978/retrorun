@@ -92,8 +92,8 @@ struct option longopts[] = {
     {"savedir", required_argument, NULL, 's'},
     {"systemdir", required_argument, NULL, 'd'},
     {"aspect", required_argument, NULL, 'a'},
-    {"backlight", required_argument, NULL, 'b'},
     {"volume", required_argument, NULL, 'v'},
+    {"backlight", required_argument, NULL, 'b'},
     {"restart", no_argument, NULL, 'r'},
     {"triggers", no_argument, NULL, 't'},
     {"analog", no_argument, NULL, 'n'},
@@ -617,7 +617,7 @@ static const char *FileNameFromPath(const char *fullpath)
 }*/
 
 static int LoadState(const char *saveName)
-{
+{   
     FILE *file = fopen(saveName, "rb");
     if (!file)
     {
@@ -633,9 +633,9 @@ static int LoadState(const char *saveName)
         return -1;
     }
     void *ptr = malloc(size);
-    if (!ptr)
+    if (!ptr){
         abort();
-
+    }
     size_t count = fread(ptr, 1, size, file);
 
     if ((size_t)size != count)
@@ -653,41 +653,49 @@ static int LoadState(const char *saveName)
 
 static int LoadSram(const char *saveName)
 {
+   try
+    { 
+     
     FILE *file = fopen(saveName, "rb");
-    if (!file)
+    if (!file){
         printf("-RR- Error loading sram: File '%s' not found!\n", saveName);
-    return -1;
+        return -1;
+    }
 
     fseek(file, 0, SEEK_END);
     long size = ftell(file);
     rewind(file);
 
     size_t sramSize = g_retro.retro_get_memory_size(0);
-    if (size < 1)
+    if (size < 1){
+        printf("-RR- Error loading sram, memory size wrong!\n");
         return -1;
+    }
+    
     if (size != (long)sramSize)
     {
         printf("-RR- Error loading sram, in file '%s': size mismatch!\n", saveName);
         return -1;
     }
-
     void *ptr = g_retro.retro_get_memory_data(0);
     if (!ptr)
     {
         printf("-RR- Error loading sram, file '%s': contains wrong memory data!\n", saveName);
         abort();
     }
-
     size_t count = fread(ptr, 1, size, file);
     if ((size_t)size != count)
     {
         printf("-RR- Error loading sram, in file '%s': size mismatch!\n", saveName);
         abort();
     }
-
     fclose(file);
     printf("-RR- File '%s': loaded correctly!\n", saveName);
-
+    } catch (const std::exception& e) // caught by reference to base
+    {
+        std::cout << " a standard exception was caught, with message '"
+                  << e.what() << "'\n";
+    }
     return 0;
 }
 

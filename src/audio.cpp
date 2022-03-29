@@ -19,6 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include "audio.h"
 #include "input.h"
+#include "globals.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -35,16 +36,19 @@ static u_int16_t audioBuffer[FRAMES_MAX * CHANNELS];
 static int audioFrameCount;
 static int audioFrameLimit;
 static int prevVolume;
+int myFreq =1;
 
 void audio_init(int freq)
 {
     // Note: audio stutters in OpenAL unless the buffer frequency at upload
     // is the same as during creation.
+    myFreq = freq;
     audio = go2_audio_create(freq);
     audioFrameCount = 0;
-    audioFrameLimit = 1.0 / 60.0 * freq;
+    audioFrameLimit = 1.0 / 60.0 * freq; //735
+    // printf("-RR- audio_init freq:%d\n", freq);
 
-    //printf("audio_init: freq=%d\n", freq);
+    
 
     if (opt_volume > -1)
     {
@@ -91,6 +95,9 @@ void core_audio_sample(int16_t left, int16_t right)
 
 size_t core_audio_sample_batch(const int16_t *data, size_t frames)
 {
+     // printf("-RR- core_audio_sample_batch...\n");
+     int myFps = fps <1 ? 1: fps;
+    // audioFrameLimit = 1.0 / myFps * myFreq;
     SetVolume();
     int frameInt = (int) frames;
     if (audioFrameCount + frameInt > audioFrameLimit)
