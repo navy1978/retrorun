@@ -28,7 +28,7 @@ ifeq ($(config),debug)
   CPPFLAGS  += -MMD -MP $(DEFINES) $(INCLUDES)
   CFLAGS    += $(CPPFLAGS) $(ARCH) -g -std=c++11 -Wall -D__GBM__
   CXXFLAGS  += $(CFLAGS) 
-  LDFLAGS   += -Wl,-rpath=. -L../../. -lgo2 -ldl -lEGL -lGLESv2 -lrga -pthread
+  LDFLAGS   += -Wl,-rpath=. -L../../. -lgo2 -ldl -lEGL -lGLESv2 -lrga
   LIBS      += 
   RESFLAGS  += $(DEFINES) $(INCLUDES) 
   LDDEPS    += 
@@ -50,7 +50,7 @@ ifeq ($(config),release)
   CPPFLAGS  += -MMD -MP $(DEFINES) $(INCLUDES)
   CFLAGS    += $(CPPFLAGS) $(ARCH) -Ofast -std=c++11 -Wall -D__GBM__
   CXXFLAGS  += $(CFLAGS) 
-  LDFLAGS   += -s -Wl,-rpath=. -L../../. -lgo2 -ldl -lEGL -lGLESv2 -lrga -pthread
+  LDFLAGS   += -s -Wl,-rpath=. -L../../. -lgo2 -ldl -lEGL -lGLESv2 -lrga 
   LIBS      += 
   RESFLAGS  += $(DEFINES) $(INCLUDES) 
   LDDEPS    += 
