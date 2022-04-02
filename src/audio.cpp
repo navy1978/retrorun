@@ -38,6 +38,7 @@ static int audioFrameLimit;
 static int prevVolume;
 int myFreq =1;
 
+
 void audio_init(int freq)
 {
     // Note: audio stutters in OpenAL unless the buffer frequency at upload
@@ -96,18 +97,27 @@ void core_audio_sample(int16_t left, int16_t right)
 size_t core_audio_sample_batch(const int16_t *data, size_t frames)
 {
      // printf("-RR- core_audio_sample_batch...\n");
-     int myFps = fps <1 ? 1: fps;
-    // audioFrameLimit = 1.0 / myFps * myFreq;
+     //int myFps = fps <1 ? 1: fps;
+     //audioFrameLimit = 1.0 / myFps * myFreq;
+     //audioFrameLimit = 1.0 / 60.0 * freq; //735
+
     SetVolume();
-    int frameInt = (int) frames;
+   
+   int currentFrame = (int) frames;
+   if (currentFrame >FRAMES_MAX){
+       currentFrame = FRAMES_MAX;
+   }
+   // printf("frame %d\n", (int) frames);
+    int frameInt = currentFrame;
     if (audioFrameCount + frameInt > audioFrameLimit)
     {
         go2_audio_submit(audio, (const short *)audioBuffer, audioFrameCount);
         audioFrameCount = 0;
     }
-
+    
     memcpy(audioBuffer + (audioFrameCount * CHANNELS), data, frameInt * sizeof(int16_t) * CHANNELS);
-    audioFrameCount += frameInt;
+     audioFrameCount += frameInt;
+    
 
     return frames;
 }

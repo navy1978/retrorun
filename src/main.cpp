@@ -47,13 +47,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <sys/time.h>
 #include <go2/input.h>
 
-#include <thread>
+
 #include <signal.h>
 #include <string>
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <cstring>
+
 
 #define RETRO_DEVICE_ATARI_JOYSTICK RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_JOYPAD, 1)
 #define RETRO_ENVIRONMENT_GET_PREFERRED_HW_RENDER 56
@@ -559,7 +560,7 @@ libc_error:
     abort();
 }
 
-void *core_unload(void *arg)
+/*void *core_unload(void *arg)
 {
 
     if (g_retro.initialized)
@@ -573,7 +574,28 @@ void *core_unload(void *arg)
         exitFlag = 0;
     }
     return 0;
+}*/
+
+
+void unload(void)
+{
+
+    if (g_retro.initialized)
+    {
+        g_retro.retro_deinit();
+    }
+
+    if (g_retro.handle)
+    {
+        dlclose(g_retro.handle);
+        exitFlag = 0;
+    }
+    throw /*std::invalid_argument("");*/
+    std::runtime_error("Force exiting retrorun.\n");
+
 }
+
+
 
 static const char *FileNameFromPath(const char *fullpath)
 {
@@ -617,7 +639,7 @@ static const char *FileNameFromPath(const char *fullpath)
 }*/
 
 static int LoadState(const char *saveName)
-{   
+{
     FILE *file = fopen(saveName, "rb");
     if (!file)
     {
@@ -653,13 +675,13 @@ static int LoadState(const char *saveName)
 
 static int LoadSram(const char *saveName)
 {
-   try
-    { 
-     
+ try
+    {     
+        
     FILE *file = fopen(saveName, "rb");
     if (!file){
         printf("-RR- Error loading sram: File '%s' not found!\n", saveName);
-        return -1;
+    return -1;
     }
 
     fseek(file, 0, SEEK_END);
@@ -670,8 +692,8 @@ static int LoadSram(const char *saveName)
     if (size < 1){
         printf("-RR- Error loading sram, memory size wrong!\n");
         return -1;
-    }
-    
+    }    
+
     if (size != (long)sramSize)
     {
         printf("-RR- Error loading sram, in file '%s': size mismatch!\n", saveName);
@@ -1044,7 +1066,7 @@ int main(int argc, char *argv[])
     sleep(1); // some cores (like yabasanshiro) from time to time hangs on retro_run otherwise
     while (isRunning)
     {
-
+        
         if (opt_show_fps || input_fps_requested)
         {
             ++totalFrames;
@@ -1105,12 +1127,15 @@ int main(int argc, char *argv[])
     printf("-RR- Unloading core and deinit audio and video...\n");
     video_deinit();
     audio_deinit();
-    pthread_t threadId;
+    atexit(unload);
+    return 0;
+   /* pthread_t threadId;
     pthread_create(&threadId, NULL, &core_unload, NULL);
 
     sleep(1); // wait a little bit
     if (exitFlag == 0)
     { // if everything is ok we join the thread otherwise we exit without joining
+        
         pthread_join(threadId, NULL);
     }
     else
@@ -1120,5 +1145,6 @@ int main(int argc, char *argv[])
         pthread_join(threadId, NULL);
     }
     printf("-RR- Exiting.\n");
-    return 0;
+     exit (EXIT_FAILURE);
+    return 0;*/
 }
