@@ -1,6 +1,6 @@
 /*
 retrorun-go2 - libretro frontend for the ODROID-GO Advance
-Copyright (C) 2020  OtherCrashOverride
+Copyright (C) 2020-2022  OtherCrashOverride - navy1978
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -47,27 +47,27 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <sys/time.h>
 #include <go2/input.h>
 
-
 #include <signal.h>
 #include <string>
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <cstring>
-
+#include <chrono>
+#include <thread>
 
 #define RETRO_DEVICE_ATARI_JOYSTICK RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_JOYPAD, 1)
 #define RETRO_ENVIRONMENT_GET_PREFERRED_HW_RENDER 56
 /* unsigned * --
-                                            *
-                                            * Allows an implementation to ask frontend preferred hardware
-                                            * context to use. Core should use this information to deal
-                                            * with what specific context to request with SET_HW_RENDER.
-                                            *
-                                            * 'data' points to an unsigned variable
-                                            */
+ *
+ * Allows an implementation to ask frontend preferred hardware
+ * context to use. Core should use this information to deal
+ * with what specific context to request with SET_HW_RENDER.
+ *
+ * 'data' points to an unsigned variable
+ */
 
-//extern go2_battery_state_t batteryState;
+// extern go2_battery_state_t batteryState;
 
 retro_hw_context_reset_t retro_context_reset;
 
@@ -88,6 +88,7 @@ std::map<std::string, std::string> conf_map;
 bool opt_show_fps = false;
 bool auto_save = false;
 const char *ws = " \t\n\r\f\v";
+
 
 struct option longopts[] = {
     {"savedir", required_argument, NULL, 's'},
@@ -138,6 +139,9 @@ static struct
     } while (0)
 
 #define load_retro_sym(S) load_sym(g_retro.S, S)
+
+// using namespace std;
+// using namespace std::chrono;
 
 // trim from end of string (right)
 inline std::string &rtrim(std::string &s)
@@ -232,7 +236,7 @@ static void core_log(enum retro_log_level level, const char *fmt, ...)
 static __eglMustCastToProperFunctionPointerType get_proc_address(const char *sym)
 {
     __eglMustCastToProperFunctionPointerType result = eglGetProcAddress(sym);
-    //printf("get_proc_address: sym='%s', result=%p\n", sym, (void*)result);
+    // printf("get_proc_address: sym='%s', result=%p\n", sym, (void*)result);
 
     return result;
 }
@@ -576,7 +580,6 @@ libc_error:
     return 0;
 }*/
 
-
 void unload(void)
 {
 
@@ -591,11 +594,8 @@ void unload(void)
         exitFlag = 0;
     }
     throw /*std::invalid_argument("");*/
-    std::runtime_error("Force exiting retrorun.\n");
-
+        std::runtime_error("Force exiting retrorun.\n");
 }
-
-
 
 static const char *FileNameFromPath(const char *fullpath)
 {
@@ -655,7 +655,8 @@ static int LoadState(const char *saveName)
         return -1;
     }
     void *ptr = malloc(size);
-    if (!ptr){
+    if (!ptr)
+    {
         abort();
     }
     size_t count = fread(ptr, 1, size, file);
@@ -675,45 +676,48 @@ static int LoadState(const char *saveName)
 
 static int LoadSram(const char *saveName)
 {
- try
-    {     
-        
-    FILE *file = fopen(saveName, "rb");
-    if (!file){
-        printf("-RR- Error loading sram: File '%s' not found!\n", saveName);
-    return -1;
-    }
-
-    fseek(file, 0, SEEK_END);
-    long size = ftell(file);
-    rewind(file);
-
-    size_t sramSize = g_retro.retro_get_memory_size(0);
-    if (size < 1){
-        printf("-RR- Error loading sram, memory size wrong!\n");
-        return -1;
-    }    
-
-    if (size != (long)sramSize)
+    try
     {
-        printf("-RR- Error loading sram, in file '%s': size mismatch!\n", saveName);
-        return -1;
+
+        FILE *file = fopen(saveName, "rb");
+        if (!file)
+        {
+            printf("-RR- Error loading sram: File '%s' not found!\n", saveName);
+            return -1;
+        }
+
+        fseek(file, 0, SEEK_END);
+        long size = ftell(file);
+        rewind(file);
+
+        size_t sramSize = g_retro.retro_get_memory_size(0);
+        if (size < 1)
+        {
+            printf("-RR- Error loading sram, memory size wrong!\n");
+            return -1;
+        }
+
+        if (size != (long)sramSize)
+        {
+            printf("-RR- Error loading sram, in file '%s': size mismatch!\n", saveName);
+            return -1;
+        }
+        void *ptr = g_retro.retro_get_memory_data(0);
+        if (!ptr)
+        {
+            printf("-RR- Error loading sram, file '%s': contains wrong memory data!\n", saveName);
+            abort();
+        }
+        size_t count = fread(ptr, 1, size, file);
+        if ((size_t)size != count)
+        {
+            printf("-RR- Error loading sram, in file '%s': size mismatch!\n", saveName);
+            abort();
+        }
+        fclose(file);
+        printf("-RR- File '%s': loaded correctly!\n", saveName);
     }
-    void *ptr = g_retro.retro_get_memory_data(0);
-    if (!ptr)
-    {
-        printf("-RR- Error loading sram, file '%s': contains wrong memory data!\n", saveName);
-        abort();
-    }
-    size_t count = fread(ptr, 1, size, file);
-    if ((size_t)size != count)
-    {
-        printf("-RR- Error loading sram, in file '%s': size mismatch!\n", saveName);
-        abort();
-    }
-    fclose(file);
-    printf("-RR- File '%s': loaded correctly!\n", saveName);
-    } catch (const std::exception& e) // caught by reference to base
+    catch (const std::exception &e) // caught by reference to base
     {
         std::cout << " a standard exception was caught, with message '"
                   << e.what() << "'\n";
@@ -755,7 +759,8 @@ static void SaveState(const char *saveName)
 static void SaveSram(const char *saveName)
 {
     size_t size = g_retro.retro_get_memory_size(0);
-    if (size < 1){
+    if (size < 1)
+    {
         printf("-RR- nothing to save in srm file!\n");
         return;
     }
@@ -899,6 +904,69 @@ void initConfig()
             printf("-RR- Warning: retrorun_force_left_analog_stick parameter not found in retrorun.cfg using default value (false).\n");
         }
 
+        try
+        {
+            const std::string &tflValue = conf_map.at("retrorun_loop_60_fps");
+
+            runLoopAt60fps = tflValue == "false" ? false : true;
+            printf("-RR- loop_60_fps: %s.\n", runLoopAt60fps ? "true" : "false");
+        }
+        catch (...)
+        {
+            printf("-RR- Info: retrorun_loop_60_fps parameter not found in retrorun.cfg using default value (true).\n");
+        }
+
+
+        try
+        {
+            const std::string &tflValue = conf_map.at("retrorun_video_another_thread");
+
+            processVideoInAnotherThread = tflValue == "false" ? false : true;
+            printf("-RR- video_another_thread: %s.\n", processVideoInAnotherThread ? "true" : "false");
+        }
+        catch (...)
+        {
+            printf("-RR- Info: retrorun_video_another_thread parameter not found in retrorun.cfg using default value (true).\n");
+        }
+
+
+       try
+        {
+            const std::string &tflValue = conf_map.at("retrorun_video_another_thread_wait_millisec");
+            if (!tflValue.empty()){
+                waitMSecForVideoInAnotherThread = stoi(tflValue);
+                printf("-RR- video_another_thread_wait_millisec: %d.\n", waitMSecForVideoInAnotherThread);
+            }
+        }
+        catch (...)
+        {
+            printf("-RR- Info: retrorun_video_another_thread_wait_millisec parameter not found in retrorun.cfg using default value (0).\n");
+        }
+
+        try
+        {
+            const std::string &tflValue = conf_map.at("retrorun_audio_another_thread");
+
+            processAudioInAnotherThread = tflValue == "true" ? true : false;
+            printf("-RR- audio_another_thread: %s.\n", processAudioInAnotherThread ? "true" : "false");
+        }
+        catch (...)
+        {
+            printf("-RR- Info: retrorun_audio_another_thread parameter not found in retrorun.cfg using default value (false).\n");
+        }
+         try
+        {
+            const std::string &tflValue = conf_map.at("retrorun_audio_another_thread_wait_millisec");
+            if (!tflValue.empty()){
+                waitMSecForAudioInAnotherThread = stoi(tflValue);
+                printf("-RR- audio_another_thread_wait_millisec: %d.\n", waitMSecForAudioInAnotherThread);
+            }
+        }
+        catch (...)
+        {
+            printf("-RR- Info: retrorun_audio_another_thread_wait_millisec parameter not found in retrorun.cfg using default value (9).\n");
+        }
+       
         printf("-RR- Configuration initialized.\n");
     }
     infile.close();
@@ -906,7 +974,7 @@ void initConfig()
 
 int main(int argc, char *argv[])
 {
-    //printf("argc=%d, argv=%p\n", argc, argv);
+    // printf("argc=%d, argv=%p\n", argc, argv);
 
     initConfig();
 
@@ -976,7 +1044,7 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    //return 0;
+    // return 0;
     if (optind < argc)
     {
         printf("non-option ARGV-elements: ");
@@ -1013,7 +1081,7 @@ int main(int argc, char *argv[])
     const char *fileName = FileNameFromPath(arg_rom);
 
     std::string fullNameString(fileName);
-    //removing extension
+    // removing extension
     size_t lastindex = fullNameString.find_last_of(".");
     std::string rawname = fullNameString.substr(0, lastindex);
     romName = rawname;
@@ -1031,12 +1099,12 @@ int main(int argc, char *argv[])
     std::string sramFileName = rawname + ".srm";
     std::string savFileName = rawname + ".sav";
 
-    //sramPath = PathCombine(opt_savedir, sramFileName.c_str());
+    // sramPath = PathCombine(opt_savedir, sramFileName.c_str());
     sramPath = (char *)malloc(srmPathFinal.length() + 1);
-    sramPath = strcpy(sramPath, const_cast<char *>(srmPathFinal.c_str())); 
+    sramPath = strcpy(sramPath, const_cast<char *>(srmPathFinal.c_str()));
     printf("-RR- sramPath='%s'\n", sramPath);
     savePath = (char *)malloc(statePathFinal.length() + 1);
-    savePath = strcpy(savePath, const_cast<char *>(statePathFinal.c_str())); 
+    savePath = strcpy(savePath, const_cast<char *>(statePathFinal.c_str()));
     printf("-RR- savePath='%s'\n", savePath);
 
     if (opt_restart)
@@ -1056,36 +1124,51 @@ int main(int argc, char *argv[])
 
     printf("-RR- Entering render loop.\n");
 
-    //const char* batteryStateDesc[] = { "UNK", "DSC", "CHG", "FUL" };
+    // const char* batteryStateDesc[] = { "UNK", "DSC", "CHG", "FUL" };
 
-    struct timeval startTime;
-    struct timeval endTime;
+    // struct timeval startTime;
+    // struct timeval endTime;
     double elapsed = 0;
     int totalFrames = 0;
     bool isRunning = true;
-    sleep(1); // some cores (like yabasanshiro) from time to time hangs on retro_run otherwise
+    // sleep(1); // some cores (like yabasanshiro) from time to time hangs on retro_run otherwise
+
+    struct retro_system_av_info info;
+    g_retro.retro_get_system_av_info(&info);
+    printf("-RR- System Info - aspect_ratio: %f\n", info.geometry.aspect_ratio);
+    printf("-RR- System Info - base_width: %d\n", info.geometry.base_width);
+    printf("-RR- System Info - base_height: %d\n", info.geometry.base_height);
+    printf("-RR- System Info - max_width: %d\n", info.geometry.max_width);
+    printf("-RR- System Info - max_height: %d\n", info.geometry.max_height);
+
+    printf("-RR- System Info - fps: %f\n", info.timing.fps);
+    printf("-RR- System Info - sample_rate: %f\n", info.timing.sample_rate);
+    auto prevClock = std::chrono::high_resolution_clock::now();
+    auto totClock = std::chrono::high_resolution_clock::now();
     while (isRunning)
     {
-        
-        if (opt_show_fps || input_fps_requested)
+
+        auto nextClock = std::chrono::high_resolution_clock::now();
+        // double deltaTime = (nextClock - prevClock).count() / 1e9;
+        if ((pause_requested && input_pause_requested) || (pause_requested && input_info_requested))
         {
-            ++totalFrames;
-            double seconds = (endTime.tv_sec - startTime.tv_sec);
-            double milliseconds = ((double)(endTime.tv_usec - startTime.tv_usec)) / 1000000.0;
-            elapsed += seconds + milliseconds;
-            int newFps = (int)(totalFrames / elapsed);
-            if (abs(newFps - fps) <= 60 && elapsed >= 0.8)
-            {
-                fps = newFps;
-                if (opt_show_fps && elapsed >= 1.0)
-                {
-                    printf("-RR- FPS: %f\n", fps);
-                }
-                totalFrames = 0;
-                elapsed = 0;
-            }
+            // must poll to unpause
+            totalFrames = 0; // reset total frames otherwise in next loop FPS are not accurate anymore
+            core_input_poll();
         }
-        gettimeofday(&startTime, NULL);
+        else
+        {
+
+            g_retro.retro_run();
+        }
+
+        // make sure each frame takes *at least* 1/60th of a second
+        // auto frameClock = std::chrono::high_resolution_clock::now();
+        double deltaTime = (nextClock - prevClock).count() / 1e9;
+        // printf("frame time: %.2lf ms\n", deltaTime * 1e3);
+        double sleepSecs = 1.0 / 60 - deltaTime;
+
+        // gettimeofday(&startTime, NULL);
         if (input_exit_requested)
         {
             isRunning = false;
@@ -1096,18 +1179,39 @@ int main(int argc, char *argv[])
             g_retro.retro_reset();
         }
 
-        if ((pause_requested && input_pause_requested) || (pause_requested && input_info_requested))
+        if (runLoopAt60fps && sleepSecs > 0)
         {
-            // must poll to unpause
-            totalFrames = 0; // reset total frames otherwise in next loop FPS are not accurate anymore
-            core_input_poll();
+            std::this_thread::sleep_for(std::chrono::nanoseconds((int64_t)(sleepSecs * 1e9)));
         }
-        else
+        prevClock = nextClock;
+        totClock = std::chrono::high_resolution_clock::now();
+        if (opt_show_fps || input_fps_requested)
         {
-            // printf("MAIN: pause_requested:%s input_info_requested:%s\n", pause_requested? "true": "false", input_info_requested? "true": "false");
-            g_retro.retro_run();
+            totalFrames++;
+            elapsed += (totClock - nextClock).count() / 1e9;
+            int newFps = (int)(totalFrames / elapsed);
+
+            retrorunLoopCounter++;
+            bool drawFps = false;
+            if (retrorunLoopCounter == retrorunLoopSkip)
+            {
+                drawFps = true;
+                newFps = (int)(totalFrames / elapsed);
+                retrorunLoopCounter = 0;
+            }
+
+            if (drawFps)
+            {
+                fps = newFps > 60 ? 60 : newFps;
+                
+                if (opt_show_fps && elapsed >= 1.0)
+                {
+                    printf("-RR- FPS: %f\n", fps);
+                }
+                totalFrames = 0;
+                elapsed = 0;
+            }
         }
-        gettimeofday(&endTime, NULL);
     }
 
     printf("-RR- Exiting from render loop...\n");
@@ -1129,22 +1233,6 @@ int main(int argc, char *argv[])
     audio_deinit();
     atexit(unload);
     return 0;
-   /* pthread_t threadId;
-    pthread_create(&threadId, NULL, &core_unload, NULL);
-
-    sleep(1); // wait a little bit
-    if (exitFlag == 0)
-    { // if everything is ok we join the thread otherwise we exit without joining
-        
-        pthread_join(threadId, NULL);
-    }
-    else
-    { // if it hangs we kill the thread and we exit
-        printf("-RR- It looks like core_unload hangs, trying to exit...\n");
-        pthread_kill(threadId, SIGUSR1);
-        pthread_join(threadId, NULL);
-    }
-    printf("-RR- Exiting.\n");
-     exit (EXIT_FAILURE);
-    return 0;*/
+    
 }
+

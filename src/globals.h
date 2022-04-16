@@ -1,5 +1,26 @@
+/*
+retrorun-go2 - libretro frontend for the ODROID-GO Advance
+Copyright (C) 2020-2022  OtherCrashOverride / navy1978
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+*/
 #pragma once
 #include <string>
+
+
+extern std::string release;
 
 enum RETRORUN_CORE_TYPE
 {
@@ -47,6 +68,8 @@ extern RETRORUN_CORE_TYPE Retrorun_Core;
 extern bool force_left_analog_stick;
 
 extern float fps;
+extern int retrorunLoopCounter;
+extern int retrorunLoopSkip;
 extern bool opt_triggers;
 extern bool gpio_joypad;
 extern float opt_aspect;
@@ -54,4 +77,15 @@ extern float aspect_ratio;
 extern std::string romName;
 extern std::string coreName;
 extern std::string screenShotFolder;
+
+bool isFlycast();
+bool isParalleln64();
+extern bool processVideoInAnotherThread;
+extern int waitMSecForVideoInAnotherThread;
+
+extern bool processAudioInAnotherThread;
+extern int waitMSecForAudioInAnotherThread;
+
+
+extern bool runLoopAt60fps;
 

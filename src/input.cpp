@@ -1,6 +1,6 @@
 /*
 retrorun-go2 - libretro frontend for the ODROID-GO Advance
-Copyright (C) 2020  OtherCrashOverride
+Copyright (C) 2020-2022  OtherCrashOverride - navy1978
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License

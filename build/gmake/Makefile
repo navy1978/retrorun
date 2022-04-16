@@ -26,9 +26,9 @@ ifeq ($(config),debug)
   DEFINES   += -DDEBUG
   INCLUDES  += -I../../src -I../..
   CPPFLAGS  += -MMD -MP $(DEFINES) $(INCLUDES)
-  CFLAGS    += $(CPPFLAGS) $(ARCH) -g -std=c++11 -Wall -D__GBM__
+  CFLAGS    += $(CPPFLAGS) $(ARCH) -g -std=c++17 -Wall -D__GBM__
   CXXFLAGS  += $(CFLAGS) 
-  LDFLAGS   += -Wl,-rpath=. -L../../. -lgo2 -ldl -lEGL -lGLESv2 -lrga
+  LDFLAGS   += -Wl,-rpath=. -L../../. -lgo2 -ldl -lEGL -lGLESv2 -lrga -pthread
   LIBS      += 
   RESFLAGS  += $(DEFINES) $(INCLUDES) 
   LDDEPS    += 
@@ -48,9 +48,9 @@ ifeq ($(config),release)
   DEFINES   += -DNDEBUG
   INCLUDES  += -I../../src -I../..
   CPPFLAGS  += -MMD -MP $(DEFINES) $(INCLUDES)
-  CFLAGS    += $(CPPFLAGS) $(ARCH) -Ofast -std=c++11 -Wall -D__GBM__
+  CFLAGS    += $(CPPFLAGS) $(ARCH) -Ofast -std=c++17 -Wall -D__GBM__
   CXXFLAGS  += $(CFLAGS) 
-  LDFLAGS   += -s -Wl,-rpath=. -L../../. -lgo2 -ldl -lEGL -lGLESv2 -lrga 
+  LDFLAGS   += -s -Wl,-rpath=. -L../../. -lgo2 -ldl -lEGL -lGLESv2 -lrga -pthread
   LIBS      += 
   RESFLAGS  += $(DEFINES) $(INCLUDES) 
   LDDEPS    += 
