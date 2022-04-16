@@ -39,14 +39,14 @@ std::string screenShotFolder;
 
 float fps=0.0f;
 int retrorunLoopCounter =0;
-int retrorunLoopSkip =20; // 10 ?
+int retrorunLoopSkip =10; // 10 ?
 
 
 bool processVideoInAnotherThread= true;
 int waitMSecForVideoInAnotherThread= 0;
 
 bool processAudioInAnotherThread= true;
-int waitMSecForAudioInAnotherThread= 15;
+int waitMSecForAudioInAnotherThread= 0;
 
 bool runLoopAt60fps= true;
 
