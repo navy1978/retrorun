@@ -1,6 +1,7 @@
 /*
 retrorun-go2 - libretro frontend for the ODROID-GO Advance
 Copyright (C) 2020  OtherCrashOverride
+Copyright (C) 2021-present  navy1978
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -25,6 +26,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <string.h>
 
 #include <go2/audio.h>
+#include <mutex> // std::mutex
+#include <chrono>
+#include <thread>
 
 #define FRAMES_MAX (48000)
 #define CHANNELS (2)
@@ -36,8 +40,9 @@ static u_int16_t audioBuffer[FRAMES_MAX * CHANNELS];
 static int audioFrameCount;
 static int audioFrameLimit;
 static int prevVolume;
-int myFreq =1;
-
+int myFreq = 1;
+extern float fps;
+std::mutex mtx; // mutex for critical section
 
 void audio_init(int freq)
 {
@@ -46,10 +51,8 @@ void audio_init(int freq)
     myFreq = freq;
     audio = go2_audio_create(freq);
     audioFrameCount = 0;
-    audioFrameLimit = 1.0 / 60.0 * freq; //735
+    audioFrameLimit = 1.0 / 60.0 * freq; // 735
     // printf("-RR- audio_init freq:%d\n", freq);
-
-    
 
     if (opt_volume > -1)
     {
@@ -79,9 +82,7 @@ static void SetVolume()
 
 void core_audio_sample(int16_t left, int16_t right)
 {
-    /*if (input_ffwd_requested)
-        return;*/
-
+    // printf("-RR- core_audio_sample... \n");
     SetVolume();
 
     u_int32_t *ptr = (u_int32_t *)audioBuffer;
@@ -94,30 +95,49 @@ void core_audio_sample(int16_t left, int16_t right)
     }
 }
 
+
+void executeTaskAudio(go2_audio_t *au)
+{
+    mtx.lock();
+    std::this_thread::sleep_for(std::chrono::milliseconds(waitMSecForAudioInAnotherThread));
+    go2_audio_submit(au, (const short *)audioBuffer, audioFrameCount);
+    audioFrameCount = 0;
+    mtx.unlock();
+}
+
 size_t core_audio_sample_batch(const int16_t *data, size_t frames)
 {
-     // printf("-RR- core_audio_sample_batch...\n");
-     //int myFps = fps <1 ? 1: fps;
-     //audioFrameLimit = 1.0 / myFps * myFreq;
-     //audioFrameLimit = 1.0 / 60.0 * freq; //735
 
+    // printf("-RR- core_audio_sample_batch... \n");
+    if (!isFlycast()){mtx.lock();}
     SetVolume();
-   
-   int currentFrame = (int) frames;
-   if (currentFrame >FRAMES_MAX){
-       currentFrame = FRAMES_MAX;
-   }
-   // printf("frame %d\n", (int) frames);
+
+    int currentFrame = (int)frames;
+    
+    if (currentFrame > FRAMES_MAX /*|| currentFrame < 300 || currentFrame > 3500*/)
+    { 
+        return frames;
+    }
     int frameInt = currentFrame;
     if (audioFrameCount + frameInt > audioFrameLimit)
     {
-        go2_audio_submit(audio, (const short *)audioBuffer, audioFrameCount);
-        audioFrameCount = 0;
+        if (processAudioInAnotherThread)
+        {
+            std::thread th(executeTaskAudio, std::ref(audio));
+            th.detach();
+        }
+        else
+        {
+            go2_audio_submit(audio, (const short *)audioBuffer, audioFrameCount);
+            audioFrameCount = 0;
+        }
     }
-    
+    if (isFlycast()){mtx.lock();}
     memcpy(audioBuffer + (audioFrameCount * CHANNELS), data, frameInt * sizeof(int16_t) * CHANNELS);
-     audioFrameCount += frameInt;
-    
+    if (isFlycast()){mtx.unlock();}
+    audioFrameCount += frameInt;
+
+    if (!isFlycast()){mtx.unlock();}
 
     return frames;
 }
