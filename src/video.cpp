@@ -1,7 +1,6 @@
 /*
 retrorun-go2 - libretro frontend for the ODROID-GO Advance
-Copyright (C) 2020  OtherCrashOverride
-Copyright (C) 2021-present  navy1978
+Copyright (C) 2020-2022  OtherCrashOverride - navy1978
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -121,8 +120,6 @@ rrImg quit_img = {press_high, press_low};
 rrImg pause_img = {paused_img_high, paused_img_low};
 rrImg screenshot_img = {sreenshot_high, sreenshot_low};
 
-
-
 inline void createNormalStatusSurface()
 {
     if (status_surface != NULL)
@@ -216,14 +213,29 @@ void video_configure(const struct retro_game_geometry *geom)
     if (isOpenGL)
     {
         go2_context_attributes_t attr;
-        attr.major = 3;
-        attr.minor = 2;
-        attr.red_bits = 5;
-        attr.green_bits = 6;
-        attr.blue_bits = 5;
-        attr.alpha_bits = 0;
-        attr.depth_bits = 24;
-        attr.stencil_bits = 8;
+
+        if (isFlycast() || isParalleln64())
+        {
+            attr.major = 3;
+            attr.minor = 2;
+            attr.red_bits = 8;
+            attr.green_bits = 8;
+            attr.blue_bits = 8;
+            attr.alpha_bits = 8;
+            attr.depth_bits = 24;
+            attr.stencil_bits = 8;
+        }
+        else
+        {
+            attr.major = 3;
+            attr.minor = 2;
+            attr.red_bits = 5;
+            attr.green_bits = 6;
+            attr.blue_bits = 5;
+            attr.alpha_bits = 0;
+            attr.depth_bits = 24;
+            attr.stencil_bits = 8;
+        }
 
         context3D = go2_context_create(display, geom->max_width, geom->max_height, &attr);
         go2_context_make_current(context3D);
@@ -319,7 +331,7 @@ inline void showInfo(int w)
     int posX = 10;
     showText(posX, getRowForText(), "Retrorun (RG351 version)", 0xf800);
     showText(posX, getRowForText(), "------------------------", 0xf800);
-    showText(posX, getRowForText(), ("Release: "+release).c_str(), 0xffff);
+    showText(posX, getRowForText(), ("Release: " + release).c_str(), 0xffff);
 
     std::string core = "Core: ";
     showText(posX, getRowForText(), const_cast<char *>(core.append(coreName).c_str()), 0xffff);
@@ -677,40 +689,7 @@ inline void presenter_post(int width, int height)
                        _351Rotation);
 }
 
-/*class TaskVideo
-{
-public:
-    void presenter_post(int width, int height)
-    {
-        // std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        go2_presenter_post(presenter,
-                           gles_surface,
-                           0, (gs_h - height), width, height,
-                           x, y, w, h,
-                           _351Rotation);
-    }
 
-    void status_post(int res_width, int res_height, bool isInfo)
-    {
-        // std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        if (isWideScreen)
-        {
-            go2_presenter_post(presenter,
-                               status_surface,
-                               0, 0, isInfo ? res_width : base_width, isInfo ? res_height : base_height,
-                               x, y, w, h,
-                               _351Rotation);
-        }
-        else
-        {
-            go2_presenter_post(presenter,
-                               status_surface,
-                               0, 0, isInfo ? res_width : gs_w, isInfo ? res_height : gs_h,
-                               x, y, w, h,
-                               _351Rotation);
-        }
-    }
-};*/
 
 void core_video_refresh(const void *data, unsigned width, unsigned height, size_t pitch)
 {
@@ -808,7 +787,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
 
             if (processVideoInAnotherThread) // isFlycast())
             {
-               // TaskVideo *taskPtr = new TaskVideo();
+                // TaskVideo *taskPtr = new TaskVideo();
                 std::thread th(status_post, res_width, res_height, input_info_requested);
                 th.detach();
                 std::this_thread::sleep_for(std::chrono::milliseconds(waitMSecForVideoInAnotherThread));
@@ -827,7 +806,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
                 showImage(screenshot_img);
                 if (processVideoInAnotherThread)
                 {
-                   // TaskVideo *taskPtr = new TaskVideo();
+                    // TaskVideo *taskPtr = new TaskVideo();
                     std::thread th(status_post, width, height, input_info_requested);
                     th.detach();
                     std::this_thread::sleep_for(std::chrono::milliseconds(waitMSecForVideoInAnotherThread));
@@ -846,7 +825,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
 
                 if (processVideoInAnotherThread)
                 {
-                    //TaskVideo *taskPtr = new TaskVideo();
+                    // TaskVideo *taskPtr = new TaskVideo();
                     std::thread th(presenter_post, width, height);
                     th.detach();
                     std::this_thread::sleep_for(std::chrono::milliseconds(waitMSecForVideoInAnotherThread));
