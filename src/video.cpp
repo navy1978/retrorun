@@ -120,6 +120,75 @@ go2_rotation_t _351Rotation;
 rrImg quit_img = {press_high, press_low};
 rrImg pause_img = {paused_img_high, paused_img_low};
 rrImg screenshot_img = {sreenshot_high, sreenshot_low};
+int width_fixed = 640;
+int height_fixed = 480;
+int getBase_width()
+{
+    if (resolution == R_320_240)
+        return 320;
+    else if (resolution == R_640_480)
+        return 640;
+    else
+        return base_width;
+}
+
+int getBase_height()
+{
+    if (resolution == R_320_240)
+        return 240;
+    else if (resolution == R_640_480)
+        return 480;
+    else
+        return base_height;
+}
+int getMax_width()
+{
+    if (resolution == R_320_240)
+        return 320;
+    else if (resolution == R_640_480)
+        return 640;
+    else
+        return max_width;
+}
+
+int getMax_height()
+{
+    if (resolution == R_320_240)
+        return 240;
+    else if (resolution == R_640_480)
+        return 480;
+    else
+        return max_height;
+}
+
+int getGeom_max_width(const struct retro_game_geometry *geom)
+{
+    if (resolution == R_320_240)
+        return 320;
+    else if (resolution == R_640_480)
+        return 640;
+    else
+        return geom->max_width;
+}
+
+int getGeom_max_height(const struct retro_game_geometry *geom)
+{
+    if (resolution == R_320_240)
+        return 240;
+    else if (resolution == R_640_480)
+        return 480;
+    else
+        return geom->max_height;
+}
+
+/*
+int getWidth(){
+
+}
+
+int getHeight(){
+
+}*/
 
 inline void createNormalStatusSurface()
 {
@@ -129,11 +198,11 @@ inline void createNormalStatusSurface()
     }
     if (isWideScreen)
     {
-        status_surface = go2_surface_create(display, base_width, base_height, DRM_FORMAT_RGB565);
+        status_surface = go2_surface_create(display, getBase_width(), getBase_height(), DRM_FORMAT_RGB565);
     }
     else
     {
-        status_surface = go2_surface_create(display, max_width, max_height, DRM_FORMAT_RGB565);
+        status_surface = go2_surface_create(display, getMax_width(), getMax_height(), DRM_FORMAT_RGB565);
     }
 
     if (!status_surface)
@@ -147,6 +216,7 @@ void video_configure(const struct retro_game_geometry *geom)
 {
 
     display = go2_display_create();
+    // display->width = 20;
     display_width = go2_display_height_get(display);
     display_height = go2_display_width_get(display);
 
@@ -214,31 +284,16 @@ void video_configure(const struct retro_game_geometry *geom)
     if (isOpenGL)
     {
         go2_context_attributes_t attr;
+        attr.major = 3;
+        attr.minor = 2;
+        attr.red_bits = 5;
+        attr.green_bits = 6;
+        attr.blue_bits = 5;
+        attr.alpha_bits = 0;
+        attr.depth_bits = 24;
+        attr.stencil_bits = 8;
 
-        if (isFlycast() || isParalleln64())
-        {
-            attr.major = 3;
-            attr.minor = 2;
-            attr.red_bits = 8;
-            attr.green_bits = 8;
-            attr.blue_bits = 8;
-            attr.alpha_bits = 8;
-            attr.depth_bits = 24;
-            attr.stencil_bits = 8;
-        }
-        else
-        {
-            attr.major = 3;
-            attr.minor = 2;
-            attr.red_bits = 5;
-            attr.green_bits = 6;
-            attr.blue_bits = 5;
-            attr.alpha_bits = 0;
-            attr.depth_bits = 24;
-            attr.stencil_bits = 8;
-        }
-
-        context3D = go2_context_create(display, geom->max_width, geom->max_height, &attr);
+        context3D = go2_context_create(display, getGeom_max_width(geom), getGeom_max_height(geom), &attr);
         go2_context_make_current(context3D);
         retro_context_reset();
 
@@ -249,8 +304,8 @@ void video_configure(const struct retro_game_geometry *geom)
         if (surface)
             abort();
 
-        int aw = ALIGN(geom->max_width, 32);
-        int ah = ALIGN(geom->max_height, 32);
+        int aw = ALIGN(getGeom_max_width(geom), 32);
+        int ah = ALIGN(getGeom_max_height(geom), 32);
         printf("-RR- video_configure: aw=%d, ah=%d\n", aw, ah);
         printf("-RR- video_configure: base_width=%d, base_height=%d\n", geom->base_width, geom->base_height);
 
@@ -271,12 +326,12 @@ void video_configure(const struct retro_game_geometry *geom)
 
         if (color_format == DRM_FORMAT_RGBA5551)
         {
-            status_surface = go2_surface_create(display, geom->max_width, geom->max_height, DRM_FORMAT_RGB565);
+            status_surface = go2_surface_create(display, getGeom_max_width(geom), getGeom_max_height(geom), DRM_FORMAT_RGB565);
         }
         else
         {
 
-            status_surface = go2_surface_create(display, geom->max_width, geom->max_height, color_format);
+            status_surface = go2_surface_create(display, getGeom_max_width(geom), getGeom_max_height(geom), color_format);
         }
 
         if (!status_surface)
@@ -284,6 +339,7 @@ void video_configure(const struct retro_game_geometry *geom)
             printf("-RR- go2_surface_create failed.:status_surface\n");
             throw std::exception();
         }
+        // printf("video_configure: rect=%d, %d, %d, %d\n", y, x, h, w);
     }
 }
 
@@ -433,24 +489,41 @@ inline int getStatusHeight()
     }
 }
 
+inline void showFPSImageLow()
+{
+    int x = getStatusWidth() - (numbers_image_low.width * 2) - 10; // depends on the width of the image
+    int y = 10;
+    showNumberSprite(x, y, getDigit(fps, 2), numbers_image_low.width, numbers_image_low.height, numbers_image_low.pixel_data);
+    showNumberSprite(x + numbers_image_low.width, y, getDigit(fps, 1), numbers_image_low.width, numbers_image_low.height, numbers_image_low.pixel_data);
+}
+
+inline void showFPSImageHigh()
+{
+    int x = getStatusWidth() - (numbers_image_high.width * 2) - 10; // depends on the width of the image
+    int y = 10;
+    showNumberSprite(x, y, getDigit(fps, 2), numbers_image_high.width, numbers_image_high.height, numbers_image_high.pixel_data);
+    showNumberSprite(x + numbers_image_high.width, y, getDigit(fps, 1), numbers_image_high.width, numbers_image_high.height, numbers_image_high.pixel_data);
+}
+
 inline void showFPSImage()
 {
 
-    if (base_width >= 640 || base_height >= 640)
+    if (resolution == R_320_240)
     {
-        int x = getStatusWidth() - (numbers_image_high.width * 2) - 10; // depends on the width of the image
-        int y = 10;
-        showNumberSprite(x, y, getDigit(fps, 2), numbers_image_high.width, numbers_image_high.height, numbers_image_high.pixel_data);
-        showNumberSprite(x + numbers_image_high.width, y, getDigit(fps, 1), numbers_image_high.width, numbers_image_high.height, numbers_image_high.pixel_data);
-        // printf("x=%d, y=%d, currentWidth=%d, currentHeight=%d \n", x, y, getStatusWidth(), currentHeight);
+        showFPSImageLow();
+    }
+    else if (resolution == R_640_480)
+    {
+        showFPSImageHigh();
+    }
+
+    else if (base_width >= 640 || base_height >= 640)
+    {
+        showFPSImageHigh();
     }
     else
     {
-        int x = getStatusWidth() - (numbers_image_low.width * 2) - 10; // depends on the width of the image
-        int y = 10;
-        showNumberSprite(x, y, getDigit(fps, 2), numbers_image_low.width, numbers_image_low.height, numbers_image_low.pixel_data);
-        showNumberSprite(x + numbers_image_low.width, y, getDigit(fps, 1), numbers_image_low.width, numbers_image_low.height, numbers_image_low.pixel_data);
-        // printf("x=%d, y=%d, currentWidth=%d, currentHeight=%d \n", x, y, getStatusWidth(), currentHeight);
+        showFPSImageLow();
     }
 }
 
@@ -471,20 +544,42 @@ inline void showFullImage(int x, int y, int width, int height, const uint8_t *sr
     }
 }
 // refactor
-inline void showImage(rrImg img)
+
+inline void showImageLow(rrImg img)
 {
     int x, y;
-    if (base_width >= 640 || base_height >= 640)
+    x = 0;
+    y = getStatusHeight() - (img.small.height / 2);
+    showFullImage(x, y, img.small.width, img.small.height, img.small.pixel_data);
+}
+
+inline void showImageHigh(rrImg img)
+{
+    int x, y;
+    x = 0;
+    y = getStatusHeight() - (img.big.height / 2);
+    showFullImage(x, y, img.big.width, img.big.height, img.big.pixel_data);
+}
+
+inline void showImage(rrImg img)
+{
+
+    if (resolution == R_320_240)
     {
-        x = 0;
-        y = getStatusHeight() - (img.big.height / 2);
-        showFullImage(x, y, img.big.width, img.big.height, img.big.pixel_data);
+        showImageLow(img);
+    }
+    else if (resolution == R_640_480)
+    {
+        showImageHigh(img);
+    }
+
+    else if (base_width >= 640 || base_height >= 640)
+    {
+        showImageHigh(img);
     }
     else
     {
-        x = 0;
-        y = getStatusHeight() - (img.small.height / 2);
-        showFullImage(x, y, img.small.width, img.small.height, img.small.pixel_data);
+        showImageLow(img);
     }
 }
 
@@ -690,12 +785,9 @@ inline void presenter_post(int width, int height)
                        _351Rotation);
 }
 
-
-
+bool switchVideo = false;
 void core_video_refresh(const void *data, unsigned width, unsigned height, size_t pitch)
 {
-
-    // printf("-RR- core_video_refresh... FPS:%f\n", fps);
 
     if (first_video_refresh)
     {
@@ -786,7 +878,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
                 showImage(pause_img);
             }
 
-            if (processVideoInAnotherThread) // isFlycast())
+            if (processVideoInAnotherThread && switchVideo) // isFlycast())
             {
                 // TaskVideo *taskPtr = new TaskVideo();
                 std::thread th(status_post, res_width, res_height, input_info_requested);
@@ -805,7 +897,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
             if (continueToShowScreenshotImage())
             {
                 showImage(screenshot_img);
-                if (processVideoInAnotherThread)
+                if (processVideoInAnotherThread && switchVideo)
                 {
                     // TaskVideo *taskPtr = new TaskVideo();
                     std::thread th(status_post, width, height, input_info_requested);
@@ -824,7 +916,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
 
                 // draw as fast as possible
 
-                if (processVideoInAnotherThread)
+                if (processVideoInAnotherThread && switchVideo)
                 {
                     // TaskVideo *taskPtr = new TaskVideo();
                     std::thread th(presenter_post, width, height);
@@ -838,6 +930,10 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
             }
         }
         go2_context_surface_unlock(context3D, gles_surface);
+        if (enableSwitchVideoSync)
+        {
+            switchVideo = !switchVideo;
+        }
     }
     else
     {

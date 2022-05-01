@@ -40,6 +40,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <getopt.h>
 #include <map>
 #include <vector>
+#include <regex>
 
 #define EGL_EGLEXT_PROTOTYPES
 #include <EGL/egl.h>
@@ -89,7 +90,6 @@ std::map<std::string, std::string> conf_map;
 bool opt_show_fps = false;
 bool auto_save = false;
 const char *ws = " \t\n\r\f\v";
-
 
 struct option longopts[] = {
     {"savedir", required_argument, NULL, 's'},
@@ -242,6 +242,11 @@ static __eglMustCastToProperFunctionPointerType get_proc_address(const char *sym
     return result;
 }
 
+static std::string trim(std::string str)
+{
+    return regex_replace(str, std::regex("(^[ ]+)|([ ]+$)"), "");
+}
+
 static bool core_environment(unsigned cmd, void *data)
 {
     bool *bval;
@@ -379,10 +384,31 @@ static bool core_environment(unsigned cmd, void *data)
         }*/
 
         std::map<std::string, std::string>::iterator it = conf_map.find(var->key);
+        std::string first = trim(it->first);
+        std::string second = trim(it->first);
         if (it != conf_map.end())
         {
             printf("-RR- key found: %s  value: %s\n", it->first.c_str(), it->second.c_str());
-            var->value = it->second.c_str();
+
+            if (first.compare("flycast_internal_resolution") == 0 || first.compare("parallel-n64-screensize") == 0)
+            {
+                if (second.compare("320x240") == 0)
+                {
+                    resolution = R_320_240;
+                }
+                else if (second.compare("640x480") == 0)
+                {
+                    resolution = R_640_480;
+                }
+            }
+            /*  if (strcmp(it->first.c_str(), "flycast_internal_resolution")==0 || strcmp(it->first.c_str(), "parallel-n64-screensize")==0){
+                  if (strcmp(trim(it->second.c_str()), "320x240")==0){
+                      resolution = R_320_240;
+                  } else if (trim(strcmp(it->second.c_str()), "640x480")==0){
+                      resolution = R_640_480;
+                  }
+              }*/
+            var->value = second.c_str();
             found = true;
             return true;
         }
@@ -392,7 +418,7 @@ static bool core_environment(unsigned cmd, void *data)
             varmap_t::iterator iter = variables.find(var->key);
             if (iter != variables.end())
             {
-                var->value = iter->second.c_str();
+                var->value = second.c_str();
                 printf("-RR- ENV_VAR (default): %s=%s\n", var->key, var->value);
 
                 return true;
@@ -890,7 +916,7 @@ void initConfig()
         }
         catch (...)
         {
-            printf("-RR- Warning: retrorun_auto_save parameter not found in retrorun.cfg using default value (false).\n");
+            printf("-RR- Warning: retrorun_auto_save parameter not found in retrorun.cfg using default value (%s).\n", auto_save ? "true" : "false");
         }
 
         try
@@ -898,11 +924,11 @@ void initConfig()
             const std::string &lasValue = conf_map.at("retrorun_force_left_analog_stick");
 
             force_left_analog_stick = lasValue == "true" ? true : false;
-            printf("-RR- Froce analog stick: %s.\n", force_left_analog_stick ? "true" : "false");
+            printf("-RR- Force analog stick: %s.\n", force_left_analog_stick ? "true" : "false");
         }
         catch (...)
         {
-            printf("-RR- Warning: retrorun_force_left_analog_stick parameter not found in retrorun.cfg using default value (false).\n");
+            printf("-RR- Warning: retrorun_force_left_analog_stick parameter not found in retrorun.cfg using default value (%s).\n", force_left_analog_stick ? "true" : "false");
         }
 
         try
@@ -914,27 +940,27 @@ void initConfig()
         }
         catch (...)
         {
-            printf("-RR- Info: retrorun_loop_60_fps parameter not found in retrorun.cfg using default value (true).\n");
+            printf("-RR- Info: retrorun_loop_60_fps parameter not found in retrorun.cfg using default value (%s).\n", runLoopAt60fps ? "true" : "false");
         }
-
 
         try
         {
             const std::string &tflValue = conf_map.at("retrorun_video_another_thread");
-
-            processVideoInAnotherThread = tflValue == "false" ? false : true;
-            printf("-RR- video_another_thread: %s.\n", processVideoInAnotherThread ? "true" : "false");
+            // printf("-RR- =====>video_another_thread: %s.\n",tflValue.c_str());
+            processVideoInAnotherThread = (tflValue == "true" || tflValue == "half") ? true : false;
+            enableSwitchVideoSync = tflValue.compare("half") == 0 ? true : false;
+            printf("-RR- video_another_thread: %s.\n", (processVideoInAnotherThread && !enableSwitchVideoSync) ? "true" : (processVideoInAnotherThread && enableSwitchVideoSync ? "half" : "false"));
         }
         catch (...)
         {
-            printf("-RR- Info: retrorun_video_another_thread parameter not found in retrorun.cfg using default value (true).\n");
+            printf("-RR- Info: retrorun_video_another_thread parameter not found in retrorun.cfg using default value (%s).\n", processVideoInAnotherThread ? "true" : "false");
         }
 
-
-       try
+        try
         {
             const std::string &tflValue = conf_map.at("retrorun_video_another_thread_wait_millisec");
-            if (!tflValue.empty()){
+            if (!tflValue.empty())
+            {
                 waitMSecForVideoInAnotherThread = stoi(tflValue);
                 printf("-RR- video_another_thread_wait_millisec: %d.\n", waitMSecForVideoInAnotherThread);
             }
@@ -947,29 +973,45 @@ void initConfig()
         try
         {
             const std::string &tflValue = conf_map.at("retrorun_audio_another_thread");
-
-            processAudioInAnotherThread = tflValue == "true" ? true : false;
-            printf("-RR- audio_another_thread: %s.\n", processAudioInAnotherThread ? "true" : "false");
+            processAudioInAnotherThread = (tflValue == "true" || tflValue == "half") ? true : false;
+            enableSwitchAudioSync = tflValue.compare("half") == 0 ? true : false;
+            printf("-RR- audio_another_thread: %s.\n", (processAudioInAnotherThread && !enableSwitchAudioSync) ? "true" : (enableSwitchAudioSync && enableSwitchAudioSync ? "half" : "false"));
         }
         catch (...)
         {
-            printf("-RR- Info: retrorun_audio_another_thread parameter not found in retrorun.cfg using default value (false).\n");
+            printf("-RR- Info: retrorun_audio_another_thread parameter not found in retrorun.cfg using default value (%s).\n", processAudioInAnotherThread ? "true" : "false");
         }
-         try
+        try
         {
             const std::string &tflValue = conf_map.at("retrorun_audio_another_thread_wait_millisec");
-            if (!tflValue.empty()){
+            if (!tflValue.empty())
+            {
                 waitMSecForAudioInAnotherThread = stoi(tflValue);
                 printf("-RR- audio_another_thread_wait_millisec: %d.\n", waitMSecForAudioInAnotherThread);
             }
         }
         catch (...)
         {
-            printf("-RR- Info: retrorun_audio_another_thread_wait_millisec parameter not found in retrorun.cfg using default value (9).\n");
+            printf("-RR- Info: retrorun_audio_another_thread_wait_millisec parameter not found in retrorun.cfg using default value (%d).\n", waitMSecForAudioInAnotherThread);
         }
-       
+
+        try
+        {
+            const std::string &tflValue = conf_map.at("retrorun_adaptive_fps");
+            if (!tflValue.empty())
+            {
+                adaptiveFps = tflValue == "true" ? true : false;
+                printf("-RR- retrorun_adaptive_fps: %d.\n", adaptiveFps);
+            }
+        }
+        catch (...)
+        {
+            printf("-RR- Info: retrorun_adaptive_fps parameter not found in retrorun.cfg using default value (%s).\n", adaptiveFps ? "true" : "false");
+        }
+
         printf("-RR- Configuration initialized.\n");
     }
+
     infile.close();
 }
 
@@ -1065,6 +1107,13 @@ int main(int argc, char *argv[])
     core_load(arg_core);
     // conf_map.clear();
 
+    // on MP is reverted (4:3 -> 3:4)
+    if (isSwanStation())
+    {
+        printf("-RR- isSwanStation.\n");
+        opt_aspect = 0.75f;
+    }
+
     core_load_game(arg_rom);
     // conf_map.clear();
 
@@ -1146,6 +1195,10 @@ int main(int argc, char *argv[])
     printf("-RR- System Info - sample_rate: %f\n", info.timing.sample_rate);
     auto prevClock = std::chrono::high_resolution_clock::now();
     auto totClock = std::chrono::high_resolution_clock::now();
+    double max_fps = info.timing.fps;
+    double previous_fps = 0;
+    originalFps = info.timing.fps;
+    // adaptiveFps = isFlycast() ? true: false;
     while (isRunning)
     {
 
@@ -1159,7 +1212,6 @@ int main(int argc, char *argv[])
         }
         else
         {
-
             g_retro.retro_run();
         }
 
@@ -1167,7 +1219,7 @@ int main(int argc, char *argv[])
         // auto frameClock = std::chrono::high_resolution_clock::now();
         double deltaTime = (nextClock - prevClock).count() / 1e9;
         // printf("frame time: %.2lf ms\n", deltaTime * 1e3);
-        double sleepSecs = 1.0 / 60 - deltaTime;
+        double sleepSecs = 1.0 / max_fps - deltaTime;
 
         // gettimeofday(&startTime, NULL);
         if (input_exit_requested)
@@ -1186,11 +1238,11 @@ int main(int argc, char *argv[])
         }
         prevClock = nextClock;
         totClock = std::chrono::high_resolution_clock::now();
-        if (opt_show_fps || input_fps_requested)
+        if (true) // opt_show_fps || input_fps_requested)
         {
             totalFrames++;
             elapsed += (totClock - nextClock).count() / 1e9;
-            int newFps = (int)(totalFrames / elapsed);
+            newFps = (int)(totalFrames / elapsed);
 
             retrorunLoopCounter++;
             bool drawFps = false;
@@ -1200,11 +1252,24 @@ int main(int argc, char *argv[])
                 newFps = (int)(totalFrames / elapsed);
                 retrorunLoopCounter = 0;
             }
+            if (adaptiveFps)
+            {
 
+                if (previous_fps <= newFps)
+                {
+                    max_fps = newFps < 30 ? info.timing.fps - 10 : info.timing.fps;
+                    max_fps = newFps < 40 ? info.timing.fps - 5 : info.timing.fps;
+                }
+                else
+                {
+                    max_fps = info.timing.fps;
+                }
+                previous_fps = newFps;
+            }
             if (drawFps)
             {
-                fps = newFps > 60 ? 60 : newFps;
-                
+                fps = newFps > max_fps ? max_fps : newFps;
+
                 if (opt_show_fps && elapsed >= 1.0)
                 {
                     printf("-RR- FPS: %f\n", fps);
@@ -1234,6 +1299,4 @@ int main(int argc, char *argv[])
     audio_deinit();
     atexit(unload);
     return 0;
-    
 }
-
