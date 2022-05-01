@@ -22,10 +22,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 
 
-std::string release= "1.4.0";
+std::string release= "1.5.0";
 
 RETRORUN_CORE_TYPE Retrorun_Core = RETRORUN_CORE_UNKNOWN;
 Device device = UNKNOWN;
+Resolution resolution= R_UNKNOWN;
 bool force_left_analog_stick = true;
 
 bool opt_triggers = false;
@@ -39,15 +40,22 @@ std::string coreName;
 std::string screenShotFolder;
 
 float fps=0.0f;
+float originalFps=0.0f;
+float newFps=0.0f;
 int retrorunLoopCounter =0;
-int retrorunLoopSkip =10; // 10 ?
+int retrorunLoopSkip =15; // 10 ?
 
 
 bool processVideoInAnotherThread= true;
 int waitMSecForVideoInAnotherThread= 0;
+bool enableSwitchVideoSync = false;
 
 bool processAudioInAnotherThread= true;
 int waitMSecForAudioInAnotherThread= 0;
+bool enableSwitchAudioSync = false;
+
+bool adaptiveFps = false;
+
 
 bool runLoopAt60fps= true;
 
@@ -59,6 +67,10 @@ bool isFlycast(){
 
 bool isParalleln64(){
     return coreName == "ParaLLEl N64";
+}
+
+bool isSwanStation() {
+    return coreName == "SwanStation";
 }
 
 

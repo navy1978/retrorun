@@ -44,6 +44,8 @@ int myFreq = 1;
 extern float fps;
 std::mutex mtx; // mutex for critical section
 
+bool switchAudioSync = false; // we can execute half (or all) of the request in another thread
+
 void audio_init(int freq)
 {
     // Note: audio stutters in OpenAL unless the buffer frequency at upload
@@ -51,7 +53,7 @@ void audio_init(int freq)
     myFreq = freq;
     audio = go2_audio_create(freq);
     audioFrameCount = 0;
-    audioFrameLimit = 1.0 / 60.0 * freq; // 735
+    audioFrameLimit = 1.0 / originalFps * freq; // 735
     // printf("-RR- audio_init freq:%d\n", freq);
 
     if (opt_volume > -1)
@@ -82,7 +84,6 @@ static void SetVolume()
 
 void core_audio_sample(int16_t left, int16_t right)
 {
-    // printf("-RR- core_audio_sample... \n");
     SetVolume();
 
     u_int32_t *ptr = (u_int32_t *)audioBuffer;
@@ -95,49 +96,45 @@ void core_audio_sample(int16_t left, int16_t right)
     }
 }
 
-
-void executeTaskAudio(go2_audio_t *au)
+size_t core_audio_sample_batch_sync(const int16_t *data, size_t frames)
 {
-    mtx.lock();
-    std::this_thread::sleep_for(std::chrono::milliseconds(waitMSecForAudioInAnotherThread));
-    go2_audio_submit(au, (const short *)audioBuffer, audioFrameCount);
-    audioFrameCount = 0;
-    mtx.unlock();
-}
-
-size_t core_audio_sample_batch(const int16_t *data, size_t frames)
-{
-
-    // printf("-RR- core_audio_sample_batch... \n");
-    if (!isFlycast()){mtx.lock();}
     SetVolume();
 
     int currentFrame = (int)frames;
-    
-    if (currentFrame > FRAMES_MAX /*|| currentFrame < 300 || currentFrame > 3500*/)
-    { 
+
+    if (currentFrame > FRAMES_MAX)
+    {
         return frames;
     }
     int frameInt = currentFrame;
+    audioFrameLimit = 1.0 / originalFps * FRAMES_MAX;
     if (audioFrameCount + frameInt > audioFrameLimit)
     {
-        if (processAudioInAnotherThread)
-        {
-            std::thread th(executeTaskAudio, std::ref(audio));
-            th.detach();
-        }
-        else
-        {
-            go2_audio_submit(audio, (const short *)audioBuffer, audioFrameCount);
-            audioFrameCount = 0;
-        }
+
+        go2_audio_submit(audio, (const short *)audioBuffer, audioFrameCount);
+        audioFrameCount = 0;
     }
     if (isFlycast()){mtx.lock();}
     memcpy(audioBuffer + (audioFrameCount * CHANNELS), data, frameInt * sizeof(int16_t) * CHANNELS);
     if (isFlycast()){mtx.unlock();}
     audioFrameCount += frameInt;
-
-    if (!isFlycast()){mtx.unlock();}
-
     return frames;
+}
+
+size_t core_audio_sample_batch(const int16_t *data, size_t frames)
+{
+    if (processAudioInAnotherThread && switchAudioSync)
+    {
+        std::thread th(core_audio_sample_batch_sync, std::ref(data), std::ref(frames));
+        th.detach();
+        return frames;
+    }
+    else
+    {
+        return core_audio_sample_batch_sync(data, frames);
+    }
+    if (enableSwitchAudioSync)
+    { // if enabled we execute only half of the requests in another thread
+        switchAudioSync = !switchAudioSync;
+    }
 }
