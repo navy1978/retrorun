@@ -284,14 +284,28 @@ void video_configure(const struct retro_game_geometry *geom)
     if (isOpenGL)
     {
         go2_context_attributes_t attr;
-        attr.major = 3;
-        attr.minor = 2;
-        attr.red_bits = 5;
-        attr.green_bits = 6;
-        attr.blue_bits = 5;
-        attr.alpha_bits = 0;
-        attr.depth_bits = 24;
-        attr.stencil_bits = 8;
+        if (isFlycast() || isParalleln64())
+        {
+            attr.major = 3;
+            attr.minor = 2;
+            attr.red_bits = 8;
+            attr.green_bits = 8;
+            attr.blue_bits = 8;
+            attr.alpha_bits = 8;
+            attr.depth_bits = 24;
+            attr.stencil_bits = 8;
+        }
+        else
+        {
+            attr.major = 3;
+            attr.minor = 2;
+            attr.red_bits = 5;
+            attr.green_bits = 6;
+            attr.blue_bits = 5;
+            attr.alpha_bits = 0;
+            attr.depth_bits = 24;
+            attr.stencil_bits = 8;
+        }
 
         context3D = go2_context_create(display, getGeom_max_width(geom), getGeom_max_height(geom), &attr);
         go2_context_make_current(context3D);
