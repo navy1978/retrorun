@@ -242,10 +242,10 @@ static __eglMustCastToProperFunctionPointerType get_proc_address(const char *sym
     return result;
 }
 
-static std::string trim(std::string str)
+/*static std::string trim(std::string str)
 {
     return regex_replace(str, std::regex("(^[ ]+)|([ ]+$)"), "");
-}
+}*/
 
 static bool core_environment(unsigned cmd, void *data)
 {
@@ -384,31 +384,23 @@ static bool core_environment(unsigned cmd, void *data)
         }*/
 
         std::map<std::string, std::string>::iterator it = conf_map.find(var->key);
-        std::string first = trim(it->first);
-        std::string second = trim(it->first);
         if (it != conf_map.end())
         {
             printf("-RR- key found: %s  value: %s\n", it->first.c_str(), it->second.c_str());
 
-            if (first.compare("flycast_internal_resolution") == 0 || first.compare("parallel-n64-screensize") == 0)
+            if (it->first.compare("flycast_internal_resolution") == 0 || it->first.compare("parallel-n64-screensize") == 0)
             {
-                if (second.compare("320x240") == 0)
+                if (it->second.compare("320x240") == 0)
                 {
                     resolution = R_320_240;
                 }
-                else if (second.compare("640x480") == 0)
+                else if (it->second.compare("640x480") == 0)
                 {
                     resolution = R_640_480;
                 }
             }
-            /*  if (strcmp(it->first.c_str(), "flycast_internal_resolution")==0 || strcmp(it->first.c_str(), "parallel-n64-screensize")==0){
-                  if (strcmp(trim(it->second.c_str()), "320x240")==0){
-                      resolution = R_320_240;
-                  } else if (trim(strcmp(it->second.c_str()), "640x480")==0){
-                      resolution = R_640_480;
-                  }
-              }*/
-            var->value = second.c_str();
+            
+            var->value = it->second.c_str();
             found = true;
             return true;
         }
@@ -418,7 +410,7 @@ static bool core_environment(unsigned cmd, void *data)
             varmap_t::iterator iter = variables.find(var->key);
             if (iter != variables.end())
             {
-                var->value = second.c_str();
+                var->value = iter->second.c_str();
                 printf("-RR- ENV_VAR (default): %s=%s\n", var->key, var->value);
 
                 return true;
