@@ -45,6 +45,11 @@ float newFps=0.0f;
 int retrorunLoopCounter =0;
 int retrorunLoopSkip =15; // 10 ?
 
+int frameCounter =0;
+int frameCounterSkip =4;
+
+int audioCounter =0;
+int audioCounterSkip =6;
 
 bool processVideoInAnotherThread= true;
 int waitMSecForVideoInAnotherThread= 0;
@@ -71,6 +76,10 @@ bool isParalleln64(){
 
 bool isSwanStation() {
     return coreName == "SwanStation";
+}
+
+bool isMGBA(){
+    return coreName == "mGBA";
 }
 
 

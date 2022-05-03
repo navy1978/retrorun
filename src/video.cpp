@@ -128,6 +128,8 @@ int getBase_width()
         return 320;
     else if (resolution == R_640_480)
         return 640;
+    else if (isMGBA())
+        return 240;
     else
         return base_width;
 }
@@ -138,6 +140,8 @@ int getBase_height()
         return 240;
     else if (resolution == R_640_480)
         return 480;
+    else if (isMGBA())
+        return 160;    
     else
         return base_height;
 }
@@ -147,6 +151,8 @@ int getMax_width()
         return 320;
     else if (resolution == R_640_480)
         return 640;
+    else if (isMGBA())
+        return 240;    
     else
         return max_width;
 }
@@ -157,6 +163,8 @@ int getMax_height()
         return 240;
     else if (resolution == R_640_480)
         return 480;
+    else if (isMGBA())
+        return 160;    
     else
         return max_height;
 }
@@ -167,6 +175,8 @@ int getGeom_max_width(const struct retro_game_geometry *geom)
         return 320;
     else if (resolution == R_640_480)
         return 640;
+    else if (isMGBA())
+        return 240;    
     else
         return geom->max_width;
 }
@@ -177,6 +187,8 @@ int getGeom_max_height(const struct retro_game_geometry *geom)
         return 240;
     else if (resolution == R_640_480)
         return 480;
+    else if (isMGBA())
+        return 160;    
     else
         return geom->max_height;
 }
@@ -800,8 +812,21 @@ inline void presenter_post(int width, int height)
 }
 
 bool switchVideo = false;
+
 void core_video_refresh(const void *data, unsigned width, unsigned height, size_t pitch)
 {
+
+    frameCounter++;
+    // the following is for Fast Forwarding
+    if (frameCounter == frameCounterSkip){     
+        frameCounter =0;
+        
+    }else{
+        if (input_ffwd_requested ){
+            return;
+        }
+    }    
+
 
     if (first_video_refresh)
     {
@@ -829,6 +854,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
 
     if (isOpenGL)
     {
+        //eglSwapInterval(display, 0);
         if (data != RETRO_HW_FRAME_BUFFER_VALID)
             return;
 
@@ -849,7 +875,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         int ss_w = go2_surface_width_get(status_surface);
         int ss_h = go2_surface_height_get(status_surface);
         // printf("-- gles_surface_w=%d, gles_surface_h=%d - status_surface=%d, status_surface=%d  - width=%d, height=%d\n", gs_w, gs_h,ss_w,ss_h, width, height);
-        if (input_fps_requested || screenshot_requested || input_exit_requested_firstTime || input_info_requested || input_pause_requested)
+        if (input_fps_requested || screenshot_requested || input_exit_requested_firstTime || input_info_requested || input_pause_requested || input_ffwd_requested)
         {
             // let's copy the content of gles_surface on status_surface (with the current roration based on the device)
             int res_width = width;
@@ -878,6 +904,10 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
             if (input_fps_requested && !input_info_requested)
             {
                 showFPSImage();
+            }
+            if (input_ffwd_requested)
+            {
+                showText(10, 10, ">> Fast Forwarding >>", 0xf800);
             }
             if (screenshot_requested && !input_info_requested)
             {
@@ -1024,6 +1054,10 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         {
             showImage(screenshot_img);
         }
+         if (input_ffwd_requested)
+            {
+                showText(10, 10, ">> Fast Forwarding >>", 0xf800);
+            }
         if (input_exit_requested_firstTime && !input_info_requested)
         {
             showImage(quit_img);
