@@ -30,6 +30,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 extern int opt_backlight;
 extern int opt_volume;
+bool input_ffwd_requested = false;
 
 bool input_exit_requested = false;
 bool input_exit_requested_firstTime = false;
@@ -132,9 +133,9 @@ go2_input_state_t *input_gampad_current_get()
 {
     return gamepadState;
 }
-
 void core_input_poll(void)
 {
+
     if (!input)
     {
         input = go2_input_create();
@@ -357,27 +358,20 @@ void core_input_poll(void)
         
     }
 
-   /* if (!input_info_requested && go2_input_state_button_get(gamepadState, Hotkey) == ButtonState_Pressed)
+
+
+
+
+    if (!input_info_requested && go2_input_state_button_get(gamepadState, Go2InputButton_F1) == ButtonState_Pressed)
     {
-        //if (go2_input_state_button_get(gamepadState, Go2InputButton_B) == ButtonState_Pressed &&
-        //    go2_input_state_button_get(prevGamepadState, Go2InputButton_B) == ButtonState_Released)
-       // {
-        //    input_ffwd_requested = !input_ffwd_requested;lastFPSrequestTime
-         //   printf("Fast-forward %s\n", input_ffwd_requested ? "on" : "off");
-        //}
-        if (go2_input_state_button_get(gamepadState, Go2InputButton_A) == ButtonState_Pressed &&
-            go2_input_state_button_get(prevGamepadState, Go2InputButton_A) == ButtonState_Released)
-        {
-            input_pause_requested = !input_pause_requested;
-            printf("%s\n", input_pause_requested ? "Paused" : "Un-paused");
+        if (go2_input_state_button_get(gamepadState, r2Button) == ButtonState_Pressed &&
+            go2_input_state_button_get(prevGamepadState, r2Button) == ButtonState_Released)
+       {
+            input_ffwd_requested = !input_ffwd_requested;
+            printf("Fast-forward %s\n", input_ffwd_requested ? "on" : "off");
         }
-        /if (go2_input_state_button_get(gamepadState, Go2InputButton_X) == ButtonState_Pressed &&
-        //    go2_input_state_button_get(prevGamepadState, Go2InputButton_X) == ButtonState_Released)
-        //{
-        //    input_reset_requested = true;
-         //   printf("Reset requested\n");
-        //}
-    }*/
+        
+    }
 }
 
 int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigned id)

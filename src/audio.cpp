@@ -84,6 +84,10 @@ static void SetVolume()
 
 void core_audio_sample(int16_t left, int16_t right)
 {
+
+ if (input_ffwd_requested){
+        return;
+    }
     SetVolume();
 
     u_int32_t *ptr = (u_int32_t *)audioBuffer;
@@ -98,6 +102,17 @@ void core_audio_sample(int16_t left, int16_t right)
 
 size_t core_audio_sample_batch_sync(const int16_t *data, size_t frames)
 {
+    
+    // the following is for Fast Forwarding
+    audioCounter++;
+    if (audioCounter != audioCounterSkip){    
+        if (input_ffwd_requested ){
+            return frames;
+        }
+    }else{
+        audioCounter =0;
+    }    
+    
     SetVolume();
 
     int currentFrame = (int)frames;

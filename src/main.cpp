@@ -122,7 +122,7 @@ static struct
     //	void retro_cheat_reset(void);
     //	void retro_cheat_set(unsigned index, bool enabled, const char *code);
     bool (*retro_load_game)(const struct retro_game_info *game);
-    //	bool retro_load_game_special(unsigned game_type, const struct retro_game_info *info, size_t num_info);
+    //bool retro_load_game_special(unsigned game_type, const struct retro_game_info *info, size_t num_info);
     void (*retro_unload_game)(void);
     //	unsigned retro_get_region(void);
     void *(*retro_get_memory_data)(unsigned id);
@@ -225,7 +225,7 @@ static void core_log(enum retro_log_level level, const char *fmt, ...)
     if (level == 0)
         return;
 
-    fprintf(stdout, "[%s] %s", levelstr[level], buffer);
+    fprintf(stdout, "-- %s -- [%s] %s \n", coreName.c_str(), levelstr[level], buffer);
     fflush(stdout);
 
 #if 0
@@ -538,6 +538,8 @@ static void core_load_game(const char *filename)
         60.0f, 10000.0f};
     struct retro_game_geometry geom = {
         100, 100, 100, 100, 1.0f};
+
+
     struct retro_system_av_info av = {
         geom, timing};
     struct retro_system_info system = {
@@ -657,6 +659,12 @@ static const char *FileNameFromPath(const char *fullpath)
     return result;
 }*/
 
+inline int getRetroMemory(){
+
+    return isFlycast() ? RETRO_MEMORY_VIDEO_RAM : RETRO_MEMORY_SAVE_RAM;
+}
+
+
 static int LoadState(const char *saveName)
 {
     FILE *file = fopen(saveName, "rb");
@@ -709,7 +717,7 @@ static int LoadSram(const char *saveName)
         long size = ftell(file);
         rewind(file);
 
-        size_t sramSize = g_retro.retro_get_memory_size(0);
+        size_t sramSize = g_retro.retro_get_memory_size(getRetroMemory());
         if (size < 1)
         {
             printf("-RR- Error loading sram, memory size wrong!\n");
@@ -721,7 +729,7 @@ static int LoadSram(const char *saveName)
             printf("-RR- Error loading sram, in file '%s': size mismatch!\n", saveName);
             return -1;
         }
-        void *ptr = g_retro.retro_get_memory_data(0);
+        void *ptr = g_retro.retro_get_memory_data(getRetroMemory());
         if (!ptr)
         {
             printf("-RR- Error loading sram, file '%s': contains wrong memory data!\n", saveName);
@@ -777,13 +785,13 @@ static void SaveState(const char *saveName)
 
 static void SaveSram(const char *saveName)
 {
-    size_t size = g_retro.retro_get_memory_size(0);
+    size_t size = g_retro.retro_get_memory_size(getRetroMemory());
     if (size < 1)
     {
-        printf("-RR- nothing to save in srm file!\n");
+        printf("-RR- nothing to save in srm file!, %zu\n", size);
         return;
     }
-    void *ptr = g_retro.retro_get_memory_data(0);
+    void *ptr = g_retro.retro_get_memory_data(getRetroMemory());
     if (!ptr)
     {
         printf("-RR- Error saving sram: ptr not valid!\n");
@@ -1100,11 +1108,11 @@ int main(int argc, char *argv[])
     // conf_map.clear();
 
     // on MP is reverted (4:3 -> 3:4)
-    if (isSwanStation())
+    /*if (isSwanStation())
     {
         printf("-RR- isSwanStation.\n");
         opt_aspect = 0.75f;
-    }
+    }*/
 
     core_load_game(arg_rom);
     // conf_map.clear();
@@ -1191,6 +1199,7 @@ int main(int argc, char *argv[])
     double previous_fps = 0;
     originalFps = info.timing.fps;
     // adaptiveFps = isFlycast() ? true: false;
+    
     while (isRunning)
     {
 
@@ -1224,8 +1233,9 @@ int main(int argc, char *argv[])
             g_retro.retro_reset();
         }
 
-        if (runLoopAt60fps && sleepSecs > 0)
+        if ((runLoopAt60fps && sleepSecs > 0) && !input_ffwd_requested)
         {
+            //printf("-RR- waiting!\n");
             std::this_thread::sleep_for(std::chrono::nanoseconds((int64_t)(sleepSecs * 1e9)));
         }
         prevClock = nextClock;
@@ -1244,13 +1254,13 @@ int main(int argc, char *argv[])
                 newFps = (int)(totalFrames / elapsed);
                 retrorunLoopCounter = 0;
             }
-            if (adaptiveFps)
+            if (adaptiveFps && !input_ffwd_requested)
             {
 
                 if (previous_fps <= newFps)
                 {
-                    max_fps = newFps < 30 ? info.timing.fps - 10 : info.timing.fps;
-                    max_fps = newFps < 40 ? info.timing.fps - 5 : info.timing.fps;
+                    max_fps = newFps < info.timing.fps /2 ? (info.timing.fps/2) + 10 : info.timing.fps;
+                    max_fps = newFps < info.timing.fps *2/3 ? (info.timing.fps *2/3) +5: info.timing.fps;
                 }
                 else
                 {
@@ -1260,6 +1270,7 @@ int main(int argc, char *argv[])
             }
             if (drawFps)
             {
+                if (!input_ffwd_requested)
                 fps = newFps > max_fps ? max_fps : newFps;
 
                 if (opt_show_fps && elapsed >= 1.0)
@@ -1277,7 +1288,7 @@ int main(int argc, char *argv[])
     printf("-RR- Saving sram into file:%s\n", sramPath);
     SaveSram(sramPath);
     free(sramPath);
-    sleep(1); // wait a little bit
+    sleep(2); // wait a little bit
     if (auto_save)
     {
         printf("-RR- Saving sav into file:%s\n", savePath);
