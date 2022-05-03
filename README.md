@@ -35,7 +35,7 @@ Rertorun parameters
 10) retrorun_audio_another_thread_wait_millisec = <whatever>
     Only works if retrorun_audio_another_thread is equals to true or half. It specify the number of milliseconds to wait before execute the audio card call in anohter thread. Default: 0
 11) retrorun_adaptive_fps = true | false
-    When true it tried to recude the number of calls to libretro run , it can help in case the number of FPS is too low. Default: false
+    When true it tries to recuce the number of calls to libretro run , it can help in case the number of FPS is too low. Default: false
 
 Build
 ======
