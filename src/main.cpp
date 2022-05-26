@@ -575,6 +575,16 @@ static void core_load_game(const char *filename)
     }
 
     g_retro.retro_get_system_av_info(&av);
+
+    if (resolution == R_320_240){
+        av.geometry.base_height = 240;
+        av.geometry.base_width = 320;
+        av.geometry.max_height = 240;
+        av.geometry.max_width = 320;   
+    }
+
+
+   
     video_configure(&av.geometry);
     audio_init(av.timing.sample_rate);
 
