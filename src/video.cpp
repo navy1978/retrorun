@@ -124,6 +124,8 @@ int width_fixed = 640;
 int height_fixed = 480;
 int getBase_width()
 {
+
+
     if (resolution == R_320_240)
         return 320;
     else if (resolution == R_640_480)
@@ -147,6 +149,7 @@ int getBase_height()
 }
 int getMax_width()
 {
+
     if (resolution == R_320_240)
         return 320;
     else if (resolution == R_640_480)
@@ -226,6 +229,8 @@ inline void createNormalStatusSurface()
 
 void video_configure(const struct retro_game_geometry *geom)
 {
+
+
 
     display = go2_display_create();
     // display->width = 20;
@@ -418,6 +423,24 @@ inline void showInfo(int w)
 
     std::string core = "Core: ";
     showText(posX, getRowForText(), const_cast<char *>(core.append(coreName).c_str()), 0xffff);
+    std::string origFps = "Orignal Game FPS: ";
+    showText(posX, getRowForText(), const_cast<char *>(origFps.append(std::to_string((int)originalFps)).c_str()), 0xffff);
+
+    std::string time = "Time: ";
+time_t curr_time;
+	tm * curr_tm;
+	
+	char time_string[100];
+	
+	std::time(&curr_time);
+	curr_tm = localtime(&curr_time);
+	
+	
+	strftime(time_string, 50, "%R", curr_tm);
+showText(posX, getRowForText(), const_cast<char *>(time.append(time_string).c_str()), 0xffff);
+
+
+
     std::string openGl = "Is openGL: ";
     showText(posX, getRowForText(), const_cast<char *>(openGl.append(isOpenGL ? "true" : "false").c_str()), 0xffff);
 
@@ -428,6 +451,7 @@ inline void showInfo(int w)
 
     std::string displ = "Resolution (dis.): ";
     showText(posX, getRowForText(), const_cast<char *>(displ.append(std::to_string(w)).append("x").append(std::to_string(h)).c_str()), 0xffff);
+
 
     std::string bat = "Battery: ";
     showText(posX, getRowForText(), const_cast<char *>(bat.append(std::to_string(batteryState.level)).append("%").c_str()), 0xffff);
