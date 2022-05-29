@@ -125,7 +125,6 @@ int height_fixed = 480;
 int getBase_width()
 {
 
-
     if (resolution == R_320_240)
         return 320;
     else if (resolution == R_640_480)
@@ -143,7 +142,7 @@ int getBase_height()
     else if (resolution == R_640_480)
         return 480;
     else if (isMGBA())
-        return 160;    
+        return 160;
     else
         return base_height;
 }
@@ -155,7 +154,7 @@ int getMax_width()
     else if (resolution == R_640_480)
         return 640;
     else if (isMGBA())
-        return 240;    
+        return 240;
     else
         return max_width;
 }
@@ -167,7 +166,7 @@ int getMax_height()
     else if (resolution == R_640_480)
         return 480;
     else if (isMGBA())
-        return 160;    
+        return 160;
     else
         return max_height;
 }
@@ -179,7 +178,7 @@ int getGeom_max_width(const struct retro_game_geometry *geom)
     else if (resolution == R_640_480)
         return 640;
     else if (isMGBA())
-        return 240;    
+        return 240;
     else
         return geom->max_width;
 }
@@ -191,7 +190,7 @@ int getGeom_max_height(const struct retro_game_geometry *geom)
     else if (resolution == R_640_480)
         return 480;
     else if (isMGBA())
-        return 160;    
+        return 160;
     else
         return geom->max_height;
 }
@@ -229,8 +228,6 @@ inline void createNormalStatusSurface()
 
 void video_configure(const struct retro_game_geometry *geom)
 {
-
-
 
     display = go2_display_create();
     // display->width = 20;
@@ -412,37 +409,37 @@ inline int getRowForText()
     return rowForText;
 }
 
+
 inline void showInfo(int w)
 {
     // batteryState.level, batteryStateDesc[batteryState.status]
     rowForText = 0;
     int posX = 10;
-    showText(posX, getRowForText(), "Retrorun (RG351 version)", 0xf800);
+    showText(posX, getRowForText(), "Retrorun (RG35* version)", 0xf800);
     showText(posX, getRowForText(), "------------------------", 0xf800);
     showText(posX, getRowForText(), ("Release: " + release).c_str(), 0xffff);
 
+    std::string time = "Time: ";
+    time_t curr_time;
+    tm *curr_tm;
+
+    char time_string[100];
+
+    std::time(&curr_time);
+    curr_tm = localtime(&curr_time);
+
+    strftime(time_string, 50, "%R", curr_tm);
+    showText(posX, getRowForText(), const_cast<char *>(time.append(time_string).c_str()), 0xffff);
+
+   
     std::string core = "Core: ";
     showText(posX, getRowForText(), const_cast<char *>(core.append(coreName).c_str()), 0xffff);
     std::string origFps = "Orignal Game FPS: ";
     showText(posX, getRowForText(), const_cast<char *>(origFps.append(std::to_string((int)originalFps)).c_str()), 0xffff);
 
-    std::string time = "Time: ";
-time_t curr_time;
-	tm * curr_tm;
-	
-	char time_string[100];
-	
-	std::time(&curr_time);
-	curr_tm = localtime(&curr_time);
-	
-	
-	strftime(time_string, 50, "%R", curr_tm);
-showText(posX, getRowForText(), const_cast<char *>(time.append(time_string).c_str()), 0xffff);
-
-
-
     std::string openGl = "Is openGL: ";
     showText(posX, getRowForText(), const_cast<char *>(openGl.append(isOpenGL ? "true" : "false").c_str()), 0xffff);
+    
 
     std::string res = "Resolution (base): ";
     showText(posX, getRowForText(), const_cast<char *>(res.append(std::to_string(base_width)).append("x").append(std::to_string(base_height)).c_str()), 0xffff);
@@ -451,7 +448,6 @@ showText(posX, getRowForText(), const_cast<char *>(time.append(time_string).c_st
 
     std::string displ = "Resolution (dis.): ";
     showText(posX, getRowForText(), const_cast<char *>(displ.append(std::to_string(w)).append("x").append(std::to_string(h)).c_str()), 0xffff);
-
 
     std::string bat = "Battery: ";
     showText(posX, getRowForText(), const_cast<char *>(bat.append(std::to_string(batteryState.level)).append("%").c_str()), 0xffff);
@@ -842,15 +838,17 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
 
     frameCounter++;
     // the following is for Fast Forwarding
-    if (frameCounter == frameCounterSkip){     
-        frameCounter =0;
-        
-    }else{
-        if (input_ffwd_requested ){
+    if (frameCounter == frameCounterSkip)
+    {
+        frameCounter = 0;
+    }
+    else
+    {
+        if (input_ffwd_requested)
+        {
             return;
         }
-    }    
-
+    }
 
     if (first_video_refresh)
     {
@@ -878,7 +876,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
 
     if (isOpenGL)
     {
-        //eglSwapInterval(display, 0);
+        // eglSwapInterval(display, 0);
         if (data != RETRO_HW_FRAME_BUFFER_VALID)
             return;
 
@@ -1078,10 +1076,10 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         {
             showImage(screenshot_img);
         }
-         if (input_ffwd_requested)
-            {
-                showText(10, 10, ">> Fast Forwarding >>", 0xf800);
-            }
+        if (input_ffwd_requested)
+        {
+            showText(10, 10, ">> Fast Forwarding >>", 0xf800);
+        }
         if (input_exit_requested_firstTime && !input_info_requested)
         {
             showImage(quit_img);

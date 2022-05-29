@@ -581,6 +581,11 @@ static void core_load_game(const char *filename)
         av.geometry.base_width = 320;
         av.geometry.max_height = 240;
         av.geometry.max_width = 320;   
+    }else if (resolution == R_640_480){
+        av.geometry.base_height = 480;
+        av.geometry.base_width = 640;
+        av.geometry.max_height = 480;
+        av.geometry.max_width = 640;   
     }
 
 
