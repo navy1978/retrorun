@@ -588,7 +588,6 @@ static void core_load_game(const char *filename)
         av.geometry.max_width = 640;   
     }
 
-
    
     video_configure(&av.geometry);
     audio_init(av.timing.sample_rate);
