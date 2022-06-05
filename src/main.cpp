@@ -960,7 +960,6 @@ void initConfig()
         try
         {
             const std::string &tflValue = conf_map.at("retrorun_video_another_thread");
-            // printf("-RR- =====>video_another_thread: %s.\n",tflValue.c_str());
             processVideoInAnotherThread = (tflValue == "true" || tflValue == "half") ? true : false;
             enableSwitchVideoSync = tflValue.compare("half") == 0 ? true : false;
             printf("-RR- video_another_thread: %s.\n", (processVideoInAnotherThread && !enableSwitchVideoSync) ? "true" : (processVideoInAnotherThread && enableSwitchVideoSync ? "half" : "false"));
@@ -988,7 +987,7 @@ void initConfig()
         {
             const std::string &tflValue = conf_map.at("retrorun_audio_another_thread");
             processAudioInAnotherThread = (tflValue == "true" || tflValue == "half") ? true : false;
-            enableSwitchAudioSync = tflValue.compare("half") == 0 ? true : false;
+            enableSwitchAudioSync = tflValue.compare("half") == 0 ? true : false;            
             printf("-RR- audio_another_thread: %s.\n", (processAudioInAnotherThread && !enableSwitchAudioSync) ? "true" : (enableSwitchAudioSync && enableSwitchAudioSync ? "half" : "false"));
         }
         catch (...)

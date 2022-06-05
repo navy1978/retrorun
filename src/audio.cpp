@@ -44,7 +44,7 @@ int myFreq = 1;
 extern float fps;
 std::mutex mtx; // mutex for critical section
 
-bool switchAudioSync = false; // we can execute half (or all) of the request in another thread
+bool switchAudioSync = true; // we can execute half (or all) of the request in another thread
 
 void audio_init(int freq)
 {
@@ -129,27 +129,43 @@ size_t core_audio_sample_batch_sync(const int16_t *data, size_t frames)
         go2_audio_submit(audio, (const short *)audioBuffer, audioFrameCount);
         audioFrameCount = 0;
     }
-    if (isFlycast()){mtx.lock();}
+    
     memcpy(audioBuffer + (audioFrameCount * CHANNELS), data, frameInt * sizeof(int16_t) * CHANNELS);
-    if (isFlycast()){mtx.unlock();}
+    
     audioFrameCount += frameInt;
     return frames;
+    
+    
 }
+
+
+inline void switchAudio(){
+    if (enableSwitchAudioSync)
+    { // if enabled we execute only half of the requests in another thread
+    
+        switchAudioSync = !switchAudioSync;
+        printf("-RR- switched switchAudioSync: %s\n", switchAudioSync? "TRUE": "FALSE");
+    }
+}
+
 
 size_t core_audio_sample_batch(const int16_t *data, size_t frames)
 {
-    if (processAudioInAnotherThread && switchAudioSync)
+  
+    
+    if (processAudioInAnotherThread && switchAudioSync && !isFlycast() && !isJaguar())
     {
+        
         std::thread th(core_audio_sample_batch_sync, std::ref(data), std::ref(frames));
         th.detach();
+        
+        switchAudio();
         return frames;
     }
     else
     {
+        switchAudio();
         return core_audio_sample_batch_sync(data, frames);
     }
-    if (enableSwitchAudioSync)
-    { // if enabled we execute only half of the requests in another thread
-        switchAudioSync = !switchAudioSync;
-    }
+    
 }

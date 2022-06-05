@@ -99,6 +99,7 @@ bool isFlycast();
 bool isParalleln64();
 bool isSwanStation();
 bool isMGBA();
+bool isJaguar();
 extern bool processVideoInAnotherThread;
 extern int waitMSecForVideoInAnotherThread;
 extern bool enableSwitchVideoSync;
