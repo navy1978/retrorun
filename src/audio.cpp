@@ -102,7 +102,7 @@ void core_audio_sample(int16_t left, int16_t right)
 
 size_t core_audio_sample_batch_sync(const int16_t *data, size_t frames)
 {
-    
+   // mtx.lock();
     // the following is for Fast Forwarding
     audioCounter++;
     if (audioCounter != audioCounterSkip){    
@@ -130,9 +130,11 @@ size_t core_audio_sample_batch_sync(const int16_t *data, size_t frames)
         audioFrameCount = 0;
     }
     
+    
     memcpy(audioBuffer + (audioFrameCount * CHANNELS), data, frameInt * sizeof(int16_t) * CHANNELS);
     
     audioFrameCount += frameInt;
+    // mtx.unlock();
     return frames;
     
     
@@ -144,7 +146,7 @@ inline void switchAudio(){
     { // if enabled we execute only half of the requests in another thread
     
         switchAudioSync = !switchAudioSync;
-        printf("-RR- switched switchAudioSync: %s\n", switchAudioSync? "TRUE": "FALSE");
+        
     }
 }
 
@@ -152,13 +154,11 @@ inline void switchAudio(){
 size_t core_audio_sample_batch(const int16_t *data, size_t frames)
 {
   
-    
-    if (processAudioInAnotherThread && switchAudioSync && !isFlycast() && !isJaguar())
+    //if (processAudioInAnotherThread && switchAudioSync && !isFlycast() && !isJaguar() && isFirstTime<1)
+    if (false)
     {
-        
         std::thread th(core_audio_sample_batch_sync, std::ref(data), std::ref(frames));
         th.detach();
-        
         switchAudio();
         return frames;
     }
