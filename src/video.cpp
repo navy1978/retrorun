@@ -321,7 +321,7 @@ void video_configure(const struct retro_game_geometry *geom)
             attr.stencil_bits = 8;
         }
 
-        /*attr.major = 3;
+       /* attr.major = 3;
         attr.minor = 2;
         attr.red_bits = 8;
         attr.green_bits = 8;
@@ -861,7 +861,7 @@ inline void presenter_post(int width, int height)
                        _351Rotation);
 }
 
-bool switchVideo = false;
+bool switchVideo = true;
 
 inline void core_video_refresh_no_openGL(const void *data, unsigned width, unsigned height, size_t pitch)
 {
@@ -951,7 +951,8 @@ inline void core_video_refresh_no_openGL(const void *data, unsigned width, unsig
         showImage(pause_img);
     }
     checkPaused();
-
+status_post(res_width, res_height, false);
+/*
     if (processVideoInAnotherThread && switchVideo)
     {
         // TaskVideo *taskPtr = new TaskVideo();
@@ -961,9 +962,19 @@ inline void core_video_refresh_no_openGL(const void *data, unsigned width, unsig
     }
     else
     {
-        status_post(res_width, res_height, false);
+        
+    }*/
+}
+
+
+inline void switchVideoSync(){
+    
+    if (enableSwitchVideoSync)
+    {
+        switchVideo = !switchVideo;
     }
 }
+
 
 void core_video_refresh(const void *data, unsigned width, unsigned height, size_t pitch)
 {
@@ -1078,14 +1089,15 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
 
             if (processVideoInAnotherThread && switchVideo) // isFlycast())
             {
-                // TaskVideo *taskPtr = new TaskVideo();
                 std::thread th(status_post, res_width, res_height, input_info_requested);
                 th.detach();
                 std::this_thread::sleep_for(std::chrono::milliseconds(waitMSecForVideoInAnotherThread));
+                switchVideoSync();
             }
             else
             {
                 status_post(res_width, res_height, input_info_requested);
+                switchVideoSync();
             }
 
             checkPaused();
@@ -1097,33 +1109,32 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
                 showImage(screenshot_img);
                 if (processVideoInAnotherThread && switchVideo)
                 {
-                    // TaskVideo *taskPtr = new TaskVideo();
                     std::thread th(status_post, width, height, input_info_requested);
                     th.detach();
                     std::this_thread::sleep_for(std::chrono::milliseconds(waitMSecForVideoInAnotherThread));
+                    switchVideoSync();
                 }
                 else
                 {
                     status_post(width, height, input_info_requested);
+                    switchVideoSync();
                 }
 
                 checkPaused();
             }
             else
             {
-
-                // draw as fast as possible
-
                 if (processVideoInAnotherThread && switchVideo)
                 {
-                    // TaskVideo *taskPtr = new TaskVideo();
                     std::thread th(presenter_post, width, height);
                     th.detach();
                     std::this_thread::sleep_for(std::chrono::milliseconds(waitMSecForVideoInAnotherThread));
+                    switchVideoSync();
                 }
                 else
                 {
                     presenter_post(width, height);
+                    switchVideoSync();
                 }
             }
         }
@@ -1132,20 +1143,20 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
     else
     {
         // non-OpenGL
+
         if (processVideoInAnotherThread && switchVideo)
         {
             std::thread th(core_video_refresh_no_openGL, data, width, height, pitch);
             th.detach();
+            switchVideoSync();
             // std::this_thread::sleep_for(std::chrono::milliseconds(waitMSecForVideoInAnotherThread));
         }
         else
         {
             core_video_refresh_no_openGL(data, width, height, pitch);
+            switchVideoSync();
         }
     }
 
-    if (enableSwitchVideoSync)
-    {
-        switchVideo = !switchVideo;
-    }
+    
 }
