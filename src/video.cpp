@@ -321,6 +321,15 @@ void video_configure(const struct retro_game_geometry *geom)
             attr.stencil_bits = 8;
         }
 
+        /*attr.major = 3;
+        attr.minor = 2;
+        attr.red_bits = 8;
+        attr.green_bits = 8;
+        attr.blue_bits = 8;
+        attr.alpha_bits = 8;
+        attr.depth_bits = 16;
+        attr.stencil_bits = 8;*/
+
         context3D = go2_context_create(display, getGeom_max_width(geom), getGeom_max_height(geom), &attr);
         go2_context_make_current(context3D);
         retro_context_reset();
@@ -409,7 +418,6 @@ inline int getRowForText()
     return rowForText;
 }
 
-
 inline void showInfo(int w)
 {
     // batteryState.level, batteryStateDesc[batteryState.status]
@@ -431,7 +439,6 @@ inline void showInfo(int w)
     strftime(time_string, 50, "%R", curr_tm);
     showText(posX, getRowForText(), const_cast<char *>(time.append(time_string).c_str()), 0xffff);
 
-   
     std::string core = "Core: ";
     showText(posX, getRowForText(), const_cast<char *>(core.append(coreName).c_str()), 0xffff);
     std::string origFps = "Orignal Game FPS: ";
@@ -439,7 +446,6 @@ inline void showInfo(int w)
 
     std::string openGl = "Is openGL: ";
     showText(posX, getRowForText(), const_cast<char *>(openGl.append(isOpenGL ? "true" : "false").c_str()), 0xffff);
-    
 
     std::string res = "Resolution (base): ";
     showText(posX, getRowForText(), const_cast<char *>(res.append(std::to_string(base_width)).append("x").append(std::to_string(base_height)).c_str()), 0xffff);
@@ -511,6 +517,30 @@ inline int getDigit(int n, int position)
     return res;
 }
 
+inline int getWidthFPS()
+{
+    if (isOpenGL)
+    {
+        return go2_surface_width_get(status_surface);
+    }
+    else
+    {
+        return display_width;
+    }
+}
+
+inline int getHeightFPS()
+{
+    if (isOpenGL)
+    {
+        return go2_surface_height_get(status_surface);
+    }
+    else
+    {
+        return display_height;
+    }
+}
+
 inline int getStatusWidth()
 {
     if (isOpenGL)
@@ -537,7 +567,7 @@ inline int getStatusHeight()
 
 inline void showFPSImageLow()
 {
-    int x = getStatusWidth() - (numbers_image_low.width * 2) - 10; // depends on the width of the image
+    int x = getWidthFPS() - (numbers_image_low.width * 2) - 10; // depends on the width of the image
     int y = 10;
     showNumberSprite(x, y, getDigit(fps, 2), numbers_image_low.width, numbers_image_low.height, numbers_image_low.pixel_data);
     showNumberSprite(x + numbers_image_low.width, y, getDigit(fps, 1), numbers_image_low.width, numbers_image_low.height, numbers_image_low.pixel_data);
@@ -545,7 +575,7 @@ inline void showFPSImageLow()
 
 inline void showFPSImageHigh()
 {
-    int x = getStatusWidth() - (numbers_image_high.width * 2) - 10; // depends on the width of the image
+    int x = getWidthFPS() - (numbers_image_high.width * 2) - 10; // depends on the width of the image
     int y = 10;
     showNumberSprite(x, y, getDigit(fps, 2), numbers_image_high.width, numbers_image_high.height, numbers_image_high.pixel_data);
     showNumberSprite(x + numbers_image_high.width, y, getDigit(fps, 1), numbers_image_high.width, numbers_image_high.height, numbers_image_high.pixel_data);
@@ -833,6 +863,108 @@ inline void presenter_post(int width, int height)
 
 bool switchVideo = false;
 
+inline void core_video_refresh_no_openGL(const void *data, unsigned width, unsigned height, size_t pitch)
+{
+
+    if (!data)
+        return;
+    gs_w = go2_surface_width_get(surface);
+    gs_h = go2_surface_height_get(surface);
+    int ss_w = go2_surface_width_get(status_surface);
+    int ss_h = go2_surface_height_get(status_surface);
+    // printf("-- gles_surface_w=%d, gles_surface_h=%d - status_surface=%d, status_surface=%d  - width=%d, height=%d\n", gs_w, gs_h,ss_w,ss_h, width, height);
+    // let's copy the content of gles_surface on status_surface (with the current roration based on the device)
+    int res_width = width;
+    int res_height = height;
+
+    if (input_info_requested)
+    {
+        if (266 < width && 200 < height)
+        { // 240 x 160 is better maybe
+            res_width = 266;
+            res_height = 200;
+        }
+        if (266 > base_width || 200 > base_height)
+        { // 240 x 160 is better maybe
+            res_width = base_width;
+            res_height = base_height;
+        }
+        makeScreenBlack(status_surface, res_width, res_height);
+        showInfo(gs_w);
+    }
+    else
+    {
+        // A similar refactoring should be done here... for emulators that dont use OpenGL
+        surface_blit(isWideScreen, surface, _351BlitRotation, gs_w, gs_h, ss_w, ss_h, width, height);
+
+        uint8_t *src = (uint8_t *)data;
+        uint8_t *dst = (uint8_t *)go2_surface_map(status_surface);
+        int bpp = go2_drm_format_get_bpp(go2_surface_format_get(status_surface)) / 8;
+
+        int yy = height;
+        while (yy > 0)
+        {
+            if (color_format == DRM_FORMAT_RGBA5551)
+            {
+                uint32_t *src2 = (uint32_t *)src;
+                uint32_t *dst2 = (uint32_t *)dst;
+
+                for (int x = 0; x < (short)width / 2; ++x)
+                {
+                    uint32_t pixel = src2[x];
+                    pixel = ((pixel << 1) & (~0x3f003f)) | (pixel & 0x1f001f);
+                    dst2[x] = pixel;
+                }
+            }
+            else
+            {
+                memcpy(dst, src, width * bpp);
+            }
+
+            src += pitch;
+            dst += go2_surface_stride_get(status_surface);
+            --yy;
+        }
+    }
+    if (input_fps_requested && !input_info_requested)
+    {
+        showFPSImage();
+    }
+    if (screenshot_requested && !input_info_requested)
+    {
+        takeScreenshot(ss_w, ss_h, _351BlitRotation);
+    }
+    if (continueToShowScreenshotImage())
+    {
+        showImage(screenshot_img);
+    }
+    if (input_ffwd_requested)
+    {
+        showText(10, 10, ">> Fast Forwarding >>", 0xf800);
+    }
+    if (input_exit_requested_firstTime && !input_info_requested)
+    {
+        showImage(quit_img);
+    }
+    if (input_pause_requested && !input_info_requested)
+    {
+        showImage(pause_img);
+    }
+    checkPaused();
+
+    if (processVideoInAnotherThread && switchVideo)
+    {
+        // TaskVideo *taskPtr = new TaskVideo();
+        std::thread th(status_post, res_width, res_height, false);
+        th.detach();
+        // std::this_thread::sleep_for(std::chrono::milliseconds(waitMSecForVideoInAnotherThread));
+    }
+    else
+    {
+        status_post(res_width, res_height, false);
+    }
+}
+
 void core_video_refresh(const void *data, unsigned width, unsigned height, size_t pitch)
 {
 
@@ -996,103 +1128,24 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
             }
         }
         go2_context_surface_unlock(context3D, gles_surface);
-        if (enableSwitchVideoSync)
-        {
-            switchVideo = !switchVideo;
-        }
     }
     else
     {
-
-        if (!data)
-            return;
-        gs_w = go2_surface_width_get(surface);
-        gs_h = go2_surface_height_get(surface);
-        int ss_w = go2_surface_width_get(status_surface);
-        int ss_h = go2_surface_height_get(status_surface);
-        // printf("-- gles_surface_w=%d, gles_surface_h=%d - status_surface=%d, status_surface=%d  - width=%d, height=%d\n", gs_w, gs_h,ss_w,ss_h, width, height);
-        // let's copy the content of gles_surface on status_surface (with the current roration based on the device)
-        int res_width = width;
-        int res_height = height;
-
-        if (input_info_requested)
+        // non-OpenGL
+        if (processVideoInAnotherThread && switchVideo)
         {
-            if (266 < width && 200 < height)
-            { // 240 x 160 is better maybe
-                res_width = 266;
-                res_height = 200;
-            }
-            if (266 > base_width || 200 > base_height)
-            { // 240 x 160 is better maybe
-                res_width = base_width;
-                res_height = base_height;
-            }
-            makeScreenBlack(status_surface, res_width, res_height);
-            showInfo(gs_w);
+            std::thread th(core_video_refresh_no_openGL, data, width, height, pitch);
+            th.detach();
+            // std::this_thread::sleep_for(std::chrono::milliseconds(waitMSecForVideoInAnotherThread));
         }
         else
         {
-            // A similar refactoring should be done here... for emulators that dont use OpenGL
-            surface_blit(isWideScreen, surface, _351BlitRotation, gs_w, gs_h, ss_w, ss_h, width, height);
+            core_video_refresh_no_openGL(data, width, height, pitch);
+        }
+    }
 
-            uint8_t *src = (uint8_t *)data;
-            uint8_t *dst = (uint8_t *)go2_surface_map(status_surface);
-            int bpp = go2_drm_format_get_bpp(go2_surface_format_get(status_surface)) / 8;
-
-            int yy = height;
-            while (yy > 0)
-            {
-                if (color_format == DRM_FORMAT_RGBA5551)
-                {
-                    uint32_t *src2 = (uint32_t *)src;
-                    uint32_t *dst2 = (uint32_t *)dst;
-
-                    for (int x = 0; x < (short)width / 2; ++x)
-                    {
-                        uint32_t pixel = src2[x];
-                        pixel = ((pixel << 1) & (~0x3f003f)) | (pixel & 0x1f001f);
-                        dst2[x] = pixel;
-                    }
-                }
-                else
-                {
-                    memcpy(dst, src, width * bpp);
-                }
-
-                src += pitch;
-                dst += go2_surface_stride_get(status_surface);
-                --yy;
-            }
-        }
-        if (input_fps_requested && !input_info_requested)
-        {
-            showFPSImage();
-        }
-        if (screenshot_requested && !input_info_requested)
-        {
-            takeScreenshot(ss_w, ss_h, _351BlitRotation);
-        }
-        if (continueToShowScreenshotImage())
-        {
-            showImage(screenshot_img);
-        }
-        if (input_ffwd_requested)
-        {
-            showText(10, 10, ">> Fast Forwarding >>", 0xf800);
-        }
-        if (input_exit_requested_firstTime && !input_info_requested)
-        {
-            showImage(quit_img);
-        }
-        if (input_pause_requested && !input_info_requested)
-        {
-            showImage(pause_img);
-        }
-        checkPaused();
-        go2_presenter_post(presenter,
-                           status_surface,
-                           0, 0, res_width, res_height,
-                           x, y, w, h,
-                           _351Rotation);
+    if (enableSwitchVideoSync)
+    {
+        switchVideo = !switchVideo;
     }
 }
