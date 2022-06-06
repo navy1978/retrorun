@@ -298,7 +298,7 @@ void video_configure(const struct retro_game_geometry *geom)
     if (isOpenGL)
     {
         go2_context_attributes_t attr;
-        if (isFlycast() || isParalleln64())
+        if (color_format == DRM_FORMAT_XRGB8888)
         {
             attr.major = 3;
             attr.minor = 2;
@@ -521,7 +521,7 @@ inline int getWidthFPS()
 {
     if (isOpenGL)
     {
-        return go2_surface_width_get(status_surface);
+        return go2_surface_width_get(status_surface)*2;
     }
     else
     {
@@ -533,7 +533,7 @@ inline int getHeightFPS()
 {
     if (isOpenGL)
     {
-        return go2_surface_height_get(status_surface);
+        return go2_surface_height_get(status_surface)*2;
     }
     else
     {

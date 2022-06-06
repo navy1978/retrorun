@@ -273,19 +273,22 @@ static bool core_environment(unsigned cmd, void *data)
     case RETRO_ENVIRONMENT_SET_PIXEL_FORMAT:
     {
         const enum retro_pixel_format fmt = *(enum retro_pixel_format *)data;
-        printf("-RR- RETRO_ENVIRONMENT_SET_PIXEL_FORMAT: fmt=0x%x\n", (int)fmt);
+        
 
         switch (fmt)
         {
         case RETRO_PIXEL_FORMAT_0RGB1555:
+        printf("-RR- RETRO_ENVIRONMENT_SET_PIXEL_FORMAT: DRM_FORMAT_RGBA5551\n");
             color_format = DRM_FORMAT_RGBA5551;
             break;
 
         case RETRO_PIXEL_FORMAT_RGB565:
+        printf("-RR- RETRO_ENVIRONMENT_SET_PIXEL_FORMAT: DRM_FORMAT_RGB565\n");
             color_format = DRM_FORMAT_RGB565;
             break;
 
         case RETRO_PIXEL_FORMAT_XRGB8888:
+        printf("-RR- RETRO_ENVIRONMENT_SET_PIXEL_FORMAT: DRM_FORMAT_XRGB8888\n");
             color_format = DRM_FORMAT_XRGB8888;
             break;
 
