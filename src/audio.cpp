@@ -116,7 +116,7 @@ size_t core_audio_sample_batch_sync(const int16_t *data, size_t frames)
     SetVolume();
 
     int currentFrame = (int)frames;
-
+    // int frameThreshold = experimentalBoost ? 800 : FRAMES_MAX;
     if (currentFrame > FRAMES_MAX)
     {
         return frames;
