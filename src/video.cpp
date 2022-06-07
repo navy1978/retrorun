@@ -321,14 +321,14 @@ void video_configure(const struct retro_game_geometry *geom)
             attr.stencil_bits = 8;
         }
 
-       /* attr.major = 3;
-        attr.minor = 2;
-        attr.red_bits = 8;
-        attr.green_bits = 8;
-        attr.blue_bits = 8;
-        attr.alpha_bits = 8;
-        attr.depth_bits = 16;
-        attr.stencil_bits = 8;*/
+        /* attr.major = 3;
+         attr.minor = 2;
+         attr.red_bits = 8;
+         attr.green_bits = 8;
+         attr.blue_bits = 8;
+         attr.alpha_bits = 8;
+         attr.depth_bits = 16;
+         attr.stencil_bits = 8;*/
 
         context3D = go2_context_create(display, getGeom_max_width(geom), getGeom_max_height(geom), &attr);
         go2_context_make_current(context3D);
@@ -521,11 +521,11 @@ inline int getWidthFPS()
 {
     if (isOpenGL)
     {
-        return go2_surface_width_get(status_surface)*2;
+        return go2_surface_width_get(status_surface) * 2;
     }
     else
     {
-        return display_width;
+        return go2_surface_width_get(status_surface) * 2 -10;
     }
 }
 
@@ -533,11 +533,11 @@ inline int getHeightFPS()
 {
     if (isOpenGL)
     {
-        return go2_surface_height_get(status_surface)*2;
+        return go2_surface_height_get(status_surface) * 2;
     }
     else
     {
-        return display_height;
+        return go2_surface_width_get(status_surface) * 2 -10;
     }
 }
 
@@ -951,30 +951,34 @@ inline void core_video_refresh_no_openGL(const void *data, unsigned width, unsig
         showImage(pause_img);
     }
     checkPaused();
-status_post(res_width, res_height, false);
-/*
-    if (processVideoInAnotherThread && switchVideo)
-    {
-        // TaskVideo *taskPtr = new TaskVideo();
-        std::thread th(status_post, res_width, res_height, false);
-        th.detach();
-        // std::this_thread::sleep_for(std::chrono::milliseconds(waitMSecForVideoInAnotherThread));
-    }
-    else
-    {
-        
-    }*/
+
+    go2_presenter_post(presenter,
+                       status_surface,
+                       0, 0, res_width, res_height,
+                       x, y, w, h,
+                       _351Rotation);
+    /*
+        if (processVideoInAnotherThread && switchVideo)
+        {
+            // TaskVideo *taskPtr = new TaskVideo();
+            std::thread th(status_post, res_width, res_height, false);
+            th.detach();
+            // std::this_thread::sleep_for(std::chrono::milliseconds(waitMSecForVideoInAnotherThread));
+        }
+        else
+        {
+
+        }*/
 }
 
+inline void switchVideoSync()
+{
 
-inline void switchVideoSync(){
-    
     if (enableSwitchVideoSync)
     {
         switchVideo = !switchVideo;
     }
 }
-
 
 void core_video_refresh(const void *data, unsigned width, unsigned height, size_t pitch)
 {
@@ -1157,6 +1161,4 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
             switchVideoSync();
         }
     }
-
-    
 }
