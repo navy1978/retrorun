@@ -960,18 +960,6 @@ void initConfig()
             printf("-RR- Info: retrorun_loop_60_fps parameter not found in retrorun.cfg using default value (%s).\n", runLoopAt60fps ? "true" : "false");
         }
 
-         try
-        {
-            const std::string &tflValue = conf_map.at("retrorun_experimental_boost");
-
-            experimentalBoost = tflValue == "true" ? true : false;
-            printf("-RR- experimental_boost: %s.\n", experimentalBoost ? "true" : "false");
-        }
-        catch (...)
-        {
-            printf("-RR- Info: retrorun_experimentalBoost parameter not found in retrorun.cfg using default value (%s).\n", experimentalBoost ? "true" : "false");
-        }
-
         try
         {
             const std::string &tflValue = conf_map.at("retrorun_video_another_thread");
@@ -1227,7 +1215,7 @@ int main(int argc, char *argv[])
     double previous_fps = 0;
     originalFps = info.timing.fps;
     // adaptiveFps = isFlycast() ? true: false;
-    bool boost = true;
+    
     while (isRunning)
     {
 
@@ -1241,13 +1229,6 @@ int main(int argc, char *argv[])
         }
         else
         {
-            boost =!boost;
-            if (boost && experimentalBoost){
-              for(int i=0;i<3;i++){  
-                  g_retro.retro_run();
-              }
-            
-            }
             g_retro.retro_run();
         }
 
@@ -1268,8 +1249,7 @@ int main(int argc, char *argv[])
             g_retro.retro_reset();
         }
 
-         if ((runLoopAt60fps && sleepSecs > 0) && !input_ffwd_requested && !experimentalBoost)
-
+        if ((runLoopAt60fps && sleepSecs > 0) && !input_ffwd_requested)
         {
             //printf("-RR- waiting!\n");
             std::this_thread::sleep_for(std::chrono::nanoseconds((int64_t)(sleepSecs * 1e9)));
@@ -1281,7 +1261,7 @@ int main(int argc, char *argv[])
             totalFrames++;
             elapsed += (totClock - nextClock).count() / 1e9;
             newFps = (int)(totalFrames / elapsed);
-            
+
             retrorunLoopCounter++;
             bool drawFps = false;
             if (retrorunLoopCounter == retrorunLoopSkip)
@@ -1290,7 +1270,7 @@ int main(int argc, char *argv[])
                 newFps = (int)(totalFrames / elapsed);
                 retrorunLoopCounter = 0;
             }
-            if (adaptiveFps && !input_ffwd_requested && !experimentalBoost)
+            if (adaptiveFps && !input_ffwd_requested)
             {
 
                 if (previous_fps <= newFps)
@@ -1308,10 +1288,6 @@ int main(int argc, char *argv[])
             {
                 if (!input_ffwd_requested)
                 fps = newFps > max_fps ? max_fps : newFps;
-
-                if (experimentalBoost){
-                    fps = 0;
-                }
 
                 if (opt_show_fps && elapsed >= 1.0)
                 {
