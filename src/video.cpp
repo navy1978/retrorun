@@ -122,77 +122,73 @@ rrImg pause_img = {paused_img_high, paused_img_low};
 rrImg screenshot_img = {sreenshot_high, sreenshot_low};
 int width_fixed = 640;
 int height_fixed = 480;
-int getBase_width()
-{
 
-    if (resolution == R_320_240)
-        return 320;
-    else if (resolution == R_640_480)
-        return 640;
+int getFixedWidth(int alternative)
+{
+    // some games like Resident Evil 2 for Flycast has an ovescan issue in 640x480
+    if (isFlycast())
+    {
+        if (resolution == R_320_240)
+            return 320;
+        else if (resolution == R_640_480 && device == RG_552)
+            return 640;
+        else
+            return alternative;
+    }
     else if (isMGBA())
         return 240;
     else
-        return base_width;
+    {
+        return alternative;
+    }
+}
+
+int getFixedHeight(int alternative)
+{
+    // some games like Resident Evil 2 for Flycast has an ovescan issue in 640x480
+    if (isFlycast())
+    {
+        if (resolution == R_320_240)
+            return 240;
+        else if (resolution == R_640_480 && device == RG_552)
+            return 480;
+        else
+            return alternative;
+    }
+    else if (isMGBA())
+        return 160;
+    else
+    {
+        return alternative;
+    }
+}
+int getBase_width()
+{
+    return getFixedWidth(base_width);
 }
 
 int getBase_height()
 {
-    if (resolution == R_320_240)
-        return 240;
-    else if (resolution == R_640_480)
-        return 480;
-    else if (isMGBA())
-        return 160;
-    else
-        return base_height;
+    return getFixedHeight(base_height);
 }
 int getMax_width()
 {
-
-    if (resolution == R_320_240)
-        return 320;
-    else if (resolution == R_640_480)
-        return 640;
-    else if (isMGBA())
-        return 240;
-    else
-        return max_width;
+    return getFixedWidth(max_width);
 }
 
 int getMax_height()
 {
-    if (resolution == R_320_240)
-        return 240;
-    else if (resolution == R_640_480)
-        return 480;
-    else if (isMGBA())
-        return 160;
-    else
-        return max_height;
+    return getFixedHeight(max_height);
 }
 
 int getGeom_max_width(const struct retro_game_geometry *geom)
 {
-    if (resolution == R_320_240)
-        return 320;
-    else if (resolution == R_640_480)
-        return 640;
-    else if (isMGBA())
-        return 240;
-    else
-        return geom->max_width;
+    return getFixedWidth(max_width);
 }
 
 int getGeom_max_height(const struct retro_game_geometry *geom)
 {
-    if (resolution == R_320_240)
-        return 240;
-    else if (resolution == R_640_480)
-        return 480;
-    else if (isMGBA())
-        return 160;
-    else
-        return geom->max_height;
+    return getFixedHeight(max_height);
 }
 
 /*
@@ -226,7 +222,7 @@ inline void createNormalStatusSurface()
     }
 }
 
-void video_configure(const struct retro_game_geometry *geom)
+void video_configure(struct retro_game_geometry *geom)
 {
 
     display = go2_display_create();
@@ -282,6 +278,24 @@ void video_configure(const struct retro_game_geometry *geom)
         printf("-RR- Device info: unknown! display_width:%d, display_height:%d\n", display_width, display_height);
         device = UNKNOWN;
     }
+    // some games like Resident Evil 2 for Flycast has an ovescan issue in 640x480
+    bool skipGeomSet = (isFlycast() && device == RG_552);
+
+    if (resolution == R_320_240)
+    {
+        geom->base_height = 240;
+        geom->base_width = 320;
+        geom->max_height = 240;
+        geom->max_width = 320;
+    }
+    else if (resolution == R_640_480 && !skipGeomSet)
+    {
+        geom->base_height = 480;
+        geom->base_width = 640;
+        geom->max_height = 480;
+        geom->max_width = 640;
+    }
+
     printf("-RR- Game info: base_width=%d, base_height=%d, max_width=%d, max_height=%d\n", geom->base_width, geom->base_height, geom->max_width, geom->max_height);
     base_width = geom->base_width;
     base_height = geom->base_height;
@@ -525,7 +539,7 @@ inline int getWidthFPS()
     }
     else
     {
-        return go2_surface_width_get(status_surface) * 2 -10;
+        return go2_surface_width_get(status_surface) * 2 - 10;
     }
 }
 
@@ -537,7 +551,7 @@ inline int getHeightFPS()
     }
     else
     {
-        return go2_surface_width_get(status_surface) * 2 -10;
+        return go2_surface_width_get(status_surface) * 2 - 10;
     }
 }
 
