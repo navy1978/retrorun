@@ -21,7 +21,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "audio.h"
 #include "input.h"
 #include "globals.h"
-
+#include <unistd.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -31,6 +31,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <thread>
 
 #define FRAMES_MAX (48000)
+#define FRAMES_LIMIT_MAX (20000)
+#define FRAMES_LIMIT_MIN (20)
 #define CHANNELS (2)
 
 extern int opt_volume;
@@ -54,8 +56,7 @@ void audio_init(int freq)
     audio = go2_audio_create(freq);
     audioFrameCount = 0;
     audioFrameLimit = 1.0 / originalFps * freq; // 735
-    // printf("-RR- audio_init freq:%d\n", freq);
-
+    
     if (opt_volume > -1)
     {
         go2_audio_volume_set(audio, (uint32_t)opt_volume);
@@ -100,10 +101,9 @@ void core_audio_sample(int16_t left, int16_t right)
     }
 }
 
-size_t core_audio_sample_batch_sync(const int16_t *data, size_t frames)
+size_t core_audio_sample_batch(const int16_t *data, size_t frames)
 {
-   // mtx.lock();
-    // the following is for Fast Forwarding
+    
     audioCounter++;
     if (audioCounter != audioCounterSkip){    
         if (input_ffwd_requested ){
@@ -119,53 +119,18 @@ size_t core_audio_sample_batch_sync(const int16_t *data, size_t frames)
 
     if (currentFrame > FRAMES_MAX)
     {
-        return frames;
+        currentFrame = FRAMES_MAX;
     }
     int frameInt = currentFrame;
-    audioFrameLimit = 1.0 / originalFps * FRAMES_MAX;
-    if (audioFrameCount + frameInt > audioFrameLimit)
-    {
-
-        go2_audio_submit(audio, (const short *)audioBuffer, audioFrameCount);
-        audioFrameCount = 0;
-    }
-    
+    audioFrameLimit = 1.0 / originalFps * currentFrame;
+    go2_audio_submit(audio, (const short *)audioBuffer, audioFrameCount);    
+    audioFrameCount = 0;
     
     memcpy(audioBuffer + (audioFrameCount * CHANNELS), data, frameInt * sizeof(int16_t) * CHANNELS);
-    
     audioFrameCount += frameInt;
-    // mtx.unlock();
     return frames;
     
     
 }
 
 
-inline void switchAudio(){
-    if (enableSwitchAudioSync)
-    { // if enabled we execute only half of the requests in another thread
-    
-        switchAudioSync = !switchAudioSync;
-        
-    }
-}
-
-
-size_t core_audio_sample_batch(const int16_t *data, size_t frames)
-{
-  
-    //if (processAudioInAnotherThread && switchAudioSync && !isFlycast() && !isJaguar() && isFirstTime<1)
-    if (false)
-    {
-        std::thread th(core_audio_sample_batch_sync, std::ref(data), std::ref(frames));
-        th.detach();
-        switchAudio();
-        return frames;
-    }
-    else
-    {
-        switchAudio();
-        return core_audio_sample_batch_sync(data, frames);
-    }
-    
-}

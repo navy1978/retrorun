@@ -591,7 +591,7 @@ libc_error:
     abort();
 }
 
-/*void *core_unload(void *arg)
+void *unload(void *arg)
 {
 
     if (g_retro.initialized)
@@ -604,9 +604,9 @@ libc_error:
         dlclose(g_retro.handle);
         exitFlag = 0;
     }
-    return 0;
-}*/
-
+    throw std::runtime_error("Force exiting retrorun.\n");
+}
+/*
 void unload(void)
 {
 
@@ -620,10 +620,9 @@ void unload(void)
         dlclose(g_retro.handle);
         exitFlag = 0;
     }
-    throw /*std::invalid_argument("");*/
-        std::runtime_error("Force exiting retrorun.\n");
+    throw std::runtime_error("Force exiting retrorun.\n");
 }
-
+*/
 static const char *FileNameFromPath(const char *fullpath)
 {
     // Find last slash
@@ -1305,6 +1304,22 @@ int main(int argc, char *argv[])
     printf("-RR- Unloading core and deinit audio and video...\n");
     video_deinit();
     audio_deinit();
-    atexit(unload);
+    //atexit(unload);
+
+     pthread_t threadId;
+    pthread_create(&threadId, NULL, &unload, NULL);
+
+    sleep(1); // wait a little bit
+    if (exitFlag == 0)
+    { // if everything is ok we join the thread otherwise we exit without joining
+        pthread_join(threadId, NULL);
+    }
+    else
+    { // if it hangs we kill the thread and we exit
+        pthread_kill(threadId, SIGUSR1);
+        pthread_join(threadId, NULL);
+        throw std::runtime_error("Force exiting retrorun.\n");
+    }
+    
     return 0;
 }
