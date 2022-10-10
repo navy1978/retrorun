@@ -1203,20 +1203,31 @@ int main(int argc, char *argv[])
     double previous_fps = 0;
     originalFps = info.timing.fps;
     // adaptiveFps = isFlycast() ? true: false;
-    
+    bool redrawInfo=true;
+
+
     while (isRunning)
     {
-
         auto nextClock = std::chrono::high_resolution_clock::now();
         // double deltaTime = (nextClock - prevClock).count() / 1e9;
-        if ((pause_requested && input_pause_requested) || (pause_requested && input_info_requested))
+        bool realPause =pause_requested && input_pause_requested;
+        bool showInfo = pause_requested && input_info_requested;
+        if (realPause || (showInfo && !redrawInfo))
         {
             // must poll to unpause
             totalFrames = 0; // reset total frames otherwise in next loop FPS are not accurate anymore
             core_input_poll();
+
         }
         else
         {
+            // in some cores (pcsx-rearmed for example) is not enough to put in pause immediatly when info request is done
+            // we need to redraw the screen at least one time
+            if (showInfo){
+               redrawInfo = false;
+            }else {
+               redrawInfo = true;
+            }
             g_retro.retro_run();
         }
 

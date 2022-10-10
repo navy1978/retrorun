@@ -437,7 +437,7 @@ inline void showInfo(int w)
     // batteryState.level, batteryStateDesc[batteryState.status]
     rowForText = 0;
     int posX = 10;
-    showText(posX, getRowForText(), "Retrorun (RG35* version)", 0xf800);
+    showText(posX, getRowForText(), "Retrorun", 0xf800);
     showText(posX, getRowForText(), "------------------------", 0xf800);
     showText(posX, getRowForText(), ("Release: " + release).c_str(), 0xffff);
 
@@ -539,7 +539,13 @@ inline int getWidthFPS()
     }
     else
     {
-        return go2_surface_width_get(status_surface) * 2 - 10;
+
+	if (isJaguar()){
+		return currentWidth*2 ;
+	}else{        
+		return currentWidth;
+
+	}
     }
 }
 
@@ -551,7 +557,7 @@ inline int getHeightFPS()
     }
     else
     {
-        return go2_surface_width_get(status_surface) * 2 - 10;
+        return currentHeight;
     }
 }
 
