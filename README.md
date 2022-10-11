@@ -12,7 +12,7 @@ Use this for RG351*/RG552 with rg351p-js2box available [here](https://github.com
 7) Manages GPIO/USB joypad
 
 
-Rertorun parameters
+Retrorun parameters
 ======
 1)  retrorun_screenshot_folder = <whatever>
     Define the folder in which the screenshots are saved. Default: /storage/roms/screenshots
