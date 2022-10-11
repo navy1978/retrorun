@@ -30,11 +30,7 @@ Rertorun parameters
     Specify if process the call to video card in another thread. True means all the calls will be executed in another thread , false none, half means helf will be executed in the current thread and half in another thread. Default: true
 8)  retrorun_video_another_thread_wait_millisec = <whatever>
     Only works if retrorun_video_another_thread is equals to true or half. It specify the number of milliseconds to wait before execute the video card call in anohter thread. Default: 0
-9)  retrorun_audio_another_thread = true | false | half
-    Specify if process the call to audio card in another thread. True means all the calls will be executed in another thread , false none, half means helf will be executed in the current thread and half in another thread. Default: true
-10) retrorun_audio_another_thread_wait_millisec = <whatever>
-    Only works if retrorun_audio_another_thread is equals to true or half. It specify the number of milliseconds to wait before execute the audio card call in anohter thread. Default: 0
-11) retrorun_adaptive_fps = true | false
+9) retrorun_adaptive_fps = true | false
     When true it tries to recuce the number of calls to libretro run , it can help in case the number of FPS is too low. Default: false
 
 Build
