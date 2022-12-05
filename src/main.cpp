@@ -122,7 +122,7 @@ static struct
     //	void retro_cheat_reset(void);
     //	void retro_cheat_set(unsigned index, bool enabled, const char *code);
     bool (*retro_load_game)(const struct retro_game_info *game);
-    //bool retro_load_game_special(unsigned game_type, const struct retro_game_info *info, size_t num_info);
+    // bool retro_load_game_special(unsigned game_type, const struct retro_game_info *info, size_t num_info);
     void (*retro_unload_game)(void);
     //	unsigned retro_get_region(void);
     void *(*retro_get_memory_data)(unsigned id);
@@ -273,22 +273,21 @@ static bool core_environment(unsigned cmd, void *data)
     case RETRO_ENVIRONMENT_SET_PIXEL_FORMAT:
     {
         const enum retro_pixel_format fmt = *(enum retro_pixel_format *)data;
-        
 
         switch (fmt)
         {
         case RETRO_PIXEL_FORMAT_0RGB1555:
-        printf("-RR- RETRO_ENVIRONMENT_SET_PIXEL_FORMAT: DRM_FORMAT_RGBA5551\n");
+            printf("-RR- RETRO_ENVIRONMENT_SET_PIXEL_FORMAT: DRM_FORMAT_RGBA5551\n");
             color_format = DRM_FORMAT_RGBA5551;
             break;
 
         case RETRO_PIXEL_FORMAT_RGB565:
-        printf("-RR- RETRO_ENVIRONMENT_SET_PIXEL_FORMAT: DRM_FORMAT_RGB565\n");
+            printf("-RR- RETRO_ENVIRONMENT_SET_PIXEL_FORMAT: DRM_FORMAT_RGB565\n");
             color_format = DRM_FORMAT_RGB565;
             break;
 
         case RETRO_PIXEL_FORMAT_XRGB8888:
-        printf("-RR- RETRO_ENVIRONMENT_SET_PIXEL_FORMAT: DRM_FORMAT_XRGB8888\n");
+            printf("-RR- RETRO_ENVIRONMENT_SET_PIXEL_FORMAT: DRM_FORMAT_XRGB8888\n");
             color_format = DRM_FORMAT_XRGB8888;
             break;
 
@@ -402,7 +401,7 @@ static bool core_environment(unsigned cmd, void *data)
                     resolution = R_640_480;
                 }
             }
-            
+
             var->value = it->second.c_str();
             found = true;
             return true;
@@ -542,7 +541,6 @@ static void core_load_game(const char *filename)
     struct retro_game_geometry geom = {
         100, 100, 100, 100, 1.0f};
 
-
     struct retro_system_av_info av = {
         geom, timing};
     struct retro_system_info system = {
@@ -579,8 +577,6 @@ static void core_load_game(const char *filename)
 
     g_retro.retro_get_system_av_info(&av);
 
-   
-   
     video_configure(&av.geometry);
     audio_init(av.timing.sample_rate);
 
@@ -664,11 +660,11 @@ static const char *FileNameFromPath(const char *fullpath)
     return result;
 }*/
 
-inline int getRetroMemory(){
+inline int getRetroMemory()
+{
 
     return isFlycast() ? RETRO_MEMORY_VIDEO_RAM : RETRO_MEMORY_SAVE_RAM;
 }
-
 
 static int LoadState(const char *saveName)
 {
@@ -879,6 +875,7 @@ void initConfig()
         {
             const std::string &ssFolderValue = conf_map.at("retrorun_screenshot_folder");
             screenShotFolder = ssFolderValue;
+            printf("-RR - Info - screenshot folder:%s\n",screenShotFolder.c_str());
         }
         catch (...)
         {
@@ -890,6 +887,7 @@ void initConfig()
         {
             const std::string &ssFps_counter = conf_map.at("retrorun_fps_counter");
             input_fps_requested = ssFps_counter == "enabled" ? true : false;
+            printf("-RR - Info - retrorun_fps_counter :%s\n",input_fps_requested ? "TRUE": "FALSE");
         }
         catch (...)
         {
@@ -907,6 +905,7 @@ void initConfig()
             {
                 const std::string &arValue = conf_map.at("retrorun_aspect_ratio");
                 opt_aspect = getAspectRatio(arValue);
+                printf("-RR - Info - retrorun_aspect_ratio :%f\n",opt_aspect);
             }
             catch (...)
             {
@@ -917,7 +916,7 @@ void initConfig()
         {
             const std::string &asValue = conf_map.at("retrorun_auto_save");
             auto_save = asValue == "true" ? true : false;
-            printf("Autosave: %s.\n", auto_save ? "true" : "false");
+            printf("-RR - Info - Autosave: %s.\n", auto_save ? "true" : "false");
         }
         catch (...)
         {
@@ -929,7 +928,7 @@ void initConfig()
             const std::string &lasValue = conf_map.at("retrorun_force_left_analog_stick");
 
             force_left_analog_stick = lasValue == "true" ? true : false;
-            printf("-RR- Force analog stick: %s.\n", force_left_analog_stick ? "true" : "false");
+            printf("-RR- Info - Force analog stick: %s.\n", force_left_analog_stick ? "true" : "false");
         }
         catch (...)
         {
@@ -941,11 +940,11 @@ void initConfig()
             const std::string &tflValue = conf_map.at("retrorun_loop_60_fps");
 
             runLoopAt60fps = tflValue == "false" ? false : true;
-            printf("-RR- loop_60_fps: %s.\n", runLoopAt60fps ? "true" : "false");
+            printf("-RR- Info - loop_60_fps: %s.\n", runLoopAt60fps ? "true" : "false");
         }
         catch (...)
         {
-            printf("-RR- Info: retrorun_loop_60_fps parameter not found in retrorun.cfg using default value (%s).\n", runLoopAt60fps ? "true" : "false");
+            printf("-RR- Warning: retrorun_loop_60_fps parameter not found in retrorun.cfg using default value (%s).\n", runLoopAt60fps ? "true" : "false");
         }
 
         try
@@ -957,7 +956,7 @@ void initConfig()
         }
         catch (...)
         {
-            printf("-RR- Info: retrorun_video_another_thread parameter not found in retrorun.cfg using default value (%s).\n", processVideoInAnotherThread ? "true" : "false");
+            printf("-RR- Warning: retrorun_video_another_thread parameter not found in retrorun.cfg using default value (%s).\n", processVideoInAnotherThread ? "true" : "false");
         }
 
         try
@@ -966,38 +965,14 @@ void initConfig()
             if (!tflValue.empty())
             {
                 waitMSecForVideoInAnotherThread = stoi(tflValue);
-                printf("-RR- video_another_thread_wait_millisec: %d.\n", waitMSecForVideoInAnotherThread);
+                printf("-RR- Info - video_another_thread_wait_millisec: %d.\n", waitMSecForVideoInAnotherThread);
             }
         }
         catch (...)
         {
-            printf("-RR- Info: retrorun_video_another_thread_wait_millisec parameter not found in retrorun.cfg using default value (0).\n");
+            printf("-RR- Warning: retrorun_video_another_thread_wait_millisec parameter not found in retrorun.cfg using default value (0).\n");
         }
 
-        try
-        {
-            const std::string &tflValue = conf_map.at("retrorun_audio_another_thread");
-            processAudioInAnotherThread = (tflValue == "true" || tflValue == "half") ? true : false;
-            enableSwitchAudioSync = tflValue.compare("half") == 0 ? true : false;            
-            printf("-RR- audio_another_thread: %s.\n", (processAudioInAnotherThread && !enableSwitchAudioSync) ? "true" : (enableSwitchAudioSync && enableSwitchAudioSync ? "half" : "false"));
-        }
-        catch (...)
-        {
-            printf("-RR- Info: retrorun_audio_another_thread parameter not found in retrorun.cfg using default value (%s).\n", processAudioInAnotherThread ? "true" : "false");
-        }
-        try
-        {
-            const std::string &tflValue = conf_map.at("retrorun_audio_another_thread_wait_millisec");
-            if (!tflValue.empty())
-            {
-                waitMSecForAudioInAnotherThread = stoi(tflValue);
-                printf("-RR- audio_another_thread_wait_millisec: %d.\n", waitMSecForAudioInAnotherThread);
-            }
-        }
-        catch (...)
-        {
-            printf("-RR- Info: retrorun_audio_another_thread_wait_millisec parameter not found in retrorun.cfg using default value (%d).\n", waitMSecForAudioInAnotherThread);
-        }
 
         try
         {
@@ -1005,13 +980,31 @@ void initConfig()
             if (!tflValue.empty())
             {
                 adaptiveFps = tflValue == "true" ? true : false;
-                printf("-RR- retrorun_adaptive_fps: %d.\n", adaptiveFps);
+                printf("-RR- Info - retrorun_adaptive_fps: %d.\n", adaptiveFps);
             }
         }
         catch (...)
         {
-            printf("-RR- Info: retrorun_adaptive_fps parameter not found in retrorun.cfg using default value (%s).\n", adaptiveFps ? "true" : "false");
+            printf("-RR- Warning: retrorun_adaptive_fps parameter not found in retrorun.cfg using default value (%s).\n", adaptiveFps ? "true" : "false");
         }
+
+
+
+        try
+        {
+            const std::string &audioBufferValue = conf_map.at("retrorun_audio_buffer");
+            if (!audioBufferValue.empty())
+            {
+                retrorun_audio_buffer = stoi(audioBufferValue);
+                printf("-RR- Info - retrorun_audio_buffer: %d.\n", retrorun_audio_buffer);
+            }
+        }
+        catch (...)
+        {
+            printf("-RR- Info: retrorun_video_another_thread_wait_millisec parameter not found in retrorun.cfg using default value (0).\n");
+        }
+
+
 
         printf("-RR- Configuration initialized.\n");
     }
@@ -1203,9 +1196,9 @@ int main(int argc, char *argv[])
     double previous_fps = 0;
     originalFps = info.timing.fps;
     // adaptiveFps = isFlycast() ? true: false;
-    bool redrawInfo=true;
+    bool redrawInfo = true;
 
-
+   
     while (isRunning)
     {
         auto nextClock = std::chrono::high_resolution_clock::now();
@@ -1255,8 +1248,7 @@ int main(int argc, char *argv[])
         }
         prevClock = nextClock;
         totClock = std::chrono::high_resolution_clock::now();
-        if (true) // opt_show_fps || input_fps_requested)
-        {
+        
             totalFrames++;
             elapsed += (totClock - nextClock).count() / 1e9;
             newFps = (int)(totalFrames / elapsed);
@@ -1295,7 +1287,7 @@ int main(int argc, char *argv[])
                 totalFrames = 0;
                 elapsed = 0;
             }
-        }
+        
     }
 
     printf("-RR- Exiting from render loop...\n");
@@ -1315,9 +1307,9 @@ int main(int argc, char *argv[])
     printf("-RR- Unloading core and deinit audio and video...\n");
     video_deinit();
     audio_deinit();
-    //atexit(unload);
+    // atexit(unload);
 
-     pthread_t threadId;
+    pthread_t threadId;
     pthread_create(&threadId, NULL, &unload, NULL);
 
     sleep(1); // wait a little bit
@@ -1331,6 +1323,6 @@ int main(int argc, char *argv[])
         pthread_join(threadId, NULL);
         throw std::runtime_error("Force exiting retrorun.\n");
     }
-    
+
     return 0;
 }

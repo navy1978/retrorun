@@ -22,7 +22,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 
 
-std::string release= "1.5.5";
+std::string release= "1.5.6";
 
 RETRORUN_CORE_TYPE Retrorun_Core = RETRORUN_CORE_UNKNOWN;
 Device device = UNKNOWN;
@@ -55,14 +55,15 @@ bool processVideoInAnotherThread= true;
 int waitMSecForVideoInAnotherThread= 0;
 bool enableSwitchVideoSync = false;
 
-bool processAudioInAnotherThread= true;
-int waitMSecForAudioInAnotherThread= 0;
-bool enableSwitchAudioSync = false;
+
 
 bool adaptiveFps = false;
 
 
 bool runLoopAt60fps= true;
+
+
+int retrorun_audio_buffer= -1; // means it will be fixed to a value related with the original FPS of the game
 
 
 bool isFlycast(){

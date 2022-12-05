@@ -29,33 +29,32 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <mutex> // std::mutex
 #include <chrono>
 #include <thread>
+#include <cmath>
 
 #define FRAMES_MAX (48000)
-#define FRAMES_LIMIT_MAX (20000)
-#define FRAMES_LIMIT_MIN (20)
 #define CHANNELS (2)
 
 extern int opt_volume;
 
 static go2_audio_t *audio;
 static u_int16_t audioBuffer[FRAMES_MAX * CHANNELS];
+
 static int audioFrameCount;
 static int audioFrameLimit;
 static int prevVolume;
-int myFreq = 1;
-extern float fps;
 std::mutex mtx; // mutex for critical section
 
-bool switchAudioSync = true; // we can execute half (or all) of the request in another thread
+bool firstTime=true;
+int init_freq;
+
 
 void audio_init(int freq)
 {
     // Note: audio stutters in OpenAL unless the buffer frequency at upload
     // is the same as during creation.
-    myFreq = freq;
+    init_freq = freq;
     audio = go2_audio_create(freq);
     audioFrameCount = 0;
-    audioFrameLimit = 1.0 / originalFps * freq; // 735
     
     if (opt_volume > -1)
     {
@@ -72,6 +71,7 @@ void audio_deinit()
 {
     if (audio != NULL)
         go2_audio_destroy(audio);
+
 }
 
 static void SetVolume()
@@ -85,52 +85,75 @@ static void SetVolume()
 
 void core_audio_sample(int16_t left, int16_t right)
 {
-
- if (input_ffwd_requested){
+    if (input_ffwd_requested){
         return;
     }
+
     SetVolume();
 
     u_int32_t *ptr = (u_int32_t *)audioBuffer;
     ptr[audioFrameCount++] = (left << 16) | right;
 
-    if (audioFrameCount >= audioFrameLimit)
+    if (audioFrameCount >= retrorun_audio_buffer)
     {
         go2_audio_submit(audio, (const short *)audioBuffer, audioFrameCount);
         audioFrameCount = 0;
     }
 }
 
+
+
 size_t core_audio_sample_batch(const int16_t *data, size_t frames)
 {
     
+
+
+    if (firstTime){
+        audioFrameLimit = 1.0 / originalFps * init_freq;
+
+    
+
+        if (retrorun_audio_buffer==-1){
+            retrorun_audio_buffer = audioFrameLimit;
+        }
+        printf("-RR (Audio init)- originalFps:%f\n",originalFps);
+        printf("-RR (Audio init)- audioFrameLimit:%d\n",audioFrameLimit);
+        printf("-RR (Audio init)- retrorun_audio_buffer:%d\n",retrorun_audio_buffer);
+        firstTime = false;
+    }
+
     audioCounter++;
-    if (audioCounter != audioCounterSkip){    
-        if (input_ffwd_requested ){
+    // the following is for Fast Forwarding
+    if (audioCounter != audioCounterSkip)
+    {
+        if (input_ffwd_requested)
+        {
             return frames;
         }
-    }else{
-        audioCounter =0;
-    }    
-    
+    }
+    else
+    {
+        audioCounter = 0;
+    }
     SetVolume();
 
-    int currentFrame = (int)frames;
+     int currentFrame = (int)frames;
 
-    if (currentFrame > FRAMES_MAX)
-    {
-        currentFrame = FRAMES_MAX;
+    if (currentFrame > FRAMES_MAX){
+        return frames;
     }
-    int frameInt = currentFrame;
-    audioFrameLimit = 1.0 / originalFps * currentFrame;
-    go2_audio_submit(audio, (const short *)audioBuffer, audioFrameCount);    
-    audioFrameCount = 0;
+
+
+    if (audioFrameCount + currentFrame > retrorun_audio_buffer)
+    {
+        go2_audio_submit(audio, (const short *)audioBuffer, audioFrameCount);
+        audioFrameCount = 0;
+    }
+ 
+    memcpy(audioBuffer + (audioFrameCount * CHANNELS), data, frames * sizeof(int16_t) * CHANNELS);
+    audioFrameCount += frames;
     
-    memcpy(audioBuffer + (audioFrameCount * CHANNELS), data, frameInt * sizeof(int16_t) * CHANNELS);
-    audioFrameCount += frameInt;
     return frames;
-    
-    
 }
 
 

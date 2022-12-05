@@ -52,7 +52,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "imgs_numbers.h"
 #include "imgs_pause.h"
 #include "imgs_screenshot.h"
-
 #include <chrono>
 #include <thread>
 
@@ -122,6 +121,9 @@ rrImg pause_img = {paused_img_high, paused_img_low};
 rrImg screenshot_img = {sreenshot_high, sreenshot_low};
 int width_fixed = 640;
 int height_fixed = 480;
+
+
+
 
 int getFixedWidth(int alternative)
 {
@@ -343,6 +345,8 @@ void video_configure(struct retro_game_geometry *geom)
          attr.alpha_bits = 8;
          attr.depth_bits = 16;
          attr.stencil_bits = 8;*/
+
+
 
         context3D = go2_context_create(display, getGeom_max_width(geom), getGeom_max_height(geom), &attr);
         go2_context_make_current(context3D);
@@ -1000,9 +1004,13 @@ inline void switchVideoSync()
     }
 }
 
+
+
+
 void core_video_refresh(const void *data, unsigned width, unsigned height, size_t pitch)
 {
 
+    
     frameCounter++;
     // the following is for Fast Forwarding
     if (frameCounter == frameCounterSkip)
@@ -1048,13 +1056,15 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
             return;
 
         /*if (!isWideScreen)
-    {  //on V tate games should be rotated on the opposide side
-        _351BlitRotation = GO2_ROTATION_DEGREES_270;
-        _351Rotation = GO2_ROTATION_DEGREES_90;
+       {  //on V tate games should be rotated on the opposide side
+           _351BlitRotation = GO2_ROTATION_DEGREES_270;
+           _351Rotation = GO2_ROTATION_DEGREES_90;
 
-    }*/
+       }*/
 
         // Swap
+       
+
         go2_context_swap_buffers(context3D);
 
         gles_surface = go2_context_surface_lock(context3D);
@@ -1063,6 +1073,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         gs_h = go2_surface_height_get(gles_surface);
         int ss_w = go2_surface_width_get(status_surface);
         int ss_h = go2_surface_height_get(status_surface);
+   
         // printf("-- gles_surface_w=%d, gles_surface_h=%d - status_surface=%d, status_surface=%d  - width=%d, height=%d\n", gs_w, gs_h,ss_w,ss_h, width, height);
         if (input_fps_requested || screenshot_requested || input_exit_requested_firstTime || input_info_requested || input_pause_requested || input_ffwd_requested)
         {
@@ -1115,13 +1126,12 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
             {
                 std::thread th(status_post, res_width, res_height, input_info_requested);
                 th.detach();
-                std::this_thread::sleep_for(std::chrono::milliseconds(waitMSecForVideoInAnotherThread));
-                switchVideoSync();
+               
             }
             else
             {
                 status_post(res_width, res_height, input_info_requested);
-                switchVideoSync();
+               
             }
 
             checkPaused();
@@ -1135,8 +1145,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
                 {
                     std::thread th(status_post, width, height, input_info_requested);
                     th.detach();
-                    std::this_thread::sleep_for(std::chrono::milliseconds(waitMSecForVideoInAnotherThread));
-                    switchVideoSync();
+                   
                 }
                 else
                 {
@@ -1152,17 +1161,17 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
                 {
                     std::thread th(presenter_post, width, height);
                     th.detach();
-                    std::this_thread::sleep_for(std::chrono::milliseconds(waitMSecForVideoInAnotherThread));
-                    switchVideoSync();
+                    
                 }
                 else
                 {
                     presenter_post(width, height);
-                    switchVideoSync();
+                    
                 }
             }
         }
         go2_context_surface_unlock(context3D, gles_surface);
+        
     }
     else
     {
@@ -1182,3 +1191,6 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         }
     }
 }
+
+
+

@@ -104,8 +104,6 @@ extern bool processVideoInAnotherThread;
 extern int waitMSecForVideoInAnotherThread;
 extern bool enableSwitchVideoSync;
 
-extern bool processAudioInAnotherThread;
-extern int waitMSecForAudioInAnotherThread;
-extern bool enableSwitchAudioSync;
 
 extern bool runLoopAt60fps;
+extern int retrorun_audio_buffer;
