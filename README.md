@@ -32,6 +32,12 @@ Retrorun parameters
     Only works if retrorun_video_another_thread is equals to true or half. It specify the number of milliseconds to wait before execute the video card call in anohter thread. Default: 0
 9) retrorun_adaptive_fps = true | false
     When true it tries to recuce the number of calls to libretro run , it can help in case the number of FPS is too low. Default: false
+10) retrorun_audio_buffer = -1, 1, 256, 512, 1024, 2048, ...
+    1 => basically the buffer is emptied in each call
+    from 256 to 2028 => we wait until the buffer reaches that limit before empty it
+    -1 => in this case the limit is linked to the original FPS of the game (for 60 FPS the audio buffer is 1/60 * 44100 = 735)
+
+
 
 Build
 ======
