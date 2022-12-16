@@ -87,6 +87,10 @@ bool isJaguar() {
     return coreName == "Virtual Jaguar";
 }
 
+bool isDosBox(){
+    return coreName == "DOSBox-pure";
+}
+
 
 
 

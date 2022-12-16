@@ -100,6 +100,7 @@ bool isParalleln64();
 bool isSwanStation();
 bool isMGBA();
 bool isJaguar();
+bool isDosBox();
 extern bool processVideoInAnotherThread;
 extern int waitMSecForVideoInAnotherThread;
 extern bool enableSwitchVideoSync;

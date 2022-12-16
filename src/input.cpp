@@ -377,7 +377,7 @@ void core_input_poll(void)
 int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigned id)
 {
 
-    if (aspect_ratio < 1.0f)
+    if (aspect_ratio < 1.0f && isFlycast())
     {
         isTate = true;
     }
