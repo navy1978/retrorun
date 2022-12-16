@@ -1001,7 +1001,21 @@ void initConfig()
         }
         catch (...)
         {
-            printf("-RR- Info: retrorun_video_another_thread_wait_millisec parameter not found in retrorun.cfg using default value (0).\n");
+            printf("-RR- Info: retrorun_audio_buffer parameter not found in retrorun.cfg using default value (-1).\n");
+        }
+
+         try
+        {
+            const std::string &mouseSpeedValue = conf_map.at("retrorun_mouse_speed_factor");
+            if (!mouseSpeedValue.empty())
+            {
+                retrorun_mouse_speed_factor = stoi(mouseSpeedValue);
+                printf("-RR- Info - retrorun_mouse_speed_factor: %d.\n", retrorun_mouse_speed_factor);
+            }
+        }
+        catch (...)
+        {
+            printf("-RR- Info: retrorun_mouse_speed_factor parameter not found in retrorun.cfg using default value (5).\n");
         }
 
 

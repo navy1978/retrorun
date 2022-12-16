@@ -377,7 +377,7 @@ void core_input_poll(void)
 int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigned id)
 {
 
-    if (aspect_ratio < 1.0f)
+    if (aspect_ratio < 1.0f && isFlycast())
     {
         isTate = true;
     }
@@ -405,21 +405,6 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
             go2_input_state_button_set(gamepadState, Go2InputButton_DPadRight, ButtonState_Pressed);
     }
 
-    /*if (Retrorun_Core == RETRORUN_CORE_PARALLEL_N64) old stuff
-    {
-        // Map thumbstick to dpad (force to enable the right analog stick mapping to it the DPAD)
-        const float TRIM = 0.35f;
-        go2_thumb_t thumb = go2_input_state_thumbstick_get(gamepadState, Go2InputThumbstick_Right);
-
-        if (thumb.y < -TRIM)
-            go2_input_state_button_set(gamepadState, Go2InputButton_DPadUp, ButtonState_Pressed);
-        if (thumb.y > TRIM)
-            go2_input_state_button_set(gamepadState, Go2InputButton_DPadDown, ButtonState_Pressed);
-        if (thumb.x < -TRIM)
-            go2_input_state_button_set(gamepadState, Go2InputButton_DPadLeft, ButtonState_Pressed);
-        if (thumb.x > TRIM)
-            go2_input_state_button_set(gamepadState, Go2InputButton_DPadRight, ButtonState_Pressed);
-    }*/
 
     if (Retrorun_Core == RETRORUN_CORE_PARALLEL_N64) // C buttons
     {
@@ -486,8 +471,38 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
 #define RETRO_DEVICE_ID_JOYPAD_R3      15
 */
 
+
+
     if (port == 0)
     {
+        
+        
+        // manage mouse ( for certain cores like dosbox)
+        if (device == RETRO_DEVICE_MOUSE)
+        {
+         
+            go2_thumb_t thumb = go2_input_state_thumbstick_get(gamepadState, Go2InputThumbstick_Right);
+
+          
+
+            switch (id)
+            {
+            case RETRO_DEVICE_ID_ANALOG_X:
+                return thumb.x *retrorun_mouse_speed_factor;
+                break;
+
+            case RETRO_DEVICE_ID_JOYPAD_Y:
+                return thumb.y *retrorun_mouse_speed_factor;
+                break;
+
+            default:
+                return 0;
+                break;
+            }
+
+        }
+        
+        
         if (device == RETRO_DEVICE_JOYPAD)
         {
 
@@ -587,56 +602,23 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
             case RETRO_DEVICE_ID_JOYPAD_R2:
                 return go2_input_state_button_get(gamepadState, r2Button);
                 break;
-                // has_triggers doest work as expected and then only two of L1,L2 and R1 and R2 buttons works
-                /* case RETRO_DEVICE_ID_JOYPAD_L:
-                if (has_triggers)
-                {
-                    return go2_input_state_button_get(gamepadState, Go2InputButton_TopLeft);
-                }
-                else
-                {
-                    return opt_triggers ? go2_input_state_button_get(gamepadState, rightAnalogButton) : go2_input_state_button_get(gamepadState, Go2InputButton_TopLeft);
-                }
+            case RETRO_DEVICE_ID_JOYPAD_L3:
+                return go2_input_state_button_get(gamepadState, l3Button);
                 break;
 
-            case RETRO_DEVICE_ID_JOYPAD_R:
-                if (has_triggers)
-                {
-                    return go2_input_state_button_get(gamepadState, Go2InputButton_TopRight);
-                }
-                else
-                {
-                    return opt_triggers ? go2_input_state_button_get(gamepadState, startButton) : go2_input_state_button_get(gamepadState, Go2InputButton_TopRight);
-                }
-                break;
-
-            case RETRO_DEVICE_ID_JOYPAD_L2:
-                if (has_triggers)
-                {
-                    return go2_input_state_button_get(gamepadState, l2Button);
-                }
-                else
-                {
-                    return opt_triggers ? go2_input_state_button_get(gamepadState, Go2InputButton_TopLeft) : go2_input_state_button_get(gamepadState, rightAnalogButton);
-                }
-                break;
-
-            case RETRO_DEVICE_ID_JOYPAD_R2:
-                if (has_triggers)
-                {
-                    return go2_input_state_button_get(gamepadState, r2Button);
-                }
-                else
-                {
-                    return opt_triggers ? go2_input_state_button_get(gamepadState, Go2InputButton_TopRight) : go2_input_state_button_get(gamepadState, startButton);
-                }
-                break;*/
+            case RETRO_DEVICE_ID_JOYPAD_R3:
+                return go2_input_state_button_get(gamepadState, r3Button);
+                break;    
+                
 
             default:
                 return 0;
                 break;
             }
         }
+
+
+
         else if (!force_left_analog_stick && device == RETRO_DEVICE_ANALOG && index == RETRO_DEVICE_INDEX_ANALOG_LEFT)
         {
 

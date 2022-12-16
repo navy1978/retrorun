@@ -22,7 +22,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 
 
-std::string release= "1.5.6";
+std::string release= "1.5.7";
 
 RETRORUN_CORE_TYPE Retrorun_Core = RETRORUN_CORE_UNKNOWN;
 Device device = UNKNOWN;
@@ -65,6 +65,8 @@ bool runLoopAt60fps= true;
 
 int retrorun_audio_buffer= -1; // means it will be fixed to a value related with the original FPS of the game
 
+int retrorun_mouse_speed_factor= 5; 
+
 
 bool isFlycast(){
     return coreName == "Flycast";
@@ -85,6 +87,14 @@ bool isMGBA(){
 
 bool isJaguar() {
     return coreName == "Virtual Jaguar";
+}
+
+bool isDosBox(){
+    return coreName == "DOSBox-pure";
+}
+
+bool isBeetleVB(){
+    return coreName == "Beetle VB";
 }
 
 

@@ -544,7 +544,7 @@ inline int getWidthFPS()
     else
     {
 
-	if (isJaguar()){
+	if (isJaguar() || isDosBox() || isBeetleVB()){
 		return currentWidth*2 ;
 	}else{        
 		return currentWidth;

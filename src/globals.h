@@ -100,6 +100,8 @@ bool isParalleln64();
 bool isSwanStation();
 bool isMGBA();
 bool isJaguar();
+bool isDosBox();
+bool isBeetleVB();
 extern bool processVideoInAnotherThread;
 extern int waitMSecForVideoInAnotherThread;
 extern bool enableSwitchVideoSync;
@@ -107,3 +109,4 @@ extern bool enableSwitchVideoSync;
 
 extern bool runLoopAt60fps;
 extern int retrorun_audio_buffer;
+extern int retrorun_mouse_speed_factor;
