@@ -102,6 +102,7 @@ bool isMGBA();
 bool isJaguar();
 bool isDosBox();
 bool isBeetleVB();
+
 extern bool processVideoInAnotherThread;
 extern int waitMSecForVideoInAnotherThread;
 extern bool enableSwitchVideoSync;
