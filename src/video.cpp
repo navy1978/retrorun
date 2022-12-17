@@ -251,6 +251,11 @@ void video_configure(struct retro_game_geometry *geom)
     {
         printf("-RR- Using original game aspect ratio.\n");
         aspect_ratio = geom->aspect_ratio; // dont print the value here because is wrong
+        // for PC games (the default apsect ratio should be 4:3)
+        if (isDosBox()){
+            printf("-RR- Dosbox default apsect ratio 4/3.\n");
+            aspect_ratio = 1.333333f;
+        }
     }
     else
     {
@@ -807,6 +812,7 @@ inline void prepareScreen(int width, int height)
 
 inline void makeScreenBlack(go2_surface_t *go2_surface, int res_width, int res_height)
 {
+    res_width = res_width*2; // just to be sure to cover the full screen (in some emulators is not enough to use res_width)
     uint8_t *dst = (uint8_t *)go2_surface_map(go2_surface);
     int yy = res_height;
     while (yy > 0)
