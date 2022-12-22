@@ -123,6 +123,9 @@ int width_fixed = 640;
 int height_fixed = 480;
 
 
+        
+
+
 
 
 int getFixedWidth(int alternative)
@@ -688,19 +691,20 @@ inline void showImage(rrImg img)
     }
 }
 
-inline void takeScreenshot(int ss_w, int ss_h, go2_rotation_t _351BlitRotation)
+inline void takeScreenshot(int w, int h, go2_rotation_t _351BlitRotation)
 {
     printf("-RR- Screenshot.\n");
-    go2_surface_t *screenshot = go2_surface_create(display, ss_w, ss_h, DRM_FORMAT_RGB888);
+    go2_surface_t *screenshot = go2_surface_create(display, w, h, DRM_FORMAT_RGB888);
     if (!screenshot)
     {
         printf("-RR- go2_surface_create for screenshot failed.\n");
         throw std::exception();
     }
+
     go2_surface_blit(status_surface,
-                     0, 0, ss_w, ss_h,
+                     0, 0, w, h,
                      screenshot,
-                     0, 0, ss_w, ss_h,
+                     0, 0, w, h,
                      _351BlitRotation);
 
     // snap in screenshot directory
@@ -962,7 +966,7 @@ inline void core_video_refresh_no_openGL(const void *data, unsigned width, unsig
     }
     if (screenshot_requested && !input_info_requested)
     {
-        takeScreenshot(ss_w, ss_h, _351BlitRotation);
+        takeScreenshot(res_width, res_height, _351BlitRotation);
     }
     if (continueToShowScreenshotImage())
     {
@@ -1117,7 +1121,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
             }
             if (screenshot_requested && !input_info_requested)
             {
-                takeScreenshot(ss_w, ss_h, _351BlitRotation);
+                takeScreenshot(res_width, res_height, _351BlitRotation);
             }
             if (input_exit_requested_firstTime && !input_info_requested)
             {
