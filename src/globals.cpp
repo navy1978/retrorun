@@ -85,6 +85,10 @@ bool isMGBA(){
     return coreName == "mGBA";
 }
 
+bool isVBA(){
+    return coreName == "VBA-M";
+}
+
 bool isJaguar() {
     return coreName == "Virtual Jaguar";
 }

@@ -122,7 +122,7 @@ rrImg screenshot_img = {sreenshot_high, sreenshot_low};
 int width_fixed = 640;
 int height_fixed = 480;
 
-
+uint32_t format_565 = DRM_FORMAT_RGB565;//DRM_FORMAT_RGB888; // DRM_FORMAT_XRGB8888;//color_format;
         
 
 
@@ -213,11 +213,11 @@ inline void createNormalStatusSurface()
     }
     if (isWideScreen)
     {
-        status_surface = go2_surface_create(display, getBase_width(), getBase_height(), DRM_FORMAT_RGB565);
+        status_surface = go2_surface_create(display, getBase_width(), getBase_height(), format_565);
     }
     else
     {
-        status_surface = go2_surface_create(display, getMax_width(), getMax_height(), DRM_FORMAT_RGB565);
+        status_surface = go2_surface_create(display, getMax_width(), getMax_height(), format_565);
     }
 
     if (!status_surface)
@@ -238,7 +238,7 @@ void video_configure(struct retro_game_geometry *geom)
     // old
     // presenter = go2_presenter_create(display, DRM_FORMAT_XRGB8888, 0xff080808);  // ABGR
     // new
-    presenter = go2_presenter_create(display, DRM_FORMAT_RGB565, 0xff080808); // ABGR
+    presenter = go2_presenter_create(display, format_565, 0xff080808); // ABGR
 
     if (opt_backlight > -1)
     {
@@ -322,7 +322,7 @@ void video_configure(struct retro_game_geometry *geom)
     if (isOpenGL)
     {
         go2_context_attributes_t attr;
-        if (color_format == DRM_FORMAT_XRGB8888)
+        if (true)//color_format == DRM_FORMAT_XRGB8888)
         {
             attr.major = 3;
             attr.minor = 2;
@@ -374,7 +374,7 @@ void video_configure(struct retro_game_geometry *geom)
 
         if (color_format == DRM_FORMAT_RGBA5551)
         {
-            surface = go2_surface_create(display, aw, ah, DRM_FORMAT_RGB565);
+            surface = go2_surface_create(display, aw, ah, format_565);
         }
         else
         {
@@ -389,7 +389,7 @@ void video_configure(struct retro_game_geometry *geom)
 
         if (color_format == DRM_FORMAT_RGBA5551)
         {
-            status_surface = go2_surface_create(display, getGeom_max_width(geom), getGeom_max_height(geom), DRM_FORMAT_RGB565);
+            status_surface = go2_surface_create(display, getGeom_max_width(geom), getGeom_max_height(geom), format_565);
         }
         else
         {
@@ -816,7 +816,7 @@ inline void prepareScreen(int width, int height)
 
 inline void makeScreenBlack(go2_surface_t *go2_surface, int res_width, int res_height)
 {
-    res_width = res_width*2; // just to be sure to cover the full screen (in some emulators is not enough to use res_width)
+    res_width = (isMGBA() || isVBA()) ? res_width : res_width*2; // just to be sure to cover the full screen (in some emulators is not enough to use res_width)
     uint8_t *dst = (uint8_t *)go2_surface_map(go2_surface);
     int yy = res_height;
     while (yy > 0)
@@ -913,17 +913,7 @@ inline void core_video_refresh_no_openGL(const void *data, unsigned width, unsig
 
     if (input_info_requested)
     {
-        if (266 < width && 200 < height)
-        { // 240 x 160 is better maybe
-            res_width = 266;
-            res_height = 200;
-        }
-        if (266 > base_width || 200 > base_height)
-        { // 240 x 160 is better maybe
-            res_width = base_width;
-            res_height = base_height;
-        }
-        makeScreenBlack(status_surface, res_width, res_height);
+        makeScreenBlack(status_surface, ss_w, ss_h);
         showInfo(gs_w);
     }
     else
@@ -1045,7 +1035,19 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         printf("-RR- OpenGL=%s\n", isOpenGL ? "true" : "false");
         printf("-RR- isTate=%s\n", isTate ? "true" : "false");
 
-        printf("-RR- Color format:%s\n", color_format == DRM_FORMAT_RGBA5551 ? "DRM_FORMAT_RGBA5551" : "NOT DRM_FORMAT_RGBA5551");
+        if (color_format == DRM_FORMAT_RGBA5551){
+            printf("-RR- Color format:DRM_FORMAT_RGBA5551\n");
+        } else if (color_format == DRM_FORMAT_RGB888){
+            printf("-RR- Color format:DRM_FORMAT_RGB888\n");
+        } else if (color_format == DRM_FORMAT_XRGB8888){
+            printf("-RR- Color format:DRM_FORMAT_XRGB8888\n");
+        }else {
+            printf("-RR- Color format:Unknown\n");
+        }
+
+        
+
+        
 
         real_aspect_ratio = aspect_ratio;
         _351BlitRotation = isTate ? GO2_ROTATION_DEGREES_270 : GO2_ROTATION_DEGREES_0;
@@ -1092,19 +1094,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
             int res_height = height;
             if (input_info_requested)
             {
-                // createInfoStatusSurface(res_width, res_height);
-                if (266 < width && 200 < height)
-                { // 240 x 160 is better maybe
-                    res_width = 266;
-                    res_height = 200;
-                }
-                if (266 > base_width || 200 > base_height)
-                { // 240 x 160 is better maybe
-                    res_width = base_width;
-                    res_height = base_height;
-                }
-
-                makeScreenBlack(status_surface, res_width, res_height);
+                makeScreenBlack(status_surface, ss_w, ss_h);
                 showInfo(gs_w);
             }
             else

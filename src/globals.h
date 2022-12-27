@@ -99,6 +99,7 @@ bool isFlycast();
 bool isParalleln64();
 bool isSwanStation();
 bool isMGBA();
+bool isVBA();
 bool isJaguar();
 bool isDosBox();
 bool isBeetleVB();

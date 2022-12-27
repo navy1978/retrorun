@@ -292,6 +292,7 @@ static bool core_environment(unsigned cmd, void *data)
             break;
 
         default:
+            printf("-RR- RETRO_ENVIRONMENT_SET_PIXEL_FORMAT: FORMAT UNKNOWN\n");
             return false;
         }
 
