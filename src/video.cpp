@@ -816,7 +816,7 @@ inline void prepareScreen(int width, int height)
 
 inline void makeScreenBlack(go2_surface_t *go2_surface, int res_width, int res_height)
 {
-    res_width = (isMGBA() || isVBA()) ? res_width : res_width*2; // just to be sure to cover the full screen (in some emulators is not enough to use res_width)
+    res_width = (isJaguar() || isBeetleVB()) ? res_width*2 :res_width ; // just to be sure to cover the full screen (in some emulators is not enough to use res_width)
     uint8_t *dst = (uint8_t *)go2_surface_map(go2_surface);
     int yy = res_height;
     while (yy > 0)
@@ -913,7 +913,15 @@ inline void core_video_refresh_no_openGL(const void *data, unsigned width, unsig
 
     if (input_info_requested)
     {
-        makeScreenBlack(status_surface, ss_w, ss_h);
+        
+        
+        res_width = ss_w;
+                res_height = ss_h;
+                if (width>=320 || height >=240){
+                    res_width = 240;
+                    res_height = 160;
+                }
+        makeScreenBlack(status_surface, res_width, res_height);
         showInfo(gs_w);
     }
     else
@@ -1094,7 +1102,13 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
             int res_height = height;
             if (input_info_requested)
             {
-                makeScreenBlack(status_surface, ss_w, ss_h);
+                res_width = ss_w;
+                res_height = ss_h;
+                if (width>=320 || height >=240){
+                    res_width = 240;
+                    res_height = 160;
+                }
+                makeScreenBlack(status_surface, res_width, res_height);
                 showInfo(gs_w);
             }
             else
@@ -1191,6 +1205,3 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         }
     }
 }
-
-
-
