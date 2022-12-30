@@ -225,6 +225,8 @@ inline void createNormalStatusSurface()
         printf("-RR- go2_surface_create failed.:status_surface\n");
         throw std::exception();
     }
+
+    
 }
 
 void video_configure(struct retro_game_geometry *geom)
@@ -322,7 +324,7 @@ void video_configure(struct retro_game_geometry *geom)
     if (isOpenGL)
     {
         go2_context_attributes_t attr;
-        if (true)//color_format == DRM_FORMAT_XRGB8888)
+        if (color_format == DRM_FORMAT_XRGB8888) // should be always true
         {
             attr.major = 3;
             attr.minor = 2;
@@ -359,8 +361,10 @@ void video_configure(struct retro_game_geometry *geom)
         context3D = go2_context_create(display, getGeom_max_width(geom), getGeom_max_height(geom), &attr);
         go2_context_make_current(context3D);
         retro_context_reset();
-
+     
         createNormalStatusSurface();
+
+   
     }
     else
     {
@@ -816,7 +820,7 @@ inline void prepareScreen(int width, int height)
 
 inline void makeScreenBlack(go2_surface_t *go2_surface, int res_width, int res_height)
 {
-    res_width = (isJaguar() || isBeetleVB()) ? res_width*2 :res_width ; // just to be sure to cover the full screen (in some emulators is not enough to use res_width)
+    res_width = (isJaguar() || isBeetleVB() || isDosBox() || isDosCore()) ? res_width*2 :res_width ; // just to be sure to cover the full screen (in some emulators is not enough to use res_width)
     uint8_t *dst = (uint8_t *)go2_surface_map(go2_surface);
     int yy = res_height;
     while (yy > 0)
@@ -863,6 +867,7 @@ inline void status_post(int res_width, int res_height, bool isInfo)
                            0, 0, isInfo ? res_width : base_width, isInfo ? res_height : base_height,
                            x, y, w, h,
                            _351Rotation);
+                     
     }
     else
     {
@@ -871,6 +876,7 @@ inline void status_post(int res_width, int res_height, bool isInfo)
                            0, 0, isInfo ? res_width : gs_w, isInfo ? res_height : gs_h,
                            x, y, w, h,
                            _351Rotation);
+                       
     }
 }
 
@@ -1133,9 +1139,13 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
             }
             if (input_pause_requested && !input_info_requested)
             {
+                 
                 showImage(pause_img);
             }
 
+
+
+           
             if (processVideoInAnotherThread && switchVideo) // isFlycast())
             {
                 std::thread th(status_post, res_width, res_height, input_info_requested);

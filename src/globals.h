@@ -102,6 +102,7 @@ bool isMGBA();
 bool isVBA();
 bool isJaguar();
 bool isDosBox();
+bool isDosCore();
 bool isBeetleVB();
 
 extern bool processVideoInAnotherThread;

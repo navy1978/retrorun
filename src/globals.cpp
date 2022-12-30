@@ -97,6 +97,10 @@ bool isDosBox(){
     return coreName == "DOSBox-pure";
 }
 
+bool isDosCore(){
+    return coreName == "DOSBox-core";
+}
+
 
 bool isBeetleVB(){
     return coreName == "Beetle VB";

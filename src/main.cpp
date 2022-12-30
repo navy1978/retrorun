@@ -511,11 +511,14 @@ static void core_load(const char *sofile)
 
     printf("-RR- Core loaded\n");
 
-    g_retro.retro_set_controller_port_device(0, RETRO_DEVICE_JOYPAD);
+    // we postpone this call later because some emulators dont like it (dosbox-core)
+    //g_retro.retro_set_controller_port_device(0, RETRO_DEVICE_JOYPAD);
 
     struct retro_system_info system = {
         0, 0, 0, false, false};
+
     g_retro.retro_get_system_info(&system);
+
     printf("-RR- core_load: library_name='%s'\n", system.library_name);
 
     if (strcmp(system.library_name, "Atari800") == 0)
@@ -533,6 +536,7 @@ static void core_load(const char *sofile)
     }
     coreName = system.library_name;
     printf("Core:'%s'\n", system.library_name);
+
 }
 
 static void core_load_game(const char *filename)
@@ -1212,8 +1216,8 @@ int main(int argc, char *argv[])
     originalFps = info.timing.fps;
     // adaptiveFps = isFlycast() ? true: false;
     bool redrawInfo = true;
-
-   
+    // we postpone this here because if we do it before some emulators dont like it (Dosbox core)
+    g_retro.retro_set_controller_port_device(0, RETRO_DEVICE_JOYPAD);
     while (isRunning)
     {
         auto nextClock = std::chrono::high_resolution_clock::now();
