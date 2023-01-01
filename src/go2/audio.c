@@ -48,6 +48,8 @@ typedef struct go2_audio
 
 go2_audio_t* go2_audio_create(int frequency)
 {
+    
+     printf("--->(AUDIO CALL TO INTERNAL LIB2GO)...\n");
     go2_audio_t* result = malloc(sizeof(*result));
     if (!result)
     {
