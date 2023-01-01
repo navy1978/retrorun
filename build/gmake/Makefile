@@ -24,7 +24,7 @@ ifeq ($(config),debug)
   TARGETDIR  = ../..
   TARGET     = $(TARGETDIR)/retrorun
   DEFINES   += -DDEBUG
-  INCLUDES  += -I../../src -I../.. -I../../src/go2 -I/usr/include/libdrm
+  INCLUDES  += -I../../src -I../.. -I../../src/go2
   CPPFLAGS  += -MMD -MP $(DEFINES) $(INCLUDES)
   CFLAGS    += $(CPPFLAGS) $(ARCH) -g -Wall -D__GBM__
   CXXFLAGS  += $(CFLAGS) -std=c++17
@@ -46,7 +46,7 @@ ifeq ($(config),release)
   TARGETDIR  = ../..
   TARGET     = $(TARGETDIR)/retrorun
   DEFINES   += -DNDEBUG
-  INCLUDES  += -I../../src -I../.. -I../../src/go2 -I/usr/include/libdrm
+  INCLUDES  += -I../../src -I../.. -I../../src/go2
   CPPFLAGS  += -MMD -MP $(DEFINES) $(INCLUDES)
   CFLAGS    += $(CPPFLAGS) $(ARCH) -Ofast -Wall -D__GBM__
   CXXFLAGS  += $(CFLAGS) -std=c++17
