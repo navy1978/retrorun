@@ -19,6 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "audio.h"
 
+
 #include <AL/al.h>
 #include <AL/alc.h>
 #include <AL/alext.h>
@@ -49,7 +50,6 @@ typedef struct go2_audio
 go2_audio_t* go2_audio_create(int frequency)
 {
     
-     printf("--->(AUDIO CALL TO INTERNAL LIB2GO)...\n");
     go2_audio_t* result = malloc(sizeof(*result));
     if (!result)
     {
@@ -170,12 +170,12 @@ void go2_audio_submit(go2_audio_t* audio, const short* data, int frames)
     }
 }
 
-uint32_t go2_audio_volume_get(go2_audio_t* audio)
+uint32_t go2_audio_volume_get(go2_audio_t* audio, const char *selem_name)
 {
     snd_mixer_t *handle;
     snd_mixer_selem_id_t *sid;
     const char *card = "default";
-    const char *selem_name = "Playback";
+   //  = isRG552()? "DAC" : "Playback";
 
     snd_mixer_open(&handle, 0);
     snd_mixer_attach(handle, card);
@@ -205,14 +205,14 @@ uint32_t go2_audio_volume_get(go2_audio_t* audio)
     return result;
 }
 
-void go2_audio_volume_set(go2_audio_t* audio, uint32_t value)
+void go2_audio_volume_set(go2_audio_t* audio, uint32_t value, const char *selem_name)
 {
     // https://gist.github.com/wolfg1969/3575700
 
     snd_mixer_t *handle;
     snd_mixer_selem_id_t *sid;
     const char *card = "default";
-    const char *selem_name = "Playback";
+    //const char *selem_name = isRG552()? "DAC" : "Playback";
 
     snd_mixer_open(&handle, 0);
     snd_mixer_attach(handle, card);

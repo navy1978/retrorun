@@ -18,11 +18,13 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 #include "globals.h"
+#include <cstring>
 #include <string>
+//#include <cstring>
 
 
 
-std::string release= "1.5.8";
+std::string release= "2.0.0";
 
 RETRORUN_CORE_TYPE Retrorun_Core = RETRORUN_CORE_UNKNOWN;
 Device device = UNKNOWN;
@@ -68,6 +70,14 @@ int retrorun_audio_buffer= -1; // means it will be fixed to a value related with
 int retrorun_mouse_speed_factor= 5; 
 
 
+
+
+const char* getEnv( const char* tag ) noexcept {
+  const char* ret = std::getenv(tag);
+  return ret ? ret : ""; 
+}
+
+
 bool isFlycast(){
     return coreName == "Flycast";
 }
@@ -106,6 +116,24 @@ bool isBeetleVB(){
     return coreName == "Beetle VB";
 }
 
+const char* getDeviceName() noexcept {
+  return getEnv("HOSTNAME");
+}
 
+bool isRG351M(){
+    return strcmp(getDeviceName() , "RG351M") == 0;
+}
+bool isRG351P(){
+    return strcmp(getDeviceName() , "RG351P") == 0;
+}
+bool isRG351V(){
+    return strcmp(getDeviceName() , "RG351V") == 0;
+}
+bool isRG351MP(){
+    return strcmp(getDeviceName() , "RG351MP") == 0;
+}
+bool isRG552(){
+    return strcmp(getDeviceName() , "RG552") == 0;
+}
 
 

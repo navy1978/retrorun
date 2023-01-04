@@ -100,7 +100,6 @@ go2_display_t* go2_display_create()
 {
     int i;
 
-printf("--->(VIDEO CALL TO INTERNAL LIB2GO)...\n");
     go2_display_t* result = malloc(sizeof(*result));
     if (!result)
     {

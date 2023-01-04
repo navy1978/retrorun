@@ -453,9 +453,11 @@ inline void showInfo(int w)
     // batteryState.level, batteryStateDesc[batteryState.status]
     rowForText = 0;
     int posX = 10;
-    showText(posX, getRowForText(), "Retrorun", 0xf800);
+    showText(posX, getRowForText(), ("Retrorun "+release).c_str(), 0xf800);
     showText(posX, getRowForText(), "------------------------", 0xf800);
-    showText(posX, getRowForText(), ("Release: " + release).c_str(), 0xffff);
+    //const char* hostName= getEnv("HOSTNAME");
+    std::string hostName(getEnv("HOSTNAME"));
+    showText(posX, getRowForText(), ("Device: " + hostName).c_str(), 0xffff);
 
     std::string time = "Time: ";
     time_t curr_time;
@@ -474,9 +476,9 @@ inline void showInfo(int w)
     std::string origFps = "Orignal Game FPS: ";
     showText(posX, getRowForText(), const_cast<char *>(origFps.append(std::to_string((int)originalFps)).c_str()), 0xffff);
 
-    std::string openGl = "Is openGL: ";
+    std::string openGl = "OpenGL: ";
     showText(posX, getRowForText(), const_cast<char *>(openGl.append(isOpenGL ? "true" : "false").c_str()), 0xffff);
-
+/*
     std::string res = "Resolution (base): ";
     showText(posX, getRowForText(), const_cast<char *>(res.append(std::to_string(base_width)).append("x").append(std::to_string(base_height)).c_str()), 0xffff);
     std::string res2 = "Resolution (int.): ";
@@ -484,7 +486,7 @@ inline void showInfo(int w)
 
     std::string displ = "Resolution (dis.): ";
     showText(posX, getRowForText(), const_cast<char *>(displ.append(std::to_string(w)).append("x").append(std::to_string(h)).c_str()), 0xffff);
-
+*/
     std::string bat = "Battery: ";
     showText(posX, getRowForText(), const_cast<char *>(bat.append(std::to_string(batteryState.level)).append("%").c_str()), 0xffff);
 
@@ -705,6 +707,8 @@ inline void takeScreenshot(int w, int h, go2_rotation_t _351BlitRotation)
         throw std::exception();
     }
 
+// ont MP and V we dont need to rotate
+_351BlitRotation = (isRG351V() || isRG351MP())? GO2_ROTATION_DEGREES_0 : _351BlitRotation;
     go2_surface_blit(status_surface,
                      0, 0, w, h,
                      screenshot,
@@ -723,7 +727,9 @@ inline void takeScreenshot(int w, int h, go2_rotation_t _351BlitRotation)
 
 inline void surface_blit(bool isWideScreen, go2_surface_t *go2_surface, go2_rotation_t _351BlitRotation, int gs_w, int gs_h, int ss_w, int ss_h, int width, int height)
 {
-
+// ont MP and V we dont need to rotate
+_351BlitRotation = (isRG351V() || isRG351MP())? GO2_ROTATION_DEGREES_0 : _351BlitRotation;
+    
     if (isOpenGL)
     {
         go2_surface_blit(go2_surface,

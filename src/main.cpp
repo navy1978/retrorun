@@ -366,6 +366,16 @@ static bool core_environment(unsigned cmd, void *data)
         break;
     }
 
+
+    case RETRO_ENVIRONMENT_GET_TARGET_REFRESH_RATE:
+    {
+        float *var = (float *)data;
+        *var = 60;
+          printf("-RR- -> SETTING REFRESH RATE CALLED!\n");
+        return true;
+
+    }
+
     case RETRO_ENVIRONMENT_GET_VARIABLE:
     {
         retro_variable *var = (retro_variable *)data;
