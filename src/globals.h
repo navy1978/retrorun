@@ -110,6 +110,7 @@ bool isDosCore();
 bool isBeetleVB();
 
 // Devices
+const char* getDeviceName() noexcept ;
 bool isRG351M();
 bool isRG351P();
 bool isRG351V();

@@ -44,8 +44,8 @@ void go2_audio_destroy(go2_audio_t* audio);
 void go2_audio_submit(go2_audio_t* audio, const short* data, int frames);
 uint32_t go2_audio_volume_get(go2_audio_t* audio, const char *selem_name);
 void go2_audio_volume_set(go2_audio_t* audio, uint32_t value, const char *selem_name);
-go2_audio_path_t go2_audio_path_get(go2_audio_t* audio);
-void go2_audio_path_set(go2_audio_t* audio, go2_audio_path_t value);
+go2_audio_path_t go2_audio_path_get(go2_audio_t* audio, const char *selem_name);
+void go2_audio_path_set(go2_audio_t* audio, go2_audio_path_t value, const char *selem_name);
 
 #ifdef __cplusplus
 }

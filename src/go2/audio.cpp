@@ -129,7 +129,7 @@ void go2_audio_destroy(go2_audio_t* audio)
 inline void playAudio(go2_audio_t* audio, const short* data, int frames)
 {
     
-    
+  
     if (!audio || !audio->isAudioInitialized) return;
 
 
@@ -247,12 +247,12 @@ void go2_audio_volume_set(go2_audio_t* audio, uint32_t value, const char *selem_
     snd_mixer_close(handle);
 }
 
-go2_audio_path_t go2_audio_path_get(go2_audio_t* audio)
+go2_audio_path_t go2_audio_path_get(go2_audio_t* audio,  const char *selem_name)
 {
     snd_mixer_t *handle;
     snd_mixer_selem_id_t *sid;
     const char *card = "default";
-    const char *selem_name = "Playback Path";
+    //const char *selem_name = "Playback Path";
 
     snd_mixer_open(&handle, 0);
     snd_mixer_attach(handle, card);
@@ -277,12 +277,12 @@ go2_audio_path_t go2_audio_path_get(go2_audio_t* audio)
     return (go2_audio_path_t)value;
 }
 
-void go2_audio_path_set(go2_audio_t* audio, go2_audio_path_t value)
+void go2_audio_path_set(go2_audio_t* audio, go2_audio_path_t value, const char *selem_name)
 {
     snd_mixer_t *handle;
     snd_mixer_selem_id_t *sid;
     const char *card = "default";
-    const char *selem_name = "Playback Path";
+    //const char *selem_name = "Playback Path";
 
     snd_mixer_open(&handle, 0);
     snd_mixer_attach(handle, card);

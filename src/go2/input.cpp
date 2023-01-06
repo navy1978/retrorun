@@ -37,12 +37,20 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include <linux/limits.h>
 
 
+
+
+
+
+
 #define BATTERY_BUFFER_SIZE (128)
 
 static const char* EVDEV_NAME = "/dev/input/by-path/platform-odroidgo2-joypad-event-joystick";
 static const char* EVDEV_NAME_2 = "/dev/input/by-path/platform-odroidgo3-joypad-event-joystick";
 static const char* BATTERY_STATUS_NAME = "/sys/class/power_supply/battery/status";
 static const char* BATTERY_CAPACITY_NAME = "/sys/class/power_supply/battery/capacity";
+static const char* BATTERY_STATUS_NAME_2 = "/sys/class/power_supply/bat/status";
+static const char* BATTERY_CAPACITY_NAME_2 = "/sys/class/power_supply/bat/capacity";
+
 
 
 #define GO2_THUMBSTICK_COUNT (Go2InputThumbstick_Right + 1)
@@ -66,11 +74,14 @@ typedef struct go2_input
     go2_battery_state_t current_battery;
     pthread_t battery_thread;
     bool terminating;
+    const char* device;
 } go2_input_t;
 
 
 static void* battery_task(void* arg)
 {
+    
+     
     go2_input_t* input = (go2_input_t*)arg;
     int fd;
     void* result = 0;
@@ -81,16 +92,20 @@ static void* battery_task(void* arg)
     memset(&battery, 0, sizeof(battery));
 
 
+    const char* batteryStatus = strcmp(input->device , "RG552") ==0 ? BATTERY_STATUS_NAME_2 : BATTERY_STATUS_NAME;
+    const char* batteryCapacity = strcmp(input->device , "RG552")==0  ? BATTERY_CAPACITY_NAME_2 : BATTERY_CAPACITY_NAME;
+   
+
     while(!input->terminating)
     {
-        fd = open(BATTERY_STATUS_NAME, O_RDONLY);
+        fd = open(batteryStatus, O_RDONLY);
         if (fd > 0)
         {
             memset(buffer, 0, BATTERY_BUFFER_SIZE + 1);
             ssize_t count = read(fd, buffer, BATTERY_BUFFER_SIZE);
             if (count > 0)
             {
-                //printf("BATT: buffer='%s'\n", buffer);
+                printf("BATT: buffer='%s'\n", buffer);
 
                 if (buffer[0] == 'D')
                 {
@@ -113,7 +128,7 @@ static void* battery_task(void* arg)
             close(fd);
         }
 
-        fd = open(BATTERY_CAPACITY_NAME, O_RDONLY);
+        fd = open(batteryCapacity, O_RDONLY);
         if (fd > 0)
         {
             memset(buffer, 0, BATTERY_BUFFER_SIZE + 1);
@@ -310,7 +325,7 @@ static void* input_task(void* arg)
     return NULL;
 }
 
-go2_input_t* go2_input_create()
+go2_input_t* go2_input_create(const char* device)
 {
 
 	int rc = 1;
@@ -325,7 +340,7 @@ go2_input_t* go2_input_create()
     memset(result, 0, sizeof(*result));
 
 
-
+    result->device = device;
 
 
     result->fd = open(EVDEV_NAME, O_RDONLY);
