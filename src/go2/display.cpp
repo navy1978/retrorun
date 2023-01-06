@@ -100,11 +100,11 @@ go2_display_t* go2_display_create()
 {
     int i;
 
-    go2_display_t* result = malloc(sizeof(*result));
+    go2_display_t* result = (go2_display_t*) malloc(sizeof(*result));
     if (!result)
     {
         printf("malloc failed.\n");
-        goto out;
+        return NULL;
     }
 
     memset(result, 0, sizeof(*result));
@@ -115,7 +115,8 @@ go2_display_t* go2_display_create()
     if (result->fd < 0)
     {
         printf("open /dev/dri/card0 failed.\n");
-        goto err_00;
+        free(result);
+        return NULL;
     }
 
 
@@ -123,7 +124,9 @@ go2_display_t* go2_display_create()
     if (!resources) 
     {
         printf("drmModeGetResources failed: %s\n", strerror(errno));
-        goto err_01;
+        close(result->fd);
+        free(result);
+        return NULL;
     }
 
 
@@ -143,7 +146,10 @@ go2_display_t* go2_display_create()
     if (!connector)
     {
         printf("DRM_MODE_CONNECTED not found.\n");
-        goto err_02;
+        drmModeFreeResources(resources);
+        close(result->fd);
+        free(result);
+        return NULL;
     }
 
     result->connector_id = connector->connector_id;
@@ -166,7 +172,11 @@ go2_display_t* go2_display_create()
     if (!mode) 
     {
         printf("DRM_MODE_TYPE_PREFERRED not found.\n");
-        goto err_03;
+        drmModeFreeConnector(connector);
+        drmModeFreeResources(resources);
+        close(result->fd);
+        free(result);
+        return NULL;
     }
 
     result->mode = *mode;
@@ -192,7 +202,11 @@ go2_display_t* go2_display_create()
     {
 
         printf("could not find encoder!\n");
-        goto err_03;
+        drmModeFreeConnector(connector);
+        drmModeFreeResources(resources);
+        close(result->fd);
+        free(result);
+        return NULL;
     }
     
     result->crtc_id = encoder->crtc_id;
@@ -203,7 +217,7 @@ go2_display_t* go2_display_create()
     
     return result;
 
-
+/*
 err_03:
     drmModeFreeConnector(connector);
 
@@ -217,7 +231,7 @@ err_00:
     free(result);
 
 out:
-    return NULL;
+    return NULL;*/
 }
 
 
@@ -411,11 +425,12 @@ int go2_drm_format_get_bpp(uint32_t format)
 
 go2_surface_t* go2_surface_create(go2_display_t* display, int width, int height, uint32_t format)
 {
-    go2_surface_t* result = malloc(sizeof(*result));
+    go2_surface_t* result = (go2_surface_t*)malloc(sizeof(*result));
     if (!result)
     {
         printf("malloc failed.\n");
-        goto out;
+        free(result);
+        return NULL;
     }
 
     memset(result, 0, sizeof(*result));
@@ -431,7 +446,8 @@ go2_surface_t* go2_surface_create(go2_display_t* display, int width, int height,
     if (io < 0)
     {
         printf("DRM_IOCTL_MODE_CREATE_DUMB failed.\n");
-        goto out;
+        free(result);
+        return NULL;
     }
 
 
@@ -444,10 +460,10 @@ go2_surface_t* go2_surface_create(go2_display_t* display, int width, int height,
     result->format = format;
 
     return result;
-
+/*
 out:
     free(result);
-    return NULL;
+    return NULL;*/
 }
 
 void go2_surface_destroy(go2_surface_t* surface)
@@ -497,15 +513,13 @@ int go2_surface_prime_fd(go2_surface_t* surface)
         if (io < 0)
         {
             printf("drmPrimeHandleToFD failed.\n");
-            goto out;
+            surface->prime_fd = 0;
+            return 0;
         }
     }
 
     return surface->prime_fd;
-
-out:
-    surface->prime_fd = 0;
-    return 0;
+    
 }
 
 void* go2_surface_map(go2_surface_t* surface)
@@ -515,7 +529,7 @@ void* go2_surface_map(go2_surface_t* surface)
 
 
     int prime_fd = go2_surface_prime_fd(surface);
-    surface->map = mmap(NULL, surface->size, PROT_READ | PROT_WRITE, MAP_SHARED, prime_fd, 0);
+    surface->map = (uint8_t*)mmap(NULL, surface->size, PROT_READ | PROT_WRITE, MAP_SHARED, prime_fd, 0);
     if (surface->map == MAP_FAILED)
     {
         printf("mmap failed.\n");
@@ -710,60 +724,7 @@ int go2_surface_save_as_png(go2_surface_t* surface, const char* filename)
     if (setjmp(png_jmpbuf(png_ptr)))
     {
         printf("init_io failed.\n");
-        goto out;
-    }
-
-    png_init_io(png_ptr, fp);
-
-
-    /* write header */
-    if (setjmp(png_jmpbuf(png_ptr)))
-     {
-        printf("write header failed.\n");
-        goto out;
-    }
-
-    png_set_IHDR(png_ptr, info_ptr, surface->width, surface->height,
-                 bit_depth, color_type, PNG_INTERLACE_NONE,
-                 PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
-
-    png_write_info(png_ptr, info_ptr);
-
-
-    /* write bytes */
-    png_bytep src = (png_bytep)go2_surface_map(surface);
-    row_pointers = malloc(sizeof(png_bytep) * surface->height);        
-    for (int y = 0; y < surface->height; ++y)
-    {
-        row_pointers[y] = src + (surface->stride * y);
-    }
-
-    if (setjmp(png_jmpbuf(png_ptr)))
-    {
-        printf("writing bytes failed.\n");
-        goto out;
-    }
-
-    png_write_image(png_ptr, row_pointers);
-
-
-    /* end write */
-    if (setjmp(png_jmpbuf(png_ptr)))
-    {
-        printf("end of write failed.\n");
-        goto out;
-    }
-
-    png_write_end(png_ptr, NULL);
-
-    /* cleanup heap allocation */
-    free(row_pointers);
-
-    fclose(fp);
-    return 0;
-
-out:
-    if (info_ptr)
+            if (info_ptr)
         png_destroy_info_struct(png_ptr, &info_ptr);
 
     if (png_ptr)
@@ -776,12 +737,101 @@ out:
         fclose(fp);
 
     return -1;
+    }
+
+    png_init_io(png_ptr, fp);
+
+
+    /* write header */
+    if (setjmp(png_jmpbuf(png_ptr)))
+     {
+        printf("write header failed.\n");
+            if (info_ptr)
+        png_destroy_info_struct(png_ptr, &info_ptr);
+
+    if (png_ptr)
+        png_destroy_write_struct(&png_ptr, (png_infopp)NULL);
+
+    if (row_pointers)
+        free(row_pointers);
+
+    if (fp)
+        fclose(fp);
+
+    return -1;
+    }
+
+    png_set_IHDR(png_ptr, info_ptr, surface->width, surface->height,
+                 bit_depth, color_type, PNG_INTERLACE_NONE,
+                 PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
+
+    png_write_info(png_ptr, info_ptr);
+
+
+    /* write bytes */
+    png_bytep src = (png_bytep)go2_surface_map(surface);
+    row_pointers = ( png_bytep*)malloc(sizeof(png_bytep) * surface->height);        
+    for (int y = 0; y < surface->height; ++y)
+    {
+        row_pointers[y] = src + (surface->stride * y);
+    }
+
+    if (setjmp(png_jmpbuf(png_ptr)))
+    {
+        printf("writing bytes failed.\n");
+            if (info_ptr)
+        png_destroy_info_struct(png_ptr, &info_ptr);
+
+    if (png_ptr)
+        png_destroy_write_struct(&png_ptr, (png_infopp)NULL);
+
+    if (row_pointers)
+        free(row_pointers);
+
+    if (fp)
+        fclose(fp);
+
+    return -1;
+    }
+
+    png_write_image(png_ptr, row_pointers);
+
+
+    /* end write */
+    if (setjmp(png_jmpbuf(png_ptr)))
+    {
+        printf("end of write failed.\n");
+            if (info_ptr)
+        png_destroy_info_struct(png_ptr, &info_ptr);
+
+    if (png_ptr)
+        png_destroy_write_struct(&png_ptr, (png_infopp)NULL);
+
+    if (row_pointers)
+        free(row_pointers);
+
+    if (fp)
+        fclose(fp);
+
+    return -1;
+    }
+
+    png_write_end(png_ptr, NULL);
+
+    /* cleanup heap allocation */
+    free(row_pointers);
+
+    fclose(fp);
+    return 0;
+
+
+
 }
 
 
 go2_frame_buffer_t* go2_frame_buffer_create(go2_surface_t* surface)
 {
-    go2_frame_buffer_t* result = malloc(sizeof(*result));
+    go2_frame_buffer_t* result =(go2_frame_buffer_t* ) malloc(sizeof(*result));
     if (!result)
     {
         printf("malloc failed.\n");
@@ -794,7 +844,7 @@ go2_frame_buffer_t* go2_frame_buffer_create(go2_surface_t* surface)
     result->surface = surface;
 
     const uint32_t handles[4] = {surface->gem_handle, 0, 0, 0};
-    const uint32_t pitches[4] = {surface->stride, 0, 0, 0};
+    const uint32_t pitches[4] = {(uint32_t)surface->stride, 0, 0, 0};
     const uint32_t offsets[4] = {0, 0, 0, 0};
 
     int ret = drmModeAddFB2(surface->display->fd,
@@ -899,7 +949,7 @@ static void* go2_presenter_renderloop(void* arg)
 
 go2_presenter_t* go2_presenter_create(go2_display_t* display, uint32_t format, uint32_t background_color)
 {
-    go2_presenter_t* result = malloc(sizeof(*result));
+    go2_presenter_t* result = (go2_presenter_t*)malloc(sizeof(*result));
     if (!result)
     {
         printf("malloc failed.\n");
@@ -951,7 +1001,7 @@ void go2_presenter_destroy(go2_presenter_t* presenter)
   
     while(go2_queue_count_get(presenter->usedFrameBuffers) > 0)
     {
-        go2_frame_buffer_t* frameBuffer = go2_queue_pop(presenter->usedFrameBuffers);
+        go2_frame_buffer_t* frameBuffer = (go2_frame_buffer_t*) go2_queue_pop(presenter->usedFrameBuffers);
         
         go2_surface_t* surface = frameBuffer->surface;
         
@@ -961,7 +1011,7 @@ void go2_presenter_destroy(go2_presenter_t* presenter)
 
     while(go2_queue_count_get(presenter->freeFrameBuffers) > 0)
     {
-        go2_frame_buffer_t* frameBuffer = go2_queue_pop(presenter->freeFrameBuffers);
+        go2_frame_buffer_t* frameBuffer = (go2_frame_buffer_t*)go2_queue_pop(presenter->freeFrameBuffers);
         
         go2_surface_t* surface = frameBuffer->surface;
 
@@ -971,6 +1021,7 @@ void go2_presenter_destroy(go2_presenter_t* presenter)
 
     free(presenter);
 }
+
 
 void go2_presenter_post(go2_presenter_t* presenter, go2_surface_t* surface, int srcX, int srcY, int srcWidth, int srcHeight, int dstX, int dstY, int dstWidth, int dstHeight, go2_rotation_t rotation)
 {
@@ -985,7 +1036,7 @@ void go2_presenter_post(go2_presenter_t* presenter, go2_surface_t* surface, int 
         abort();
     }
 
-    go2_frame_buffer_t* dstFrameBuffer = go2_queue_pop(presenter->freeFrameBuffers);
+    go2_frame_buffer_t* dstFrameBuffer = (go2_frame_buffer_t*) go2_queue_pop(presenter->freeFrameBuffers);
 
     pthread_mutex_unlock(&presenter->queueMutex);
 
@@ -1126,7 +1177,7 @@ go2_context_t* go2_context_create(go2_display_t* display, int width, int height,
     EGLBoolean success;
 
 
-    go2_context_t* result = malloc(sizeof(*result));
+    go2_context_t* result = (go2_context_t*)malloc(sizeof(*result));
     if (!result)
     {
         printf("malloc failed.\n");
@@ -1146,7 +1197,8 @@ go2_context_t* go2_context_create(go2_display_t* display, int width, int height,
     if (!result->gbmDevice)
     {
         printf("gbm_create_device failed.\n");
-        goto err_00;
+        free(result);
+        return NULL;
     }
 
 
@@ -1155,14 +1207,18 @@ go2_context_t* go2_context_create(go2_display_t* display, int width, int height,
     if(get_platform_display == NULL)
     {
         printf("eglGetProcAddress failed.\n");
-        goto err_01;
+        gbm_device_destroy(result->gbmDevice);
+        free(result);
+        return NULL;
     }
 
     result->eglDisplay = get_platform_display(EGL_PLATFORM_GBM_KHR, result->gbmDevice, NULL);
     if (result->eglDisplay == EGL_NO_DISPLAY)
     {
         printf("eglGetPlatformDisplayEXT failed.\n");
-        goto err_01;
+        gbm_device_destroy(result->gbmDevice);
+        free(result);
+        return NULL;
     }
 
 
@@ -1173,7 +1229,9 @@ go2_context_t* go2_context_create(go2_display_t* display, int width, int height,
     if (success != EGL_TRUE)
     {
         printf("eglInitialize failed.\n");
-        goto err_01;
+        gbm_device_destroy(result->gbmDevice);
+        free(result);
+        return NULL;
     }
 
     printf("EGL: major=%d, minor=%d\n", major, minor);
@@ -1237,13 +1295,13 @@ go2_context_t* go2_context_create(go2_display_t* display, int width, int height,
 
     return result;
 
-
+/*
 err_01:
     gbm_device_destroy(result->gbmDevice);
 
 err_00:
     free(result);
-    return NULL;
+    return NULL;*/
 }
 
 void go2_context_destroy(go2_context_t* context)
@@ -1315,7 +1373,7 @@ go2_surface_t* go2_context_surface_lock(go2_context_t* context)
             abort();
         }
 
-        surface = malloc(sizeof(*surface));
+        surface = (go2_surface_t*)malloc(sizeof(*surface));
         if (!surface)
         {
             printf("malloc failed.\n");

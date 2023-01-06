@@ -33,6 +33,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include <alsa/asoundlib.h>
 #include <alsa/mixer.h>
 
+#include <thread>
+
 #define SOUND_SAMPLES_SIZE  (2048)
 #define SOUND_CHANNEL_COUNT 2
 
@@ -50,11 +52,13 @@ typedef struct go2_audio
 go2_audio_t* go2_audio_create(int frequency)
 {
     
-    go2_audio_t* result = malloc(sizeof(*result));
+     
+    go2_audio_t* result = (go2_audio_t*) malloc(sizeof(*result));
     if (!result)
     {
         printf("malloc failed.\n");
-        goto out;
+        free(result);
+        return NULL;
     }
 
     memset(result, 0, sizeof(*result));
@@ -66,14 +70,17 @@ go2_audio_t* go2_audio_create(int frequency)
 	if (!result->device)
 	{
 		printf("alcOpenDevice failed.\n");
-		goto err_00;
+		free(result);
+        return NULL;
 	}
 
 	result->context = alcCreateContext(result->device, NULL);
 	if (!alcMakeContextCurrent(result->context))
 	{
 		printf("alcMakeContextCurrent failed.\n");
-		goto err_01;
+		alcCloseDevice(result->device);
+        free(result);
+        return NULL;
 	}
 
 	alGenSources((ALuint)1, &result->source);
@@ -107,15 +114,6 @@ go2_audio_t* go2_audio_create(int frequency)
 
     return result;
 
-
-err_01:
-    alcCloseDevice(result->device);
-
-err_00:
-    free(result);
-
-out:
-    return NULL;
 }
 
 void go2_audio_destroy(go2_audio_t* audio)
@@ -127,8 +125,11 @@ void go2_audio_destroy(go2_audio_t* audio)
     free(audio);
 }
 
-void go2_audio_submit(go2_audio_t* audio, const short* data, int frames)
+
+inline void playAudio(go2_audio_t* audio, const short* data, int frames)
 {
+    
+    
     if (!audio || !audio->isAudioInitialized) return;
 
 
@@ -166,8 +167,19 @@ void go2_audio_submit(go2_audio_t* audio, const short* data, int frames)
 
     if (result != AL_PLAYING)
     {
+        
         alSourcePlay(audio->source);
     }
+    
+    
+}
+
+void go2_audio_submit(go2_audio_t* audio, const short* data, int frames)
+{
+    
+    playAudio(audio,data,frames);
+    /*std::thread th(playAudio, std::ref(audio), std::ref(data), std::ref(frames));
+                    th.detach();*/
 }
 
 uint32_t go2_audio_volume_get(go2_audio_t* audio, const char *selem_name)

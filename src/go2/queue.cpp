@@ -35,7 +35,7 @@ typedef struct go2_queue
 
 go2_queue_t* go2_queue_create(int capacity)
 {
-    go2_queue_t* result = malloc(sizeof(*result));
+    go2_queue_t* result = (go2_queue_t*)malloc(sizeof(*result));
     if (!result)
     {
         printf("malloc failed.\n");
@@ -46,7 +46,7 @@ go2_queue_t* go2_queue_create(int capacity)
 
 
     result->capacity = capacity;
-    result->data = malloc(capacity * sizeof(void*));
+    result->data = (void**) malloc(capacity * sizeof(void*));
     if (!result)
     {
         printf("data malloc failed.\n");

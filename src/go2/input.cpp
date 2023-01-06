@@ -315,11 +315,11 @@ go2_input_t* go2_input_create()
 
 	int rc = 1;
 
-    go2_input_t* result = malloc(sizeof(*result));
+    go2_input_t* result = (go2_input_t*)malloc(sizeof(*result));
     if (!result)
     {
         printf("malloc failed.\n");
-        goto out;
+        return NULL;
     }
 
     memset(result, 0, sizeof(*result));
@@ -343,7 +343,9 @@ go2_input_t* go2_input_create()
         rc = libevdev_new_from_fd(result->fd, &result->dev);
         if (rc < 0) {
             printf("Joystick: Failed to init libevdev (%s)\n", strerror(-rc));
-            goto err_00;
+            close(result->fd);
+            free(result);
+            return NULL;
         }
 
         memset(&result->current_state, 0, sizeof(result->current_state));
@@ -359,7 +361,10 @@ go2_input_t* go2_input_create()
         if(pthread_create(&result->thread_id, NULL, input_task, (void*)result) < 0)
         {
             printf("could not create input_task thread\n");
-            goto err_01;
+            libevdev_free(result->dev);
+            close(result->fd);
+            free(result);
+            return NULL;
         }
 
         if(pthread_create(&result->battery_thread, NULL, battery_task, (void*)result) < 0)
@@ -371,7 +376,7 @@ go2_input_t* go2_input_create()
 
     return result;
 
-
+/*
 err_01:
     libevdev_free(result->dev);
 
@@ -380,7 +385,7 @@ err_00:
     free(result);
 
 out:
-    return NULL;
+    return NULL;*/
 }
 
 void go2_input_destroy(go2_input_t* input)
@@ -447,13 +452,18 @@ go2_input_feature_flags_t go2_input_features_get(go2_input_t* input)
     if (libevdev_has_event_code(input->dev, EV_KEY, BTN_TL2) &&
         libevdev_has_event_code(input->dev, EV_KEY, BTN_TR2))
     {
-        result |= Go2InputFeatureFlags_Triggers;
+        int resultInt=(int) result;
+        resultInt |= Go2InputFeatureFlags_Triggers;
+        result = (go2_input_feature_flags_t)resultInt;
     }
 
     if (libevdev_has_event_code(input->dev, EV_ABS, ABS_RX) &&
         libevdev_has_event_code(input->dev, EV_ABS, ABS_RY))
     {
-        result |= Go2InputFeatureFlags_RightAnalog;
+        
+        int resultInt=(int) result;
+        resultInt |= Go2InputFeatureFlags_RightAnalog;
+        result = (go2_input_feature_flags_t)resultInt;
     }
 
     return result;
@@ -469,7 +479,7 @@ go2_input_state_t* go2_input_state_create()
 {
     go2_input_state_t* result = NULL;
 
-    result = malloc(sizeof(*result));
+    result = (go2_input_state_t*)malloc(sizeof(*result));
     if (result)
     {
         memset(result, 0, sizeof(*result));

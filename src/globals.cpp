@@ -54,8 +54,7 @@ int audioCounter =0;
 int audioCounterSkip =6;
 
 bool processVideoInAnotherThread= true;
-int waitMSecForVideoInAnotherThread= 0;
-bool enableSwitchVideoSync = false;
+
 
 
 

@@ -117,8 +117,6 @@ bool isRG351MP();
 bool isRG552();
 
 extern bool processVideoInAnotherThread;
-extern int waitMSecForVideoInAnotherThread;
-extern bool enableSwitchVideoSync;
 
 
 extern bool runLoopAt60fps;

@@ -907,7 +907,7 @@ inline void presenter_post(int width, int height)
                        _351Rotation);
 }
 
-bool switchVideo = true;
+
 
 inline void core_video_refresh_no_openGL(const void *data, unsigned width, unsigned height, size_t pitch)
 {
@@ -1001,28 +1001,10 @@ inline void core_video_refresh_no_openGL(const void *data, unsigned width, unsig
                        0, 0, res_width, res_height,
                        x, y, w, h,
                        _351Rotation);
-    /*
-        if (processVideoInAnotherThread && switchVideo)
-        {
-            // TaskVideo *taskPtr = new TaskVideo();
-            std::thread th(status_post, res_width, res_height, false);
-            th.detach();
-            // std::this_thread::sleep_for(std::chrono::milliseconds(waitMSecForVideoInAnotherThread));
-        }
-        else
-        {
-
-        }*/
+   
 }
 
-inline void switchVideoSync()
-{
 
-    if (enableSwitchVideoSync)
-    {
-        switchVideo = !switchVideo;
-    }
-}
 
 
 
@@ -1148,22 +1130,15 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
                  
                 showImage(pause_img);
             }
-
-
-
-           
-            if (processVideoInAnotherThread && switchVideo) // isFlycast())
+            if (processVideoInAnotherThread) // isFlycast())
             {
                 std::thread th(status_post, res_width, res_height, input_info_requested);
                 th.detach();
-               
             }
             else
             {
-                status_post(res_width, res_height, input_info_requested);
-               
+                status_post(res_width, res_height, input_info_requested);  
             }
-
             checkPaused();
         }
         else
@@ -1171,7 +1146,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
             if (continueToShowScreenshotImage())
             {
                 showImage(screenshot_img);
-                if (processVideoInAnotherThread && switchVideo)
+                if (processVideoInAnotherThread)
                 {
                     std::thread th(status_post, width, height, input_info_requested);
                     th.detach();
@@ -1180,23 +1155,19 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
                 else
                 {
                     status_post(width, height, input_info_requested);
-                    switchVideoSync();
                 }
-
                 checkPaused();
             }
             else
             {
-                if (processVideoInAnotherThread && switchVideo)
+                if (processVideoInAnotherThread)
                 {
                     std::thread th(presenter_post, width, height);
-                    th.detach();
-                    
+                    th.detach(); 
                 }
                 else
                 {
                     presenter_post(width, height);
-                    
                 }
             }
         }
@@ -1206,18 +1177,15 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
     else
     {
         // non-OpenGL
-
-        if (processVideoInAnotherThread && switchVideo)
+        if (processVideoInAnotherThread)
         {
             std::thread th(core_video_refresh_no_openGL, data, width, height, pitch);
             th.detach();
-            switchVideoSync();
             // std::this_thread::sleep_for(std::chrono::milliseconds(waitMSecForVideoInAnotherThread));
         }
         else
         {
             core_video_refresh_no_openGL(data, width, height, pitch);
-            switchVideoSync();
         }
     }
 }

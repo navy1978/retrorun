@@ -152,16 +152,16 @@ $(OBJDIR)/globals.o: ../../src/globals.cpp
 $(OBJDIR)/main.o: ../../src/main.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/go2/audio.o: ../../src/go2/audio.c
+$(OBJDIR)/go2/audio.o: ../../src/go2/audio.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/go2/display.o: ../../src/go2/display.c
+$(OBJDIR)/go2/display.o: ../../src/go2/display.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/go2/input.o: ../../src/go2/input.c
+$(OBJDIR)/go2/input.o: ../../src/go2/input.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/go2/queue.o: ../../src/go2/queue.c
+$(OBJDIR)/go2/queue.o: ../../src/go2/queue.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
 
