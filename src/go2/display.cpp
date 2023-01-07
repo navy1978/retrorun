@@ -1,6 +1,7 @@
 /*
 libgo2 - Support library for the ODROID-GO Advance
 Copyright (C) 2020 OtherCrashOverride
+Copyright (C) 2023-present  navy1978
 
 This library is free software; you can redistribute it and/or
 modify it under the terms of the GNU Lesser General Public
