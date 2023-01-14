@@ -20,6 +20,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "globals.h"
 #include <cstring>
 #include <string>
+
+
 // #include <cstring>
 const char *OS_ARCH = "cat /storage/.config/.OS_ARCH";
 static const int DEVICE_NAME_SIZE = 1024;
@@ -115,6 +117,11 @@ bool isBeetleVB()
 {
     return coreName == "Beetle VB";
 }
+
+bool isMame(){
+    return coreName.find("MAME") != std::string::npos ;
+}
+
 
 const char *getDeviceName() noexcept
 {
