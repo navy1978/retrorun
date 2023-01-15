@@ -103,7 +103,7 @@ void input_gamepad_read()
 
     if (!input)
     {
-        input = go2_input_create();
+        input = go2_input_create(getDeviceName());
         // I dont think this part has no sense: the has_triggered it's false even when should be true...
         if (go2_input_features_get(input) & Go2InputFeatureFlags_Triggers)
         {
@@ -138,7 +138,7 @@ void core_input_poll(void)
 
     if (!input)
     {
-        input = go2_input_create();
+        input = go2_input_create(getDeviceName());
     }
 
     // Read inputs

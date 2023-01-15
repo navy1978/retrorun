@@ -95,6 +95,10 @@ extern std::string romName;
 extern std::string coreName;
 extern std::string screenShotFolder;
 
+// get system env 
+const char* getEnv( const char* tag) noexcept ;
+
+// Cores
 bool isFlycast();
 bool isParalleln64();
 bool isSwanStation();
@@ -104,10 +108,17 @@ bool isJaguar();
 bool isDosBox();
 bool isDosCore();
 bool isBeetleVB();
+bool isMame();
+
+// Devices
+const char* getDeviceName() noexcept ;
+bool isRG351M();
+bool isRG351P();
+bool isRG351V();
+bool isRG351MP();
+bool isRG552();
 
 extern bool processVideoInAnotherThread;
-extern int waitMSecForVideoInAnotherThread;
-extern bool enableSwitchVideoSync;
 
 
 extern bool runLoopAt60fps;

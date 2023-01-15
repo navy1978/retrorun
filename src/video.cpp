@@ -453,9 +453,11 @@ inline void showInfo(int w)
     // batteryState.level, batteryStateDesc[batteryState.status]
     rowForText = 0;
     int posX = 10;
-    showText(posX, getRowForText(), "Retrorun", 0xf800);
+    showText(posX, getRowForText(), ("Retrorun "+release).c_str(), 0xf800);
     showText(posX, getRowForText(), "------------------------", 0xf800);
-    showText(posX, getRowForText(), ("Release: " + release).c_str(), 0xffff);
+    //const char* hostName= getEnv("HOSTNAME");
+    std::string hostName(getEnv("HOSTNAME"));
+    showText(posX, getRowForText(), ("Device: " + hostName).c_str(), 0xffff);
 
     std::string time = "Time: ";
     time_t curr_time;
@@ -474,9 +476,9 @@ inline void showInfo(int w)
     std::string origFps = "Orignal Game FPS: ";
     showText(posX, getRowForText(), const_cast<char *>(origFps.append(std::to_string((int)originalFps)).c_str()), 0xffff);
 
-    std::string openGl = "Is openGL: ";
+    std::string openGl = "OpenGL: ";
     showText(posX, getRowForText(), const_cast<char *>(openGl.append(isOpenGL ? "true" : "false").c_str()), 0xffff);
-
+/*
     std::string res = "Resolution (base): ";
     showText(posX, getRowForText(), const_cast<char *>(res.append(std::to_string(base_width)).append("x").append(std::to_string(base_height)).c_str()), 0xffff);
     std::string res2 = "Resolution (int.): ";
@@ -484,7 +486,7 @@ inline void showInfo(int w)
 
     std::string displ = "Resolution (dis.): ";
     showText(posX, getRowForText(), const_cast<char *>(displ.append(std::to_string(w)).append("x").append(std::to_string(h)).c_str()), 0xffff);
-
+*/
     std::string bat = "Battery: ";
     showText(posX, getRowForText(), const_cast<char *>(bat.append(std::to_string(batteryState.level)).append("%").c_str()), 0xffff);
 
@@ -556,7 +558,7 @@ inline int getWidthFPS()
     else
     {
 
-	if (isJaguar() || isDosBox() || isBeetleVB()){
+	if (isJaguar() || isDosBox() || isBeetleVB() || isMame()){
 		return currentWidth*2 ;
 	}else{        
 		return currentWidth;
@@ -705,6 +707,8 @@ inline void takeScreenshot(int w, int h, go2_rotation_t _351BlitRotation)
         throw std::exception();
     }
 
+// ont MP and V we dont need to rotate
+_351BlitRotation = (isRG351V() || isRG351MP())? GO2_ROTATION_DEGREES_0 : _351BlitRotation;
     go2_surface_blit(status_surface,
                      0, 0, w, h,
                      screenshot,
@@ -723,7 +727,9 @@ inline void takeScreenshot(int w, int h, go2_rotation_t _351BlitRotation)
 
 inline void surface_blit(bool isWideScreen, go2_surface_t *go2_surface, go2_rotation_t _351BlitRotation, int gs_w, int gs_h, int ss_w, int ss_h, int width, int height)
 {
-
+// ont MP and V we dont need to rotate
+_351BlitRotation = (isRG351V() || isRG351MP())? GO2_ROTATION_DEGREES_0 : _351BlitRotation;
+    
     if (isOpenGL)
     {
         go2_surface_blit(go2_surface,
@@ -820,7 +826,7 @@ inline void prepareScreen(int width, int height)
 
 inline void makeScreenBlack(go2_surface_t *go2_surface, int res_width, int res_height)
 {
-    res_width = (isJaguar() || isBeetleVB() || isDosBox() || isDosCore()) ? res_width*2 :res_width ; // just to be sure to cover the full screen (in some emulators is not enough to use res_width)
+    res_width = (isJaguar() || isBeetleVB() || isDosBox() || isDosCore() || isMame()) ? res_width*2 :res_width ; // just to be sure to cover the full screen (in some emulators is not enough to use res_width)
     uint8_t *dst = (uint8_t *)go2_surface_map(go2_surface);
     int yy = res_height;
     while (yy > 0)
@@ -901,7 +907,7 @@ inline void presenter_post(int width, int height)
                        _351Rotation);
 }
 
-bool switchVideo = true;
+
 
 inline void core_video_refresh_no_openGL(const void *data, unsigned width, unsigned height, size_t pitch)
 {
@@ -995,28 +1001,10 @@ inline void core_video_refresh_no_openGL(const void *data, unsigned width, unsig
                        0, 0, res_width, res_height,
                        x, y, w, h,
                        _351Rotation);
-    /*
-        if (processVideoInAnotherThread && switchVideo)
-        {
-            // TaskVideo *taskPtr = new TaskVideo();
-            std::thread th(status_post, res_width, res_height, false);
-            th.detach();
-            // std::this_thread::sleep_for(std::chrono::milliseconds(waitMSecForVideoInAnotherThread));
-        }
-        else
-        {
-
-        }*/
+   
 }
 
-inline void switchVideoSync()
-{
 
-    if (enableSwitchVideoSync)
-    {
-        switchVideo = !switchVideo;
-    }
-}
 
 
 
@@ -1142,22 +1130,15 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
                  
                 showImage(pause_img);
             }
-
-
-
-           
-            if (processVideoInAnotherThread && switchVideo) // isFlycast())
+            if (processVideoInAnotherThread) // isFlycast())
             {
                 std::thread th(status_post, res_width, res_height, input_info_requested);
                 th.detach();
-               
             }
             else
             {
-                status_post(res_width, res_height, input_info_requested);
-               
+                status_post(res_width, res_height, input_info_requested);  
             }
-
             checkPaused();
         }
         else
@@ -1165,7 +1146,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
             if (continueToShowScreenshotImage())
             {
                 showImage(screenshot_img);
-                if (processVideoInAnotherThread && switchVideo)
+                if (processVideoInAnotherThread)
                 {
                     std::thread th(status_post, width, height, input_info_requested);
                     th.detach();
@@ -1174,23 +1155,19 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
                 else
                 {
                     status_post(width, height, input_info_requested);
-                    switchVideoSync();
                 }
-
                 checkPaused();
             }
             else
             {
-                if (processVideoInAnotherThread && switchVideo)
+                if (processVideoInAnotherThread)
                 {
                     std::thread th(presenter_post, width, height);
-                    th.detach();
-                    
+                    th.detach(); 
                 }
                 else
                 {
                     presenter_post(width, height);
-                    
                 }
             }
         }
@@ -1200,18 +1177,15 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
     else
     {
         // non-OpenGL
-
-        if (processVideoInAnotherThread && switchVideo)
+        if (processVideoInAnotherThread)
         {
             std::thread th(core_video_refresh_no_openGL, data, width, height, pitch);
             th.detach();
-            switchVideoSync();
             // std::this_thread::sleep_for(std::chrono::milliseconds(waitMSecForVideoInAnotherThread));
         }
         else
         {
             core_video_refresh_no_openGL(data, width, height, pitch);
-            switchVideoSync();
         }
     }
 }

@@ -225,7 +225,7 @@ static void core_log(enum retro_log_level level, const char *fmt, ...)
     if (level == 0)
         return;
 
-    fprintf(stdout, "-- %s -- [%s] %s \n", coreName.c_str(), levelstr[level], buffer);
+    fprintf(stdout, "<-- %s --> [%s] %s ", coreName.c_str(), levelstr[level], buffer);
     fflush(stdout);
 
 #if 0
@@ -364,6 +364,16 @@ static bool core_environment(unsigned cmd, void *data)
         }
 
         break;
+    }
+
+
+    case RETRO_ENVIRONMENT_GET_TARGET_REFRESH_RATE:
+    {
+        float *var = (float *)data;
+        *var = 60;
+          printf("-RR- -> SETTING REFRESH RATE CALLED!\n");
+        return true;
+
     }
 
     case RETRO_ENVIRONMENT_GET_VARIABLE:
@@ -952,48 +962,6 @@ void initConfig()
             printf("-RR- Warning: retrorun_loop_60_fps parameter not found in retrorun.cfg using default value (%s).\n", runLoopAt60fps ? "true" : "false");
         }
 
-        try
-        {
-            const std::string &tflValue = conf_map.at("retrorun_video_another_thread");
-            processVideoInAnotherThread = (tflValue == "true" || tflValue == "half") ? true : false;
-            enableSwitchVideoSync = tflValue.compare("half") == 0 ? true : false;
-            printf("-RR- video_another_thread: %s.\n", (processVideoInAnotherThread && !enableSwitchVideoSync) ? "true" : (processVideoInAnotherThread && enableSwitchVideoSync ? "half" : "false"));
-        }
-        catch (...)
-        {
-            printf("-RR- Warning: retrorun_video_another_thread parameter not found in retrorun.cfg using default value (%s).\n", processVideoInAnotherThread ? "true" : "false");
-        }
-
-        try
-        {
-            const std::string &tflValue = conf_map.at("retrorun_video_another_thread_wait_millisec");
-            if (!tflValue.empty())
-            {
-                waitMSecForVideoInAnotherThread = stoi(tflValue);
-                printf("-RR- Info - video_another_thread_wait_millisec: %d.\n", waitMSecForVideoInAnotherThread);
-            }
-        }
-        catch (...)
-        {
-            printf("-RR- Warning: retrorun_video_another_thread_wait_millisec parameter not found in retrorun.cfg using default value (0).\n");
-        }
-
-
-        try
-        {
-            const std::string &tflValue = conf_map.at("retrorun_adaptive_fps");
-            if (!tflValue.empty())
-            {
-                adaptiveFps = tflValue == "true" ? true : false;
-                printf("-RR- Info - retrorun_adaptive_fps: %d.\n", adaptiveFps);
-            }
-        }
-        catch (...)
-        {
-            printf("-RR- Warning: retrorun_adaptive_fps parameter not found in retrorun.cfg using default value (%s).\n", adaptiveFps ? "true" : "false");
-        }
-
-
 
         try
         {
@@ -1023,7 +991,9 @@ void initConfig()
             printf("-RR- Info: retrorun_mouse_speed_factor parameter not found in retrorun.cfg using default value (5).\n");
         }
 
+        processVideoInAnotherThread = isRG552() ? true : false;
 
+        adaptiveFps = false;
 
         printf("-RR- Configuration initialized.\n");
     }
@@ -1092,6 +1062,18 @@ int main(int argc, char *argv[])
             exit(EXIT_FAILURE);
         }
     }
+
+
+
+    // gpio_joypad normally is false and should be set to true only for MP and 552
+    // but the parameter sesetnd via command line wins so if that is true we leave it true
+
+    if (!gpio_joypad){
+        if (isRG351MP() || isRG552()){
+            gpio_joypad= true;
+        }
+    }
+
 
     int remaining_args = argc - optind;
     int remaining_index = optind;
