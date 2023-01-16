@@ -20,6 +20,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 #include <stdint.h>
+//#include "../status.h"
+
+#include "struct.h"
+#include "../status.h"
 
 
 typedef struct go2_display go2_display_t;
@@ -27,25 +31,8 @@ typedef struct go2_surface go2_surface_t;
 typedef struct go2_frame_buffer go2_frame_buffer_t;
 typedef struct go2_presenter go2_presenter_t;
 
-typedef enum go2_rotation
-{
-    GO2_ROTATION_DEGREES_0 = 0,
-    GO2_ROTATION_DEGREES_90,
-    GO2_ROTATION_DEGREES_180,
-    GO2_ROTATION_DEGREES_270
-} go2_rotation_t;
 
-typedef struct go2_context_attributes
-{
-    int major;
-    int minor;
-    int red_bits;
-    int green_bits;
-    int blue_bits;
-    int alpha_bits;
-    int depth_bits;
-    int stencil_bits;
-} go2_context_attributes_t;
+
 
 typedef struct go2_context go2_context_t;
 
@@ -90,6 +77,8 @@ go2_surface_t* go2_frame_buffer_surface_get(go2_frame_buffer_t* frame_buffer);
 go2_presenter_t* go2_presenter_create(go2_display_t* display, uint32_t format, uint32_t background_color);
 void go2_presenter_destroy(go2_presenter_t* presenter);
 void go2_presenter_post(go2_presenter_t* presenter, go2_surface_t* surface, int srcX, int srcY, int srcWidth, int srcHeight, int dstX, int dstY, int dstWidth, int dstHeight, go2_rotation_t rotation);
+void go2_presenter_post_double(go2_presenter_t* presenter, go2_surface_t* surface1, go2_surface_t* surface2, int srcX, int srcY, int srcWidth, int srcHeight, int dstX, int dstY, int dstWidth, int dstHeight, go2_rotation_t rotation);
+void go2_presenter_post_multiple(go2_presenter_t* presenter, go2_surface_t* surface, status* status, int srcX, int srcY, int srcWidth, int srcHeight, int dstX, int dstY, int dstWidth, int dstHeight, go2_rotation_t rotation);
 
 
 go2_context_t* go2_context_create(go2_display_t* display, int width, int height, const go2_context_attributes_t* attributes);

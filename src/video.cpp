@@ -34,7 +34,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include <cmath>
 
-#include <go2/display.h>
+#include "go2/display.h"
+#include "go2/struct.h"
 
 #define EGL_EGLEXT_PROTOTYPES
 #define GL_GLEXT_PROTOTYPES
@@ -64,6 +65,13 @@ extern int opt_backlight;
 go2_display_t *display;
 go2_surface_t *surface;
 go2_surface_t *status_surface = NULL;
+go2_surface_t *status_surface_bottom_right = NULL;
+go2_surface_t *status_surface_bottom_left = NULL;
+go2_surface_t *status_surface_top_right = NULL;
+go2_surface_t *status_surface_top_left = NULL;
+go2_surface_t *status_surface_full = NULL;
+
+status * status_obj= new status(); // quit, pause, screenshot,FPS, fastforward
 go2_surface_t *display_surface;
 go2_frame_buffer_t *frame_buffer;
 go2_presenter_t *presenter;
@@ -240,7 +248,7 @@ void video_configure(struct retro_game_geometry *geom)
     // old
     // presenter = go2_presenter_create(display, DRM_FORMAT_XRGB8888, 0xff080808);  // ABGR
     // new
-    presenter = go2_presenter_create(display, format_565, 0xff080808); // ABGR
+    presenter = go2_presenter_create(display, DRM_FORMAT_RGB888, 0xff080808); // ABGR
 
     if (opt_backlight > -1)
     {
@@ -398,8 +406,14 @@ void video_configure(struct retro_game_geometry *geom)
         else
         {
 
-            status_surface = go2_surface_create(display, getGeom_max_width(geom), getGeom_max_height(geom), color_format);
+            status_surface = go2_surface_create(display, getGeom_max_width(geom), getGeom_max_height(geom), format_565);
         }
+
+
+
+     
+
+
 
         if (!status_surface)
         {
@@ -438,14 +452,82 @@ inline void showText(int x, int y, const char *text, unsigned short color)
 {
 
     uint8_t *dst = (uint8_t *)go2_surface_map(status_surface);
+    if (dst==nullptr){
+        return;
+    }
     int dst_stride = go2_surface_stride_get(status_surface);
     basic_text_out16_nf_color(dst, dst_stride / 2, x, y, text, color);
 }
+
+inline void showText_NO_OPENGL(int x, int y, const char *text, unsigned short color, go2_surface_t ** surface)
+{
+
+   
+ if (*surface == nullptr){
+
+        *surface = go2_surface_create(display, 200, 20, format_565);
+}
+   
+   uint8_t *dst = (uint8_t *)go2_surface_map(*surface);
+    if (dst==nullptr){
+        return;
+    }
+    int dst_stride = go2_surface_stride_get(*surface);
+    basic_text_out16_nf_color(dst, dst_stride / 2, x, y, text, color);
+}
+
 
 inline int getRowForText()
 {
     rowForText = rowForText + 10;
     return rowForText;
+}
+
+
+inline void showInfo_NO_OPENGL(int w, go2_surface_t ** surface)
+{
+    // batteryState.level, batteryStateDesc[batteryState.status]
+    rowForText = 0;
+    int posX = 10;
+    showText_NO_OPENGL(posX, getRowForText(), ("Retrorun "+release).c_str(), 0xf800, surface);
+    showText_NO_OPENGL(posX, getRowForText(), "------------------------", 0xf800, surface);
+    //const char* hostName= getEnv("HOSTNAME");
+    std::string hostName(getEnv("HOSTNAME"));
+    showText_NO_OPENGL(posX, getRowForText(), ("Device: " + hostName).c_str(), 0xffff,surface);
+
+    std::string time = "Time: ";
+    time_t curr_time;
+    tm *curr_tm;
+
+    char time_string[100];
+
+    std::time(&curr_time);
+    curr_tm = localtime(&curr_time);
+
+    strftime(time_string, 50, "%R", curr_tm);
+    showText_NO_OPENGL(posX, getRowForText(), const_cast<char *>(time.append(time_string).c_str()), 0xffff, surface);
+
+    std::string core = "Core: ";
+    showText_NO_OPENGL(posX, getRowForText(), const_cast<char *>(core.append(coreName).c_str()), 0xffff,surface);
+    std::string origFps = "Orignal Game FPS: ";
+    showText_NO_OPENGL(posX, getRowForText(), const_cast<char *>(origFps.append(std::to_string((int)originalFps)).c_str()), 0xffff,surface);
+
+    std::string openGl = "OpenGL: ";
+    showText_NO_OPENGL(posX, getRowForText(), const_cast<char *>(openGl.append(isOpenGL ? "true" : "false").c_str()), 0xffff,surface);
+/*
+    std::string res = "Resolution (base): ";
+    showText(posX, getRowForText(), const_cast<char *>(res.append(std::to_string(base_width)).append("x").append(std::to_string(base_height)).c_str()), 0xffff);
+    std::string res2 = "Resolution (int.): ";
+    showText(posX, getRowForText(), const_cast<char *>(res2.append(std::to_string(currentWidth)).append("x").append(std::to_string(currentHeight)).c_str()), 0xffff);
+
+    std::string displ = "Resolution (dis.): ";
+    showText(posX, getRowForText(), const_cast<char *>(displ.append(std::to_string(w)).append("x").append(std::to_string(h)).c_str()), 0xffff);
+*/
+    std::string bat = "Battery: ";
+    showText_NO_OPENGL(posX, getRowForText(), const_cast<char *>(bat.append(std::to_string(batteryState.level)).append("%").c_str()), 0xffff,surface);
+
+    showText_NO_OPENGL(posX, getRowForText(), " ", 0xf800,surface);
+    showText_NO_OPENGL(posX, getRowForText(), "-> Press L3 + R3 to resume", 0x07E0,surface);
 }
 
 inline void showInfo(int w)
@@ -504,21 +586,25 @@ inline std::string getCurrentTimeForFileName()
     return str;
 }
 
-// it simulates a flash for some milliseconds to give the user the impression the screenhsot has been taken
-void flashEffect()
-{
-    glClearColor(1, 1, 1, 1);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-    auto t_end = std::chrono::high_resolution_clock::now();
-    double elapsed_time_ms = std::chrono::duration<double, std::milli>(t_end - t_flash_start).count();
-    if (elapsed_time_ms > 1000)
+
+inline void showNumberSprite_NO_OPENGL(int x, int y, int number, int width, int height, const uint8_t *src)
+{
+    int height_sprite = height / 10; // 10 are the total number of sprites present in the image
+    int src_stride = width * sizeof(short);
+    uint8_t *dst = (uint8_t *)go2_surface_map(status_surface_top_right);
+    if (dst==nullptr){
+        return;
+    }
+    int dst_stride = go2_surface_stride_get(status_surface_top_right);
+    int brightnessIndex = number;
+    src += (brightnessIndex * height_sprite * src_stride); // 18
+    dst += x * sizeof(short) + y * dst_stride;
+    for (int y = 0; y < height_sprite; ++y) // 16
     {
-        flash = false;
-        glClearColor(0, 0, 0, 1);
-        glClear(GL_COLOR_BUFFER_BIT);
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        memcpy(dst, src, width * sizeof(short));
+        src += src_stride;
+        dst += dst_stride;
     }
 }
 
@@ -527,6 +613,9 @@ inline void showNumberSprite(int x, int y, int number, int width, int height, co
     int height_sprite = height / 10; // 10 are the total number of sprites present in the image
     int src_stride = width * sizeof(short);
     uint8_t *dst = (uint8_t *)go2_surface_map(status_surface);
+    if (dst==nullptr){
+        return;
+    }
     int dst_stride = go2_surface_stride_get(status_surface);
     int brightnessIndex = number;
     src += (brightnessIndex * height_sprite * src_stride); // 18
@@ -549,6 +638,67 @@ inline int getDigit(int n, int position)
     return res;
 }
 
+inline int getWidthFPS_NO_OPENGL()
+{
+    if (isOpenGL)
+    {
+        return go2_surface_width_get(status_surface_top_right) * 2;
+    }
+    else
+    {
+
+	if (isJaguar() || isDosBox() || isBeetleVB()){
+        if (color_format== DRM_FORMAT_BGR565){
+            return currentWidth*2 ;
+        }else{
+            return currentWidth;
+        }
+		
+	}else{        
+		return currentWidth;
+
+	}
+    }
+}
+
+inline int getHeightFPS_NO_OPENGL()
+{
+    if (isOpenGL)
+    {
+        return go2_surface_height_get(status_surface_top_right) * 2;
+    }
+    else
+    {
+        return currentHeight;
+    }
+}
+
+inline int getStatusWidth_NO_OPENGL()
+{
+    if (isOpenGL)
+    {
+        return go2_surface_width_get(status_surface_top_right);
+    }
+    else
+    {
+        return currentWidth;
+    }
+}
+
+inline int getStatusHeight_NO_OPENGL()
+{
+    if (isOpenGL)
+    {
+        return go2_surface_height_get(status_surface_top_right);
+    }
+    else
+    {
+        return currentHeight;
+    }
+}
+
+
+
 inline int getWidthFPS()
 {
     if (isOpenGL)
@@ -559,7 +709,12 @@ inline int getWidthFPS()
     {
 
 	if (isJaguar() || isDosBox() || isBeetleVB()){
-		return currentWidth*2 ;
+        if (color_format== DRM_FORMAT_BGR565){
+            return currentWidth*2 ;
+        }else{
+            return currentWidth;
+        }
+		
 	}else{        
 		return currentWidth;
 
@@ -602,6 +757,48 @@ inline int getStatusHeight()
         return currentHeight;
     }
 }
+
+
+
+inline void showFPSImageLow_NO_OPENGL()
+{
+    int x = getWidthFPS_NO_OPENGL() - (numbers_image_low.width * 2) - 30; // depends on the width of the image
+    int y = 0;
+    showNumberSprite_NO_OPENGL(x, y, getDigit(fps, 2), numbers_image_low.width, numbers_image_low.height, numbers_image_low.pixel_data);
+    showNumberSprite_NO_OPENGL(x + numbers_image_low.width, y, getDigit(fps, 1), numbers_image_low.width, numbers_image_low.height, numbers_image_low.pixel_data);
+}
+
+inline void showFPSImageHigh_NO_OPENGL()
+{
+    int x = getWidthFPS_NO_OPENGL() - (numbers_image_high.width * 2) - 30; // depends on the width of the image
+    int y = 0;
+    showNumberSprite_NO_OPENGL(x, y, getDigit(fps, 2), numbers_image_high.width, numbers_image_high.height, numbers_image_high.pixel_data);
+    showNumberSprite_NO_OPENGL(x + numbers_image_high.width, y, getDigit(fps, 1), numbers_image_high.width, numbers_image_high.height, numbers_image_high.pixel_data);
+}
+
+inline void showFPSImage_NO_OPEN_GL()
+{
+
+  /*  if (resolution == R_320_240)
+    {
+        showFPSImageLow_NO_OPENGL();
+    }
+    else if (resolution == R_640_480)
+    {
+        showFPSImageHigh_NO_OPENGL();
+    }
+
+    else if (base_width >= 640 || base_height >= 640)
+    {
+        showFPSImageHigh_NO_OPENGL();
+    }
+    else
+    {
+        showFPSImageLow_NO_OPENGL();
+    }*/
+    showFPSImageLow_NO_OPENGL();
+}
+
 
 inline void showFPSImageLow()
 {
@@ -647,7 +844,39 @@ inline void showFullImage(int x, int y, int width, int height, const uint8_t *sr
 
     int src_stride = width * sizeof(short);
     uint8_t *dst = (uint8_t *)go2_surface_map(status_surface);
+    if (dst==nullptr){
+        return;
+    }
     int dst_stride = go2_surface_stride_get(status_surface);
+    src += 0;
+    dst += x * sizeof(short) + y * dst_stride;
+    for (int y = 0; y < height; ++y)
+    {
+        memcpy(dst, src, width * sizeof(short));
+        src += src_stride;
+        dst += dst_stride;
+    }
+}
+
+inline void showFullImage_NO_OPEN_GL(int x, int y, int width, int height, const uint8_t *src, go2_surface_t ** surface)
+{
+    printf("-RR- 3\n");
+
+       // create the different surfaces for the statues
+        printf("-RR- prima surface vale null? %s \n", *surface == nullptr ? "true": "false");
+if (*surface == nullptr){
+
+        *surface = go2_surface_create(display, width, height, format_565);
+}
+        printf("-RR- dopo surface vale null? %s \n", *surface == nullptr ? "true":"false");
+    int src_stride = width * sizeof(short);
+    uint8_t *dst = (uint8_t *)go2_surface_map(*surface);
+    if (dst==nullptr){
+        return;
+    }
+    printf("-RR- 4\n");
+    int dst_stride = go2_surface_stride_get(*surface);
+    printf("-RR- 5\n");
     src += 0;
     dst += x * sizeof(short) + y * dst_stride;
     for (int y = 0; y < height; ++y)
@@ -675,6 +904,23 @@ inline void showImageHigh(rrImg img)
     showFullImage(x, y, img.big.width, img.big.height, img.big.pixel_data);
 }
 
+
+inline void showImageLow_NO_OPENGL(rrImg img, go2_surface_t** surface)
+{
+    printf("-RR- 2\n");
+    int x, y;
+    x = 0;
+    y = 0;
+    showFullImage_NO_OPEN_GL(0,0, img.small.width, img.small.height, img.small.pixel_data, surface);
+}
+
+inline void showImageHigh_NO_OPENGL(rrImg img, go2_surface_t** surface)
+{
+   printf("-RR- 2\n");
+    
+    showFullImage_NO_OPEN_GL(0,0, img.big.width, img.big.height, img.big.pixel_data, surface);
+}
+
 inline void showImage(rrImg img)
 {
 
@@ -695,6 +941,29 @@ inline void showImage(rrImg img)
     {
         showImageLow(img);
     }
+}
+
+inline void showImage_NO_OPENGL(rrImg img, go2_surface_t** surface)
+{
+printf("-RR- 1\n");
+   /* if (resolution == R_320_240)
+    {
+        showImageLow_NO_OPENGL(img, surface);
+    }
+    else if (resolution == R_640_480)
+    {
+        showImageHigh_NO_OPENGL(img,surface);
+    }
+
+    else if (base_width >= 640 || base_height >= 640)
+    {
+        showImageHigh_NO_OPENGL(img,surface);
+    }
+    else
+    {
+        showImageLow_NO_OPENGL(img,surface);
+    }*/
+    showImageLow_NO_OPENGL(img,surface);
 }
 
 inline void takeScreenshot(int w, int h, go2_rotation_t _351BlitRotation)
@@ -828,6 +1097,9 @@ inline void makeScreenBlack(go2_surface_t *go2_surface, int res_width, int res_h
 {
     res_width = (isJaguar() || isBeetleVB() || isDosBox() || isDosCore()) ? res_width*2 :res_width ; // just to be sure to cover the full screen (in some emulators is not enough to use res_width)
     uint8_t *dst = (uint8_t *)go2_surface_map(go2_surface);
+    if (dst==nullptr){
+        return;
+    }
     int yy = res_height;
     while (yy > 0)
     {
@@ -908,8 +1180,7 @@ inline void presenter_post(int width, int height)
 }
 
 
-
-inline void core_video_refresh_no_openGL(const void *data, unsigned width, unsigned height, size_t pitch)
+inline void core_video_refresh_no_openGL_RGB565(const void *data, unsigned width, unsigned height, size_t pitch)
 {
 
     if (!data)
@@ -943,6 +1214,9 @@ inline void core_video_refresh_no_openGL(const void *data, unsigned width, unsig
 
         uint8_t *src = (uint8_t *)data;
         uint8_t *dst = (uint8_t *)go2_surface_map(status_surface);
+        if (dst==nullptr){
+        return;
+    }
         int bpp = go2_drm_format_get_bpp(go2_surface_format_get(status_surface)) / 8;
 
         int yy = height;
@@ -1001,6 +1275,181 @@ inline void core_video_refresh_no_openGL(const void *data, unsigned width, unsig
                        0, 0, res_width, res_height,
                        x, y, w, h,
                        _351Rotation);
+   
+}
+
+inline void core_video_refresh_no_openGL_XRGAB888(const void *data, unsigned width, unsigned height, size_t pitch)
+{
+
+    if (!data)
+        return;
+
+
+
+    gs_w = go2_surface_width_get(surface);
+    gs_h = go2_surface_height_get(surface);
+    int ss_w = go2_surface_width_get(status_surface);
+    int ss_h = go2_surface_height_get(status_surface);
+    // printf("-- gles_surface_w=%d, gles_surface_h=%d - status_surface=%d, status_surface=%d  - width=%d, height=%d\n", gs_w, gs_h,ss_w,ss_h, width, height);
+    // let's copy the content of gles_surface on status_surface (with the current roration based on the device)
+    int res_width = width;
+    int res_height = height;
+
+    bool showStatus = false;
+    if (input_info_requested)
+    {
+        
+        
+        res_width = ss_w;
+                res_height = ss_h;
+                if (width>=320 || height >=240){
+                    res_width = 240;
+                    res_height = 160;
+                }
+        
+        
+        if (status_surface_full == nullptr){
+            status_surface_full = go2_surface_create(display, res_width, res_height, format_565);
+        }
+        makeScreenBlack(status_surface_full, res_width, res_height);
+        showInfo_NO_OPENGL(gs_w, &status_surface_full);
+        showStatus =true;
+        status_obj->show_full= true;
+    }
+    else
+    {
+        status_obj->show_full= false;
+        // A similar refactoring should be done here... for emulators that dont use OpenGL
+        //surface_blit(isWideScreen, surface, _351BlitRotation, gs_w, gs_h, ss_w, ss_h, width, height);
+
+        uint8_t *src = (uint8_t *)data;
+        uint8_t *dst = (uint8_t *)go2_surface_map(surface);
+        if (dst==nullptr){
+        return;
+    }
+        int bpp = go2_drm_format_get_bpp(go2_surface_format_get(surface)) / 8;
+
+        int yy = height;
+        while (yy > 0)
+        {
+            if (color_format == DRM_FORMAT_RGBA5551)
+            {
+                uint32_t *src2 = (uint32_t *)src;
+                uint32_t *dst2 = (uint32_t *)dst;
+
+                for (int x = 0; x < (short)width / 2; ++x)
+                {
+                    uint32_t pixel = src2[x];
+                    pixel = ((pixel << 1) & (~0x3f003f)) | (pixel & 0x1f001f);
+                    dst2[x] = pixel;
+                }
+            }
+            else
+            {
+                memcpy(dst, src, width * bpp);
+            }
+
+            src += pitch;
+            dst += go2_surface_stride_get(surface);
+            --yy;
+        }
+    }
+    if (input_fps_requested && !input_info_requested)
+    {
+        //makeScreenBlack(status_surface, res_width, res_height);
+        if (status_surface_top_right == nullptr){
+            status_surface_top_right = go2_surface_create(display, numbers_image_high.width*2 +10,numbers_image_high.height/8, format_565);
+        }
+        //makeScreenBlack(status_surface_top_right, res_width, res_height);
+        showFPSImage_NO_OPEN_GL();
+        showStatus=true;
+    status_obj->show_top_right= true;
+    }else{
+       status_obj->show_top_right= false;
+    }
+    if (screenshot_requested && !input_info_requested)
+    {
+        //makeScreenBlack(status_surface, res_width, res_height);
+        takeScreenshot(res_width, res_height, _351BlitRotation);
+
+    }
+    if (continueToShowScreenshotImage())
+    {
+        //makeScreenBlack(status_surface, res_width, res_height);
+       // showImage(screenshot_img);
+        showImage_NO_OPENGL(screenshot_img, &status_surface_bottom_right);
+        showStatus= true;
+        status_obj->show_bottom_right= true;
+    }else{
+        status_obj->show_bottom_right= false;
+    }
+    if (input_ffwd_requested)
+    {
+       // makeScreenBlack(status_surface, res_width, res_height);
+        showText_NO_OPENGL(10, 10, ">> Fast Forwarding >>", 0xf800, &status_surface_top_left);
+        showStatus=true;
+        status_obj->show_top_left= true;
+    }else{
+        status_obj->show_top_left= false;
+    }
+    if (input_exit_requested_firstTime && !input_info_requested)
+    {
+        //printf("-RR- AAAAAAAAAAAAAAAAAAAAAAA\n");
+        showImage_NO_OPENGL(quit_img, &status_surface_bottom_left);
+        showStatus=true;
+        status_obj->show_bottom_left= true;
+    }
+    if (input_pause_requested && !input_info_requested)
+    {
+        //makeScreenBlack(status_surface, res_width, res_height);
+        showImage_NO_OPENGL(pause_img, &status_surface_bottom_left);
+        //showImage(pause_img);
+        showStatus = true;
+        status_obj->show_bottom_left= true;
+    }
+    if (!input_exit_requested_firstTime && !input_pause_requested){
+        status_obj->show_bottom_left= false;
+    }
+    checkPaused();
+
+    
+                       if (showStatus){
+                        
+                        if (status_surface_bottom_left != nullptr){
+                            status_obj->bottom_left=status_surface_bottom_left;
+                        }
+                        if (status_surface_bottom_right != nullptr){
+                        status_obj->bottom_right=status_surface_bottom_right;
+                        }
+
+                        if (status_surface_top_right != nullptr){
+                        status_obj->top_right=status_surface_top_right;
+                        }
+
+                        if (status_surface_top_left != nullptr){
+                        status_obj->top_left=status_surface_top_left;
+                        }
+
+                        if (status_surface_full != nullptr){
+                        status_obj->full=status_surface_full;
+                        }
+
+
+                        
+                       go2_presenter_post_multiple(presenter,
+                       surface,status_obj,
+                       0, 0, res_width, res_height,
+                       x, y, w, h,
+                       _351Rotation);
+                       
+
+}else {
+go2_presenter_post(presenter,
+                       surface,
+                       0, 0, res_width, res_height,
+                       x, y, w, h,
+                       _351Rotation);
+}                
    
 }
 
@@ -1176,16 +1625,27 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
     }
     else
     {
+
+
+  
         // non-OpenGL
-        if (processVideoInAnotherThread)
+
+
+    if (processVideoInAnotherThread)
         {
-            std::thread th(core_video_refresh_no_openGL, data, width, height, pitch);
+            std::thread th(core_video_refresh_no_openGL_XRGAB888, data, width, height, pitch);
             th.detach();
-            // std::this_thread::sleep_for(std::chrono::milliseconds(waitMSecForVideoInAnotherThread));
         }
         else
         {
-            core_video_refresh_no_openGL(data, width, height, pitch);
+            core_video_refresh_no_openGL_XRGAB888(data, width, height, pitch);
         }
-    }
+
+
+
+
+
+
+}
+
 }
