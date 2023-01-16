@@ -21,6 +21,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include "display.h"
 
 #include "queue.h"
+#include "../globals.h"
 
 #include <xf86drm.h>
 #include <xf86drmMode.h>
@@ -607,6 +608,10 @@ void go2_surface_blit(go2_surface_t* srcSurface, int srcX, int srcY, int srcWidt
     rga_info_t src = { 0 };
     src.fd = go2_surface_prime_fd(srcSurface);
     src.mmuFlag = 1;
+
+
+// ont MP and V we dont need to rotate
+rotation = (isRG351V() || isRG351MP())? GO2_ROTATION_DEGREES_0 : rotation;
 
     switch (rotation)
     {

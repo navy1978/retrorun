@@ -707,8 +707,7 @@ inline void takeScreenshot(int w, int h, go2_rotation_t _351BlitRotation)
         throw std::exception();
     }
 
-// ont MP and V we dont need to rotate
-_351BlitRotation = (isRG351V() || isRG351MP())? GO2_ROTATION_DEGREES_0 : _351BlitRotation;
+
     go2_surface_blit(status_surface,
                      0, 0, w, h,
                      screenshot,
@@ -727,8 +726,7 @@ _351BlitRotation = (isRG351V() || isRG351MP())? GO2_ROTATION_DEGREES_0 : _351Bli
 
 inline void surface_blit(bool isWideScreen, go2_surface_t *go2_surface, go2_rotation_t _351BlitRotation, int gs_w, int gs_h, int ss_w, int ss_h, int width, int height)
 {
-// ont MP and V we dont need to rotate
-_351BlitRotation = (isRG351V() || isRG351MP())? GO2_ROTATION_DEGREES_0 : _351BlitRotation;
+
     
     if (isOpenGL)
     {
