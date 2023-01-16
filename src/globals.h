@@ -108,6 +108,7 @@ bool isJaguar();
 bool isDosBox();
 bool isDosCore();
 bool isBeetleVB();
+bool isMame();
 
 // Devices
 const char* getDeviceName() noexcept ;

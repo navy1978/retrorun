@@ -708,13 +708,13 @@ inline int getWidthFPS()
     else
     {
 
-	if (isJaguar() || isDosBox() || isBeetleVB()){
+
+if (isJaguar() || isDosBox() || isBeetleVB() || isMame()){
         if (color_format== DRM_FORMAT_BGR565){
             return currentWidth*2 ;
         }else{
             return currentWidth;
         }
-		
 	}else{        
 		return currentWidth;
 
@@ -1095,7 +1095,7 @@ inline void prepareScreen(int width, int height)
 
 inline void makeScreenBlack(go2_surface_t *go2_surface, int res_width, int res_height)
 {
-    res_width = (isJaguar() || isBeetleVB() || isDosBox() || isDosCore()) ? res_width*2 :res_width ; // just to be sure to cover the full screen (in some emulators is not enough to use res_width)
+    res_width = (isJaguar() || isBeetleVB() || isDosBox() || isDosCore() || isMame()) ? res_width*2 :res_width ; // just to be sure to cover the full screen (in some emulators is not enough to use res_width)
     uint8_t *dst = (uint8_t *)go2_surface_map(go2_surface);
     if (dst==nullptr){
         return;

@@ -1,6 +1,7 @@
 /*
 libgo2 - Support library for the ODROID-GO Advance
 Copyright (C) 2020 OtherCrashOverride
+Copyright (C) 2023-present  navy1978
 
 This library is free software; you can redistribute it and/or
 modify it under the terms of the GNU Lesser General Public
@@ -105,7 +106,7 @@ static void* battery_task(void* arg)
             ssize_t count = read(fd, buffer, BATTERY_BUFFER_SIZE);
             if (count > 0)
             {
-                printf("BATT: buffer='%s'\n", buffer);
+                //printf("BATT: buffer='%s'\n", buffer);
 
                 if (buffer[0] == 'D')
                 {

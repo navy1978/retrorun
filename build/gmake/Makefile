@@ -27,7 +27,7 @@ ifeq ($(config),debug)
   INCLUDES  += -I../../src -I../.. -I../../src/go2
   CPPFLAGS  += -MMD -MP $(DEFINES) $(INCLUDES)
   CFLAGS    += $(CPPFLAGS) $(ARCH) -g -Wall -D__GBM__
-  CXXFLAGS  += $(CFLAGS) -std=c++17
+  CXXFLAGS  += $(CFLAGS) -std=c++2a
   LDFLAGS   += -Wl,-rpath=. -L../../. -ldl -lEGL -lGLESv2 -lrga -pthread -ffast-math -levdev -lgbm -ldrm -lpng -lasound -lopenal
   LIBS      += 
   RESFLAGS  += $(DEFINES) $(INCLUDES) 
@@ -49,7 +49,7 @@ ifeq ($(config),release)
   INCLUDES  += -I../../src -I../.. -I../../src/go2
   CPPFLAGS  += -MMD -MP $(DEFINES) $(INCLUDES)
   CFLAGS    += $(CPPFLAGS) $(ARCH) -Ofast -Wall -D__GBM__
-  CXXFLAGS  += $(CFLAGS) -std=c++17
+  CXXFLAGS  += $(CFLAGS) -std=c++2a
   LDFLAGS   += -s -Wl,-rpath=. -L../../. -ldl -lEGL -lGLESv2 -lrga -pthread -ffast-math -levdev -lgbm -ldrm -lpng -lasound -lopenal
   LIBS      += 
   RESFLAGS  += $(DEFINES) $(INCLUDES) 
