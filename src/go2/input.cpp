@@ -20,6 +20,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "input.h"
 #include "hardware.h"
+#include "../globals.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -93,8 +94,8 @@ static void* battery_task(void* arg)
     memset(&battery, 0, sizeof(battery));
 
 
-    const char* batteryStatus = strcmp(input->device , "RG552") ==0 ? BATTERY_STATUS_NAME_2 : BATTERY_STATUS_NAME;
-    const char* batteryCapacity = strcmp(input->device , "RG552")==0  ? BATTERY_CAPACITY_NAME_2 : BATTERY_CAPACITY_NAME;
+    const char* batteryStatus = isRG552()? BATTERY_STATUS_NAME_2 : BATTERY_STATUS_NAME;
+    const char* batteryCapacity = isRG552() ? BATTERY_CAPACITY_NAME_2 : BATTERY_CAPACITY_NAME;
    
 
     while(!input->terminating)

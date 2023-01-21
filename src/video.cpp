@@ -456,7 +456,7 @@ inline void showInfo(int w)
     showText(posX, getRowForText(), ("Retrorun "+release).c_str(), 0xf800);
     showText(posX, getRowForText(), "------------------------", 0xf800);
     //const char* hostName= getEnv("HOSTNAME");
-    std::string hostName(getEnv("HOSTNAME"));
+    std::string hostName(getDeviceName());
     showText(posX, getRowForText(), ("Device: " + hostName).c_str(), 0xffff);
 
     std::string time = "Time: ";
