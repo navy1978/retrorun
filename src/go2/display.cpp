@@ -25,6 +25,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 
 #include "queue.h"
+#include "../globals.h"
 
 #include <xf86drm.h>
 #include <xf86drmMode.h>
@@ -570,6 +571,10 @@ void go2_surface_blit(go2_surface_t* srcSurface, int srcX, int srcY, int srcWidt
     src.fd = go2_surface_prime_fd(srcSurface);
     src.mmuFlag = 1;
 
+    // ont MP and V we dont need to rotate
+    rotation = (isRG351V() || isRG351MP())? GO2_ROTATION_DEGREES_0 : rotation;
+
+
     switch (rotation)
     {
         case GO2_ROTATION_DEGREES_0:
@@ -1035,7 +1040,7 @@ void go2_presenter_post(go2_presenter_t* presenter, go2_surface_t* surface, int 
     sem_post(&presenter->usedSem);
 }
 
-
+/*
 void go2_presenter_post_double(go2_presenter_t* presenter, go2_surface_t* surface1, go2_surface_t* surface2, int srcX, int srcY, int srcWidth, int srcHeight, int dstX, int dstY, int dstWidth, int dstHeight, go2_rotation_t rotation)
 {
     sem_wait(&presenter->freeSem);
@@ -1098,9 +1103,7 @@ void go2_presenter_post_double(go2_presenter_t* presenter, go2_surface_t* surfac
         dest2Height=surface2->width*presenter->display->width/320;
     }
 
-    /*printf("dovrebbe essere x: %d y: %d -  width: %d height: %d.\n", 320-49,480-152, 49, 152);
-    printf("invece è x: %d y: %d -  width: %d height: %d.\n", dest2X, dest2Y, dest2Width, dest2Height);*/
-
+   
     go2_surface_blit(surface2, 0, 0, surface2->width, surface2->height, dstSurface, dest2X, dest2Y, dest2Width, dest2Height, rotation);
 
 
@@ -1109,12 +1112,12 @@ void go2_presenter_post_double(go2_presenter_t* presenter, go2_surface_t* surfac
     pthread_mutex_unlock(&presenter->queueMutex);
 
     sem_post(&presenter->usedSem);
-}
+}*/
 
 
 int mx=0;
 void blit_surface_status(go2_presenter_t* presenter,go2_surface_t* surface, go2_surface_t* dstSurface, int dstWidth, int dstHeight, go2_rotation_t rotation, STATUS_POSITION position){
-printf("PRESENTER DISPLAY  width: %d height:%d \n", presenter->display->width, presenter->display->height);
+//printf("PRESENTER DISPLAY  width: %d height:%d \n", presenter->display->width, presenter->display->height);
    // go2_surface_blit(surface2, 0, 0, surface2->width, surface2->height, dstSurface, 320-49, 480-152, 49, 152, rotation);
     
 
@@ -1123,14 +1126,57 @@ printf("PRESENTER DISPLAY  width: %d height:%d \n", presenter->display->width, p
     int dest2Y=0;
     int dest2Width=surface->width;//*presenter->display->width/480;
     int dest2Height=surface->height;//*presenter->display->height/320;
-    if (rotation == GO2_ROTATION_DEGREES_0){
-        printf("rotation 0\n");
-    }else if (rotation == GO2_ROTATION_DEGREES_90){
+
+    
+
+    if (isRG351V() || isRG351MP()){//rotation == GO2_ROTATION_DEGREES_0){
+
+        dest2Width=surface->width*(presenter->display->width/480);
+        dest2Height=surface->height*(presenter->display->height/320);
+        // we double the size since it's too small
+        dest2Width*=1.5;
+        dest2Height*=1.5;
+
+       // printf("rotation 0\n");
+
+        if (position== BUTTOM_LEFT){
+
+        dest2X = 0;
+        dest2Y = presenter->display->height-dest2Height;
+        }else if (position== BUTTOM_RIGHT){
+        dest2X = presenter->display->width - dest2Width;//320-49;//presenter->display->height;
+        dest2Y = presenter->display->height-dest2Height;
+        
+        }
+        else if (position== TOP_RIGHT){
+        dest2X = presenter->display->width -dest2Width;
+        dest2Y = 0;
+        
+        /*dest2X = 0;
+        dest2Y = 0;*/
+       
+        }
+        else if (position== TOP_LEFT){
+        dest2X = 0;
+        dest2Y = 0;//presenter->display->height-dest2Height;
+       
+        }
+         else if (position== FULL){
+         dest2X = 0;
+        dest2Y = 0;
+        dest2Width=presenter->display->width;
+        dest2Height=presenter->display->height;
+       
+        }
+
+
+
+    }/*else if (rotation == GO2_ROTATION_DEGREES_90){
         printf("rotation 90\n");
     }else if (rotation == GO2_ROTATION_DEGREES_180){
         printf("rotation 180\n");
-    }
-    else if (rotation == GO2_ROTATION_DEGREES_270){
+    }*/
+    else if (isRG351P() || isRG351M() || isRG552()){//(rotation == GO2_ROTATION_DEGREES_270){
         //printf("rotation 270\n");
         
         dest2Width=surface->height*(presenter->display->height/480);
@@ -1173,7 +1219,7 @@ printf("PRESENTER DISPLAY  width: %d height:%d \n", presenter->display->width, p
 if (surface != nullptr){ 
     //printf("blit status!\n");
     //printf("surface width: %d height: %d.\n", surface->width , surface->height);
-    printf("--->DISEGNO:  surface->width:%d , surface->height:%d, dest2X:%d, dest2Y:%d, dest2Width:%d, dest2Height:%d \n", surface->width , surface->height,  dest2X, dest2Y, dest2Width, dest2Height);
+    //printf("--->DISEGNO:  surface->width:%d , surface->height:%d, dest2X:%d, dest2Y:%d, dest2Width:%d, dest2Height:%d \n", surface->width , surface->height,  dest2X, dest2Y, dest2Width, dest2Height);
    go2_surface_blit(surface, 0, 0, surface->width , surface->height, dstSurface, dest2X, dest2Y, dest2Width, dest2Height, rotation);
 }
 

@@ -131,42 +131,42 @@ const char *getDeviceName() noexcept
         FILE *pipe = popen(OS_ARCH, "r");
         if (!pipe)
         {
-            printf("-RR- Error: Could not open pipe to `cat` command.");
+            printf("-RR- Error: Could not open pipe to `cat` command.\n");
             return "";
         }
 
         char *result = fgets(DEVICE_NAME, DEVICE_NAME_SIZE, pipe);
         if (!result)
         {
-            printf("-RR- Error: Could not read output from `cat` command.");
+            printf("-RR- Error: Could not read output from `cat` command.\n");
             return "";
         }
 
         // Close the pipe
         pclose(pipe);
         deviceInitialized = true;
-        printf("-RR- Device name: %s/n", DEVICE_NAME);
+        printf("-RR- Device name: %s\n", DEVICE_NAME);
     }
     return DEVICE_NAME;
 }
 
 bool isRG351M()
 {
-    return strcmp(getDeviceName(), "RG351M") == 0;
+    return strcmp(DEVICE_NAME, "RG351M\n") == 0;
 }
 bool isRG351P()
 {
-    return strcmp(getDeviceName(), "RG351P") == 0;
+    return strcmp(DEVICE_NAME, "RG351P\n") == 0;
 }
 bool isRG351V()
 {
-    return strcmp(getDeviceName(), "RG351V") == 0;
+    return strcmp(DEVICE_NAME, "RG351V\n")==0 ;
 }
 bool isRG351MP()
 {
-    return strcmp(getDeviceName(), "RG351MP") == 0;
+    return strcmp(DEVICE_NAME, "RG351MP\n") == 0;
 }
 bool isRG552()
 {
-    return strcmp(getDeviceName(), "RG552") == 0;
+    return strcmp(DEVICE_NAME, "RG552\n") == 0;
 }

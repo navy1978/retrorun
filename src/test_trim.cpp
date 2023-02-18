@@ -16,3 +16,13 @@ std::cout << t;
     std::cout << trim(t);
     return 0;
 }
+
+/**
+ * TODO:
+ * 
+ * revove the double images size (we can keep only one)
+ * clean up the code
+
+ * 
+ * 
+*/
