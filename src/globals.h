@@ -118,3 +118,20 @@ extern bool processVideoInAnotherThread;
 extern bool runLoopAt60fps;
 extern int retrorun_audio_buffer;
 extern int retrorun_mouse_speed_factor;
+
+#define BLACK 0x0000 // U16 definition
+#define RED 0xF800
+#define GREEN 0x07E0
+#define DARKGREEN 0x0408
+#define WHITE 0xFFFF
+#define GREY 0x8410
+#define DARKGREY 0x7BEF
+#define LIGHTGREY 0xBDF7
+#define YELLOW 0xFFE0
+#define BLUE 0x001F
+#define CYAN 0x07FF
+#define LIGHTCYAN 0x87FF
+#define MAGENTA 0xF81F
+#define ORANGE 0xFBE0
+#define BROWN 0x79E0
+#define PINK 0xF81F

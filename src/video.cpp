@@ -430,12 +430,13 @@ inline void showInfo(int w, go2_surface_t **surface)
     // batteryState.level, batteryStateDesc[batteryState.status]
     rowForText = 0;
     int posX = 10;
-    showText(posX, getRowForText(), ("Retrorun " + release).c_str(), 0xf800, surface);
-    showText(posX, getRowForText(), "------------------------", 0xf800, surface);
+    
+    showText(posX, getRowForText(), ("Retrorun " + release).c_str(), YELLOW, surface);
+    showText(posX, getRowForText(), " ", ORANGE, surface);
     // const char* hostName= getEnv("HOSTNAME");
     std::string hostName(getDeviceName());
     hostName = stripReturnCarriage(hostName);    
-    showText(posX, getRowForText(), ("Device: " + hostName).c_str(), 0xffff, surface);
+    showText(posX, getRowForText(), ("Device: " + hostName).c_str(), DARKGREEN, surface);
 
     std::string time = "Time: ";
     time_t curr_time;
@@ -447,15 +448,19 @@ inline void showInfo(int w, go2_surface_t **surface)
     curr_tm = localtime(&curr_time);
 
     strftime(time_string, 50, "%R", curr_tm);
-    showText(posX, getRowForText(), const_cast<char *>(time.append(time_string).c_str()), 0xffff, surface);
+    showText(posX, getRowForText(), const_cast<char *>(time.append(time_string).c_str()), DARKGREY, surface);
 
     std::string core = "Core: ";
-    showText(posX, getRowForText(), const_cast<char *>(core.append(coreName).c_str()), 0xffff, surface);
+    showText(posX, getRowForText(), const_cast<char *>(core.append(coreName).c_str()), DARKGREY, surface);
     std::string origFps = "Orignal Game FPS: ";
-    showText(posX, getRowForText(), const_cast<char *>(origFps.append(std::to_string((int)originalFps)).c_str()), 0xffff, surface);
+    showText(posX, getRowForText(), const_cast<char *>(origFps.append(std::to_string((int)originalFps)).c_str()), DARKGREY, surface);
 
     std::string openGl = "OpenGL: ";
-    showText(posX, getRowForText(), const_cast<char *>(openGl.append(isOpenGL ? "true" : "false").c_str()), 0xffff, surface);
+    if (isOpenGL){
+    showText(posX, getRowForText(), const_cast<char *>(openGl.append(isOpenGL ? "true" : "false").c_str()), WHITE, surface);
+    }else{
+         showText(posX, getRowForText(), const_cast<char *>(openGl.append(isOpenGL ? "true" : "false").c_str()), DARKGREY, surface);
+    }
     /*
         std::string res = "Resolution (base): ";
         showText(posX, getRowForText(), const_cast<char *>(res.append(std::to_string(base_width)).append("x").append(std::to_string(base_height)).c_str()), 0xffff);
@@ -466,10 +471,12 @@ inline void showInfo(int w, go2_surface_t **surface)
         showText(posX, getRowForText(), const_cast<char *>(displ.append(std::to_string(w)).append("x").append(std::to_string(h)).c_str()), 0xffff);
     */
     std::string bat = "Battery: ";
-    showText(posX, getRowForText(), const_cast<char *>(bat.append(std::to_string(batteryState.level)).append("%").c_str()), 0xffff, surface);
+    showText(posX, getRowForText(), const_cast<char *>(bat.append(std::to_string(batteryState.level)).append("%").c_str()), DARKGREY, surface);
 
     showText(posX, getRowForText(), " ", 0xf800, surface);
-    showText(posX, getRowForText(), "-> Press L3 + R3 to resume", 0x07E0, surface);
+    showText(posX, getRowForText(), " ", 0xf800, surface);
+    showText(posX, getRowForText(), " ", 0xf800, surface);
+    showText(posX, getRowForText(), "-> Press L3 + R3 to resume", GREEN, surface);
 }
 
 inline std::string getCurrentTimeForFileName()
