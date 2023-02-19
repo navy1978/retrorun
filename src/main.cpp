@@ -993,8 +993,6 @@ void initConfig()
 
         processVideoInAnotherThread = isRG552() ? true : false;
 
-        printf("-RR- Info: processVideoInAnotherThread=%s\n", processVideoInAnotherThread? "true": "false");
-
         adaptiveFps = false;
 
         printf("-RR- Configuration initialized.\n");
@@ -1008,7 +1006,6 @@ int main(int argc, char *argv[])
     // printf("argc=%d, argv=%p\n", argc, argv);
 
     getDeviceName(); // we need this call here (otherwise it doesnt work because the methos is called only later , this need to be refactored)
-    
     initConfig();
 
     int c;

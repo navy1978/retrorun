@@ -19,6 +19,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 #include "display.h"
+#include "struct.h"
+
+#include "../status.h"
+
 
 #include "queue.h"
 #include "../globals.h"
@@ -53,49 +57,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include <png.h>
 
 
-typedef struct go2_display
-{
-    int fd;
-    uint32_t connector_id;
-    drmModeModeInfo mode;
-    uint32_t width;
-    uint32_t height;
-    uint32_t crtc_id;
-} go2_display_t;
-
-typedef struct go2_surface
-{
-    go2_display_t* display;
-    uint32_t gem_handle;
-    uint64_t size;
-    int width;
-    int height;
-    int stride;
-    uint32_t format;
-    int prime_fd;
-    bool is_mapped;
-    uint8_t* map;
-} go2_surface_t;
-
-typedef struct go2_frame_buffer
-{
-    go2_surface_t* surface;
-    uint32_t fb_id;
-} go2_frame_buffer_t;
-
-typedef struct go2_presenter
-{
-    go2_display_t* display;
-    uint32_t format;
-    uint32_t background_color;
-    go2_queue_t* freeFrameBuffers;
-    go2_queue_t* usedFrameBuffers;
-    pthread_mutex_t queueMutex;
-    pthread_t renderThread;
-    sem_t freeSem;
-    sem_t usedSem;
-    volatile bool terminating;
-} go2_presenter_t;
 
 
 go2_display_t* go2_display_create()
@@ -531,6 +492,7 @@ void* go2_surface_map(go2_surface_t* surface)
 
 
     int prime_fd = go2_surface_prime_fd(surface);
+    //printf("mapping surface with size:%d", surface->size);
     surface->map = (uint8_t*)mmap(NULL, surface->size, PROT_READ | PROT_WRITE, MAP_SHARED, prime_fd, 0);
     if (surface->map == MAP_FAILED)
     {
@@ -609,9 +571,9 @@ void go2_surface_blit(go2_surface_t* srcSurface, int srcX, int srcY, int srcWidt
     src.fd = go2_surface_prime_fd(srcSurface);
     src.mmuFlag = 1;
 
+    // ont MP and V we dont need to rotate
+    rotation = (isRG351V() || isRG351MP())? GO2_ROTATION_DEGREES_0 : rotation;
 
-// ont MP and V we dont need to rotate
-rotation = (isRG351V() || isRG351MP())? GO2_ROTATION_DEGREES_0 : rotation;
 
     switch (rotation)
     {
@@ -1077,6 +1039,289 @@ void go2_presenter_post(go2_presenter_t* presenter, go2_surface_t* surface, int 
 
     sem_post(&presenter->usedSem);
 }
+
+/*
+void go2_presenter_post_double(go2_presenter_t* presenter, go2_surface_t* surface1, go2_surface_t* surface2, int srcX, int srcY, int srcWidth, int srcHeight, int dstX, int dstY, int dstWidth, int dstHeight, go2_rotation_t rotation)
+{
+    sem_wait(&presenter->freeSem);
+
+
+    pthread_mutex_lock(&presenter->queueMutex);
+
+    if (go2_queue_count_get(presenter->freeFrameBuffers) < 1)
+    {
+        printf("no framebuffer available.\n");
+        abort();
+    }
+
+    go2_frame_buffer_t* dstFrameBuffer = (go2_frame_buffer_t*) go2_queue_pop(presenter->freeFrameBuffers);
+
+    pthread_mutex_unlock(&presenter->queueMutex);
+
+
+    go2_surface_t* dstSurface = go2_frame_buffer_surface_get(dstFrameBuffer);
+
+    rga_info_t dst = { 0 };
+    dst.fd = go2_surface_prime_fd(dstSurface);
+    dst.mmuFlag = 1;
+    dst.rect.xoffset = 0;
+    dst.rect.yoffset = 0;
+    dst.rect.width = go2_surface_width_get(dstSurface);
+    dst.rect.height = go2_surface_height_get(dstSurface);
+    dst.rect.wstride = go2_surface_stride_get(dstSurface) / (go2_drm_format_get_bpp(go2_surface_format_get(dstSurface)) / 8);
+    dst.rect.hstride = go2_surface_height_get(dstSurface);
+    dst.rect.format = go2_rkformat_get(go2_surface_format_get(dstSurface));
+    dst.color = presenter->background_color;
+
+    int ret = c_RkRgaColorFill(&dst);
+    if (ret)
+    {
+        printf("c_RkRgaColorFill failed.\n");
+    }
+
+
+    go2_surface_blit(surface1, srcX, srcY, srcWidth, srcHeight, dstSurface, dstX, dstY, dstWidth, dstHeight, rotation);
+    //printf("quit width: %d height: %d - altro width: %d height: %d.\n", surface2->width, surface2->height, dstWidth, dstHeight);
+   // go2_surface_blit(surface2, 0, 0, surface2->width, surface2->height, dstSurface, 320-49, 480-152, 49, 152, rotation);
+    
+    int dest2X=0;
+    int dest2Y=0;
+    int dest2Width=151;//surface2->width*presenter->display->width/480;
+    int dest2Height=651;//surface2->height*presenter->display->height/320;
+    if (rotation == GO2_ROTATION_DEGREES_0){
+        printf("rotation 0\n");
+    }else if (rotation == GO2_ROTATION_DEGREES_90){
+        printf("rotation 90\n");
+    }else if (rotation == GO2_ROTATION_DEGREES_180){
+        printf("rotation 180\n");
+    }
+    else if (rotation == GO2_ROTATION_DEGREES_270){
+        //printf("rotation 270\n");
+        dest2X = presenter->display->width -surface2->height;
+        dest2Y = presenter->display->height-surface2->width;
+        dest2Width=surface2->height*presenter->display->height/480;
+        dest2Height=surface2->width*presenter->display->width/320;
+    }
+
+   
+    go2_surface_blit(surface2, 0, 0, surface2->width, surface2->height, dstSurface, dest2X, dest2Y, dest2Width, dest2Height, rotation);
+
+
+    pthread_mutex_lock(&presenter->queueMutex);
+    go2_queue_push(presenter->usedFrameBuffers, dstFrameBuffer);
+    pthread_mutex_unlock(&presenter->queueMutex);
+
+    sem_post(&presenter->usedSem);
+}*/
+
+
+int mx=0;
+void blit_surface_status(go2_presenter_t* presenter,go2_surface_t* surface, go2_surface_t* dstSurface, int dstWidth, int dstHeight, go2_rotation_t rotation, STATUS_POSITION position){
+//printf("PRESENTER DISPLAY  width: %d height:%d \n", presenter->display->width, presenter->display->height);
+   // go2_surface_blit(surface2, 0, 0, surface2->width, surface2->height, dstSurface, 320-49, 480-152, 49, 152, rotation);
+    
+
+    // the dimension of the surfaces are done based on 351P so 480x320
+    int dest2X=0;
+    int dest2Y=0;
+    int dest2Width=surface->width;//*presenter->display->width/480;
+    int dest2Height=surface->height;//*presenter->display->height/320;
+
+    
+
+    if (isRG351V() || isRG351MP()){//rotation == GO2_ROTATION_DEGREES_0){
+
+        dest2Width=surface->width*(presenter->display->width/480);
+        dest2Height=surface->height*(presenter->display->height/320);
+        // we double the size since it's too small
+        dest2Width*=1.5;
+        dest2Height*=1.5;
+
+       // printf("rotation 0\n");
+
+        if (position== BUTTOM_LEFT){
+
+        dest2X = 0;
+        dest2Y = presenter->display->height-dest2Height;
+        }else if (position== BUTTOM_RIGHT){
+        dest2X = presenter->display->width - dest2Width;//320-49;//presenter->display->height;
+        dest2Y = presenter->display->height-dest2Height;
+        
+        }
+        else if (position== TOP_RIGHT){
+        dest2X = presenter->display->width -dest2Width;
+        dest2Y = 0;
+        
+        /*dest2X = 0;
+        dest2Y = 0;*/
+       
+        }
+        else if (position== TOP_LEFT){
+        dest2X = 0;
+        dest2Y = 0;//presenter->display->height-dest2Height;
+       
+        }
+         else if (position== FULL){
+         dest2X = 0;
+        dest2Y = 0;
+        dest2Width=presenter->display->width;
+        dest2Height=presenter->display->height;
+       
+        }
+
+
+
+    }/*else if (rotation == GO2_ROTATION_DEGREES_90){
+        printf("rotation 90\n");
+    }else if (rotation == GO2_ROTATION_DEGREES_180){
+        printf("rotation 180\n");
+    }*/
+    else if (isRG351P() || isRG351M() || isRG552()){//(rotation == GO2_ROTATION_DEGREES_270){
+        //printf("rotation 270\n");
+        
+        dest2Width=surface->height*(presenter->display->height/480);
+        dest2Height=surface->width*(presenter->display->width/320);
+
+        if (position== BUTTOM_LEFT){
+
+        dest2X = presenter->display->width -dest2Width;
+        dest2Y = presenter->display->height-dest2Height;
+        }else if (position== BUTTOM_RIGHT){
+        dest2X = presenter->display->width - dest2Width;//320-49;//presenter->display->height;
+        dest2Y = 0;
+        
+        }
+        else if (position== TOP_RIGHT){
+        dest2X = 0;
+        dest2Y = 0;
+       
+        }
+        else if (position== TOP_LEFT){
+        dest2X = 0;
+        dest2Y = presenter->display->height-dest2Height;
+       
+        }
+         else if (position== FULL){
+         dest2X = 0;
+        dest2Y = 0;
+        dest2Width=presenter->display->width;
+        dest2Height=presenter->display->height;
+       
+        }
+       // go2_surface_blit(surface, 0, 0, dest2Height, dest2Width, dstSurface, dest2X, dest2Y, dest2Width, dest2Height, rotation);
+    }
+
+    /*printf("dovrebbe essere x: %d y: %d -  width: %d height: %d.\n", 320-49,480-152, 49, 152);
+    printf("invece è x: %d y: %d -  width: %d height: %d.\n", dest2X, dest2Y, dest2Width, dest2Height);*/
+
+
+// normalmente è questo da eseguire:
+if (surface != nullptr){ 
+    //printf("blit status!\n");
+    //printf("surface width: %d height: %d.\n", surface->width , surface->height);
+    //printf("--->DISEGNO:  surface->width:%d , surface->height:%d, dest2X:%d, dest2Y:%d, dest2Width:%d, dest2Height:%d \n", surface->width , surface->height,  dest2X, dest2Y, dest2Width, dest2Height);
+   go2_surface_blit(surface, 0, 0, surface->width , surface->height, dstSurface, dest2X, dest2Y, dest2Width, dest2Height, rotation);
+}
+
+}
+
+
+void go2_presenter_post_multiple(go2_presenter_t* presenter, go2_surface_t* surface1, status* status_obj, int srcX, int srcY, int srcWidth, int srcHeight, int dstX, int dstY, int dstWidth, int dstHeight, go2_rotation_t rotation)
+{
+
+    //printf("go2_presenter_post_multiple called!.\n");
+    
+    sem_wait(&presenter->freeSem);
+
+
+    pthread_mutex_lock(&presenter->queueMutex);
+
+    if (go2_queue_count_get(presenter->freeFrameBuffers) < 1)
+    {
+        printf("no framebuffer available.\n");
+        abort();
+    }
+
+    go2_frame_buffer_t* dstFrameBuffer = (go2_frame_buffer_t*) go2_queue_pop(presenter->freeFrameBuffers);
+
+    pthread_mutex_unlock(&presenter->queueMutex);
+
+
+    go2_surface_t* dstSurface = go2_frame_buffer_surface_get(dstFrameBuffer);
+
+    rga_info_t dst = { 0 };
+    dst.fd = go2_surface_prime_fd(dstSurface);
+    dst.mmuFlag = 1;
+    dst.rect.xoffset = 0;
+    dst.rect.yoffset = 0;
+    dst.rect.width = go2_surface_width_get(dstSurface);
+    dst.rect.height = go2_surface_height_get(dstSurface);
+    dst.rect.wstride = go2_surface_stride_get(dstSurface) / (go2_drm_format_get_bpp(go2_surface_format_get(dstSurface)) / 8);
+    dst.rect.hstride = go2_surface_height_get(dstSurface);
+    dst.rect.format = go2_rkformat_get(go2_surface_format_get(dstSurface));
+    dst.color = presenter->background_color;
+
+    int ret = c_RkRgaColorFill(&dst);
+    if (ret)
+    {
+        printf("c_RkRgaColorFill failed.\n");
+    }
+
+
+    go2_surface_blit(surface1, srcX, srcY, srcWidth, srcHeight, dstSurface, dstX, dstY, dstWidth, dstHeight, rotation);
+   
+   
+   go2_surface_t* surface= NULL ;
+    
+    if (status_obj->show_bottom_left){  
+         surface = status_obj->bottom_left;
+        if (surface != nullptr){ 
+            blit_surface_status(presenter,surface, dstSurface, dstWidth, dstHeight,rotation, BUTTOM_LEFT);
+        }
+    }
+
+    
+    if (status_obj->show_bottom_right){  
+        surface = status_obj->bottom_right;
+        if (surface != nullptr){  
+            blit_surface_status(presenter,surface, dstSurface, dstWidth, dstHeight,rotation, BUTTOM_RIGHT);
+        }
+    }
+
+     
+    if (status_obj->show_top_right){  
+        surface = status_obj->top_right;
+        if (surface != nullptr){  
+            blit_surface_status(presenter,surface, dstSurface, dstWidth, dstHeight,rotation, TOP_RIGHT);
+        }
+    }
+
+      
+    if (status_obj->show_top_left){  
+        surface = status_obj->top_left;
+        if (surface != nullptr){  
+            blit_surface_status(presenter,surface, dstSurface, dstWidth, dstHeight,rotation, TOP_LEFT);
+        }
+    }
+
+    if (status_obj->show_full){  
+        surface = status_obj->full;
+        if (surface != nullptr){  
+            blit_surface_status(presenter,surface, dstSurface, dstWidth, dstHeight,rotation, FULL);
+        }
+    }
+
+ 
+   
+   
+    pthread_mutex_lock(&presenter->queueMutex);
+    go2_queue_push(presenter->usedFrameBuffers, dstFrameBuffer);
+    pthread_mutex_unlock(&presenter->queueMutex);
+
+    sem_post(&presenter->usedSem);
+   
+}
+
 
 
 
