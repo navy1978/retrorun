@@ -1,4 +1,4 @@
-# retrorun-go2 for RG351 M/P/V/MP and RG552
+# retrorun for RG351 M/P/V/MP and RG552
 libretro frontend for RG351 M/P/V/MP and RG552\
 Use this for RG351*/RG552 with rg351p-js2box available [here](https://github.com/christianhaitian/RG351P_virtual-gamepad).
 
@@ -42,7 +42,7 @@ Retrorun parameters
 Build
 ======
 ```
-git clone https://github.com/navy1978/retrorun-go2
+git clone https://github.com/navy1978/retrorun
 make
 strip retrorun
 ```
