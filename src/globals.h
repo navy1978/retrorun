@@ -50,15 +50,9 @@ enum Resolution
 extern Device device;
 extern Resolution resolution;
 
-struct bigImg
-{
-  unsigned int width;
-  unsigned int height;
-  unsigned int bytes_per_pixel; /* 2:RGB16, 3:RGB, 4:RGBA */
-  unsigned char pixel_data[304 * 98 * 2 + 1];
-};
 
-struct smallImg
+
+struct Image
 {
   unsigned int width;
   unsigned int height;
@@ -66,11 +60,11 @@ struct smallImg
   unsigned char pixel_data[152 * 49 * 2 + 1];
 };
 
-struct rrImg
+/*struct rrImg
 {
   bigImg big;
   smallImg small;
-};
+};*/
 
 extern RETRORUN_CORE_TYPE Retrorun_Core;
 extern bool force_left_analog_stick;

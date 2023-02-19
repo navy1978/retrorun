@@ -28,7 +28,7 @@ static const int DEVICE_NAME_SIZE = 1024;
 static char DEVICE_NAME[DEVICE_NAME_SIZE];
 static bool deviceInitialized = false;
 
-std::string release = "2.0.1";
+std::string release = "2.1.1";
 
 RETRORUN_CORE_TYPE Retrorun_Core = RETRORUN_CORE_UNKNOWN;
 Device device = UNKNOWN;
@@ -49,7 +49,7 @@ float fps = 0.0f;
 float originalFps = 0.0f;
 float newFps = 0.0f;
 int retrorunLoopCounter = 0;
-int retrorunLoopSkip = 15; // 10 ?
+int retrorunLoopSkip = 120; // how many loops we skip before update the FPS
 
 int frameCounter = 0;
 int frameCounterSkip = 4;

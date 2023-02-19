@@ -43,10 +43,10 @@ typedef uint8_t guint8;
 
 int main(){
 
-   int w = sreenshot_high.width;
-   int h = sreenshot_high.height;
+   int w = screenshot.width;
+   int h = screenshot.height;
    int i;
-   uint16_t*  RGB565p = (uint16_t*)&(sreenshot_high.pixel_data);
+   uint16_t*  RGB565p = (uint16_t*)&(screenshot.pixel_data);
 
    /* Print P3 PNM header on stdout */
    printf("P3\n%d %d\n255\n",w, h);

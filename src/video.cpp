@@ -123,9 +123,6 @@ float screen_aspect_ratio;
 go2_rotation_t _351BlitRotation;
 go2_rotation_t _351Rotation;
 
-rrImg quit_img = {press_high, press_low};
-rrImg pause_img = {paused_img_high, paused_img_low};
-rrImg screenshot_img = {sreenshot_high, sreenshot_low};
 int width_fixed = 640;
 int height_fixed = 480;
 
@@ -524,10 +521,10 @@ inline int getWidthFPS()
 
 inline void showFPSImage()
 {
-    int x = getWidthFPS() - (numbers_image_low.width * 2); // depends on the width of the image
+    int x = getWidthFPS() - (numbers.width * 2); // depends on the width of the image
     int y = 0;
-    showNumberSprite(x, y, getDigit(fps, 2), numbers_image_low.width, numbers_image_low.height, numbers_image_low.pixel_data);
-    showNumberSprite(x + numbers_image_low.width, y, getDigit(fps, 1), numbers_image_low.width, numbers_image_low.height, numbers_image_low.pixel_data);
+    showNumberSprite(x, y, getDigit(fps, 2), numbers.width, numbers.height, numbers.pixel_data);
+    showNumberSprite(x + numbers.width, y, getDigit(fps, 1), numbers.width, numbers.height, numbers.pixel_data);
 }
 
 inline void showFullImage(int x, int y, int width, int height, const uint8_t *src, go2_surface_t **surface)
@@ -557,12 +554,9 @@ inline void showFullImage(int x, int y, int width, int height, const uint8_t *sr
 }
 // refactor
 
-inline void showImage(rrImg img, go2_surface_t **surface)
+inline void showImage(Image img, go2_surface_t **surface)
 {
-    int x, y;
-    x = 0;
-    y = 0;
-    showFullImage(0, 0, img.small.width, img.small.height, img.small.pixel_data, surface);
+    showFullImage(0, 0, img.width, img.height, img.pixel_data, surface);
 }
 
 inline void takeScreenshot(int w, int h, go2_rotation_t _351BlitRotation)
@@ -801,7 +795,7 @@ bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
     {
         if (status_surface_top_right == nullptr)
         {
-            status_surface_top_right = go2_surface_create(display, numbers_image_high.width * 2 - 14, (numbers_image_high.height / 10) - 10, format_565);
+            status_surface_top_right = go2_surface_create(display, numbers.width * 2, (numbers.height /10)  , format_565);
         }
         showFPSImage();
         showStatus = true;
@@ -817,7 +811,7 @@ bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
     }
     if (continueToShowScreenshotImage())
     {
-        showImage(screenshot_img, &status_surface_bottom_right);
+        showImage(screenshot, &status_surface_bottom_right);
         showStatus = true;
         status_obj->show_bottom_right = true;
     }
@@ -837,7 +831,7 @@ bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
     }
     if (input_exit_requested_firstTime && !input_info_requested)
     {
-        showImage(quit_img, &status_surface_bottom_left);
+        showImage(quit, &status_surface_bottom_left);
         showStatus = true;
         status_obj->show_bottom_left = true;
     }
