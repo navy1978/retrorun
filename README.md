@@ -2,14 +2,15 @@
 libretro frontend for Anbernic devices (RG351 M/P/V/MP and RG552)\
 Use this for RG351*/RG552 with rg351p-js2box available [here](https://github.com/christianhaitian/RG351P_virtual-gamepad).
 
-# This branch adds the following features:
-1) Tate mode (useful for naomi and atomiswave games)
-2) It enables right analog for ParallN64 (with C buttons management)
-3) Show FPS in the logs is -f flag is passed as parameter
-4) Show FPS on screen with button combination SELECT +Y
-5) Configuration of cores is now done via file, by default the file is in: "/storage/.config/distribution/configs/retrorun.cfg" but another file can be specified via "-c" parameter
-6) Manages different aspect ratio (as parameters)
-7) Manages GPIO/USB joypad
+# This branch adds some features, the followign are part of them:
+1) external library libgo 2 now is part of retrorun
+2) Tate mode (useful for naomi and atomiswave games)
+3) It enables right analog for ParallN64 (with C buttons management)
+4) Show FPS in the logs is -f flag is passed as parameter
+5) Show FPS on screen with button combination SELECT +Y
+6) Configuration of cores is now done via file, by default the file is in: "/storage/.config/distribution/configs/retrorun.cfg" but another file can be specified via "-c" parameter
+7) Manages different aspect ratio (as parameters)
+8) Manages GPIO/USB joypad
 
 
 Retrorun parameters
@@ -26,13 +27,7 @@ Retrorun parameters
     Specify if the auto save should be true or false. Default: false
 6)  retrorun_loop_60_fps = true | false
     If set to true force the game loop to dont run faster than 60 FPS. Default: true
-7)  retrorun_video_another_thread = true | false | half
-    Specify if process the call to video card in another thread. True means all the calls will be executed in another thread , false none, half means helf will be executed in the current thread and half in another thread. Default: true
-8)  retrorun_video_another_thread_wait_millisec = <whatever>
-    Only works if retrorun_video_another_thread is equals to true or half. It specify the number of milliseconds to wait before execute the video card call in anohter thread. Default: 0
-9) retrorun_adaptive_fps = true | false
-    When true it tries to recuce the number of calls to libretro run , it can help in case the number of FPS is too low. Default: false
-10) retrorun_audio_buffer = -1, 1, 256, 512, 1024, 2048, ...
+7) retrorun_audio_buffer = -1, 1, 256, 512, 1024, 2048, ...
     1 => basically the buffer is emptied in each call
     from 256 to 2028 => we wait until the buffer reaches that limit before empty it
     -1 => in this case the limit is linked to the original FPS of the game (for 60 FPS the audio buffer is 1/60 * 44100 = 735)
