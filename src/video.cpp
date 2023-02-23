@@ -410,35 +410,54 @@ inline int getRowForText()
     return rowForText;
 }
 
-std::string stripReturnCarriage(std::string input){
+std::string stripReturnCarriage(std::string input)
+{
     // Remove newline characters from the input
     int len = 30;
     int i, j;
-    for (i = 0, j = 0; i < len; i++) {
-        if (input[i] != '\n') {
+    for (i = 0, j = 0; i < len; i++)
+    {
+        if (input[i] != '\n')
+        {
             input[j++] = input[i];
-        }else{
+        }
+        else
+        {
             break;
         }
     }
     input[j] = '\0';
     return input;
 }
-
+int switchColor = 30;
+int step = 1;
+int posRetro = 3;
+bool loop = true;
 inline void showInfo(int w, go2_surface_t **surface)
 {
     // batteryState.level, batteryStateDesc[batteryState.status]
-    rowForText = 0;
-    int posX = 10;
-    
-    showText(posX, getRowForText(), ("Retrorun " + release).c_str(), YELLOW, surface);
+    rowForText = -10;
+    int posX = 0;
+
+    // showText(posRetro, getRowForText(), ("▬▬ι═══════ﺤ Retrorun -═══════ι▬▬ " + release+ " (2023)").c_str(), YELLOW, surface);
+    showText(posRetro, getRowForText(), ("Retrorun - " + release).c_str(), YELLOW, surface);
+    // printf("pos:%d\n",posRetro);
+    if (posRetro % 240 + 3 == 1)
+    { // 240 is the width size of the info , 3 is the initial position
+        posRetro = 3;
+    }
+    posRetro += 1;
+    showText(posX, getRowForText(), " ", ORANGE, surface);
+    showText(posX, getRowForText(), " ", ORANGE, surface);
     showText(posX, getRowForText(), " ", ORANGE, surface);
     // const char* hostName= getEnv("HOSTNAME");
     std::string hostName(getDeviceName());
-    hostName = stripReturnCarriage(hostName);    
-    showText(posX, getRowForText(), ("Device: " + hostName).c_str(), DARKGREEN, surface);
+    hostName = stripReturnCarriage(hostName);
+    showText(posX, getRowForText(), ("- Device: " + hostName).c_str(), DARKGREY, surface);
+    std::string bat = "- Battery: ";
+    showText(posX, getRowForText(), const_cast<char *>(bat.append(std::to_string(batteryState.level)).append("%").c_str()), DARKGREY, surface);
 
-    std::string time = "Time: ";
+    std::string time = "- Time: ";
     time_t curr_time;
     tm *curr_tm;
 
@@ -450,17 +469,21 @@ inline void showInfo(int w, go2_surface_t **surface)
     strftime(time_string, 50, "%R", curr_tm);
     showText(posX, getRowForText(), const_cast<char *>(time.append(time_string).c_str()), DARKGREY, surface);
 
-    std::string core = "Core: ";
+    std::string core = "- Core: ";
     showText(posX, getRowForText(), const_cast<char *>(core.append(coreName).c_str()), DARKGREY, surface);
-    std::string origFps = "Orignal Game FPS: ";
+    std::string openGl = "- OpenGL: ";
+    if (isOpenGL)
+    {
+        showText(posX, getRowForText(), const_cast<char *>(openGl.append(isOpenGL ? "true" : "false").c_str()), DARKGREY, surface);
+    }
+    else
+    {
+        showText(posX, getRowForText(), const_cast<char *>(openGl.append(isOpenGL ? "true" : "false").c_str()), DARKGREY, surface);
+    }
+
+    std::string origFps = "- Orignal FPS (Game): ";
     showText(posX, getRowForText(), const_cast<char *>(origFps.append(std::to_string((int)originalFps)).c_str()), DARKGREY, surface);
 
-    std::string openGl = "OpenGL: ";
-    if (isOpenGL){
-    showText(posX, getRowForText(), const_cast<char *>(openGl.append(isOpenGL ? "true" : "false").c_str()), WHITE, surface);
-    }else{
-         showText(posX, getRowForText(), const_cast<char *>(openGl.append(isOpenGL ? "true" : "false").c_str()), DARKGREY, surface);
-    }
     /*
         std::string res = "Resolution (base): ";
         showText(posX, getRowForText(), const_cast<char *>(res.append(std::to_string(base_width)).append("x").append(std::to_string(base_height)).c_str()), 0xffff);
@@ -470,13 +493,29 @@ inline void showInfo(int w, go2_surface_t **surface)
         std::string displ = "Resolution (dis.): ";
         showText(posX, getRowForText(), const_cast<char *>(displ.append(std::to_string(w)).append("x").append(std::to_string(h)).c_str()), 0xffff);
     */
-    std::string bat = "Battery: ";
-    showText(posX, getRowForText(), const_cast<char *>(bat.append(std::to_string(batteryState.level)).append("%").c_str()), DARKGREY, surface);
+
+    std::string averageFps = "- Average FPS (Game): ";
+    showText(posX, getRowForText(), const_cast<char *>(averageFps.append(std::to_string((int)avgFps)).c_str()), DARKGREY, surface);
+
+    std::string res2 = "- Resolution (Game): ";
+    showText(posX, getRowForText(), const_cast<char *>(res2.append(std::to_string(currentWidth)).append("x").append(std::to_string(currentHeight)).c_str()), DARKGREY, surface);
 
     showText(posX, getRowForText(), " ", 0xf800, surface);
     showText(posX, getRowForText(), " ", 0xf800, surface);
     showText(posX, getRowForText(), " ", 0xf800, surface);
-    showText(posX, getRowForText(), "-> Press L3 + R3 to resume", GREEN, surface);
+    if (switchColor > 0)
+    {
+        showText(posX, getRowForText(), "   Press L3 + R3 to resume", DARKGREY, surface);
+    }
+    else
+    {
+        showText(posX, getRowForText(), "   Press L3 + R3 to resume", WHITE, surface);
+        if (switchColor < -30)
+        {
+            switchColor = 30;
+        }
+    }
+    switchColor--;
 }
 
 inline std::string getCurrentTimeForFileName()
@@ -794,7 +833,8 @@ bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
     else
     {
         status_obj->show_full = false;
-        if (!isOpenGL){
+        if (!isOpenGL)
+        {
             drawNonOpenGL(data, width, height, pitch);
         }
     }
@@ -802,7 +842,7 @@ bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
     {
         if (status_surface_top_right == nullptr)
         {
-            status_surface_top_right = go2_surface_create(display, numbers.width * 2, (numbers.height /10)  , format_565);
+            status_surface_top_right = go2_surface_create(display, numbers.width * 2, (numbers.height / 10), format_565);
         }
         showFPSImage();
         showStatus = true;
@@ -933,9 +973,9 @@ inline void core_video_refresh_OPENGL(const void *data, unsigned width, unsigned
 
     // Swap
 
-    go2_context_swap_buffers(context3D);
+    //  go2_context_swap_buffers(context3D);
 
-    gles_surface = go2_context_surface_lock(context3D);
+    //    gles_surface = go2_context_surface_lock(context3D);
     // get some util info
     gs_w = go2_surface_width_get(gles_surface);
     gs_h = go2_surface_height_get(gles_surface);
@@ -950,12 +990,30 @@ inline void core_video_refresh_OPENGL(const void *data, unsigned width, unsigned
                            x, y, w, h,
                            _351Rotation);
     }
-    go2_context_surface_unlock(context3D, gles_surface);
 }
 
+const void *lastData;
+size_t lastPitch;
 void core_video_refresh(const void *data, unsigned width, unsigned height, size_t pitch)
 {
 
+    // if (width==0 && height==0 && pitch==0 ){
+    bool realPause = pause_requested && input_pause_requested;
+    bool showInfo = pause_requested && input_info_requested;
+    if (realPause || showInfo)
+    {
+        width = currentWidth;
+        height = currentHeight;
+        data = lastData;
+        pitch = lastPitch;
+        processVideoInAnotherThread = false;
+    }
+    else
+    {
+        lastData = data;
+        lastPitch = pitch;
+        processVideoInAnotherThread = isRG552() ? true : false;
+    }
     frameCounter++;
     // the following is for Fast Forwarding
     if (frameCounter == frameCounterSkip)
@@ -1012,7 +1070,10 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
     if (isOpenGL)
     {
 
-         if (processVideoInAnotherThread)
+        go2_context_swap_buffers(context3D);
+
+        gles_surface = go2_context_surface_lock(context3D);
+        if (processVideoInAnotherThread)
         {
             std::thread th(core_video_refresh_OPENGL, data, width, height, pitch);
             th.detach();
@@ -1021,6 +1082,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         {
             core_video_refresh_OPENGL(data, width, height, pitch);
         }
+        go2_context_surface_unlock(context3D, gles_surface);
     }
     else
     {

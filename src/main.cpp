@@ -25,7 +25,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include <unistd.h>
 
-//#include <go2/queue.h>
+// #include <go2/queue.h>
 
 #include <linux/dma-buf.h>
 #include <sys/ioctl.h>
@@ -366,14 +366,12 @@ static bool core_environment(unsigned cmd, void *data)
         break;
     }
 
-
     case RETRO_ENVIRONMENT_GET_TARGET_REFRESH_RATE:
     {
         float *var = (float *)data;
         *var = 60;
-          printf("-RR- -> SETTING REFRESH RATE CALLED!\n");
+        printf("-RR- -> SETTING REFRESH RATE CALLED!\n");
         return true;
-
     }
 
     case RETRO_ENVIRONMENT_GET_VARIABLE:
@@ -522,7 +520,7 @@ static void core_load(const char *sofile)
     printf("-RR- Core loaded\n");
 
     // we postpone this call later because some emulators dont like it (dosbox-core)
-    //g_retro.retro_set_controller_port_device(0, RETRO_DEVICE_JOYPAD);
+    // g_retro.retro_set_controller_port_device(0, RETRO_DEVICE_JOYPAD);
 
     struct retro_system_info system = {
         0, 0, 0, false, false};
@@ -546,7 +544,6 @@ static void core_load(const char *sofile)
     }
     coreName = system.library_name;
     printf("Core:'%s'\n", system.library_name);
-
 }
 
 static void core_load_game(const char *filename)
@@ -890,7 +887,7 @@ void initConfig()
         {
             const std::string &ssFolderValue = conf_map.at("retrorun_screenshot_folder");
             screenShotFolder = ssFolderValue;
-            printf("-RR - Info - screenshot folder:%s\n",screenShotFolder.c_str());
+            printf("-RR - Info - screenshot folder:%s\n", screenShotFolder.c_str());
         }
         catch (...)
         {
@@ -902,7 +899,7 @@ void initConfig()
         {
             const std::string &ssFps_counter = conf_map.at("retrorun_fps_counter");
             input_fps_requested = ssFps_counter == "enabled" ? true : false;
-            printf("-RR - Info - retrorun_fps_counter :%s\n",input_fps_requested ? "TRUE": "FALSE");
+            printf("-RR - Info - retrorun_fps_counter :%s\n", input_fps_requested ? "TRUE" : "FALSE");
         }
         catch (...)
         {
@@ -920,7 +917,7 @@ void initConfig()
             {
                 const std::string &arValue = conf_map.at("retrorun_aspect_ratio");
                 opt_aspect = getAspectRatio(arValue);
-                printf("-RR - Info - retrorun_aspect_ratio :%f\n",opt_aspect);
+                printf("-RR - Info - retrorun_aspect_ratio :%f\n", opt_aspect);
             }
             catch (...)
             {
@@ -962,7 +959,6 @@ void initConfig()
             printf("-RR- Warning: retrorun_loop_60_fps parameter not found in retrorun.cfg using default value (%s).\n", runLoopAt60fps ? "true" : "false");
         }
 
-
         try
         {
             const std::string &audioBufferValue = conf_map.at("retrorun_audio_buffer");
@@ -977,7 +973,7 @@ void initConfig()
             printf("-RR- Info: retrorun_audio_buffer parameter not found in retrorun.cfg using default value (-1).\n");
         }
 
-         try
+        try
         {
             const std::string &mouseSpeedValue = conf_map.at("retrorun_mouse_speed_factor");
             if (!mouseSpeedValue.empty())
@@ -1004,7 +1000,6 @@ void initConfig()
 int main(int argc, char *argv[])
 {
     // printf("argc=%d, argv=%p\n", argc, argv);
-
     getDeviceName(); // we need this call here (otherwise it doesnt work because the methos is called only later , this need to be refactored)
     initConfig();
 
@@ -1064,13 +1059,13 @@ int main(int argc, char *argv[])
         }
     }
 
-
-
     // gpio_joypad normally is false and should be set to true only for MP and 552
     // but the parameter sesetnd via command line wins so if that is true we leave it true
-    if (!gpio_joypad){
-        if (isRG351MP() || isRG552()){
-            gpio_joypad= true;
+    if (!gpio_joypad)
+    {
+        if (isRG351MP() || isRG552())
+        {
+            gpio_joypad = true;
         }
     }
 
@@ -1199,27 +1194,38 @@ int main(int argc, char *argv[])
     bool redrawInfo = true;
     // we postpone this here because if we do it before some emulators dont like it (Dosbox core)
     g_retro.retro_set_controller_port_device(0, RETRO_DEVICE_JOYPAD);
+
+    unsigned long long countNumFps = 0;
+    unsigned long long countValFps = 0;
+
+    auto start_time = std::chrono::steady_clock::now(); // loop start time
+    bool startCalAvgFps = false;
+
     while (isRunning)
     {
+
         auto nextClock = std::chrono::high_resolution_clock::now();
         // double deltaTime = (nextClock - prevClock).count() / 1e9;
-        bool realPause =pause_requested && input_pause_requested;
+        bool realPause = pause_requested && input_pause_requested;
         bool showInfo = pause_requested && input_info_requested;
         if (realPause || (showInfo && !redrawInfo))
         {
             // must poll to unpause
             totalFrames = 0; // reset total frames otherwise in next loop FPS are not accurate anymore
             core_input_poll();
-
+            core_video_refresh(nullptr, 0, 0, 0);
         }
         else
         {
             // in some cores (pcsx-rearmed for example) is not enough to put in pause immediatly when info request is done
             // we need to redraw the screen at least one time
-            if (showInfo){
-               redrawInfo = false;
-            }else {
-               redrawInfo = true;
+            if (showInfo)
+            {
+                redrawInfo = false;
+            }
+            else
+            {
+                redrawInfo = true;
             }
             g_retro.retro_run();
         }
@@ -1243,51 +1249,67 @@ int main(int argc, char *argv[])
 
         if ((runLoopAt60fps && sleepSecs > 0) && !input_ffwd_requested)
         {
-            //printf("-RR- waiting!\n");
+            // printf("-RR- waiting!\n");
             std::this_thread::sleep_for(std::chrono::nanoseconds((int64_t)(sleepSecs * 1e9)));
         }
         prevClock = nextClock;
         totClock = std::chrono::high_resolution_clock::now();
-        
-            totalFrames++;
-            elapsed += (totClock - nextClock).count() / 1e9;
+
+        totalFrames++;
+        elapsed += (totClock - nextClock).count() / 1e9;
+        newFps = (int)(totalFrames / elapsed);
+
+        if (!startCalAvgFps)
+        {
+            auto current_time = std::chrono::steady_clock::now();
+            auto elapsed_time = std::chrono::duration_cast<std::chrono::seconds>(current_time - start_time).count();
+
+            if (elapsed_time >= 7) // we wait 7 seconds before starting to count the Average FPS, we want to be sure everything is up and running well
+            {
+                startCalAvgFps = true;
+            }
+        }
+
+        if (startCalAvgFps && !(realPause || (showInfo && !redrawInfo)) && newFps > 0 && !input_ffwd_requested)
+        {
+            countNumFps++;
+            countValFps += newFps;
+            avgFps = countValFps / countNumFps;
+        }
+        retrorunLoopCounter++;
+        bool drawFps = false;
+        if (retrorunLoopCounter == retrorunLoopSkip)
+        {
+            drawFps = true;
             newFps = (int)(totalFrames / elapsed);
+            retrorunLoopCounter = 0;
+        }
+        if (adaptiveFps && !input_ffwd_requested)
+        {
 
-            retrorunLoopCounter++;
-            bool drawFps = false;
-            if (retrorunLoopCounter == retrorunLoopSkip)
+            if (previous_fps <= newFps)
             {
-                drawFps = true;
-                newFps = (int)(totalFrames / elapsed);
-                retrorunLoopCounter = 0;
+                max_fps = newFps < info.timing.fps / 2 ? (info.timing.fps / 2) + 10 : info.timing.fps;
+                max_fps = newFps < info.timing.fps * 2 / 3 ? (info.timing.fps * 2 / 3) + 5 : info.timing.fps;
             }
-            if (adaptiveFps && !input_ffwd_requested)
+            else
             {
-
-                if (previous_fps <= newFps)
-                {
-                    max_fps = newFps < info.timing.fps /2 ? (info.timing.fps/2) + 10 : info.timing.fps;
-                    max_fps = newFps < info.timing.fps *2/3 ? (info.timing.fps *2/3) +5: info.timing.fps;
-                }
-                else
-                {
-                    max_fps = info.timing.fps;
-                }
-                previous_fps = newFps;
+                max_fps = info.timing.fps;
             }
-            if (drawFps)
-            {
-                if (!input_ffwd_requested)
+            previous_fps = newFps;
+        }
+        if (drawFps)
+        {
+            if (!input_ffwd_requested)
                 fps = newFps > max_fps ? max_fps : newFps;
 
-                if (opt_show_fps && elapsed >= 1.0)
-                {
-                    printf("-RR- FPS: %f\n", fps);
-                }
-                totalFrames = 0;
-                elapsed = 0;
+            if (opt_show_fps && elapsed >= 1.0)
+            {
+                printf("-RR- FPS: %f\n", fps);
             }
-        
+            totalFrames = 0;
+            elapsed = 0;
+        }
     }
 
     printf("-RR- Exiting from render loop...\n");

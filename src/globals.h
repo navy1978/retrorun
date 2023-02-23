@@ -119,6 +119,8 @@ extern bool runLoopAt60fps;
 extern int retrorun_audio_buffer;
 extern int retrorun_mouse_speed_factor;
 
+extern float avgFps;
+
 #define BLACK 0x0000 // U16 definition
 #define RED 0xF800
 #define GREEN 0x07E0

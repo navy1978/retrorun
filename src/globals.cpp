@@ -28,7 +28,7 @@ static const int DEVICE_NAME_SIZE = 1024;
 static char DEVICE_NAME[DEVICE_NAME_SIZE];
 static bool deviceInitialized = false;
 
-std::string release = "2.1.1";
+std::string release = "2.1.2";
 
 RETRORUN_CORE_TYPE Retrorun_Core = RETRORUN_CORE_UNKNOWN;
 Device device = UNKNOWN;
@@ -66,6 +66,8 @@ bool runLoopAt60fps = true;
 int retrorun_audio_buffer = -1; // means it will be fixed to a value related with the original FPS of the game
 
 int retrorun_mouse_speed_factor = 5;
+
+float avgFps=0;
 
 const char *getEnv(const char *tag) noexcept
 {
