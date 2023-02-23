@@ -3,7 +3,7 @@ libretro frontend for Anbernic devices (RG351 M/P/V/MP and RG552)\
 Use this for RG351*/RG552 with rg351p-js2box available [here](https://github.com/christianhaitian/RG351P_virtual-gamepad).
 
 # This branch adds some features, the followign are part of them:
-1) external library libgo 2 now is part of retrorun
+1) External library libgo2 (https://github.com/OtherCrashOverride/libgo2) now is part of retrorun
 2) Tate mode (useful for naomi and atomiswave games)
 3) It enables right analog for ParallN64 (with C buttons management)
 4) Show FPS in the logs is -f flag is passed as parameter
@@ -11,6 +11,8 @@ Use this for RG351*/RG552 with rg351p-js2box available [here](https://github.com
 6) Configuration of cores is now done via file, by default the file is in: "/storage/.config/distribution/configs/retrorun.cfg" but another file can be specified via "-c" parameter
 7) Manages different aspect ratio (as parameters)
 8) Manages GPIO/USB joypad
+9) OSD with explicative images
+10) Info Menu with device / game information
 
 
 Retrorun parameters
