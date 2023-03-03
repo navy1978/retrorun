@@ -126,6 +126,9 @@ go2_rotation_t _351Rotation;
 int width_fixed = 640;
 int height_fixed = 480;
 
+int INFO_MENU_WIDTH =240;//288;
+int INFO_MENU_HEIGHT= 160;//192;
+
 uint32_t format_565 = DRM_FORMAT_RGB565; // DRM_FORMAT_RGB888; // DRM_FORMAT_XRGB8888;//color_format;
 
 int getFixedWidth(int alternative)
@@ -435,18 +438,25 @@ int posRetro = 3;
 bool loop = true;
 inline void showInfo(int w, go2_surface_t **surface)
 {
-    // batteryState.level, batteryStateDesc[batteryState.status]
-    rowForText = -10;
+     rowForText = 0;
     int posX = 0;
 
     // showText(posRetro, getRowForText(), ("▬▬ι═══════ﺤ Retrorun -═══════ι▬▬ " + release+ " (2023)").c_str(), YELLOW, surface);
-    showText(posRetro, getRowForText(), ("Retrorun - " + release).c_str(), YELLOW, surface);
-    // printf("pos:%d\n",posRetro);
-    if (posRetro % 240 + 3 == 1)
+    std::string title = "Retrorun - " + release;  // The text to scroll
+    int title_length = title.length();
+    //printf("title_length :%d\n",title_length);
+    showText(posRetro, 0, title.c_str(), YELLOW, surface);
+    //printf("pos:%d\n",posRetro);
+    if (posRetro == (INFO_MENU_WIDTH - (title_length *8)))
     { // 240 is the width size of the info , 3 is the initial position
-        posRetro = 3;
+        step = -1;
+        //printf("resetto a negativo");
+    }else if (posRetro == 0)
+    { // 240 is the width size of the info , 3 is the initial position
+        step = 1;
+        //printf("resetto positivo");
     }
-    posRetro += 1;
+    posRetro += step;
     showText(posX, getRowForText(), " ", ORANGE, surface);
     showText(posX, getRowForText(), " ", ORANGE, surface);
     showText(posX, getRowForText(), " ", ORANGE, surface);
@@ -818,8 +828,8 @@ bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
     int res_height = height;
     if (input_info_requested)
     {
-        res_width = 240;
-        res_height = 160;
+        res_width =INFO_MENU_WIDTH;
+        res_height = INFO_MENU_HEIGHT;
 
         if (status_surface_full == nullptr)
         {
