@@ -57,8 +57,11 @@ double lastL3Pressed = -1;
 
 bool input_reset_requested = false;
 bool input_pause_requested = false;
+
+bool input_credits_requested= false;
 //bool input_ffwd_requested = false;
 go2_battery_state_t batteryState;
+go2_brightness_state_t brightnessState;
 
 static go2_input_state_t *gamepadState;
 static go2_input_state_t *prevGamepadState;
@@ -133,6 +136,49 @@ go2_input_state_t *input_gampad_current_get()
 {
     return gamepadState;
 }
+
+void manageCredits(){
+if (go2_input_state_button_get(gamepadState, Go2InputButton_B) == ButtonState_Pressed)
+    {
+        menuManager.handle_input_credits(B_BUTTON);
+    }
+    if (go2_input_state_button_get(gamepadState, Go2InputButton_A) == ButtonState_Pressed)
+    {
+        menuManager.handle_input_credits(A_BUTTON);
+    }
+}
+
+void manageMenu()
+{
+    // mutexInput.lock();
+    if (go2_input_state_button_get(gamepadState, Go2InputButton_B) == ButtonState_Pressed)
+    {
+        menuManager.handle_input(B_BUTTON);
+    }
+    if (go2_input_state_button_get(gamepadState, Go2InputButton_A) == ButtonState_Pressed)
+    {
+        menuManager.handle_input(A_BUTTON);
+    }
+    if (go2_input_state_button_get(gamepadState, Go2InputButton_DPadUp) == ButtonState_Pressed)
+    {
+        menuManager.handle_input(UP);
+    }
+    if (go2_input_state_button_get(gamepadState, Go2InputButton_DPadDown) == ButtonState_Pressed)
+    {
+        menuManager.handle_input(DOWN);
+    }
+    if (go2_input_state_button_get(gamepadState, Go2InputButton_DPadLeft) == ButtonState_Pressed)
+    {
+        menuManager.handle_input(LEFT);
+    }
+    if (go2_input_state_button_get(gamepadState, Go2InputButton_DPadRight) == ButtonState_Pressed)
+    {
+        menuManager.handle_input(RIGHT);
+    }
+    // mutexInput.unlock();
+}
+
+
 void core_input_poll(void)
 {
 
@@ -144,6 +190,7 @@ void core_input_poll(void)
     // Read inputs
     input_gamepad_read();
     go2_input_battery_read(input, &batteryState);
+    go2_input_brightness_read(input, &brightnessState);
     gettimeofday(&exitTimeStop, NULL);
     //double now = exitTime.tv_sec + (exitTime.tv_usec / 1000000.0);
     double now_seconds = (exitTimeStop.tv_sec - exitTimeStart.tv_sec);
@@ -247,6 +294,19 @@ void core_input_poll(void)
         }
     }
 
+
+    // if we are in the menu info we have to manage the input for that
+    if (input_credits_requested) {
+        manageCredits();
+    }else
+    if (input_info_requested)
+    {
+          // Release the lock before calling manageMenu()
+            // lock.unlock();
+            manageMenu();
+       
+    }
+
     if (!input_info_requested && go2_input_state_button_get(gamepadState, Go2InputButton_F1) == ButtonState_Pressed &&
         go2_input_state_button_get(gamepadState, startButton) == ButtonState_Pressed)
     {
@@ -314,6 +374,7 @@ void core_input_poll(void)
         {
             input_info_requested = !input_info_requested;
             pause_requested = input_info_requested;
+            input_credits_requested=false;
             // printf("pause_requested:%s input_info_requested:%s\n", pause_requested? "true": "false", input_info_requested? "true": "false");
             lastInforequestTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);    
             printf("input: Info requested OK\n");

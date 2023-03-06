@@ -69,6 +69,11 @@ int retrorun_mouse_speed_factor = 5;
 
 float avgFps=0;
 
+
+int current_volume=0;
+
+MenuManager menuManager= MenuManager();
+
 const char *getEnv(const char *tag) noexcept
 {
     const char *ret = std::getenv(tag);

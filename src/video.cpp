@@ -97,6 +97,7 @@ auto t_flash_start = std::chrono::high_resolution_clock::now();
 bool flash = false;
 extern go2_battery_state_t batteryState;
 const char *batteryStateDesc[] = {"UNK", "DSC", "CHG", "FUL"};
+extern go2_brightness_state_t brightnessState;
 bool first_video_refresh = true;
 float real_aspect_ratio = 0.0f;
 unsigned currentWidth = 0;
@@ -126,8 +127,8 @@ go2_rotation_t _351Rotation;
 int width_fixed = 640;
 int height_fixed = 480;
 
-int INFO_MENU_WIDTH =240;//288;
-int INFO_MENU_HEIGHT= 160;//192;
+int INFO_MENU_WIDTH = 240;  // 288;
+int INFO_MENU_HEIGHT = 160; // 192;
 
 uint32_t format_565 = DRM_FORMAT_RGB565; // DRM_FORMAT_RGB888; // DRM_FORMAT_XRGB8888;//color_format;
 
@@ -432,42 +433,242 @@ std::string stripReturnCarriage(std::string input)
     input[j] = '\0';
     return input;
 }
+
+
+
+int stepCredits = 15;
+int posYCredits = INFO_MENU_HEIGHT + 8 * 2;
+int time_credit = 2;
+bool canCreditBeDrawn(int pos)
+{
+    return pos > 0 && pos < INFO_MENU_HEIGHT -10;
+}
+
+void resetCredisPosition()
+{
+    posYCredits = INFO_MENU_HEIGHT + 8 * 2;
+}
+
+inline void showCenteredText(int y, const char *text, unsigned short color, go2_surface_t **surface)
+{
+    std::string title(text); // The text to scroll
+    int title_length = title.length();
+    showText(INFO_MENU_WIDTH / 2 - title_length * 8 / 2 , y, title.c_str(), color, surface);
+    //showText(0, y, title.c_str(), color, surface);
+}
+
+inline void drawCreditLine(int y, const char *text, unsigned short color, go2_surface_t **surface)
+{
+
+    int currentY = y;
+    if (canCreditBeDrawn(currentY))
+    {
+        showCenteredText(currentY, text, color, surface);
+    }
+}
+
+
+
 int switchColor = 30;
 int step = 1;
 int posRetro = 3;
 bool loop = true;
-inline void showInfo(int w, go2_surface_t **surface)
-{
-     rowForText = 0;
-    int posX = 0;
+std::string tabSpaces = "";
 
-    // showText(posRetro, getRowForText(), ("▬▬ι═══════ﺤ Retrorun -═══════ι▬▬ " + release+ " (2023)").c_str(), YELLOW, surface);
-    std::string title = "Retrorun - " + release;  // The text to scroll
-    int title_length = title.length();
-    //printf("title_length :%d\n",title_length);
-    showText(posRetro, 0, title.c_str(), YELLOW, surface);
-    //printf("pos:%d\n",posRetro);
-    if (posRetro == (INFO_MENU_WIDTH - (title_length *8)))
-    { // 240 is the width size of the info , 3 is the initial position
-        step = -1;
-        //printf("resetto a negativo");
-    }else if (posRetro == 0)
-    { // 240 is the width size of the info , 3 is the initial position
-        step = 1;
-        //printf("resetto positivo");
-    }
-    posRetro += step;
-    showText(posX, getRowForText(), " ", ORANGE, surface);
-    showText(posX, getRowForText(), " ", ORANGE, surface);
-    showText(posX, getRowForText(), " ", ORANGE, surface);
-    // const char* hostName= getEnv("HOSTNAME");
+inline void showInfoDevice(int w, go2_surface_t **surface, int posX)
+{
     std::string hostName(getDeviceName());
     hostName = stripReturnCarriage(hostName);
-    showText(posX, getRowForText(), ("- Device: " + hostName).c_str(), DARKGREY, surface);
-    std::string bat = "- Battery: ";
-    showText(posX, getRowForText(), const_cast<char *>(bat.append(std::to_string(batteryState.level)).append("%").c_str()), DARKGREY, surface);
+    showCenteredText( getRowForText(), (tabSpaces + "Model: " + hostName).c_str(), DARKGREY, surface);
+    std::string bat = tabSpaces + "Battery: ";
+    showCenteredText( getRowForText(), const_cast<char *>(bat.append(std::to_string(batteryState.level)).append("%").c_str()), DARKGREY, surface);
+}
 
-    std::string time = "- Time: ";
+inline void showInfoCore(int w, go2_surface_t **surface, int posX)
+{
+    std::string core = tabSpaces + "Name: ";
+    showCenteredText(getRowForText(), const_cast<char *>(core.append(coreName).c_str()), DARKGREY, surface);
+    std::string openGl = tabSpaces + "OpenGL: ";
+    showCenteredText( getRowForText(), const_cast<char *>(openGl.append(isOpenGL ? "true" : "false").c_str()), DARKGREY, surface);
+}
+
+inline void showInfoGame(int w, go2_surface_t **surface, int posX)
+{
+    std::string origFps = tabSpaces + "Orignal FPS: ";
+    showCenteredText( getRowForText(), const_cast<char *>(origFps.append(std::to_string((int)originalFps)).c_str()), DARKGREY, surface);
+
+    std::string averageFps = tabSpaces + "Average FPS: ";
+    showCenteredText( getRowForText(), const_cast<char *>(averageFps.append(std::to_string((int)avgFps)).c_str()), DARKGREY, surface);
+
+    std::string res2 = tabSpaces + "Resolution: ";
+    showCenteredText( getRowForText(), const_cast<char *>(res2.append(std::to_string(currentWidth)).append("x").append(std::to_string(currentHeight)).c_str()), DARKGREY, surface);
+}
+
+inline void showCredits(go2_surface_t **surface)
+{
+
+    // Copyright (C) 2020  OtherCrashOverride
+    // Copyright (C) 2021-present  navy1978
+
+    if (time_credit > 0)
+    {
+        time_credit--;
+    }
+    else
+    {
+        posYCredits--;
+        time_credit = 3;
+    }
+
+    /// DEV
+    int currentY = posYCredits;
+
+    drawCreditLine(currentY, "Retrorun", ORANGE, surface);
+    currentY += stepCredits * 3;
+    drawCreditLine(currentY, "Developers", DARKGREY, surface);
+    currentY += stepCredits;
+    drawCreditLine(currentY, "OtherCrashOverride", WHITE, surface);
+    currentY += stepCredits;
+    drawCreditLine(currentY, "navy1978", WHITE, surface);
+    currentY += stepCredits * 3;
+    drawCreditLine(currentY, "Thanks to", DARKGREY, surface);
+    currentY += stepCredits;
+    drawCreditLine(currentY, "Cebion", WHITE, surface);
+    currentY += stepCredits;
+    drawCreditLine(currentY, "Christian_Haitian", WHITE, surface);
+    currentY += stepCredits;
+    drawCreditLine(currentY, "dhwz", WHITE, surface);
+    currentY += stepCredits;
+    drawCreditLine(currentY, "madcat1990", WHITE, surface);
+    currentY += stepCredits;
+    drawCreditLine(currentY, "Szalik", WHITE, surface);
+
+    /* if (canCreditBeDrawn(currentY))
+     {
+         showCenteredText(0, currentY, "Developers", DARKGREY, surface);
+     }
+     currentY += stepCredits;
+     if (canCreditBeDrawn(currentY))
+     {
+         showCenteredText(0, currentY, "OtherCrashOverride", WHITE, surface);
+     }
+
+     currentY += stepCredits;
+     if (canCreditBeDrawn(currentY))
+     {
+         showCenteredText(0, currentY, "navy1978", WHITE, surface);
+     }
+     //// GRAPHIC
+
+     currentY += stepCredits * 3;
+     if (canCreditBeDrawn(currentY))
+     {
+         showCenteredText(0, currentY, "Thanks to", DARKGREY, surface);
+     }
+     currentY += stepCredits;
+     if (canCreditBeDrawn(currentY))
+     {
+         showCenteredText(0, currentY, "Cebion", WHITE, surface);
+     }
+     currentY += stepCredits;
+     if (canCreditBeDrawn(currentY))
+     {
+         showCenteredText(0, currentY, "Christian_Haitian", WHITE, surface);
+     }
+
+     currentY += stepCredits;
+     if (canCreditBeDrawn(currentY))
+     {
+         showCenteredText(0, currentY, "dhwz", WHITE, surface);
+     }
+     currentY += stepCredits;
+     if (canCreditBeDrawn(currentY))
+     {
+         showCenteredText(0, currentY, "madcat1990", WHITE, surface);
+     }
+     currentY += stepCredits;
+     if (canCreditBeDrawn(currentY))
+     {
+         showCenteredText(0, currentY, "Szalik", WHITE, surface);
+     }*/
+
+    if (currentY < 0)
+    {                                     // they are over
+        std::string title = "Thank you!"; // The text to scroll
+        int title_length = title.length();
+        showText(INFO_MENU_WIDTH / 2 - title_length * 8 / 2, INFO_MENU_HEIGHT / 2 - 8 / 2, title.c_str(), WHITE, surface);
+    }
+}
+
+int size_char = 8;
+inline void showInfo(int w, go2_surface_t **surface)
+{
+
+    rowForText = 0;
+    int posX = 0;
+
+    std::string title = "Retrorun - " + release; // The text to scroll
+    int title_length = title.length();
+    showText(posRetro, 2, title.c_str(), WHITE, surface);
+    if (posRetro == (INFO_MENU_WIDTH - (title_length * size_char)))
+    {
+        step = -1;
+    }
+    else if (posRetro == 0)
+    {
+        step = 1;
+    }
+    posRetro += step;
+
+    showText(posX, getRowForText(), " ", ORANGE, surface);
+    showText(posX, getRowForText(), " ", ORANGE, surface);
+
+    Menu &menu = menuManager.getCurrentMenu();
+    std::string menuTitle = menu.getName();
+    int menuTitle_length = menuTitle.length();
+
+    showText(INFO_MENU_WIDTH / 2 - menuTitle_length * size_char / 2, getRowForText(), (menu.getName()).c_str(), ORANGE, surface);
+    showText(posX, getRowForText(), " ", ORANGE, surface);
+    // showText(posX, getRowForText(), " ", ORANGE, surface);
+    // showText(posX, getRowForText(), " ", ORANGE, surface);
+    for (int i = 0; i < menu.getSize(); i++)
+    {
+
+        MenuItem &mi = menu.getItems()[i];
+        if (mi.get_name() == SHOW_DEVICE)
+        {
+            showInfoDevice(w, surface, posX);
+        }
+        else if (mi.get_name() == SHOW_CORE)
+        {
+            showInfoCore(w, surface, posX);
+        }
+        else if (mi.get_name() == SHOW_GAME)
+        {
+            showInfoGame(w, surface, posX);
+        }
+        /*else if (mi.get_name() == SHOW_CREDITS)
+       {
+           showCredits(surface);
+       }*/
+        else if (mi.getMenu() != NULL)
+        {
+
+            showCenteredText(getRowForText(), (tabSpaces + mi.get_name()).c_str(), mi.isSelected() ? WHITE : DARKGREY, surface);
+            // showText(posX, getRowForText(), " ", ORANGE, surface);
+        }
+        else if (mi.m_valueCalculator != NULL)
+        {
+            showCenteredText(getRowForText(), (tabSpaces + mi.get_name() + ": < " + std::to_string(mi.getValue()) + mi.getMisUnit() + " >").c_str(), mi.isSelected() ? WHITE : DARKGREY, surface);
+            // showText(posX, getRowForText(), " ", ORANGE, surface);
+        }
+        else
+        {
+            showCenteredText(getRowForText(), (tabSpaces + mi.get_name()).c_str(), mi.isSelected() ? WHITE : DARKGREY, surface);
+            // showText(posX, getRowForText(), " ", ORANGE, surface);
+        }
+    }
+
     time_t curr_time;
     tm *curr_tm;
 
@@ -477,54 +678,40 @@ inline void showInfo(int w, go2_surface_t **surface)
     curr_tm = localtime(&curr_time);
 
     strftime(time_string, 50, "%R", curr_tm);
-    showText(posX, getRowForText(), const_cast<char *>(time.append(time_string).c_str()), DARKGREY, surface);
+    std::string timeString(time_string);
+    int timeString_length = timeString.length();
 
-    std::string core = "- Core: ";
-    showText(posX, getRowForText(), const_cast<char *>(core.append(coreName).c_str()), DARKGREY, surface);
-    std::string openGl = "- OpenGL: ";
-    if (isOpenGL)
+    std::string delimiter = ":";
+
+    std::string arr[2];
+
+    size_t pos = 0;
+    std::string token;
+    int i = 0;
+    while ((pos = timeString.find(delimiter)) != std::string::npos)
     {
-        showText(posX, getRowForText(), const_cast<char *>(openGl.append(isOpenGL ? "true" : "false").c_str()), DARKGREY, surface);
+        token = timeString.substr(0, pos);
+        arr[i] = token.c_str();
+        timeString.erase(0, pos + delimiter.length());
+        i++;
     }
-    else
-    {
-        showText(posX, getRowForText(), const_cast<char *>(openGl.append(isOpenGL ? "true" : "false").c_str()), DARKGREY, surface);
-    }
+    arr[i] = timeString.c_str();
+    posX = INFO_MENU_WIDTH - 1 - timeString_length * size_char;
 
-    std::string origFps = "- Orignal FPS (Game): ";
-    showText(posX, getRowForText(), const_cast<char *>(origFps.append(std::to_string((int)originalFps)).c_str()), DARKGREY, surface);
-
-    /*
-        std::string res = "Resolution (base): ";
-        showText(posX, getRowForText(), const_cast<char *>(res.append(std::to_string(base_width)).append("x").append(std::to_string(base_height)).c_str()), 0xffff);
-        std::string res2 = "Resolution (int.): ";
-        showText(posX, getRowForText(), const_cast<char *>(res2.append(std::to_string(currentWidth)).append("x").append(std::to_string(currentHeight)).c_str()), 0xffff);
-
-        std::string displ = "Resolution (dis.): ";
-        showText(posX, getRowForText(), const_cast<char *>(displ.append(std::to_string(w)).append("x").append(std::to_string(h)).c_str()), 0xffff);
-    */
-
-    std::string averageFps = "- Average FPS (Game): ";
-    showText(posX, getRowForText(), const_cast<char *>(averageFps.append(std::to_string((int)avgFps)).c_str()), DARKGREY, surface);
-
-    std::string res2 = "- Resolution (Game): ";
-    showText(posX, getRowForText(), const_cast<char *>(res2.append(std::to_string(currentWidth)).append("x").append(std::to_string(currentHeight)).c_str()), DARKGREY, surface);
-
-    showText(posX, getRowForText(), " ", 0xf800, surface);
-    showText(posX, getRowForText(), " ", 0xf800, surface);
-    showText(posX, getRowForText(), " ", 0xf800, surface);
+    showText(posX, INFO_MENU_HEIGHT - 1 - size_char, arr[0].c_str(), WHITE, surface);
     if (switchColor > 0)
     {
-        showText(posX, getRowForText(), "   Press L3 + R3 to resume", DARKGREY, surface);
+        showText(posX + 2 * size_char, INFO_MENU_HEIGHT - 1 - size_char, ":", WHITE, surface);
     }
     else
     {
-        showText(posX, getRowForText(), "   Press L3 + R3 to resume", WHITE, surface);
+        showText(posX + 2 * size_char, INFO_MENU_HEIGHT - 1 - size_char, " ", WHITE, surface);
         if (switchColor < -30)
         {
             switchColor = 30;
         }
     }
+    showText(posX + 3 * size_char, INFO_MENU_HEIGHT - 1 - size_char, arr[1].c_str(), WHITE, surface);
     switchColor--;
 }
 
@@ -718,8 +905,102 @@ inline void prepareScreen(int width, int height)
         isTate = (Retrorun_Core == RETRORUN_CORE_FLYCAST); // we rotate the screen (Tate) for some arcade games when apsect ratio < 0
     }
 }
+int colorInc = 0;
 
-inline void makeScreenBlack(go2_surface_t *go2_surface, int res_width, int res_height)
+/*inline void makeScreenBlackCredits(go2_surface_t *go2_surface, int res_width, int res_height)
+{
+
+    bool specialCase = (isJaguar() || isBeetleVB() || isDosBox() || isDosCore() || isMame());
+    uint8_t *dst = (uint8_t *)go2_surface_map(go2_surface);
+    int my_height=go2_surface_height_get(go2_surface);
+    int my_width=go2_surface_width_get(go2_surface);
+    if (dst == nullptr)
+    {
+        return;
+    }
+    int yy = my_height;
+    while (yy > 0)
+    {
+
+
+
+
+
+        for (int x = 0; x < (short)my_width * 2; ++x)
+        {
+
+
+
+
+                dst[x] = 0x000000;
+
+        }
+        dst += go2_surface_stride_get(go2_surface);
+        --yy;
+    }
+}*/
+
+inline void makeScreenBlackCredits(go2_surface_t *go2_surface, int res_width, int res_height)
+{
+    bool specialCase = (isJaguar() || isBeetleVB() || isDosBox() || isDosCore() || isMame());
+    // res_width = specialCase? res_width * 2 : res_width; // just to be sure to cover the full screen (in some emulators is not enough to use res_width)
+    uint8_t *dst = (uint8_t *)go2_surface_map(go2_surface);
+    if (dst == nullptr)
+    {
+        return;
+    }
+
+    int lineWidth = 2;
+    int lineSpacing = 14; // spacing between the two lines
+
+    // Calculate the x-coordinates of the lines
+    int lineX1 = res_width - lineWidth - lineSpacing - 20;
+    int lineX2 = res_width - lineWidth - lineSpacing * 2 - 30;
+    int lineX3 = res_width - lineSpacing - 2;
+
+    int yy = res_height;
+    while (yy > 0)
+    {
+        for (int x = 0; x < (short)res_width * 2; ++x)
+        {
+            // if (x == lineX1 || x == lineX2 || x == lineX3) {
+            // int max_x= specialCase ? res_width -30 :res_width*2 - 30;
+            if (x < 30 || x > res_width * 2 - 30)
+            {
+                int newColor = ((colorInc + x + yy) % 32) + 210; // >255 ;
+                dst[x] = newColor >= 255 ? 0 : newColor;         // 240; // white color for the lines
+
+                // Arancio: (255, 165, 0) -> (7, 5, 0) in formato RGB a 3 bit -> 0xE0
+                // Verde: (0, 255, 0) -> (0, 7, 0) in formato RGB a 3 bit -> 0x1C
+                // Rosso: (255, 0, 0) -> (7, 0, 0) in formato RGB a 3 bit -> 0xE0
+                // Blu: (0, 0, 255) -> (0, 0, 7) in formato RGB a 3 bit -> 0x03
+
+                // int newColorInt =colorInc + x;
+                //  uint8_t r = (newColorInt >> 5) & 0x07;
+                //     uint8_t g = (newColorInt >> 2) & 0x07;
+                //     uint8_t b = newColorInt & 0x03;
+
+                // Combina i tre componenti per formare il colore a 3 bit
+                //  uint8_t colorCombined = (r << 5) | (g << 2) | b;
+
+                //           dst[x] =  colorCombined;//0xE0;//255; // componente di colore rosso (Red)
+            }
+            else
+            {
+                dst[x] = 0x000000; // black color for the rest of the screen
+            }
+        }
+        dst += go2_surface_stride_get(go2_surface);
+        --yy;
+    }
+    colorInc++;
+}
+
+int colSwitch = 30;
+int col = 42;
+
+/*
+inline void makeScreenBlackCredits(go2_surface_t *go2_surface, int res_width, int res_height)
 {
     res_width = (isJaguar() || isBeetleVB() || isDosBox() || isDosCore() || isMame()) ? res_width * 2 : res_width; // just to be sure to cover the full screen (in some emulators is not enough to use res_width)
     uint8_t *dst = (uint8_t *)go2_surface_map(go2_surface);
@@ -730,22 +1011,166 @@ inline void makeScreenBlack(go2_surface_t *go2_surface, int res_width, int res_h
     int yy = res_height;
     while (yy > 0)
     {
-        if (color_format == DRM_FORMAT_RGBA5551)
-        {
-            uint32_t *dst2 = (uint32_t *)dst;
-            for (int x = 0; x < (short)res_width / 2; ++x)
-            {
-                dst2[x] = 0x000000;
-            }
-        }
-        for (int x = 0; x < (short)res_width * 2; ++x)
+
+        for (int x = 0; x < res_width *2; ++x)
         {
             dst[x] = 0x000000;
         }
         dst += go2_surface_stride_get(go2_surface);
         --yy;
     }
+}*/
+
+inline void makeScreenBlack(go2_surface_t *go2_surface, int res_width, int res_height)
+{
+    // res_width = (isJaguar() || isBeetleVB() || isDosBox() || isDosCore() || isMame()) ? res_width * 2 : res_width; // just to be sure to cover the full screen (in some emulators is not enough to use res_width)
+    uint8_t *dst = (uint8_t *)go2_surface_map(go2_surface);
+    if (dst == nullptr)
+    {
+        return;
+    }
+    int yy = res_height;
+    while (yy > 0)
+    {
+        /*if (color_format == DRM_FORMAT_RGBA5551)
+        {
+            uint32_t *dst2 = (uint32_t *)dst;
+            for (int x = 0; x < (short)res_width / 2; ++x)
+            {
+                dst2[x] = 0x000000;
+            }
+        }*/
+        for (int x = 0; x < (short)res_width * 2; ++x)
+        {
+            if (yy < 12)
+            {
+                dst[x] = 33; // 42;
+            }
+            else if (yy > res_height - 12)
+            {
+                dst[x] = 33;
+            }
+            else
+            {
+
+                dst[x] = 0x000000;
+            }
+        }
+        dst += go2_surface_stride_get(go2_surface);
+        --yy;
+    }
 }
+
+inline void makeScreenBlack_old(go2_surface_t *go2_surface, int res_width, int res_height)
+{
+    // res_width = (isJaguar() || isBeetleVB() || isDosBox() || isDosCore() || isMame()) ? res_width * 2 : res_width; // just to be sure to cover the full screen (in some emulators is not enough to use res_width)
+    uint8_t *dst = (uint8_t *)go2_surface_map(go2_surface);
+    int my_height = go2_surface_height_get(go2_surface);
+    int my_width = go2_surface_width_get(go2_surface);
+    if (dst == nullptr)
+    {
+        return;
+    }
+    int yy = my_height;
+    while (yy > 0)
+    {
+
+        for (int x = 0; x < (short)my_width * 2; ++x)
+        {
+
+            if (yy < 12)
+            {
+                dst[x] = 33; // 42;
+            }
+            else if (yy > my_height - 12)
+            {
+                dst[x] = 33;
+            }
+            else
+            {
+
+                dst[x] = 0x000000;
+            }
+        }
+        dst += go2_surface_stride_get(go2_surface);
+        --yy;
+    }
+}
+
+/*
+inline void makeScreenBlack(go2_surface_t *go2_surface, int res_width, int res_height, bool credits)
+{
+    res_width = (isJaguar() || isBeetleVB() || isDosBox() || isDosCore() || isMame()) ? res_width * 2 : res_width; // just to be sure to cover the full screen (in some emulators is not enough to use res_width)
+    uint8_t *dst = (uint8_t *)go2_surface_map(go2_surface);
+    if (dst == nullptr)
+    {
+        return;
+    }
+    int yy = res_height;
+    while (yy > 0)
+    {
+
+        for (int x = 0; x < (short)res_width * 2; ++x)
+        {
+            if (!credits && yy < 12)
+            {
+                dst[x] = 33; // 42;
+            }
+            else if (!credits && yy > res_height - 12)
+            {
+                dst[x] = 33;
+            }
+            else
+            {
+                if (credits && ((x >= (short)res_width - 10 && x <= (short)res_width - 15) ||
+                                (x >= (short)res_width - 20 && x <= (short)res_width - 25)))
+                {
+                    dst[x] = 65; // white color for the lines
+                }
+                else
+                {
+                    dst[x] = 0x000000;
+                }
+            }
+
+            // dst[x] = 0x000000;
+        }
+        dst += go2_surface_stride_get(go2_surface);
+        --yy;
+    }
+    colSwitch--;
+}*/
+/*inline void makeScreenBlack(go2_surface_t *go2_surface, int res_width, int res_height)
+{
+    res_width = (isJaguar() || isBeetleVB() || isDosBox() || isDosCore() || isMame()) ? res_width * 2 : res_width; // just to be sure to cover the full screen (in some emulators is not enough to use res_width)
+    uint32_t *dst = (uint32_t *)go2_surface_map(go2_surface);
+    if (dst == nullptr)
+    {
+        return;
+    }
+    int yy = res_height;
+    while (yy > 0)
+    {
+        if (color_format == DRM_FORMAT_RGBA5551)
+        {
+            uint16_t *dst2 = (uint16_t *)dst;
+            for (int x = 0; x < (short)res_width / 2; ++x)
+            {
+                dst2[x] = 0x7FFF;//0x0000;
+            }
+        }
+        for (int x = 0; x < (short)res_width; ++x)
+        {
+            if (yy < 8) {
+                dst[x] = 0xFFFF00;
+            } else {
+                dst[x] = 0x000000;
+            }
+        }
+        dst += go2_surface_stride_get(go2_surface) / sizeof(uint32_t);
+        --yy;
+    }
+}*/
 
 inline bool continueToShowScreenshotImage()
 {
@@ -826,17 +1251,27 @@ bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
     bool showStatus = false;
     int res_width = width;
     int res_height = height;
-    if (input_info_requested)
+    if (input_info_requested || input_credits_requested)
     {
-        res_width =INFO_MENU_WIDTH;
+        res_width = INFO_MENU_WIDTH;
         res_height = INFO_MENU_HEIGHT;
 
         if (status_surface_full == nullptr)
         {
             status_surface_full = go2_surface_create(display, res_width, res_height, format_565);
         }
-        makeScreenBlack(status_surface_full, res_width, res_height);
-        showInfo(gs_w, &status_surface_full);
+
+        if (input_credits_requested)
+        {
+
+            makeScreenBlackCredits(status_surface_full, res_width, res_height);
+            showCredits(&status_surface_full);
+        }
+        else
+        {
+            makeScreenBlack(status_surface_full, res_width, res_height);
+            showInfo(gs_w, &status_surface_full);
+        }
         showStatus = true;
         status_obj->show_full = true;
     }
@@ -848,7 +1283,7 @@ bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
             drawNonOpenGL(data, width, height, pitch);
         }
     }
-    if (input_fps_requested && !input_info_requested)
+    if (input_fps_requested && !input_info_requested && !input_credits_requested)
     {
         if (status_surface_top_right == nullptr)
         {
@@ -862,7 +1297,7 @@ bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
     {
         status_obj->show_top_right = false;
     }
-    if (screenshot_requested && !input_info_requested)
+    if (screenshot_requested && !input_info_requested && !input_credits_requested)
     {
         takeScreenshot(res_width, res_height, _351BlitRotation);
     }
@@ -886,7 +1321,7 @@ bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
     {
         status_obj->show_top_left = false;
     }
-    if (input_exit_requested_firstTime && !input_info_requested)
+    if (input_exit_requested_firstTime && !input_info_requested && !input_credits_requested)
     {
         showImage(quit, &status_surface_bottom_left);
         showStatus = true;
@@ -898,7 +1333,7 @@ bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
         showStatus = true;
         status_obj->show_bottom_left = true;
     }
-    if (!input_exit_requested_firstTime && !input_pause_requested)
+    if (!input_exit_requested_firstTime && !input_pause_requested && !input_credits_requested)
     {
         status_obj->show_bottom_left = false;
     }
@@ -1007,10 +1442,7 @@ size_t lastPitch;
 void core_video_refresh(const void *data, unsigned width, unsigned height, size_t pitch)
 {
 
-    // if (width==0 && height==0 && pitch==0 ){
-    bool realPause = pause_requested && input_pause_requested;
-    bool showInfo = pause_requested && input_info_requested;
-    if (realPause || showInfo)
+    if (input_info_requested)
     {
         width = currentWidth;
         height = currentHeight;

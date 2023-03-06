@@ -20,9 +20,30 @@ std::cout << t;
 /**
  * TODO:
  * 
- * revove the double images size (we can keep only one)
- * clean up the code
-
  * 
+
+-)gestire una risoluzione piu alta nel menu 
+(ma bisogna modificare come è fatoo ora altrimenti lancia exception per core con risoluzioni basse)
+- Quit deve avere la conferma
+
+
+
+ *  // settging volumen: :
+ amixer set 'Playback' 20%-    meno
+ amixer set 'Playback' 20%+     piu
+
+suonare un file per fare sentire il rumore:
+
+aplay /usr/share/sounds/alsa/Noise.wav
+
+oppure converti il file wav in c array :
+https://www.youtube.com/watch?v=1cWkjzU5vg8
+e poi lo suoni con la libreria che hai già ... in imput.cpp
+
+
+ luminosita:
+
+ cat /sys/class/backlight/backlight/brightness
+ echo 30 > /sys/class/backlight/backlight/brightness
  * 
 */

@@ -18,33 +18,41 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 #pragma once
+#ifndef MENU_H
+#define MENU_H
+
+#include <string>
+#include <vector>
+#include <mutex>
 
 
-#include <go2/display.h>
+class MenuItem;
 
+class Menu {
+public:
+     Menu(std::string name, std::vector<MenuItem> items);
+    Menu();
+    int getId() const;
+    void setId(int id);
+    std::vector<MenuItem>& getItems();
+    void setItems(const std::vector<MenuItem>& items);
+    Menu* getPreviousMenu();
+    void setPreviousMenu(Menu* menu);
+    bool hasPreviousMenu() const;
+    std::string getName() const;
+    void setName(const std::string& name);
+    void resetSelected();
+    void resetSelected(int newSel);
+    int getSize();
 
-
-enum STATUS_POSITION
-{
-  TOP_LEFT= 0,
-  TOP_RIGHT,
-  BUTTOM_LEFT,
-  BUTTOM_RIGHT,
-  FULL,
-
+private:
+    int id_;
+    std::vector<MenuItem> items_;
+    Menu* previousMenu_;
+    std::string name_;
+    int size_;
+    std::mutex items_mutex_;
 };
 
-class status  {
+#endif 
 
-    public: 
-    go2_surface_t *top_right; 
-    go2_surface_t *bottom_right;
-    go2_surface_t *top_left;
-    go2_surface_t *bottom_left;
-    go2_surface_t *full;
-    bool show_top_right;
-    bool show_bottom_right;
-    bool show_top_left;
-    bool show_bottom_left;
-    bool show_full;
-} ;

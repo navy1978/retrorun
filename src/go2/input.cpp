@@ -45,14 +45,17 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 
 #define BATTERY_BUFFER_SIZE (128)
-
+#define BRIGHTNESS_BUFFER_SIZE (128)
+// joypad
 static const char* EVDEV_NAME = "/dev/input/by-path/platform-odroidgo2-joypad-event-joystick";
 static const char* EVDEV_NAME_2 = "/dev/input/by-path/platform-odroidgo3-joypad-event-joystick";
+// battery
 static const char* BATTERY_STATUS_NAME = "/sys/class/power_supply/battery/status";
 static const char* BATTERY_CAPACITY_NAME = "/sys/class/power_supply/battery/capacity";
 static const char* BATTERY_STATUS_NAME_2 = "/sys/class/power_supply/bat/status";
 static const char* BATTERY_CAPACITY_NAME_2 = "/sys/class/power_supply/bat/capacity";
-
+// brightness
+static const char* BRIGHTNESS_VALUE_NAME = "/sys/class/backlight/backlight/brightness";
 
 
 #define GO2_THUMBSTICK_COUNT (Go2InputThumbstick_Right + 1)
@@ -72,9 +75,14 @@ typedef struct go2_input
     go2_input_state_t current_state;
     go2_input_state_t pending_state;    
     pthread_mutex_t gamepadMutex;
+    pthread_mutex_t batteryMutex;
+    pthread_mutex_t brightnessMutex;
     pthread_t thread_id;
     go2_battery_state_t current_battery;
     pthread_t battery_thread;
+    go2_brightness_state_t current_brightness;
+    pthread_t brightness_thread;
+    pthread_t volume_thread;
     bool terminating;
     const char* device;
 } go2_input_t;
@@ -148,11 +156,11 @@ static void* battery_task(void* arg)
         }
 
 
-        pthread_mutex_lock(&input->gamepadMutex);
+        pthread_mutex_lock(&input->batteryMutex);
 
         input->current_battery = battery;
 
-        pthread_mutex_unlock(&input->gamepadMutex); 
+        pthread_mutex_unlock(&input->batteryMutex); 
         
         //printf("BATT: status=%d, level=%d\n", input->current_battery.status, input->current_battery.level);
 
@@ -160,6 +168,61 @@ static void* battery_task(void* arg)
     }
 
     //printf("BATT: exit.\n");
+    return result;
+}
+
+static void* brightness_task(void* arg)
+{
+    
+     
+    go2_input_t* input = (go2_input_t*)arg;
+    int fd;
+    void* result = 0;
+    char buffer[BRIGHTNESS_BUFFER_SIZE + 1];
+    go2_brightness_state_t brightness;
+
+
+    memset(&brightness, 0, sizeof(brightness));
+
+
+   
+    const char* brightnessValue = BRIGHTNESS_VALUE_NAME;
+   
+
+    while(!input->terminating)
+    {
+        
+
+        fd = open(brightnessValue, O_RDONLY);
+        if (fd > 0)
+        {
+            memset(buffer, 0, BRIGHTNESS_BUFFER_SIZE + 1);
+            ssize_t count = read(fd, buffer, BRIGHTNESS_BUFFER_SIZE);
+            if (count > 0)
+            {
+                brightness.level = atoi(buffer);
+            }
+            else
+            {
+                brightness.level = 0;
+            }
+            
+            close(fd);
+        }
+
+
+        pthread_mutex_lock(&input->brightnessMutex);
+
+        input->current_brightness = brightness;
+
+        pthread_mutex_unlock(&input->brightnessMutex); 
+        
+        //printf("BRIGHTNESS: level=%d\n",  input->current_brightness.level);
+
+        sleep(1);      
+    }
+
+    //printf("BRIGHTNESS: exit.\n");
     return result;
 }
 
@@ -389,6 +452,11 @@ go2_input_t* go2_input_create(const char* device)
             printf("could not create battery_task thread\n");
         }
 
+        if(pthread_create(&result->brightness_thread, NULL, brightness_task, (void*)result) < 0)
+        {
+            printf("could not create brightness_task thread\n");
+        }
+
     }
 
     return result;
@@ -413,6 +481,7 @@ void go2_input_destroy(go2_input_t* input)
 
     pthread_join(input->thread_id, NULL);
     pthread_join(input->battery_thread, NULL);
+    pthread_join(input->brightness_thread, NULL);
 
     libevdev_free(input->dev);
     close(input->fd);
@@ -451,11 +520,42 @@ void go2_input_gamepad_read(go2_input_t* input, go2_gamepad_state_t* outGamepadS
 
 void go2_input_battery_read(go2_input_t* input, go2_battery_state_t* outBatteryState)
 {
-    pthread_mutex_lock(&input->gamepadMutex);
+    pthread_mutex_lock(&input->batteryMutex);
 
     *outBatteryState = input->current_battery;
 
-    pthread_mutex_unlock(&input->gamepadMutex);
+    pthread_mutex_unlock(&input->batteryMutex);
+}
+
+void go2_input_brightness_write(int value) {
+    FILE *brightness_file = fopen(BRIGHTNESS_VALUE_NAME, "w");
+    if (brightness_file == NULL) {
+        perror("Cannot open file for brightness");
+        return;
+    }
+    
+    if (fprintf(brightness_file, "%d", value) < 0) {
+        perror("Error writing value for brightness");
+        return;
+    }
+    
+    if (fclose(brightness_file) != 0) {
+        perror("Error closing file for brightness");
+        return;
+    }
+    
+    printf("Brightness set to %d\n",value);
+    
+    return;
+}
+
+void go2_input_brightness_read(go2_input_t* input, go2_brightness_state_t* outBrightnessState)
+{
+    pthread_mutex_lock(&input->brightnessMutex);
+
+    *outBrightnessState = input->current_brightness;
+
+    pthread_mutex_unlock(&input->brightnessMutex);
 }
 
 

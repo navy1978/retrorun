@@ -19,6 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 #pragma once
 #include <string>
+#include "menu_manager.h"
 
 extern std::string release;
 
@@ -122,18 +123,24 @@ extern int retrorun_mouse_speed_factor;
 extern float avgFps;
 
 #define BLACK 0x0000 // U16 definition
-#define RED 0xF800
+#define RED 0xF800 // DONT USE THIS: IT MAKES THE MENU CRASHES IN CERTAIN CORES
 #define GREEN 0x07E0
 #define DARKGREEN 0x0408
 #define WHITE 0xFFFF
 #define GREY 0x8410
 #define DARKGREY 0x7BEF
 #define LIGHTGREY 0xBDF7
-#define YELLOW 0xFFE0
+#define YELLOW 0xFFE0 // DONT USE THIS: IT MAKES THE MENU CRASHES IN CERTAIN CORES
 #define BLUE 0x001F
 #define CYAN 0x07FF
 #define LIGHTCYAN 0x87FF
 #define MAGENTA 0xF81F
 #define ORANGE 0xFBE0
-#define BROWN 0x79E0
+#define BROWN 0x79E0 // DONT USE THIS: IT MAKES THE MENU CRASHES IN CERTAIN CORES
 #define PINK 0xF81F
+
+
+// Define the menu
+extern MenuManager menuManager;
+extern int current_volume;
+

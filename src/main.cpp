@@ -70,6 +70,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 // extern go2_battery_state_t batteryState;
+extern go2_brightness_state_t brightnessState;
 
 retro_hw_context_reset_t retro_context_reset;
 
@@ -90,6 +91,8 @@ std::map<std::string, std::string> conf_map;
 bool opt_show_fps = false;
 bool auto_save = false;
 const char *ws = " \t\n\r\f\v";
+
+bool isRunning = true;
 
 struct option longopts[] = {
     {"savedir", required_argument, NULL, 's'},
@@ -997,6 +1000,102 @@ void initConfig()
     infile.close();
 }
 
+void fake(int button)
+{
+    printf("fake function...");
+}
+
+int getBrightnessValue()
+{
+    int value = brightnessState.level;
+    return value;
+}
+
+int step_left_right = 10;
+
+void setBrightnessValue(int button)
+{
+    int selectedBrigthness = brightnessState.level;
+    if (button == LEFT)
+    {
+        selectedBrigthness -= step_left_right;
+        if (selectedBrigthness < 1)
+            selectedBrigthness = step_left_right; // preventiing black screenn
+        if (selectedBrigthness > 100)
+            selectedBrigthness = 100;
+        go2_input_brightness_write(selectedBrigthness);
+    }
+    else if (button == RIGHT)
+    {
+        selectedBrigthness += step_left_right;
+        if (selectedBrigthness < 1)
+            selectedBrigthness = step_left_right; // preventiing black screenn
+        if (selectedBrigthness > 100)
+            selectedBrigthness = 100;
+        go2_input_brightness_write(selectedBrigthness);
+    }
+}
+
+int getAudioValue()
+{
+
+    int value = getVolume();
+
+    return value;
+}
+
+void setAudioValue(int button)
+{
+    int selectedVolume = getVolume();
+    if (button == LEFT)
+    {
+        selectedVolume -= step_left_right;
+        if (selectedVolume < 0)
+            selectedVolume = 0;
+        if (selectedVolume > 100)
+            selectedVolume = 100;
+        setVolume(selectedVolume);
+    }
+    else if (button == RIGHT)
+    {
+        selectedVolume += step_left_right;
+        if (selectedVolume < 0)
+            selectedVolume = 0;
+        if (selectedVolume > 100)
+            selectedVolume = 100;
+        setVolume(selectedVolume);
+    }
+}
+
+void resume(int button)
+{
+    if (button == A_BUTTON)
+    {
+        input_info_requested = false;
+    }
+}
+
+void quit(int button)
+{
+    if (button == A_BUTTON)
+    {
+        isRunning = false;
+    }
+}
+
+void showCredit(int button)
+{
+    if (button == A_BUTTON)
+    {
+        resetCredisPosition();
+        input_credits_requested =true;
+    } else if (button == B_BUTTON)
+    {
+        resetCredisPosition();
+        input_credits_requested =false;
+    }
+}
+
 int main(int argc, char *argv[])
 {
     // printf("argc=%d, argv=%p\n", argc, argv);
@@ -1172,7 +1271,7 @@ int main(int argc, char *argv[])
     // struct timeval endTime;
     double elapsed = 0;
     int totalFrames = 0;
-    bool isRunning = true;
+
     // sleep(1); // some cores (like yabasanshiro) from time to time hangs on retro_run otherwise
 
     struct retro_system_av_info info;
@@ -1201,6 +1300,64 @@ int main(int argc, char *argv[])
     auto start_time = std::chrono::steady_clock::now(); // loop start time
     bool startCalAvgFps = false;
 
+    // menu
+
+    // Define some example functions that can be used as menu actions
+
+    // Define the menu and menu items for Settgins
+
+   /* std::vector<std::string> numbers100_1;
+    std::vector<std::string> numbers100_2;
+
+    for (int i = 0; i <= 100; i++)
+    {
+        std::string num_str_1 = std::to_string(i);
+        numbers100_1.push_back(num_str_1);
+        std::string num_str_2 = std::to_string(i);
+        numbers100_2.push_back(num_str_2);
+    }*/
+
+    std::vector<MenuItem> itemsSettings = {
+        MenuItem("Volume", getAudioValue, setAudioValue, "%"),
+        MenuItem("Brightness", getBrightnessValue, setBrightnessValue, "%")};
+
+    Menu menuSettings = Menu("Settings", itemsSettings);
+
+    // define the menu and menu items for Info
+    std::vector<MenuItem> device = {
+        MenuItem(SHOW_DEVICE, NULL)};
+    Menu menuInfoDevice = Menu("Device", device);
+
+    std::vector<MenuItem> core = {
+        MenuItem(SHOW_CORE, NULL)};
+    Menu menuInfoCore = Menu("Core", core);
+
+    std::vector<MenuItem> game = {
+        MenuItem(SHOW_GAME, NULL)};
+    Menu menuInfoGame = Menu("Game", game);
+
+    std::vector<MenuItem> itemsInfo = {
+        MenuItem("Device", &menuInfoDevice, fake),
+        MenuItem("Core", &menuInfoCore, fake),
+        MenuItem("Game", &menuInfoGame, fake)};
+
+
+
+    // define Main Menu
+    Menu menuInfo = Menu("Info", itemsInfo);
+    std::vector<MenuItem> items = {
+        MenuItem("Resume", resume),
+        MenuItem("Info", &menuInfo, fake),
+        MenuItem("Settings", &menuSettings, fake),
+        MenuItem("Quit", quit),
+        MenuItem("Credits", showCredit),
+    };
+    Menu menu = Menu("Main Menu", items);
+
+    menuManager.setCurrentMenu(&menu);
+
+    // end menu
+
     while (isRunning)
     {
 
@@ -1208,12 +1365,14 @@ int main(int argc, char *argv[])
         // double deltaTime = (nextClock - prevClock).count() / 1e9;
         bool realPause = pause_requested && input_pause_requested;
         bool showInfo = pause_requested && input_info_requested;
-        if (realPause || (showInfo && !redrawInfo))
+        if (input_info_requested)
         {
             // must poll to unpause
             totalFrames = 0; // reset total frames otherwise in next loop FPS are not accurate anymore
             core_input_poll();
             core_video_refresh(nullptr, 0, 0, 0);
+            //std::this_thread::sleep_for(std::chrono::nanoseconds((int64_t)(10 * 1e6)));
+            continue;
         }
         else
         {

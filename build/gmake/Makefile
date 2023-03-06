@@ -64,13 +64,16 @@ ifeq ($(config),release)
 endif
 
 OBJECTS := \
+	$(OBJDIR)/menu_item.o \
+	$(OBJDIR)/menu.o \
+	$(OBJDIR)/menu_manager.o \
 	$(OBJDIR)/fonts.o \
 	$(OBJDIR)/input.o \
 	$(OBJDIR)/audio.o \
 	$(OBJDIR)/video.o \
 	$(OBJDIR)/globals.o \
 	$(OBJDIR)/main.o \
-  $(OBJDIR)/go2/audio.o \
+  	$(OBJDIR)/go2/audio.o \
 	$(OBJDIR)/go2/display.o \
 	$(OBJDIR)/go2/input.o \
 	$(OBJDIR)/go2/queue.o
@@ -134,6 +137,15 @@ $(GCH): $(PCH)
 	-$(SILENT) cp $< $(OBJDIR)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 endif
+$(OBJDIR)/menu_item.o: ../../src/menu_item.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"	
+$(OBJDIR)/menu.o: ../../src/menu.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/menu_manager.o: ../../src/menu_manager.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"	
 $(OBJDIR)/fonts.o: ../../src/fonts.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"

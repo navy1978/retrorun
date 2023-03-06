@@ -89,6 +89,11 @@ typedef struct
     go2_battery_status_t status;
 } go2_battery_state_t;
 
+typedef struct
+{
+    uint32_t level;
+} go2_brightness_state_t;
+
 
 
 // v1.1 API
@@ -142,6 +147,9 @@ go2_input_t* go2_input_create(const char* device);
 void go2_input_destroy(go2_input_t* input);
 void go2_input_gamepad_read(go2_input_t* input, go2_gamepad_state_t* outGamepadState);
 void go2_input_battery_read(go2_input_t* input, go2_battery_state_t* outBatteryState);
+void go2_input_brightness_read(go2_input_t* input, go2_brightness_state_t* outBrightnessState);
+
+void go2_input_brightness_write(int value);
 
 
 // v1.1 API

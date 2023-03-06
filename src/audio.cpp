@@ -83,6 +83,16 @@ static void SetVolume()
     }
 }
 
+int getVolume(){
+    int value = go2_audio_volume_get(audio, isRG552()? "DAC" : "Playback");
+    //printf("VOLUME:%d\n", value);
+    return value;
+}
+
+void setVolume(int value){
+    go2_audio_volume_set(audio, (uint32_t)value, isRG552()? "DAC" : "Playback");
+}
+
 void core_audio_sample(int16_t left, int16_t right)
 {
     if (input_ffwd_requested){
