@@ -24,7 +24,7 @@ std::cout << t;
 
 -)gestire una risoluzione piu alta nel menu 
 (ma bisogna modificare come è fatoo ora altrimenti lancia exception per core con risoluzioni basse)
-- Quit deve avere la conferma
+
 
 
 
@@ -45,5 +45,23 @@ e poi lo suoni con la libreria che hai già ... in imput.cpp
 
  cat /sys/class/backlight/backlight/brightness
  echo 30 > /sys/class/backlight/backlight/brightness
+
+
+---info
+
+
+~/retrorun # lscpu | egrep 'Model name|Socket|Thread|NUMA|CPU\(s\)'
+CPU(s):              4
+On-line CPU(s) list: 0-3
+Model name:          Cortex-A35
+Thread(s) per core:  1
+Socket(s):       
+
+
+---info 2
+
+cat /proc/cpuinfo | grep Hardware
+
+
  * 
 */

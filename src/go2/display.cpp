@@ -146,6 +146,8 @@ go2_display_t* go2_display_create()
     result->width = mode->hdisplay;
     result->height = mode->vdisplay;
 
+    
+
 
     // Find encoder
     drmModeEncoder* encoder;
@@ -173,6 +175,13 @@ go2_display_t* go2_display_create()
     }
     
     result->crtc_id = encoder->crtc_id;
+
+    if (false){ // this are for vertical sync
+        int refresh_rate = connector->modes[0].vrefresh;
+        drmModeCrtcPtr crtc = drmModeGetCrtc(result->fd, encoder->crtc_id);
+        drmModeSetCrtc(result->fd, crtc->crtc_id, crtc->buffer_id, crtc->x, crtc->y, &result->connector_id, 1, &crtc->mode);
+        drmModeFreeCrtc(crtc);
+    }
 
     drmModeFreeEncoder(encoder);
     drmModeFreeConnector(connector);

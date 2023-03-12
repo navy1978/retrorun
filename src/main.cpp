@@ -531,6 +531,10 @@ static void core_load(const char *sofile)
     g_retro.retro_get_system_info(&system);
 
     printf("-RR- core_load: library_name='%s'\n", system.library_name);
+    printf("-RR- core_load: library_version='%s'\n", system.library_version);
+    printf("-RR- core_load: can extract zip files='%s'\n", system.block_extract ? "true" : "false");
+
+    // block_extract
 
     if (strcmp(system.library_name, "Atari800") == 0)
     {
@@ -546,7 +550,8 @@ static void core_load(const char *sofile)
         Retrorun_Core = RETRORUN_CORE_FLYCAST;
     }
     coreName = system.library_name;
-    printf("Core:'%s'\n", system.library_name);
+    coreVersion = system.library_version;
+    coreReadZippedFiles = system.block_extract;
 }
 
 static void core_load_game(const char *filename)
@@ -1088,11 +1093,12 @@ void showCredit(int button)
     if (button == A_BUTTON)
     {
         resetCredisPosition();
-        input_credits_requested =true;
-    } else if (button == B_BUTTON)
+        input_credits_requested = true;
+    }
+    else if (button == B_BUTTON)
     {
         resetCredisPosition();
-        input_credits_requested =false;
+        input_credits_requested = false;
     }
 }
 
@@ -1306,16 +1312,16 @@ int main(int argc, char *argv[])
 
     // Define the menu and menu items for Settgins
 
-   /* std::vector<std::string> numbers100_1;
-    std::vector<std::string> numbers100_2;
+    /* std::vector<std::string> numbers100_1;
+     std::vector<std::string> numbers100_2;
 
-    for (int i = 0; i <= 100; i++)
-    {
-        std::string num_str_1 = std::to_string(i);
-        numbers100_1.push_back(num_str_1);
-        std::string num_str_2 = std::to_string(i);
-        numbers100_2.push_back(num_str_2);
-    }*/
+     for (int i = 0; i <= 100; i++)
+     {
+         std::string num_str_1 = std::to_string(i);
+         numbers100_1.push_back(num_str_1);
+         std::string num_str_2 = std::to_string(i);
+         numbers100_2.push_back(num_str_2);
+     }*/
 
     std::vector<MenuItem> itemsSettings = {
         MenuItem("Volume", getAudioValue, setAudioValue, "%"),
@@ -1330,18 +1336,22 @@ int main(int argc, char *argv[])
 
     std::vector<MenuItem> core = {
         MenuItem(SHOW_CORE, NULL)};
-    Menu menuInfoCore = Menu("Core", core);
+    Menu menuInfoCore = Menu("Libretro core", core);
 
     std::vector<MenuItem> game = {
         MenuItem(SHOW_GAME, NULL)};
-    Menu menuInfoGame = Menu("Game", game);
+    Menu menuInfoGame = Menu("Current game", game);
 
     std::vector<MenuItem> itemsInfo = {
         MenuItem("Device", &menuInfoDevice, fake),
-        MenuItem("Core", &menuInfoCore, fake),
-        MenuItem("Game", &menuInfoGame, fake)};
+        MenuItem("Libretro core", &menuInfoCore, fake),
+        MenuItem("Current game", &menuInfoGame, fake)};
 
+    MenuItem menuItem_q = MenuItem("Are you sure?", quit);
+    menuItem_q.setQuitItem();
+    std::vector<MenuItem> quit_sure = {menuItem_q};
 
+    Menu menuInfoQuit = Menu("Quit", quit_sure);
 
     // define Main Menu
     Menu menuInfo = Menu("Info", itemsInfo);
@@ -1349,8 +1359,8 @@ int main(int argc, char *argv[])
         MenuItem("Resume", resume),
         MenuItem("Info", &menuInfo, fake),
         MenuItem("Settings", &menuSettings, fake),
-        MenuItem("Quit", quit),
         MenuItem("Credits", showCredit),
+        MenuItem("Quit", &menuInfoQuit, fake),
     };
     Menu menu = Menu("Main Menu", items);
 
@@ -1371,7 +1381,7 @@ int main(int argc, char *argv[])
             totalFrames = 0; // reset total frames otherwise in next loop FPS are not accurate anymore
             core_input_poll();
             core_video_refresh(nullptr, 0, 0, 0);
-            //std::this_thread::sleep_for(std::chrono::nanoseconds((int64_t)(10 * 1e6)));
+            // std::this_thread::sleep_for(std::chrono::nanoseconds((int64_t)(10 * 1e6)));
             continue;
         }
         else

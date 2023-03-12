@@ -19,13 +19,12 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 #include "menu_manager.h"
 #include <queue>
-#include <mutex> 
+#include <mutex>
 
 std::mutex mutexManager;
 
-
 constexpr std::chrono::milliseconds MENU_INPUT_THRESHOLD{250};
-//constexpr std::chrono::milliseconds MENU_INPUT_LEFT_RIGHT_THRESHOLD{50};
+// constexpr std::chrono::milliseconds MENU_INPUT_LEFT_RIGHT_THRESHOLD{50};
 auto lastPress = std::chrono::steady_clock::now();
 auto currentPress = std::chrono::steady_clock::now();
 
@@ -33,30 +32,24 @@ MenuManager::MenuManager()
 {
 }
 
-
-
 void MenuManager::handle_input_credits(int buttonPressed)
 {
 
-        Menu &menu = *currentMenu_;
+    Menu &menu = *currentMenu_;
 
-        // managing the selected item in the Menu via UP and DOWN buttons
-        int selected = 0;
-        for (int i = 0; i < menu.getSize(); i++)
+    // managing the selected item in the Menu via UP and DOWN buttons
+    int selected = 0;
+    for (int i = 0; i < menu.getSize(); i++)
+    {
+        if (menu.getItems()[i].isSelected())
         {
-            if (menu.getItems()[i].isSelected())
-            {
-                selected = i;
-                break; // add this line
-            }
+            selected = i;
+            break; // add this line
         }
+    }
 
-        MenuItem &mi = menu.getItems()[selected];
-        mi.execute(buttonPressed);
-
-
-
-
+    MenuItem &mi = menu.getItems()[selected];
+    mi.execute(buttonPressed);
 }
 
 void MenuManager::handle_input(int buttonPressed)
@@ -70,7 +63,6 @@ void MenuManager::handle_input(int buttonPressed)
     auto elapsed_time_ms = now_seconds * 1000 + now_milliseconds;
 
     // std::chrono::milliseconds THRESHOLD = (buttonPressed == LEFT || buttonPressed == RIGHT) ? MENU_INPUT_LEFT_RIGHT_THRESHOLD : MENU_INPUT_THRESHOLD;
-
 
     if (elapsed_time_ms > MENU_INPUT_THRESHOLD.count())
     {
@@ -105,7 +97,7 @@ void MenuManager::handle_input(int buttonPressed)
         else if (buttonPressed == DOWN)
         {
             selected++;
-            if (selected > menu.getSize()- 1)
+            if (selected > menu.getSize() - 1)
                 selected = menu.getSize() - 1;
         }
 
@@ -123,37 +115,76 @@ void MenuManager::handle_input(int buttonPressed)
             }
         }
 
-
         // managing the change of the values vie LEFT and RIGHT
         if (buttonPressed == LEFT)
         {
             MenuItem &mi = menu.getItems()[selected];
-            mi.execute(LEFT);
+            if (mi.isQuit())
+            {
+                int newSelected = mi.getValue() == 0 ? 1 : 0;
+                mi.setValue(newSelected);
+            }
+            else
+            {
+                mi.execute(LEFT);
+            }
         }
 
         if (buttonPressed == RIGHT)
         {
             MenuItem &mi = menu.getItems()[selected];
-            mi.execute(RIGHT);
+            if (mi.isQuit())
+            {
+                int newSelected = mi.getValue() == 0 ? 1 : 0;
+                mi.setValue(newSelected);
+            }
+            else
+            {
+                mi.execute(RIGHT);
+            }
         }
 
         // managing the navigation with A and B button
         if (buttonPressed == A_BUTTON)
         {
             MenuItem &mi = menu.getItems()[selected];
-            if (mi.get_name()== SHOW_DEVICE || mi.get_name()== SHOW_CORE  || mi.get_name()== SHOW_GAME){
+            if (mi.isQuit())
+            {
+                int quit = mi.getValue();
+                if (quit == 1)
+                {
+                    mi.execute(A_BUTTON);
+                }
+                else
+                {
+                    // we go back to the main menu
+                    if (!queueMenus.empty())
+                    {
+                        Menu *prevMenu = queueMenus.top();
+                        queueMenus.pop();
+                        currentMenu_ = prevMenu;
+                        currentMenu_->resetSelected();
+                    }
+                }
+                return;
+            }
+
+            if (mi.get_name() == SHOW_DEVICE || mi.get_name() == SHOW_CORE || mi.get_name() == SHOW_GAME)
+            {
                 return;
             }
 
             if (mi.getMenu() != nullptr)
-            { 
+            {
                 if (currentMenu_ != nullptr)
                 {
                     queueMenus.push(currentMenu_); // push the current menu onto the queue before updating it
                 }
                 currentMenu_ = mi.getMenu();
                 currentMenu_->resetSelected();
-            }else{
+            }
+            else
+            {
                 mi.execute(A_BUTTON);
             }
         }
@@ -165,12 +196,9 @@ void MenuManager::handle_input(int buttonPressed)
                 Menu *prevMenu = queueMenus.top();
                 queueMenus.pop();
                 currentMenu_ = prevMenu;
-               currentMenu_->resetSelected();
+                currentMenu_->resetSelected();
             }
-
         }
-
-       
     }
 }
 

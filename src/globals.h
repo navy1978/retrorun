@@ -61,6 +61,16 @@ struct Image
   unsigned char pixel_data[152 * 49 * 2 + 1];
 };
 
+
+struct CpuInfo
+{
+  std::string number_of_cpu;
+  std::string cpu_name;
+  std::string thread_per_cpu;
+  
+};
+ 
+
 /*struct rrImg
 {
   bigImg big;
@@ -88,10 +98,15 @@ extern float opt_aspect;
 extern float aspect_ratio;
 extern std::string romName;
 extern std::string coreName;
+extern std::string coreVersion;
+extern bool coreReadZippedFiles;
 extern std::string screenShotFolder;
+extern std::vector<CpuInfo> cpu_info_list;
 
 // get system env 
 const char* getEnv( const char* tag) noexcept ;
+
+std::vector<std::string> exec(const char* cmd) ;
 
 // Cores
 bool isFlycast();

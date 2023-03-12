@@ -26,12 +26,13 @@ class Menu; // forward declaration
 
 typedef int (*ValueCalculator)();
 
-class MenuItem {
+class MenuItem
+{
 public:
-    MenuItem(std::string name,std::vector<std::string> values, int valueSelected,void (*action)(int));
-    //MenuItem(std::string name, int (*valueFunc)(), void (*action)());
-    MenuItem(std::string name, ValueCalculator valueCalculator,  void (*action)(int), std::string mis_unit);
-    MenuItem(std::string name,Menu* menu, void (*action)(int));
+    MenuItem(std::string name, std::vector<std::string> values, int valueSelected, void (*action)(int));
+    // MenuItem(std::string name, int (*valueFunc)(), void (*action)());
+    MenuItem(std::string name, ValueCalculator valueCalculator, void (*action)(int), std::string mis_unit);
+    MenuItem(std::string name, Menu *menu, void (*action)(int));
     MenuItem(std::string name, void (*action)(int));
     void execute(int button);
     std::string get_name();
@@ -39,11 +40,13 @@ public:
     void setName(std::string value);
     void setSelected(bool value);
     bool isSelected();
-    std::vector<std::string>  getValues();
+    std::vector<std::string> getValues();
     void setValue(int value);
+    void setQuitItem();
+    bool isQuit();
     int getValue();
-    Menu* getMenu();
-    //bool isMenu();
+    Menu *getMenu();
+    // bool isMenu();
     bool selected_;
     bool is_menu_;
     ValueCalculator m_valueCalculator;
@@ -52,12 +55,11 @@ private:
     std::string name_;
     std::string mis_unit_;
     void (*action_)(int);
-    
-     std::string key_;
+    bool is_quit_item;
+    std::string key_;
     std::vector<std::string> values_;
     int valueSelected_;
-    Menu* menu_;
-    
+    Menu *menu_;
 };
 
-//#endif  // MENU_ITEM_H
+// #endif  // MENU_ITEM_H
