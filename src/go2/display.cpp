@@ -147,8 +147,6 @@ go2_display_t* go2_display_create()
     result->height = mode->vdisplay;
 
     
-
-
     // Find encoder
     drmModeEncoder* encoder;
     for (i = 0; i < resources->count_encoders; i++)
