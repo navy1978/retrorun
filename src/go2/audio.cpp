@@ -20,7 +20,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "audio.h"
 
-
 #include <AL/al.h>
 #include <AL/alc.h>
 #include <AL/alext.h>
@@ -33,12 +32,18 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <alsa/asoundlib.h>
 #include <alsa/mixer.h>
+#include "../globals.h"
 
 #include <thread>
+#include <pthread.h>
+#include <mutex>
 
-#define SOUND_SAMPLES_SIZE  (2048)
+#define SOUND_SAMPLES_SIZE (2048)
 #define SOUND_CHANNEL_COUNT 2
 
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+volatile bool processed = false;
 
 typedef struct go2_audio
 {
@@ -49,12 +54,10 @@ typedef struct go2_audio
     bool isAudioInitialized;
 } go2_audio_t;
 
-
-go2_audio_t* go2_audio_create(int frequency)
+go2_audio_t *go2_audio_create(int frequency)
 {
-    
-     
-    go2_audio_t* result = (go2_audio_t*) malloc(sizeof(*result));
+
+    go2_audio_t *result = (go2_audio_t *)malloc(sizeof(*result));
     if (!result)
     {
         printf("malloc failed.\n");
@@ -64,60 +67,57 @@ go2_audio_t* go2_audio_create(int frequency)
 
     memset(result, 0, sizeof(*result));
 
-
     result->frequency = frequency;
 
-	result->device = alcOpenDevice(NULL);
-	if (!result->device)
-	{
-		printf("alcOpenDevice failed.\n");
-		free(result);
-        return NULL;
-	}
-
-	result->context = alcCreateContext(result->device, NULL);
-	if (!alcMakeContextCurrent(result->context))
-	{
-		printf("alcMakeContextCurrent failed.\n");
-		alcCloseDevice(result->device);
+    result->device = alcOpenDevice(NULL);
+    if (!result->device)
+    {
+        printf("alcOpenDevice failed.\n");
         free(result);
         return NULL;
-	}
+    }
 
-	alGenSources((ALuint)1, &result->source);
+    result->context = alcCreateContext(result->device, NULL);
+    if (!alcMakeContextCurrent(result->context))
+    {
+        printf("alcMakeContextCurrent failed.\n");
+        alcCloseDevice(result->device);
+        free(result);
+        return NULL;
+    }
 
-	alSourcef(result->source, AL_PITCH, 1);
-	alSourcef(result->source, AL_GAIN, 1);
-	alSource3f(result->source, AL_POSITION, 0, 0, 0);
-	alSource3f(result->source, AL_VELOCITY, 0, 0, 0);
-	alSourcei(result->source, AL_LOOPING, AL_FALSE);
+    alGenSources((ALuint)1, &result->source);
 
-	//memset(audioBuffer, 0, AUDIOBUFFER_LENGTH * sizeof(short));
+    alSourcef(result->source, AL_PITCH, 1);
+    alSourcef(result->source, AL_GAIN, 1);
+    alSource3f(result->source, AL_POSITION, 0, 0, 0);
+    alSource3f(result->source, AL_VELOCITY, 0, 0, 0);
+    alSourcei(result->source, AL_LOOPING, AL_FALSE);
 
-	const int BUFFER_COUNT = 4;
-	for (int i = 0; i < BUFFER_COUNT; ++i)
-	{
-		ALuint buffer;
-		alGenBuffers((ALuint)1, &buffer);
-		alBufferData(buffer, AL_FORMAT_STEREO16, NULL, 0, frequency);
-		alSourceQueueBuffers(result->source, 1, &buffer);
-	}
+    // memset(audioBuffer, 0, AUDIOBUFFER_LENGTH * sizeof(short));
 
-	alSourcePlay(result->source);
+    const int BUFFER_COUNT = 4;
+    for (int i = 0; i < BUFFER_COUNT; ++i)
+    {
+        ALuint buffer;
+        alGenBuffers((ALuint)1, &buffer);
+        alBufferData(buffer, AL_FORMAT_STEREO16, NULL, 0, frequency);
+        alSourceQueueBuffers(result->source, 1, &buffer);
+    }
+
+    alSourcePlay(result->source);
 
     result->isAudioInitialized = true;
 
     // testing
-    //uint32_t vol = go2_audio_volume_get(result);
-    //printf("audio: vol=%d\n", vol);
-    //go2_audio_path_get(result);
-
+    // uint32_t vol = go2_audio_volume_get(result);
+    // printf("audio: vol=%d\n", vol);
+    // go2_audio_path_get(result);
 
     return result;
-
 }
 
-void go2_audio_destroy(go2_audio_t* audio)
+void go2_audio_destroy(go2_audio_t *audio)
 {
     alDeleteSources(1, &audio->source);
     alcDestroyContext(audio->context);
@@ -126,13 +126,72 @@ void go2_audio_destroy(go2_audio_t* audio)
     free(audio);
 }
 
-
-inline void playAudio(go2_audio_t* audio, const short* data, int frames)
+void *audio_thread(void *arg)
 {
-    
-  
-    if (!audio || !audio->isAudioInitialized) return;
+    // play audio here
+    // ...
+    go2_audio_t *audio = (go2_audio_t *)arg;
+    ALint processedA = 0;
+    /*  struct timeval tv1;
+             tv1.tv_sec =0;
+             tv1.tv_usec=6607000;
+             select(0,NULL,NULL,NULL,&tv1);*/
+    while (!processedA)
+    {
+        alGetSourceiv(audio->source, AL_BUFFERS_PROCESSED, &processedA);
 
+        struct timeval tv1;
+        tv1.tv_sec = 0;
+        tv1.tv_usec = 4000;
+        select(0, NULL, NULL, NULL, &tv1);
+        if (!processedA)
+        {
+            struct timeval tv;
+            tv.tv_sec = 0;
+            tv.tv_usec = 700;
+            select(0, NULL, NULL, NULL, &tv);
+            printf("Audio waiting.\n");
+        }
+        /*
+                   fd_set read_fds;
+            FD_ZERO(&read_fds);
+            FD_SET(0, &read_fds);
+
+            int ret = select(1, &read_fds, NULL, NULL, &tv);
+            if (ret == -1)
+            {
+                perror("select");
+                exit(EXIT_FAILURE);
+            }
+            else if (ret == 0)
+            {
+                printf("Audio waiting.\n");
+            }
+            else
+            {
+                printf("Unexpected select return value: %d\n", ret);
+            }
+                   // return;
+                }*/
+        printf("Play.\n");
+    }
+    // Signal that the buffers have been processed
+    pthread_mutex_lock(&mutex);
+    processed = true;
+    pthread_cond_signal(&cond);
+    pthread_mutex_unlock(&mutex);
+
+    return NULL;
+}
+
+std::mutex myMutex;
+
+inline void playAudio(go2_audio_t *audio, const short *data, int frames)
+{
+
+    processed = false;
+    if (!audio || !audio->isAudioInitialized)
+        return;
 
     if (!alcMakeContextCurrent(audio->context))
     {
@@ -140,16 +199,33 @@ inline void playAudio(go2_audio_t* audio, const short* data, int frames)
         return;
     }
 
-    ALint processed = 0;
-    while(!processed)
-    {
-        alGetSourceiv(audio->source, AL_BUFFERS_PROCESSED, &processed);
+    /*
+    pthread_t thread;
+        pthread_create(&thread, NULL, audio_thread, (void* )audio);
 
-        if (!processed)
+        // Wait for the buffers to be processed
+        pthread_mutex_lock(&mutex);
+        while (!processed) {
+            printf("real waiting.\n");
+            pthread_cond_wait(&cond, &mutex);
+        }
+        pthread_mutex_unlock(&mutex);
+    */
+
+    ALint processedA = 0;
+    while (!processedA)
+    {
+        alGetSourceiv(audio->source, AL_BUFFERS_PROCESSED, &processedA);
+
+        if (!processedA)
         {
-            sleep(0);
-            //printf("Audio overflow.\n");
-            //return;
+            // sched_yield();
+            /*struct timeval tv;
+            tv.tv_sec =0;
+            tv.tv_usec=15000;
+            select(0,NULL,NULL,NULL,&tv);*/
+            // printf("Audio overflow.\n");
+            // return;
         }
     }
 
@@ -168,27 +244,46 @@ inline void playAudio(go2_audio_t* audio, const short* data, int frames)
 
     if (result != AL_PLAYING)
     {
-        
+
         alSourcePlay(audio->source);
     }
-    
-    
 }
+auto prevClock = std::chrono::high_resolution_clock::now();
+auto totClock = std::chrono::high_resolution_clock::now();
+auto max_fps = originalFps;
 
-void go2_audio_submit(go2_audio_t* audio, const short* data, int frames)
+void go2_audio_submit(go2_audio_t *audio, const short *data, int frames)
 {
-    
-    playAudio(audio,data,frames);
+    myMutex.lock(); // Acquire the lock before accessing shared resources
+    max_fps = originalFps < 20 ? 60 : originalFps;
+    playAudio(audio, data, frames);
+
+    auto nextClock = std::chrono::high_resolution_clock::now();
+    // make sure each frame takes *at least* 1/60th of a second
+    // auto frameClock = std::chrono::high_resolution_clock::now();
+    double deltaTime = (nextClock - prevClock).count() / 1e9;
+    // printf("frame time: %.2lf ms\n", deltaTime * 1e3);
+    double sleepSecs = 1.0 / max_fps - deltaTime;
+
+    if (sleepSecs > 0)
+    {
+        // printf("-RR- waiting!\n");
+        //  std::this_thread::sleep_for(std::chrono::nanoseconds((int64_t)(sleepSecs * 1e9)));
+    }
+    prevClock = nextClock;
+    totClock = std::chrono::high_resolution_clock::now();
+
     /*std::thread th(playAudio, std::ref(audio), std::ref(data), std::ref(frames));
                     th.detach();*/
+    myMutex.unlock(); // Release the lock after accessing shared resources
 }
 
-uint32_t go2_audio_volume_get(go2_audio_t* audio, const char *selem_name)
+uint32_t go2_audio_volume_get(go2_audio_t *audio, const char *selem_name)
 {
     snd_mixer_t *handle;
     snd_mixer_selem_id_t *sid;
     const char *card = "default";
-   //  = isRG552()? "DAC" : "Playback";
+    //  = isRG552()? "DAC" : "Playback";
 
     snd_mixer_open(&handle, 0);
     snd_mixer_attach(handle, card);
@@ -198,34 +293,33 @@ uint32_t go2_audio_volume_get(go2_audio_t* audio, const char *selem_name)
     snd_mixer_selem_id_alloca(&sid);
     snd_mixer_selem_id_set_index(sid, 0);
     snd_mixer_selem_id_set_name(sid, selem_name);
-    
-    snd_mixer_elem_t* elem = snd_mixer_find_selem(handle, sid);
+
+    snd_mixer_elem_t *elem = snd_mixer_find_selem(handle, sid);
 
     long min;
     long max;
     snd_mixer_selem_get_playback_volume_range(elem, &min, &max);
- 
 
-    //snd_mixer_selem_set_playback_volume_all(elem, value / 100.0f * max);
+    // snd_mixer_selem_set_playback_volume_all(elem, value / 100.0f * max);
     long volume;
     snd_mixer_selem_get_playback_volume(elem, SND_MIXER_SCHN_MONO, &volume);
 
     snd_mixer_close(handle);
 
     uint32_t result = volume / (float)max * 100.0f;
-    //printf("volume: min=%ld, max=%ld, volume=%ld, result=%d\n", min, max, volume, result);
+    // printf("volume: min=%ld, max=%ld, volume=%ld, result=%d\n", min, max, volume, result);
 
     return result;
 }
 
-void go2_audio_volume_set(go2_audio_t* audio, uint32_t value, const char *selem_name)
+void go2_audio_volume_set(go2_audio_t *audio, uint32_t value, const char *selem_name)
 {
     // https://gist.github.com/wolfg1969/3575700
 
     snd_mixer_t *handle;
     snd_mixer_selem_id_t *sid;
     const char *card = "default";
-    //const char *selem_name = isRG552()? "DAC" : "Playback";
+    // const char *selem_name = isRG552()? "DAC" : "Playback";
 
     snd_mixer_open(&handle, 0);
     snd_mixer_attach(handle, card);
@@ -235,25 +329,25 @@ void go2_audio_volume_set(go2_audio_t* audio, uint32_t value, const char *selem_
     snd_mixer_selem_id_alloca(&sid);
     snd_mixer_selem_id_set_index(sid, 0);
     snd_mixer_selem_id_set_name(sid, selem_name);
-    
-    snd_mixer_elem_t* elem = snd_mixer_find_selem(handle, sid);
+
+    snd_mixer_elem_t *elem = snd_mixer_find_selem(handle, sid);
 
     long min;
     long max;
     snd_mixer_selem_get_playback_volume_range(elem, &min, &max);
-    //printf("volume: min=%ld, max=%ld\n", min, max);
+    // printf("volume: min=%ld, max=%ld\n", min, max);
 
     snd_mixer_selem_set_playback_volume_all(elem, value / 100.0f * max);
 
     snd_mixer_close(handle);
 }
 
-go2_audio_path_t go2_audio_path_get(go2_audio_t* audio,  const char *selem_name)
+go2_audio_path_t go2_audio_path_get(go2_audio_t *audio, const char *selem_name)
 {
     snd_mixer_t *handle;
     snd_mixer_selem_id_t *sid;
     const char *card = "default";
-    //const char *selem_name = "Playback Path";
+    // const char *selem_name = "Playback Path";
 
     snd_mixer_open(&handle, 0);
     snd_mixer_attach(handle, card);
@@ -263,8 +357,8 @@ go2_audio_path_t go2_audio_path_get(go2_audio_t* audio,  const char *selem_name)
     snd_mixer_selem_id_alloca(&sid);
     snd_mixer_selem_id_set_index(sid, 0);
     snd_mixer_selem_id_set_name(sid, selem_name);
-    
-    snd_mixer_elem_t* elem = snd_mixer_find_selem(handle, sid);
+
+    snd_mixer_elem_t *elem = snd_mixer_find_selem(handle, sid);
 
     unsigned int value;
     snd_mixer_selem_get_enum_item(elem, SND_MIXER_SCHN_MONO, &value);
@@ -278,12 +372,12 @@ go2_audio_path_t go2_audio_path_get(go2_audio_t* audio,  const char *selem_name)
     return (go2_audio_path_t)value;
 }
 
-void go2_audio_path_set(go2_audio_t* audio, go2_audio_path_t value, const char *selem_name)
+void go2_audio_path_set(go2_audio_t *audio, go2_audio_path_t value, const char *selem_name)
 {
     snd_mixer_t *handle;
     snd_mixer_selem_id_t *sid;
     const char *card = "default";
-    //const char *selem_name = "Playback Path";
+    // const char *selem_name = "Playback Path";
 
     snd_mixer_open(&handle, 0);
     snd_mixer_attach(handle, card);
@@ -293,8 +387,8 @@ void go2_audio_path_set(go2_audio_t* audio, go2_audio_path_t value, const char *
     snd_mixer_selem_id_alloca(&sid);
     snd_mixer_selem_id_set_index(sid, 0);
     snd_mixer_selem_id_set_name(sid, selem_name);
-    
-    snd_mixer_elem_t* elem = snd_mixer_find_selem(handle, sid);
+
+    snd_mixer_elem_t *elem = snd_mixer_find_selem(handle, sid);
 
     snd_mixer_selem_set_enum_item(elem, SND_MIXER_SCHN_MONO, (unsigned int)value);
 

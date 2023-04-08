@@ -69,7 +69,8 @@ struct CpuInfo
   std::string thread_per_cpu;
   
 };
- 
+
+extern std::string gpu_name;
 
 /*struct rrImg
 {

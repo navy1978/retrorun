@@ -63,5 +63,25 @@ Socket(s):
 cat /proc/cpuinfo | grep Hardware
 
 
- * 
+---- GPU
+
+~ # cat /sys/devices/platform/ff400000.gpu/gpuinfo 
+Mali-G31 1 cores r0p0 0x7093
+
+
+governor:
+
+/ # cat /sys/devices/platform/ff400000.gpu/devfreq/ff400000.gpu/cur_freq 
+ *
+
+
+find /sys/devices/platform/ -type d -name "*.gpu"
+
+find /sys/devices/platform/ -maxdepth 2 -type d -name "*.gpu" -printf "%f\n"
+
+
+
+https://github.com/AmberELEC/AmberELEC/blob/6a7a49240dc953fa7861b026bced95511a95abe5/packages/amberelec/profile.d/99-distribution.conf
+
+
 */

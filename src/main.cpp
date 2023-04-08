@@ -1383,6 +1383,9 @@ int main(int argc, char *argv[])
             core_video_refresh(nullptr, 0, 0, 0);
             // std::this_thread::sleep_for(std::chrono::nanoseconds((int64_t)(10 * 1e6)));
             continue;
+        }else if (realPause){
+             totalFrames = 0; // reset total frames otherwise in next loop FPS are not accurate anymore
+            core_input_poll();
         }
         else
         {

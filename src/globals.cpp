@@ -29,7 +29,7 @@ static const int DEVICE_NAME_SIZE = 1024;
 static char DEVICE_NAME[DEVICE_NAME_SIZE];
 static bool deviceInitialized = false;
 
-std::string release = "2.1.2";
+std::string release = "2.2.2";
 
 RETRORUN_CORE_TYPE Retrorun_Core = RETRORUN_CORE_UNKNOWN;
 Device device = UNKNOWN;
@@ -52,7 +52,7 @@ float fps = 0.0f;
 float originalFps = 0.0f;
 float newFps = 0.0f;
 int retrorunLoopCounter = 0;
-int retrorunLoopSkip = 120; // how many loops we skip before update the FPS
+int retrorunLoopSkip = 10; // how many loops we skip before update the FPS
 
 int frameCounter = 0;
 int frameCounterSkip = 4;
@@ -132,7 +132,7 @@ bool isMame()
 {
     return coreName.find("MAME") != std::string::npos;
 }
-
+std::string gpu_name;
 void getCpuInfo()
 {
 
@@ -196,6 +196,25 @@ void getCpuInfo()
     }*/
 
     printf("list size:%d\n" + cpu_info_list.size());
+
+
+    // get the name of the GPU
+
+    //find /sys/devices/platform/ -maxdepth 2 -type d -name "*.gpu" | xargs -I{} sh -c 'cat {}/gpuinfo'
+
+
+std::vector<std::string> output2 = exec("find /sys/devices/platform/ -maxdepth 2 -type d -name '*.gpu' | xargs -I{} sh -c 'cat {}/gpuinfo | grep -o \"^[^ ]* [^ ]* cores\"'");
+
+     for (const auto &line : output2)
+     {
+
+         gpu_name = line;
+         if (gpu_name.length()>1){
+            gpu_name.erase(std::remove(gpu_name.begin(), gpu_name.end(), '\n'), gpu_name.end());
+         }
+    
+     }
+
 
     /* std::vector<std::string> output2 = exec("cat /proc/cpuinfo | grep Hardware");
 

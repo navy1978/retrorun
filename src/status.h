@@ -47,4 +47,17 @@ class status  {
     bool show_top_left;
     bool show_bottom_left;
     bool show_full;
+
+    bool clean_top_right;
+    bool clean_bottom_right;
+    bool clean_top_left;
+    bool clean_bottom_left;
+    bool clean_full;
+
+    bool last_top_right;
+    bool last_bottom_right;
+    bool last_top_left;
+    bool last_bottom_left;
+    bool last_full;
+
 } ;

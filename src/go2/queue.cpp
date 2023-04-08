@@ -62,7 +62,7 @@ int go2_queue_count_get(go2_queue_t* queue)
 {
     return queue->count;
 }
-
+/*
 void go2_queue_push(go2_queue_t* queue, void* value)
 {
     if (queue->count < queue->capacity)
@@ -74,7 +74,24 @@ void go2_queue_push(go2_queue_t* queue, void* value)
     {
         printf("queue is full.\n");
     }    
+}*/
+
+
+int go2_queue_push(go2_queue_t* queue, void* value)
+{
+    if (queue->count < queue->capacity)
+    {
+        queue->data[queue->count] = value;
+        queue->count++;
+        return 0;
+    }
+    else
+    {
+        printf("queue is full.\n");
+        return -1;
+    }    
 }
+
 
 void* go2_queue_pop(go2_queue_t* queue)
 {
@@ -104,4 +121,16 @@ void go2_queue_destroy(go2_queue_t* queue)
 {
     free(queue->data);
     free(queue);
+}
+
+int go2_queue_try_pop(go2_queue_t* queue, void** value)
+{
+    if (queue->count == 0)
+    {
+        return -1;
+    }
+
+    *value = go2_queue_pop(queue);
+
+    return 0;
 }

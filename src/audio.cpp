@@ -113,6 +113,36 @@ void core_audio_sample(int16_t left, int16_t right)
 
 
 
+  #include <stdint.h>
+#include <string.h>
+
+static inline void newmemcpy(void *__restrict__ dstp,
+                             void *__restrict__ srcp,
+                             uint len)
+{
+    uint64_t *dst = (uint64_t *)dstp;
+    uint64_t *src = (uint64_t *)srcp;
+    size_t i, tail;
+
+    // Check if len is at least one 64-bit chunk in size
+    if (len >= sizeof(uint64_t))
+    {
+        // Copy 64-bit chunks
+        for (i = 0; i < (len / sizeof(uint64_t)); i++)
+            *dst++ = *src++;
+    }
+
+    // Copy remaining bytes (if any)
+    tail = len & (sizeof(uint64_t) - 1);
+    if (tail)
+    {
+        unsigned char *dstb = (unsigned char *)dst;
+        unsigned char *srcb = (unsigned char *)src;
+        memmove(dstb, srcb, tail);
+    }
+}
+
+
 size_t core_audio_sample_batch(const int16_t *data, size_t frames)
 {
     
@@ -154,15 +184,15 @@ size_t core_audio_sample_batch(const int16_t *data, size_t frames)
     }
 
 
-    if (audioFrameCount + currentFrame > retrorun_audio_buffer)
+   if (audioFrameCount + frames > retrorun_audio_buffer)
     {
         go2_audio_submit(audio, (const short *)audioBuffer, audioFrameCount);
         audioFrameCount = 0;
     }
- 
-    memcpy(audioBuffer + (audioFrameCount * CHANNELS), data, frames * sizeof(int16_t) * CHANNELS);
+
+    size_t size = frames * sizeof(int16_t) * CHANNELS;
+    newmemcpy(audioBuffer + (audioFrameCount * CHANNELS), (void*) data, size);
     audioFrameCount += frames;
-    
     return frames;
 }
 
