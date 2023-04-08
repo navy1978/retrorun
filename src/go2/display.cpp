@@ -1172,7 +1172,7 @@ void blit_surface_status(go2_presenter_t *presenter, go2_surface_t *source_surfa
 
     double scarto_w = presenter->display->width - dest_width;
     double scarto_h = presenter->display->height - dest_height;
-    printf(" scarto_w:%f, scarto_h:%f\n", scarto_w, scarto_h);
+   // printf(" scarto_w:%f, scarto_h:%f\n", scarto_w, scarto_h);
 
     /**/
     if (isWideScreen)

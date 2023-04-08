@@ -995,7 +995,7 @@ inline void makeScreenBlack(go2_surface_t *go2_surface, int res_width, int res_h
    /* if (col_increase % colSwitch ==0)
     col++;*/
 
-    printf("color:%d\n",col);
+    //printf("color:%d\n",col);
     while (yy > 0)
     {
 
