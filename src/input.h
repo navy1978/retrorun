@@ -33,6 +33,7 @@ extern bool input_reset_requested;
 extern bool input_ffwd_requested;
 extern bool input_pause_requested;
 extern bool input_credits_requested;
+extern bool input_message;
 
 extern double lastScreenhotrequestTime;
 

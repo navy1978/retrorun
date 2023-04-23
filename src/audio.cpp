@@ -183,8 +183,8 @@ size_t core_audio_sample_batch(const int16_t *data, size_t frames)
         return frames;
     }
 
-
-   if (audioFrameCount + frames > retrorun_audio_buffer)
+    if (audioFrameCount + frames > static_cast<size_t>(retrorun_audio_buffer))
+   //if (audioFrameCount + frames > retrorun_audio_buffer)
     {
         go2_audio_submit(audio, (const short *)audioBuffer, audioFrameCount);
         audioFrameCount = 0;

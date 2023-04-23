@@ -29,7 +29,7 @@ static const int DEVICE_NAME_SIZE = 1024;
 static char DEVICE_NAME[DEVICE_NAME_SIZE];
 static bool deviceInitialized = false;
 
-std::string release = "2.2.2";
+std::string release = "2.3.0";
 
 RETRORUN_CORE_TYPE Retrorun_Core = RETRORUN_CORE_UNKNOWN;
 Device device = UNKNOWN;
@@ -47,6 +47,8 @@ std::string coreVersion;
 bool coreReadZippedFiles;
 
 std::string screenShotFolder;
+
+std::string status_message;
 
 float fps = 0.0f;
 float originalFps = 0.0f;
@@ -86,6 +88,11 @@ const char *getEnv(const char *tag) noexcept
 bool isFlycast()
 {
     return coreName == "Flycast";
+}
+
+bool isFlycast2021()
+{
+    return coreName == "Flycast 2021";
 }
 
 bool isParalleln64()

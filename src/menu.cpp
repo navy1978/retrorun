@@ -108,7 +108,8 @@ void Menu::resetSelected(int newSele)
 {
     for (std::vector<MenuItem>::size_type i = 0; i < items_.size(); i++)
     {
-        if (i == newSele)
+       // if (i == newSele)
+       if (i == static_cast<std::vector<MenuItem>::size_type>(newSele))
             items_[i].setSelected(true);
         else
             items_[i].setSelected(false);

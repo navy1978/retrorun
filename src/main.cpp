@@ -90,6 +90,7 @@ const char *opt_setting_file = "/storage/.config/distribution/configs/retrorun.c
 std::map<std::string, std::string> conf_map;
 bool opt_show_fps = false;
 bool auto_save = false;
+bool auto_load = false;
 const char *ws = " \t\n\r\f\v";
 
 bool isRunning = true;
@@ -683,7 +684,7 @@ static const char *FileNameFromPath(const char *fullpath)
 inline int getRetroMemory()
 {
 
-    return isFlycast() ? RETRO_MEMORY_VIDEO_RAM : RETRO_MEMORY_SAVE_RAM;
+    return /*isFlycast() ? RETRO_MEMORY_VIDEO_RAM :*/ RETRO_MEMORY_SAVE_RAM;
 }
 
 static int LoadState(const char *saveName)
@@ -705,6 +706,7 @@ static int LoadState(const char *saveName)
     void *ptr = malloc(size);
     if (!ptr)
     {
+        printf("-RR- Error loading state, ptr not valid aborting...\n");
         abort();
     }
     size_t count = fread(ptr, 1, size, file);
@@ -716,9 +718,16 @@ static int LoadState(const char *saveName)
         abort();
     }
     fclose(file);
-    g_retro.retro_unserialize(ptr, size);
+    bool result = g_retro.retro_unserialize(ptr, size);
     free(ptr);
-    printf("-RR- File '%s': loaded correctly!\n", saveName);
+    if (result)
+    {
+        printf("-RR- File '%s': loaded correctly!\n", saveName);
+    }
+    else
+    {
+        printf("-RR- WARNING File '%s': loaded correctly but with no effects!\n", saveName);
+    }
     return 0;
 }
 
@@ -937,10 +946,31 @@ void initConfig()
             const std::string &asValue = conf_map.at("retrorun_auto_save");
             auto_save = asValue == "true" ? true : false;
             printf("-RR - Info - Autosave: %s.\n", auto_save ? "true" : "false");
+            if (isFlycast2021()){
+                auto_save = false;
+                printf("-RR - Warning - Autosave disabled on Flycast2021 it doesnt work!");
+            }
         }
         catch (...)
         {
             printf("-RR- Warning: retrorun_auto_save parameter not found in retrorun.cfg using default value (%s).\n", auto_save ? "true" : "false");
+        }
+
+        try
+        {
+            const std::string &asValue = conf_map.at("retrorun_auto_load");
+            auto_load = asValue == "true" ? true : false;
+            printf("-RR - Info - Autoload: %s.\n", auto_load ? "true" : "false");
+            if (isFlycast2021()){
+                auto_load = false;
+                printf("-RR - Warning - Autoload disabled on Flycast2021 it doesnt work!");
+            }
+        }
+        catch (...)
+        {
+            printf("By defualt retrorun auto_load will be the same as auto_save...\n");
+            auto_load= auto_save;
+            printf("-RR- Warning: retrorun_auto_load parameter not found in retrorun.cfg using default value (%s).\n", auto_load ? "true" : "false");
         }
 
         try
@@ -1233,15 +1263,20 @@ int main(int argc, char *argv[])
     std::string rawname = fullNameString.substr(0, lastindex);
     romName = rawname;
 
-    std::string system = getSystemFromRomPath(arg_rom);
+    std::string system = opt_savedir; // getSystemFromRomPath(arg_rom );
 
-    std::string srmAutoPath = "/storage/roms/<system>/<gameName>.srm";
-    std::string tempSrmPath = replace(srmAutoPath, "<system>", system);
-    std::string srmPathFinal = replace(tempSrmPath, "<gameName>", romName);
+    if (opt_savedir == NULL || opt_savedir[0] == '\0')
+    {
+        opt_savedir = getSystemFromRomPath(arg_rom).c_str();
+    }
 
-    std::string stateAutoPath = "/storage/roms/savestates/<system>/<gameName>.rrstate.auto";
-    std::string tempStatePath = replace(stateAutoPath, "<system>", system);
-    std::string statePathFinal = replace(tempStatePath, "<gameName>", romName);
+    std::string srmAutoPath = std::string(opt_savedir) + "/<gameName>.srm";
+    // std::string tempSrmPath = replace(srmAutoPath, "<system>", system);
+    std::string srmPathFinal = replace(srmAutoPath, "<gameName>", romName);
+
+    std::string stateAutoPath = std::string(opt_savedir) + "/<gameName>.rrstate.auto";
+    // std::string tempStatePath = replace(stateAutoPath, "<system>", system);
+    std::string statePathFinal = replace(stateAutoPath, "<gameName>", romName);
 
     std::string sramFileName = rawname + ".srm";
     std::string savFileName = rawname + ".sav";
@@ -1260,11 +1295,25 @@ int main(int argc, char *argv[])
     }
     else
     {
-        if (auto_save)
+        if (auto_load)
         {
+            input_message = true;
+            status_message = "Loading saved game...";
             printf("-RR- Loading saved state - File '%s' \n", savePath);
+
+            if (isParalleln64() || isDosBox())
+            {
+                // for parallel n64 we need to wait till the core is fully initialized then we call a retro_run to be sure
+                // for the other cores is also fine but with pcsx rearmed it has problems
+                sleep(1);
+                g_retro.retro_run();
+            }
+
             LoadState(savePath);
+            sleep(3);
+            // input_message = false;
         }
+        
     }
     printf("-RR- Loading sram - File '%s' \n", sramPath);
     LoadSram(sramPath);
@@ -1365,12 +1414,15 @@ int main(int argc, char *argv[])
     Menu menu = Menu("Main Menu", items);
 
     menuManager.setCurrentMenu(&menu);
-
+    if (!isRG552())
+    { // for slow devices we set no limits
+        runLoopAt60fps = false;
+    }
     // end menu
 
     while (isRunning)
     {
-
+        input_message = false;
         auto nextClock = std::chrono::high_resolution_clock::now();
         // double deltaTime = (nextClock - prevClock).count() / 1e9;
         bool realPause = pause_requested && input_pause_requested;
@@ -1383,8 +1435,10 @@ int main(int argc, char *argv[])
             core_video_refresh(nullptr, 0, 0, 0);
             // std::this_thread::sleep_for(std::chrono::nanoseconds((int64_t)(10 * 1e6)));
             continue;
-        }else if (realPause){
-             totalFrames = 0; // reset total frames otherwise in next loop FPS are not accurate anymore
+        }
+        else if (realPause)
+        {
+            totalFrames = 0; // reset total frames otherwise in next loop FPS are not accurate anymore
             core_input_poll();
         }
         else

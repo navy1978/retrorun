@@ -31,6 +31,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 extern int opt_backlight;
 extern int opt_volume;
 bool input_ffwd_requested = false;
+bool input_message = false;
 
 bool input_exit_requested = false;
 bool input_exit_requested_firstTime = false;
@@ -438,7 +439,7 @@ void core_input_poll(void)
 int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigned id)
 {
 
-    if (aspect_ratio < 1.0f && isFlycast())
+    if (aspect_ratio < 1.0f && (isFlycast() || isFlycast2021()))
     {
         isTate = true;
     }

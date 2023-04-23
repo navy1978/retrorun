@@ -138,7 +138,7 @@ uint32_t format_565 = DRM_FORMAT_RGB565; // DRM_FORMAT_RGB888; // DRM_FORMAT_XRG
 int getFixedWidth(int alternative)
 {
     // some games like Resident Evil 2 for Flycast has an ovescan issue in 640x480
-    if (isFlycast())
+    if (isFlycast() || isFlycast2021())
     {
         if (resolution == R_320_240)
             return 320;
@@ -158,7 +158,7 @@ int getFixedWidth(int alternative)
 int getFixedHeight(int alternative)
 {
     // some games like Resident Evil 2 for Flycast has an ovescan issue in 640x480
-    if (isFlycast())
+    if (isFlycast() || isFlycast2021())
     {
         if (resolution == R_320_240)
             return 240;
@@ -262,7 +262,7 @@ void video_configure(struct retro_game_geometry *geom)
         device = UNKNOWN;
     }
     // some games like Resident Evil 2 for Flycast has an ovescan issue in 640x480
-    bool skipGeomSet = (isFlycast() && device == RG_552);
+    bool skipGeomSet = ((isFlycast()||isFlycast2021() )&& device == RG_552);
 
     if (resolution == R_320_240)
     {
@@ -488,7 +488,7 @@ inline void showInfoDevice(int w, go2_surface_t **surface, int posX)
     {
         long total_ram_val = sys_info.totalram / (1024 * 1024);
         long free_ram_val = sys_info.freeram / (1024 * 1024);
-        long number_procs = sys_info.procs;
+        //long number_procs = sys_info.procs;
         tot_ram = std::to_string(total_ram_val) + " MB";
         free_ram = std::to_string(free_ram_val) + " MB";
         // procs = "# of processes:" + std::to_string(number_procs);
@@ -941,7 +941,7 @@ int colorInc = 0;
 
 inline void makeScreenBlackCredits(go2_surface_t *go2_surface, int res_width, int res_height)
 {
-    bool specialCase = (isJaguar() || isBeetleVB() || isDosBox() || isDosCore() || isMame());
+    //bool specialCase = (isJaguar() || isBeetleVB() || isDosBox() || isDosCore() || isMame());
     // res_width = specialCase? res_width * 2 : res_width; // just to be sure to cover the full screen (in some emulators is not enough to use res_width)
     uint8_t *dst = (uint8_t *)go2_surface_map(go2_surface);
     if (dst == nullptr)
@@ -1260,6 +1260,12 @@ bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
         status_obj->show_top_left = true;
         
     }
+     if (input_message )
+    {
+        showText(10, 10, status_message.c_str(), 0xffff, &status_surface_top_left);
+        showStatus = true;
+        status_obj->show_top_left = true;
+    }
     else
     {
         status_obj->show_top_left = false;
@@ -1489,6 +1495,11 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         height = currentHeight;
         data = lastData;
         pitch = lastPitch;
+        processVideoInAnotherThread = false;
+    }else if (input_message)
+    {      
+        width = INFO_MENU_WIDTH;
+        height = INFO_MENU_HEIGHT;   
         processVideoInAnotherThread = false;
     }
     else

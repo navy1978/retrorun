@@ -104,6 +104,8 @@ extern bool coreReadZippedFiles;
 extern std::string screenShotFolder;
 extern std::vector<CpuInfo> cpu_info_list;
 
+extern std::string status_message;
+
 // get system env 
 const char* getEnv( const char* tag) noexcept ;
 
@@ -111,6 +113,7 @@ std::vector<std::string> exec(const char* cmd) ;
 
 // Cores
 bool isFlycast();
+bool isFlycast2021();
 bool isParalleln64();
 bool isSwanStation();
 bool isMGBA();

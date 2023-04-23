@@ -168,7 +168,7 @@ go2_display_t *go2_display_create()
 
     if (false)
     { // this are for vertical sync
-        int refresh_rate = connector->modes[0].vrefresh;
+        //int refresh_rate = connector->modes[0].vrefresh;
         drmModeCrtcPtr crtc = drmModeGetCrtc(result->fd, encoder->crtc_id);
         drmModeSetCrtc(result->fd, crtc->crtc_id, crtc->buffer_id, crtc->x, crtc->y, &result->connector_id, 1, &crtc->mode);
         drmModeFreeCrtc(crtc);
@@ -974,7 +974,7 @@ void go2_presenter_post(go2_presenter_t *presenter, go2_surface_t *surface, int 
 
     go2_surface_t *dstSurface = go2_frame_buffer_surface_get(dstFrameBuffer);
 
-    rga_info_t dst = {0};
+   /* rga_info_t dst = {0};
     dst.fd = go2_surface_prime_fd(dstSurface);
     dst.mmuFlag = 0;
     dst.rect.xoffset = 0;
@@ -990,7 +990,7 @@ void go2_presenter_post(go2_presenter_t *presenter, go2_surface_t *surface, int 
     if (ret)
     {
         printf("c_RkRgaColorFill failed.\n");
-    }
+    }*/
 
     go2_surface_blit(surface, srcX, srcY, srcWidth, srcHeight, dstSurface, dstX, dstY, dstWidth, dstHeight, rotation);
 
@@ -1017,9 +1017,9 @@ void go2_presenter_black(go2_presenter_t *presenter, int dstX, int dstY, int dst
         }
     }
 
-    go2_surface_t *dstSurface = go2_frame_buffer_surface_get(dstFrameBuffer);
+    //go2_surface_t *dstSurface = go2_frame_buffer_surface_get(dstFrameBuffer);
 
-    rga_info_t dst = {0};
+    /*rga_info_t dst = {0};
     dst.fd = go2_surface_prime_fd(dstSurface);
     dst.mmuFlag = 0;
     dst.rect.xoffset = 0;
@@ -1035,7 +1035,7 @@ void go2_presenter_black(go2_presenter_t *presenter, int dstX, int dstY, int dst
     if (ret)
     {
         printf("c_RkRgaColorFill failed.\n");
-    }
+    }*/
 
     int push_result = go2_queue_push(presenter->usedFrameBuffers, dstFrameBuffer);
     if (push_result != 0)
@@ -1120,6 +1120,7 @@ void go2_presenter_post_double(go2_presenter_t* presenter, go2_surface_t* surfac
 
     sem_post(&presenter->usedSem);
 }*/
+/*
 #include <cmath>
 void translateCoordinates(int x_orig, int y_orig, int w_orig, int h_orig,
                           float aspect_ratio, float rotation_angle,
@@ -1153,7 +1154,7 @@ void translateCoordinates(int x_orig, int y_orig, int w_orig, int h_orig,
     // Scale the width and height
     w_new = (int)(w_orig * scaling_factor);
     h_new = (int)(h_orig * scaling_factor);
-}
+}*/
 
 int mx = 0;
 
