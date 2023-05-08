@@ -1246,26 +1246,21 @@ bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
     {
         status_obj->show_bottom_right = false;
     }
-    if (input_ffwd_requested )
+    if (input_ffwd_requested || input_message)
     {
-        
-        /*showText(10, 10, ">> Fast Forwarding >>", 0xf800, &status_surface_top_left);
-        
-        showStatus = true;
-        status_obj->show_top_left = true;*/
-
-          showImage(fast, &status_surface_top_left);
-        
-        showStatus = true;
-        status_obj->show_top_left = true;
-        
-    }
-     if (input_message )
+        if (input_message )
     {
         showText(10, 10, status_message.c_str(), 0xffff, &status_surface_top_left);
         showStatus = true;
         status_obj->show_top_left = true;
+    }else{
+          showImage(fast, &status_surface_top_left);
+        
+        showStatus = true;
+        status_obj->show_top_left = true;
     }
+    }
+     
     else
     {
         status_obj->show_top_left = false;
