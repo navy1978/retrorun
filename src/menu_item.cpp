@@ -133,8 +133,28 @@ Menu *MenuItem::getMenu()
 
 std::string MenuItem::getMisUnit()
 {
-    return mis_unit_;
+
+    if (mis_unit_ == "bool")
+    {
+        return "";
+    }
+    else
+    {
+        return mis_unit_;
+    }
 }
 /*bool MenuItem::isMenu(){
     return is_menu_;
 }*/
+
+std::string MenuItem::getStringValue()
+{
+    if (mis_unit_ == "bool")
+    {
+        return getValue() == 1 ? "yes" : "no";
+    }
+    else
+    {
+        return std::to_string(getValue());
+    }
+}

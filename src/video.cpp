@@ -642,7 +642,7 @@ inline void showInfo(int w, go2_surface_t **surface)
         }
         else if (mi.m_valueCalculator != NULL)
         {
-            showCenteredText(getRowForText(), (tabSpaces + mi.get_name() + ": < " + std::to_string(mi.getValue()) + mi.getMisUnit() + " >").c_str(), mi.isSelected() ? WHITE : DARKGREY, surface);
+            showCenteredText(getRowForText(), (tabSpaces + mi.get_name() + ": < " + mi.getStringValue()+ mi.getMisUnit() + " >").c_str(), mi.isSelected() ? WHITE : DARKGREY, surface);
         }
         else
         {

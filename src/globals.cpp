@@ -29,7 +29,7 @@ static const int DEVICE_NAME_SIZE = 1024;
 static char DEVICE_NAME[DEVICE_NAME_SIZE];
 static bool deviceInitialized = false;
 
-std::string release = "2.3.1";
+std::string release = "2.3.2";
 
 RETRORUN_CORE_TYPE Retrorun_Core = RETRORUN_CORE_UNKNOWN;
 Device device = UNKNOWN;
@@ -38,6 +38,7 @@ bool force_left_analog_stick = true;
 
 bool opt_triggers = false;
 bool gpio_joypad = false;
+bool swapL1R1WithL2R2 = false;
 float opt_aspect = 0.0f;
 float aspect_ratio = 0.0f;
 
@@ -66,7 +67,7 @@ bool processVideoInAnotherThread = true;
 
 bool adaptiveFps = false;
 
-bool runLoopAt60fps = true;
+bool runLoopAtDeclaredfps = true;
 
 int retrorun_audio_buffer = -1; // means it will be fixed to a value related with the original FPS of the game
 

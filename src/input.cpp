@@ -451,6 +451,12 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
     //if (go2_input_state_button_get(gamepadState, Hotkey) == ButtonState_Pressed)
     //    return 0;
 
+
+
+
+    go2_input_button_t realL1 =  gpio_joypad ? l1Button : Go2InputButton_TopLeft;
+    go2_input_button_t realR1 = gpio_joypad ? r1Button : Go2InputButton_TopRight ;
+
     if (force_left_analog_stick)
     {
         // Map thumbstick to dpad (force to enable the left analog stick mapping to it the DPAD)
@@ -637,32 +643,18 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
                 break;
 
             case RETRO_DEVICE_ID_JOYPAD_L:
-                if (gpio_joypad == true)
-                {
-                    return go2_input_state_button_get(gamepadState, l1Button);
-                }
-                else
-                {
-                    return go2_input_state_button_get(gamepadState, Go2InputButton_TopLeft);
-                }
+                return go2_input_state_button_get(gamepadState,swapL1R1WithL2R2 ? l2Button: realL1);
                 break;
             case RETRO_DEVICE_ID_JOYPAD_R:
-                if (gpio_joypad == true)
-                {
-                    return go2_input_state_button_get(gamepadState, r1Button);
-                }
-                else
-                {
-                    return go2_input_state_button_get(gamepadState, Go2InputButton_TopRight);
-                }
+                return go2_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? r2Button : realR1);
                 break;
 
             case RETRO_DEVICE_ID_JOYPAD_L2:
-                return go2_input_state_button_get(gamepadState, l2Button);
+                return go2_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? realL1 : l2Button);
                 break;
 
             case RETRO_DEVICE_ID_JOYPAD_R2:
-                return go2_input_state_button_get(gamepadState, r2Button);
+                return go2_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? realR1: r2Button);
                 break;
             case RETRO_DEVICE_ID_JOYPAD_L3:
                 return go2_input_state_button_get(gamepadState, l3Button);

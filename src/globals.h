@@ -94,6 +94,7 @@ extern int audioCounterSkip;
 extern bool opt_triggers;
 extern bool gpio_joypad;
 extern bool adaptiveFps;
+extern bool swapL1R1WithL2R2;
 
 extern float opt_aspect;
 extern float aspect_ratio;
@@ -135,7 +136,7 @@ bool isRG552();
 extern bool processVideoInAnotherThread;
 
 
-extern bool runLoopAt60fps;
+extern bool runLoopAtDeclaredfps;
 extern int retrorun_audio_buffer;
 extern int retrorun_mouse_speed_factor;
 

@@ -946,7 +946,8 @@ void initConfig()
             const std::string &asValue = conf_map.at("retrorun_auto_save");
             auto_save = asValue == "true" ? true : false;
             printf("-RR - Info - Autosave: %s.\n", auto_save ? "true" : "false");
-            if (isFlycast2021()){
+            if (isFlycast2021())
+            {
                 auto_save = false;
                 printf("-RR - Warning - Autosave disabled on Flycast2021 it doesnt work!");
             }
@@ -961,7 +962,8 @@ void initConfig()
             const std::string &asValue = conf_map.at("retrorun_auto_load");
             auto_load = asValue == "true" ? true : false;
             printf("-RR - Info - Autoload: %s.\n", auto_load ? "true" : "false");
-            if (isFlycast2021()){
+            if (isFlycast2021())
+            {
                 auto_load = false;
                 printf("-RR - Warning - Autoload disabled on Flycast2021 it doesnt work!");
             }
@@ -969,7 +971,7 @@ void initConfig()
         catch (...)
         {
             printf("By defualt retrorun auto_load will be the same as auto_save...\n");
-            auto_load= auto_save;
+            auto_load = auto_save;
             printf("-RR- Warning: retrorun_auto_load parameter not found in retrorun.cfg using default value (%s).\n", auto_load ? "true" : "false");
         }
 
@@ -987,14 +989,25 @@ void initConfig()
 
         try
         {
-            const std::string &tflValue = conf_map.at("retrorun_loop_60_fps");
+            const std::string &tflValue = conf_map.at("retrorun_loop_declared_fps");
 
-            runLoopAt60fps = tflValue == "false" ? false : true;
-            printf("-RR- Info - loop_60_fps: %s.\n", runLoopAt60fps ? "true" : "false");
+            runLoopAtDeclaredfps = tflValue == "false" ? false : true;
+            printf("-RR- Info - loop at declared fps: %s.\n", runLoopAtDeclaredfps ? "true" : "false");
         }
         catch (...)
         {
-            printf("-RR- Warning: retrorun_loop_60_fps parameter not found in retrorun.cfg using default value (%s).\n", runLoopAt60fps ? "true" : "false");
+            printf("-RR- Warning: retrorun_loop_declared_fps parameter not found in retrorun.cfg using default value (%s).\n", runLoopAtDeclaredfps ? "true" : "false");
+        }
+
+        try
+        {
+            const std::string &asValue = conf_map.at("retrorun_swap_l1r1_with_l2r2");
+            swapL1R1WithL2R2 = asValue == "true" ? true : false;
+            printf("-RR - Info - Swap L1 and L2 with R1 and R2: %s.\n", swapL1R1WithL2R2 ? "true" : "false");
+        }
+        catch (...)
+        {
+            printf("-RR- Warning: retrorun_swap_l1r1_with_l2r2 parameter not found in retrorun.cfg using default value (%s).\n", swapL1R1WithL2R2 ? "true" : "false");
         }
 
         try
@@ -1040,12 +1053,41 @@ void fake(int button)
     printf("fake function...");
 }
 
+int getSwapTriggers()
+{
+
+    return swapL1R1WithL2R2 ? 1 : 0;
+}
+
+void setSwapTriggers(int button)
+{
+
+    if (button == LEFT || button == RIGHT)
+    {
+        swapL1R1WithL2R2 = !swapL1R1WithL2R2;
+    }
+}
+
+int getLockDeclaredFPS()
+{
+
+    return runLoopAtDeclaredfps ? 1 : 0;
+}
+
+void setLockDeclaredFPS(int button)
+{
+
+    if (button == LEFT || button == RIGHT)
+    {
+        runLoopAtDeclaredfps = !runLoopAtDeclaredfps;
+    }
+}
+
 int getBrightnessValue()
 {
     int value = brightnessState.level;
     return value;
 }
-
 int step_left_right = 10;
 
 void setBrightnessValue(int button)
@@ -1313,7 +1355,6 @@ int main(int argc, char *argv[])
             sleep(3);
             // input_message = false;
         }
-        
     }
     printf("-RR- Loading sram - File '%s' \n", sramPath);
     LoadSram(sramPath);
@@ -1374,7 +1415,11 @@ int main(int argc, char *argv[])
 
     std::vector<MenuItem> itemsSettings = {
         MenuItem("Volume", getAudioValue, setAudioValue, "%"),
-        MenuItem("Brightness", getBrightnessValue, setBrightnessValue, "%")};
+        MenuItem("Brightness", getBrightnessValue, setBrightnessValue, "%"),
+        MenuItem("Swap triggers", getSwapTriggers, setSwapTriggers, "bool"),
+        MenuItem("Lock declared FPS", getLockDeclaredFPS, setLockDeclaredFPS, "bool"),
+
+    };
 
     Menu menuSettings = Menu("Settings", itemsSettings);
 
@@ -1414,10 +1459,6 @@ int main(int argc, char *argv[])
     Menu menu = Menu("Main Menu", items);
 
     menuManager.setCurrentMenu(&menu);
-    if (!isRG552())
-    { // for slow devices we set no limits
-        runLoopAt60fps = false;
-    }
     // end menu
 
     while (isRunning)
@@ -1473,7 +1514,7 @@ int main(int argc, char *argv[])
             g_retro.retro_reset();
         }
 
-        if ((runLoopAt60fps && sleepSecs > 0) && !input_ffwd_requested)
+        if ((runLoopAtDeclaredfps && sleepSecs > 0) && !input_ffwd_requested)
         {
             // printf("-RR- waiting!\n");
             std::this_thread::sleep_for(std::chrono::nanoseconds((int64_t)(sleepSecs * 1e9)));

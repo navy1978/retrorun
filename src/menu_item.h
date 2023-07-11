@@ -50,6 +50,7 @@ public:
     bool selected_;
     bool is_menu_;
     ValueCalculator m_valueCalculator;
+    std::string getStringValue();
 
 private:
     std::string name_;
