@@ -2,7 +2,21 @@
 libretro frontend for Anbernic devices (RG351 M/P/V/MP and RG552)\
 Use this for RG351*/RG552 with rg351p-js2box available [here](https://github.com/christianhaitian/RG351P_virtual-gamepad).
 
-# This branch adds some features, the following are part of them:
+
+## supported Cores (tested):
+
+- Flycast
+- Flycast 2021
+- ParaLLEl N64
+- SwanStation
+- mGBA
+- VBA-M
+- Virtual Jaguar
+- DOSBox-pure
+- DOSBox-core
+- Beetle VB
+
+## This branch adds some features, the following are part of them:
 1) External library libgo2 (https://github.com/OtherCrashOverride/libgo2) now is part of retrorun
 2) Tate mode (useful for naomi and atomiswave games)
 3) It enables right analog for ParallN64 (with C buttons management)
