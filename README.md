@@ -1,4 +1,4 @@
-# retrorun for Anbernic Devices (RG351 M/P/V/MP and RG552)
+# retrorun for Anbernic Devices (RG351 M/P/V/MP, RG552 and RG503)
 libretro frontend for Anbernic devices (RG351 M/P/V/MP and RG552)\
 Use this for RG351*/RG552 with rg351p-js2box available [here](https://github.com/christianhaitian/RG351P_virtual-gamepad).
 
