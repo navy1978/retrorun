@@ -256,6 +256,13 @@ void video_configure(struct retro_game_geometry *geom)
         printf("-RR- Device info: RG552 \n");
         device = RG_552;
     }
+    else if (display_width == 544 && display_height == 960)
+    {
+        printf("-RR- Device info: RG503 \n");
+        device = RG_503;
+    }
+
+    // width=544, height=960
     else
     {
         printf("-RR- Device info: unknown! display_width:%d, display_height:%d\n", display_width, display_height);
@@ -1361,8 +1368,11 @@ inline void core_video_refresh_OPENGL(const void *data, unsigned width, unsigned
 {
 
     // eglSwapInterval(display, 0);
-    if (data != RETRO_HW_FRAME_BUFFER_VALID)
+    if (data != RETRO_HW_FRAME_BUFFER_VALID){
+        printf("-RR- WARN - RETRO HW FRAME BUFFER NOT VALID - skipping frame\n");
         return;
+    }
+        
 
     /*if (!isWideScreen)
    {  //on V tate games should be rotated on the opposide side
@@ -1503,7 +1513,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         
         lastData = data;
         lastPitch = pitch;
-        processVideoInAnotherThread = (isRG552() /*&& !cleanUpScreen*/) ? true : false;
+        processVideoInAnotherThread = (isRG552() /*|| isRG503()*/) ? true : false;
         
     }
 
@@ -1523,6 +1533,8 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
 
     if (first_video_refresh)
     {
+        
+        
         prepareScreen(width, height);
 
         printf("-RR- Real aspect_ratio=%f\n", aspect_ratio);

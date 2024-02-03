@@ -37,6 +37,7 @@ enum Device
 {
   P_M,
   V_MP,
+  RG_503,
   RG_552,
   UNKNOWN
 };
@@ -132,6 +133,7 @@ bool isRG351P();
 bool isRG351V();
 bool isRG351MP();
 bool isRG552();
+bool isRG503();
 
 extern bool processVideoInAnotherThread;
 

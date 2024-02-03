@@ -80,7 +80,7 @@ static go2_input_button_t r2Button = Go2InputButton_F3;
 static go2_input_button_t l3Button = Go2InputButton_F2;
 static go2_input_button_t r3Button = Go2InputButton_F5;
 bool firstExecution = true;
-bool elable_key_log = false;
+bool elable_key_log = true;
 
 void input_gamepad_read()
 {
@@ -103,6 +103,13 @@ void input_gamepad_read()
             printf("GPIO JOYPAD: ENABLED!\n");
             firstExecution = false;
         }
+    }
+
+    if (isRG503()){
+        selectButton = Go2InputButton_SELECT; // check if this is ok!
+        startButton = Go2InputButton_START;
+        l3Button = Go2InputButton_THUMBL;
+        r3Button = Go2InputButton_THUMBR;
     }
 
     if (!input)
@@ -234,6 +241,81 @@ void core_input_poll(void)
             printf("input: F6.\n");
         }
 
+         if (go2_input_state_button_get(gamepadState, Go2InputButton_F7) == ButtonState_Pressed)
+        {
+            printf("input: F7.\n");
+        }
+
+         if (go2_input_state_button_get(gamepadState, Go2InputButton_F8) == ButtonState_Pressed)
+        {
+            printf("input: F8.\n");
+        }
+
+         if (go2_input_state_button_get(gamepadState, Go2InputButton_F9) == ButtonState_Pressed)
+        {
+            printf("input: F9.\n");
+        }
+
+        if (go2_input_state_button_get(gamepadState, Go2InputButton_F10) == ButtonState_Pressed)
+        {
+            printf("input: F10.\n");
+        }
+
+        if (go2_input_state_button_get(gamepadState, Go2InputButton_F11) == ButtonState_Pressed)
+        {
+            printf("input: F11.\n");
+        }
+
+        if (go2_input_state_button_get(gamepadState, Go2InputButton_F12) == ButtonState_Pressed)
+        {
+            printf("input: F12.\n");
+        }
+
+        if (go2_input_state_button_get(gamepadState, Go2InputButton_F13) == ButtonState_Pressed)
+        {
+            printf("input: F13.\n");
+        }
+
+        if (go2_input_state_button_get(gamepadState, Go2InputButton_F14) == ButtonState_Pressed)
+        {
+            printf("input: F14.\n");
+        }
+
+        if (go2_input_state_button_get(gamepadState, Go2InputButton_F15) == ButtonState_Pressed)
+        {
+            printf("input: F15.\n");
+        }
+
+        if (go2_input_state_button_get(gamepadState, Go2InputButton_F16) == ButtonState_Pressed)
+        {
+            printf("input: F16.\n");
+        }
+
+
+         if (go2_input_state_button_get(gamepadState, Go2InputButton_SELECT) == ButtonState_Pressed)
+        {
+            printf("input: SELECT.\n");
+        }
+
+        if (go2_input_state_button_get(gamepadState, Go2InputButton_START) == ButtonState_Pressed)
+        {
+            printf("input: START.\n");
+        }
+
+
+        if (go2_input_state_button_get(gamepadState, Go2InputButton_THUMBR) == ButtonState_Pressed)
+        {
+            printf("input: THUMBR.\n");
+        }
+
+        if (go2_input_state_button_get(gamepadState, Go2InputButton_THUMBL) == ButtonState_Pressed)
+        {
+            printf("input: THUMBR.\n");
+        }
+
+
+        
+
         if (go2_input_state_button_get(gamepadState, Go2InputButton_A) == ButtonState_Pressed)
         {
             printf("input: A.\n");
@@ -308,7 +390,7 @@ void core_input_poll(void)
        
     }
 
-    if (!input_info_requested && go2_input_state_button_get(gamepadState, Go2InputButton_F1) == ButtonState_Pressed &&
+    if (!input_info_requested && go2_input_state_button_get(gamepadState, selectButton) == ButtonState_Pressed &&
         go2_input_state_button_get(gamepadState, startButton) == ButtonState_Pressed)
     {
         if (input_exit_requested_firstTime && elapsed_time_ms > 0.5)
@@ -322,7 +404,7 @@ void core_input_poll(void)
         }
     }
 
-    if (!input_info_requested && go2_input_state_button_get(gamepadState, Go2InputButton_F1) == ButtonState_Pressed &&
+    if (!input_info_requested && go2_input_state_button_get(gamepadState, selectButton) == ButtonState_Pressed &&
         go2_input_state_button_get(gamepadState, Go2InputButton_Y) == ButtonState_Pressed)
     {
 
@@ -389,7 +471,7 @@ void core_input_poll(void)
         
     }
 
-    if (!input_info_requested && go2_input_state_button_get(gamepadState, Go2InputButton_F1) == ButtonState_Pressed &&
+    if (!input_info_requested && go2_input_state_button_get(gamepadState, selectButton) == ButtonState_Pressed &&
         go2_input_state_button_get(gamepadState, Go2InputButton_B) == ButtonState_Pressed)
     {
         screenshot_requested = true;
@@ -611,12 +693,12 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
                 break;
 
             case RETRO_DEVICE_ID_JOYPAD_SELECT:
-                return go2_input_state_button_get(gamepadState, Go2InputButton_F1);
+                return go2_input_state_button_get(gamepadState, selectButton);
                 break;
 
             case RETRO_DEVICE_ID_JOYPAD_START:
                 return go2_input_state_button_get(gamepadState, startButton);
-                break;
+                break;         
 
             case RETRO_DEVICE_ID_JOYPAD_UP:
                 return go2_input_state_button_get(gamepadState, Go2InputButton_DPadUp);

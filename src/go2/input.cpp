@@ -38,29 +38,22 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include <libevdev-1.0/libevdev/libevdev.h>
 #include <linux/limits.h>
 
-
-
-
-
-
-
 #define BATTERY_BUFFER_SIZE (128)
 #define BRIGHTNESS_BUFFER_SIZE (128)
 // joypad
-static const char* EVDEV_NAME = "/dev/input/by-path/platform-odroidgo2-joypad-event-joystick";
-static const char* EVDEV_NAME_2 = "/dev/input/by-path/platform-odroidgo3-joypad-event-joystick";
+static const char *EVDEV_NAME = "/dev/input/by-path/platform-odroidgo2-joypad-event-joystick";
+static const char *EVDEV_NAME_2 = "/dev/input/by-path/platform-odroidgo3-joypad-event-joystick";
+static const char* EVDEV_NAME_3 = "/dev/input/by-path/platform-singleadc-joypad-event-joystick";
 // battery
-static const char* BATTERY_STATUS_NAME = "/sys/class/power_supply/battery/status";
-static const char* BATTERY_CAPACITY_NAME = "/sys/class/power_supply/battery/capacity";
-static const char* BATTERY_STATUS_NAME_2 = "/sys/class/power_supply/bat/status";
-static const char* BATTERY_CAPACITY_NAME_2 = "/sys/class/power_supply/bat/capacity";
+static const char *BATTERY_STATUS_NAME = "/sys/class/power_supply/battery/status";
+static const char *BATTERY_CAPACITY_NAME = "/sys/class/power_supply/battery/capacity";
+static const char *BATTERY_STATUS_NAME_2 = "/sys/class/power_supply/bat/status";
+static const char *BATTERY_CAPACITY_NAME_2 = "/sys/class/power_supply/bat/capacity";
 // brightness
-static const char* BRIGHTNESS_VALUE_NAME = "/sys/class/backlight/backlight/brightness";
-
+static const char *BRIGHTNESS_VALUE_NAME = "/sys/class/backlight/backlight/brightness";
 
 #define GO2_THUMBSTICK_COUNT (Go2InputThumbstick_Right + 1)
 #define GO2_BUTTON_COUNT (Go2InputButton_TriggerRight + 1)
-
 
 typedef struct go2_input_state
 {
@@ -71,9 +64,9 @@ typedef struct go2_input_state
 typedef struct go2_input
 {
     int fd;
-    struct libevdev* dev;
+    struct libevdev *dev;
     go2_input_state_t current_state;
-    go2_input_state_t pending_state;    
+    go2_input_state_t pending_state;
     pthread_mutex_t gamepadMutex;
     pthread_mutex_t batteryMutex;
     pthread_mutex_t brightnessMutex;
@@ -84,29 +77,24 @@ typedef struct go2_input
     pthread_t brightness_thread;
     pthread_t volume_thread;
     bool terminating;
-    const char* device;
+    const char *device;
 } go2_input_t;
 
-
-static void* battery_task(void* arg)
+static void *battery_task(void *arg)
 {
-    
-     
-    go2_input_t* input = (go2_input_t*)arg;
+
+    go2_input_t *input = (go2_input_t *)arg;
     int fd;
-    void* result = 0;
+    void *result = 0;
     char buffer[BATTERY_BUFFER_SIZE + 1];
     go2_battery_state_t battery;
 
-
     memset(&battery, 0, sizeof(battery));
 
+    const char *batteryStatus = isRG552() ? BATTERY_STATUS_NAME_2 : BATTERY_STATUS_NAME;
+    const char *batteryCapacity = isRG552() ? BATTERY_CAPACITY_NAME_2 : BATTERY_CAPACITY_NAME;
 
-    const char* batteryStatus = isRG552()? BATTERY_STATUS_NAME_2 : BATTERY_STATUS_NAME;
-    const char* batteryCapacity = isRG552() ? BATTERY_CAPACITY_NAME_2 : BATTERY_CAPACITY_NAME;
-   
-
-    while(!input->terminating)
+    while (!input->terminating)
     {
         fd = open(batteryStatus, O_RDONLY);
         if (fd > 0)
@@ -115,7 +103,7 @@ static void* battery_task(void* arg)
             ssize_t count = read(fd, buffer, BATTERY_BUFFER_SIZE);
             if (count > 0)
             {
-                //printf("BATT: buffer='%s'\n", buffer);
+                // printf("BATT: buffer='%s'\n", buffer);
 
                 if (buffer[0] == 'D')
                 {
@@ -132,7 +120,7 @@ static void* battery_task(void* arg)
                 else
                 {
                     battery.status = Battery_Status_Unknown;
-                }                
+                }
             }
 
             close(fd);
@@ -151,47 +139,40 @@ static void* battery_task(void* arg)
             {
                 battery.level = 0;
             }
-            
+
             close(fd);
         }
-
 
         pthread_mutex_lock(&input->batteryMutex);
 
         input->current_battery = battery;
 
-        pthread_mutex_unlock(&input->batteryMutex); 
-        
-        //printf("BATT: status=%d, level=%d\n", input->current_battery.status, input->current_battery.level);
+        pthread_mutex_unlock(&input->batteryMutex);
 
-        sleep(1);      
+        // printf("BATT: status=%d, level=%d\n", input->current_battery.status, input->current_battery.level);
+
+        sleep(1);
     }
 
-    //printf("BATT: exit.\n");
+    // printf("BATT: exit.\n");
     return result;
 }
 
-static void* brightness_task(void* arg)
+static void *brightness_task(void *arg)
 {
-    
-     
-    go2_input_t* input = (go2_input_t*)arg;
+
+    go2_input_t *input = (go2_input_t *)arg;
     int fd;
-    void* result = 0;
+    void *result = 0;
     char buffer[BRIGHTNESS_BUFFER_SIZE + 1];
     go2_brightness_state_t brightness;
 
-
     memset(&brightness, 0, sizeof(brightness));
 
+    const char *brightnessValue = BRIGHTNESS_VALUE_NAME;
 
-   
-    const char* brightnessValue = BRIGHTNESS_VALUE_NAME;
-   
-
-    while(!input->terminating)
+    while (!input->terminating)
     {
-        
 
         fd = open(brightnessValue, O_RDONLY);
         if (fd > 0)
@@ -206,34 +187,31 @@ static void* brightness_task(void* arg)
             {
                 brightness.level = 0;
             }
-            
+
             close(fd);
         }
-
 
         pthread_mutex_lock(&input->brightnessMutex);
 
         input->current_brightness = brightness;
 
-        pthread_mutex_unlock(&input->brightnessMutex); 
-        
-        //printf("BRIGHTNESS: level=%d\n",  input->current_brightness.level);
+        pthread_mutex_unlock(&input->brightnessMutex);
 
-        sleep(1);      
+        // printf("BRIGHTNESS: level=%d\n",  input->current_brightness.level);
+
+        sleep(1);
     }
 
-    //printf("BRIGHTNESS: exit.\n");
+    // printf("BRIGHTNESS: exit.\n");
     return result;
 }
 
-
-
-
-static void* input_task(void* arg)
+static void *input_task(void *arg)
 {
-    go2_input_t* input = (go2_input_t*)arg;
+    go2_input_t *input = (go2_input_t *)arg;
 
-    if (!input->dev) return NULL;
+    if (!input->dev)
+        return NULL;
 
     const int abs_x_max = libevdev_get_abs_maximum(input->dev, ABS_X);
     const int abs_y_max = libevdev_get_abs_maximum(input->dev, ABS_Y);
@@ -241,8 +219,7 @@ static void* input_task(void* arg)
     const int abs_rx_max = libevdev_get_abs_maximum(input->dev, ABS_RX);
     const int abs_ry_max = libevdev_get_abs_maximum(input->dev, ABS_RY);
 
-    //printf("abs: x_max=%d, y_max=%d\n", abs_x_max, abs_y_max);
-    
+    // printf("abs: x_max=%d, y_max=%d\n", abs_x_max, abs_y_max);
 
     // Get current state
     input->current_state.buttons[Go2InputButton_DPadUp] = libevdev_get_event_value(input->dev, EV_KEY, BTN_DPAD_UP) ? ButtonState_Pressed : ButtonState_Released;
@@ -258,12 +235,30 @@ static void* input_task(void* arg)
     input->current_state.buttons[Go2InputButton_TopLeft] = libevdev_get_event_value(input->dev, EV_KEY, BTN_TL) ? ButtonState_Pressed : ButtonState_Released;
     input->current_state.buttons[Go2InputButton_TopRight] = libevdev_get_event_value(input->dev, EV_KEY, BTN_TR) ? ButtonState_Pressed : ButtonState_Released;
 
+    input->current_state.buttons[Go2InputButton_SELECT] = libevdev_get_event_value(input->dev, EV_KEY, BTN_SELECT) ? ButtonState_Pressed : ButtonState_Released;
+    input->current_state.buttons[Go2InputButton_START] = libevdev_get_event_value(input->dev, EV_KEY, BTN_START) ? ButtonState_Pressed : ButtonState_Released;
+    input->current_state.buttons[Go2InputButton_THUMBL] = libevdev_get_event_value(input->dev, EV_KEY, BTN_THUMBL) ? ButtonState_Pressed : ButtonState_Released;
+    input->current_state.buttons[Go2InputButton_THUMBR] = libevdev_get_event_value(input->dev, EV_KEY, BTN_THUMBR) ? ButtonState_Pressed : ButtonState_Released;
+
+
+
+
     input->current_state.buttons[Go2InputButton_F1] = libevdev_get_event_value(input->dev, EV_KEY, BTN_TRIGGER_HAPPY1) ? ButtonState_Pressed : ButtonState_Released;
     input->current_state.buttons[Go2InputButton_F2] = libevdev_get_event_value(input->dev, EV_KEY, BTN_TRIGGER_HAPPY2) ? ButtonState_Pressed : ButtonState_Released;
     input->current_state.buttons[Go2InputButton_F3] = libevdev_get_event_value(input->dev, EV_KEY, BTN_TRIGGER_HAPPY3) ? ButtonState_Pressed : ButtonState_Released;
     input->current_state.buttons[Go2InputButton_F4] = libevdev_get_event_value(input->dev, EV_KEY, BTN_TRIGGER_HAPPY4) ? ButtonState_Pressed : ButtonState_Released;
     input->current_state.buttons[Go2InputButton_F5] = libevdev_get_event_value(input->dev, EV_KEY, BTN_TRIGGER_HAPPY5) ? ButtonState_Pressed : ButtonState_Released;
     input->current_state.buttons[Go2InputButton_F6] = libevdev_get_event_value(input->dev, EV_KEY, BTN_TRIGGER_HAPPY6) ? ButtonState_Pressed : ButtonState_Released;
+    input->current_state.buttons[Go2InputButton_F7] = libevdev_get_event_value(input->dev, EV_KEY, BTN_TRIGGER_HAPPY7) ? ButtonState_Pressed : ButtonState_Released;
+    input->current_state.buttons[Go2InputButton_F8] = libevdev_get_event_value(input->dev, EV_KEY, BTN_TRIGGER_HAPPY8) ? ButtonState_Pressed : ButtonState_Released;
+    input->current_state.buttons[Go2InputButton_F9] = libevdev_get_event_value(input->dev, EV_KEY, BTN_TRIGGER_HAPPY9) ? ButtonState_Pressed : ButtonState_Released;
+    input->current_state.buttons[Go2InputButton_F10] = libevdev_get_event_value(input->dev, EV_KEY, BTN_TRIGGER_HAPPY10) ? ButtonState_Pressed : ButtonState_Released;
+    input->current_state.buttons[Go2InputButton_F11] = libevdev_get_event_value(input->dev, EV_KEY, BTN_TRIGGER_HAPPY11) ? ButtonState_Pressed : ButtonState_Released;
+    input->current_state.buttons[Go2InputButton_F12] = libevdev_get_event_value(input->dev, EV_KEY, BTN_TRIGGER_HAPPY12) ? ButtonState_Pressed : ButtonState_Released;
+    input->current_state.buttons[Go2InputButton_F13] = libevdev_get_event_value(input->dev, EV_KEY, BTN_TRIGGER_HAPPY13) ? ButtonState_Pressed : ButtonState_Released;
+    input->current_state.buttons[Go2InputButton_F14] = libevdev_get_event_value(input->dev, EV_KEY, BTN_TRIGGER_HAPPY14) ? ButtonState_Pressed : ButtonState_Released;
+    input->current_state.buttons[Go2InputButton_F15] = libevdev_get_event_value(input->dev, EV_KEY, BTN_TRIGGER_HAPPY15) ? ButtonState_Pressed : ButtonState_Released;
+    input->current_state.buttons[Go2InputButton_F16] = libevdev_get_event_value(input->dev, EV_KEY, BTN_TRIGGER_HAPPY16) ? ButtonState_Pressed : ButtonState_Released;
 
     input->current_state.buttons[Go2InputButton_TriggerLeft] = libevdev_get_event_value(input->dev, EV_KEY, BTN_TL2) ? ButtonState_Pressed : ButtonState_Released;
     input->current_state.buttons[Go2InputButton_TriggerRight] = libevdev_get_event_value(input->dev, EV_KEY, BTN_TR2) ? ButtonState_Pressed : ButtonState_Released;
@@ -274,15 +269,14 @@ static void* input_task(void* arg)
     input->current_state.thumbs[Go2InputThumbstick_Right].x = libevdev_get_event_value(input->dev, EV_ABS, ABS_RX) / (float)abs_rx_max;
     input->current_state.thumbs[Go2InputThumbstick_Right].y = libevdev_get_event_value(input->dev, EV_ABS, ABS_RY) / (float)abs_ry_max;
 
-
     // Events
-	while (!input->terminating)
-	{
-		/* EAGAIN is returned when the queue is empty */
-		struct input_event ev;
-		int rc = libevdev_next_event(input->dev, LIBEVDEV_READ_FLAG_BLOCKING, &ev);
-		if (rc == 0)
-		{
+    while (!input->terminating)
+    {
+        /* EAGAIN is returned when the queue is empty */
+        struct input_event ev;
+        int rc = libevdev_next_event(input->dev, LIBEVDEV_READ_FLAG_BLOCKING, &ev);
+        if (rc == 0)
+        {
 #if 0
 			printf("Gamepad Event: %s-%s(%d)=%d\n",
 			       libevdev_event_type_get_name(ev.type),
@@ -291,98 +285,141 @@ static void* input_task(void* arg)
 #endif
 
             if (ev.type == EV_KEY)
-			{
+            {
                 go2_button_state_t state = ev.value ? ButtonState_Pressed : ButtonState_Released;
 
                 switch (ev.code)
                 {
-                    case BTN_DPAD_UP:
-                        input->pending_state.buttons[Go2InputButton_DPadUp] = state;
-                        break;
-                    case BTN_DPAD_DOWN:
-                        input->pending_state.buttons[Go2InputButton_DPadDown] = state;
-                        break;
-                    case BTN_DPAD_LEFT:
-                        input->pending_state.buttons[Go2InputButton_DPadLeft] = state;
-                        break;
-                    case BTN_DPAD_RIGHT:
-                        input->pending_state.buttons[Go2InputButton_DPadRight] = state;
-                        break;
+                case BTN_DPAD_UP:
+                    input->pending_state.buttons[Go2InputButton_DPadUp] = state;
+                    break;
+                case BTN_DPAD_DOWN:
+                    input->pending_state.buttons[Go2InputButton_DPadDown] = state;
+                    break;
+                case BTN_DPAD_LEFT:
+                    input->pending_state.buttons[Go2InputButton_DPadLeft] = state;
+                    break;
+                case BTN_DPAD_RIGHT:
+                    input->pending_state.buttons[Go2InputButton_DPadRight] = state;
+                    break;
 
-                    case BTN_EAST:
-                        input->pending_state.buttons[Go2InputButton_A] = state;
-                        break;
-                    case BTN_SOUTH:
-                        input->pending_state.buttons[Go2InputButton_B] = state;
-                        break;
-                    case BTN_NORTH:
-                        input->pending_state.buttons[Go2InputButton_X] = state;
-                        break;
-                    case BTN_WEST:
-                        input->pending_state.buttons[Go2InputButton_Y] = state;
-                        break;
+                case BTN_EAST:
+                    input->pending_state.buttons[Go2InputButton_A] = state;
+                    break;
+                case BTN_SOUTH:
+                    input->pending_state.buttons[Go2InputButton_B] = state;
+                    break;
+                case BTN_NORTH:
+                    input->pending_state.buttons[Go2InputButton_X] = state;
+                    break;
+                case BTN_WEST:
+                    input->pending_state.buttons[Go2InputButton_Y] = state;
+                    break;
 
-                    case BTN_TL:
-                        input->pending_state.buttons[Go2InputButton_TopLeft] = state;
-                        break;                    
-                    case BTN_TR:          
-                        input->pending_state.buttons[Go2InputButton_TopRight] = state;
-                        break;
+                case BTN_TL:
+                    input->pending_state.buttons[Go2InputButton_TopLeft] = state;
+                    break;
+                case BTN_TR:
+                    input->pending_state.buttons[Go2InputButton_TopRight] = state;
+                    break;
 
-                    case BTN_TRIGGER_HAPPY1:
-                        input->pending_state.buttons[Go2InputButton_F1] = state;
-                        break;
-                    case BTN_TRIGGER_HAPPY2:
-                        input->pending_state.buttons[Go2InputButton_F2] = state;
-                        break;
-                    case BTN_TRIGGER_HAPPY3:
-                        input->pending_state.buttons[Go2InputButton_F3] = state;
-                        break;
-                    case BTN_TRIGGER_HAPPY4:
-                        input->pending_state.buttons[Go2InputButton_F4] = state;
-                        break;
-                    case BTN_TRIGGER_HAPPY5:
-                        input->pending_state.buttons[Go2InputButton_F5] = state;
-                        break;
-                    case BTN_TRIGGER_HAPPY6:
-                        input->pending_state.buttons[Go2InputButton_F6] = state;
-                        break;
+                case BTN_SELECT:
+                    input->pending_state.buttons[Go2InputButton_SELECT] = state;
+                    break;                    
+                case BTN_START:          
+                    input->pending_state.buttons[Go2InputButton_START] = state;
+                    break;
 
-                    case BTN_TL2:
-                        input->pending_state.buttons[Go2InputButton_TriggerLeft] = state;
-                        break;                    
-                    case BTN_TR2:          
-                        input->pending_state.buttons[Go2InputButton_TriggerRight] = state;
-                        break;
+                case BTN_THUMBR:
+                    input->pending_state.buttons[Go2InputButton_THUMBR] = state;
+                    break;                    
+                case BTN_THUMBL:          
+                    input->pending_state.buttons[Go2InputButton_THUMBL] = state;
+                    break;    
 
+                case BTN_TRIGGER_HAPPY1:
+                    input->pending_state.buttons[Go2InputButton_F1] = state;
+                    break;
+                case BTN_TRIGGER_HAPPY2:
+                    input->pending_state.buttons[Go2InputButton_F2] = state;
+                    break;
+                case BTN_TRIGGER_HAPPY3:
+                    input->pending_state.buttons[Go2InputButton_F3] = state;
+                    break;
+                case BTN_TRIGGER_HAPPY4:
+                    input->pending_state.buttons[Go2InputButton_F4] = state;
+                    break;
+                case BTN_TRIGGER_HAPPY5:
+                    input->pending_state.buttons[Go2InputButton_F5] = state;
+                    break;
+                case BTN_TRIGGER_HAPPY6:
+                    input->pending_state.buttons[Go2InputButton_F6] = state;
+                    break;
+                case BTN_TRIGGER_HAPPY7:
+                    input->pending_state.buttons[Go2InputButton_F7] = state;
+                    break;
+                case BTN_TRIGGER_HAPPY8:
+                    input->pending_state.buttons[Go2InputButton_F8] = state;
+                    break;
+                case BTN_TRIGGER_HAPPY9:
+                    input->pending_state.buttons[Go2InputButton_F9] = state;
+                    break;
+                case BTN_TRIGGER_HAPPY10:
+                    input->pending_state.buttons[Go2InputButton_F10] = state;
+                    break;
+                case BTN_TRIGGER_HAPPY11:
+                    input->pending_state.buttons[Go2InputButton_F11] = state;
+                    break;
+                case BTN_TRIGGER_HAPPY12:
+                    input->pending_state.buttons[Go2InputButton_F12] = state;
+                    break;
+                case BTN_TRIGGER_HAPPY13:
+                    input->pending_state.buttons[Go2InputButton_F13] = state;
+                    break;
+                case BTN_TRIGGER_HAPPY14:
+                    input->pending_state.buttons[Go2InputButton_F14] = state;
+                    break;
+                case BTN_TRIGGER_HAPPY15:
+                    input->pending_state.buttons[Go2InputButton_F15] = state;
+                    break;
+                case BTN_TRIGGER_HAPPY16:
+                    input->pending_state.buttons[Go2InputButton_F16] = state;
+                    break;
+
+                case BTN_TL2:
+                    input->pending_state.buttons[Go2InputButton_TriggerLeft] = state;
+                    break;
+                case BTN_TR2:
+                    input->pending_state.buttons[Go2InputButton_TriggerRight] = state;
+                    break;
                 }
             }
             else if (ev.type == EV_ABS)
             {
                 switch (ev.code)
                 {
-                    case ABS_X:
-                        input->pending_state.thumbs[Go2InputThumbstick_Left].x = ev.value / (float)abs_x_max;
-                        break;
-                    case ABS_Y:
-                        input->pending_state.thumbs[Go2InputThumbstick_Left].y = ev.value / (float)abs_y_max;
-                        break;
+                case ABS_X:
+                    input->pending_state.thumbs[Go2InputThumbstick_Left].x = ev.value / (float)abs_x_max;
+                    break;
+                case ABS_Y:
+                    input->pending_state.thumbs[Go2InputThumbstick_Left].y = ev.value / (float)abs_y_max;
+                    break;
 
-                    case ABS_RX:
-                        input->pending_state.thumbs[Go2InputThumbstick_Right].x = ev.value / (float)abs_rx_max;
-                        break;
-                    case ABS_RY:
-                        input->pending_state.thumbs[Go2InputThumbstick_Right].y = ev.value / (float)abs_ry_max;
-                        break;
+                case ABS_RX:
+                    input->pending_state.thumbs[Go2InputThumbstick_Right].x = ev.value / (float)abs_rx_max;
+                    break;
+                case ABS_RY:
+                    input->pending_state.thumbs[Go2InputThumbstick_Right].y = ev.value / (float)abs_ry_max;
+                    break;
                 }
             }
             else if (ev.type == EV_SYN)
             {
                 pthread_mutex_lock(&input->gamepadMutex);
-    
+
                 input->current_state = input->pending_state;
 
-                pthread_mutex_unlock(&input->gamepadMutex); 
+                pthread_mutex_unlock(&input->gamepadMutex);
             }
         }
     }
@@ -390,12 +427,12 @@ static void* input_task(void* arg)
     return NULL;
 }
 
-go2_input_t* go2_input_create(const char* device)
+go2_input_t *go2_input_create(const char *device)
 {
 
-	int rc = 1;
+    int rc = 1;
 
-    go2_input_t* result = (go2_input_t*)malloc(sizeof(*result));
+    go2_input_t *result = (go2_input_t *)malloc(sizeof(*result));
     if (!result)
     {
         printf("malloc failed.\n");
@@ -404,24 +441,27 @@ go2_input_t* go2_input_create(const char* device)
 
     memset(result, 0, sizeof(*result));
 
-
     result->device = device;
-
 
     result->fd = open(EVDEV_NAME, O_RDONLY);
     if (result->fd < 0)
     {
-        result->fd = open(EVDEV_NAME_2, O_RDONLY);
+        if (isRG503()){
+            result->fd = open(EVDEV_NAME_3, O_RDONLY);
+        }else{
+            result->fd = open(EVDEV_NAME_2, O_RDONLY);
+        }
         if (result->fd < 0)
         {
             printf("Joystick: No gamepad found.\n");
         }
     }
-    
+
     if (result->fd > -1)
-    {    
+    {
         rc = libevdev_new_from_fd(result->fd, &result->dev);
-        if (rc < 0) {
+        if (rc < 0)
+        {
             printf("Joystick: Failed to init libevdev (%s)\n", strerror(-rc));
             close(result->fd);
             free(result);
@@ -430,15 +470,14 @@ go2_input_t* go2_input_create(const char* device)
 
         memset(&result->current_state, 0, sizeof(result->current_state));
         memset(&result->pending_state, 0, sizeof(result->pending_state));
-    
-    
+
         // printf("Input device name: \"%s\"\n", libevdev_get_name(result->dev));
         // printf("Input device ID: bus %#x vendor %#x product %#x\n",
         //     libevdev_get_id_bustype(result->dev),
         //     libevdev_get_id_vendor(result->dev),
         //     libevdev_get_id_product(result->dev));
 
-        if(pthread_create(&result->thread_id, NULL, input_task, (void*)result) < 0)
+        if (pthread_create(&result->thread_id, NULL, input_task, (void *)result) < 0)
         {
             printf("could not create input_task thread\n");
             libevdev_free(result->dev);
@@ -447,33 +486,32 @@ go2_input_t* go2_input_create(const char* device)
             return NULL;
         }
 
-        if(pthread_create(&result->battery_thread, NULL, battery_task, (void*)result) < 0)
+        if (pthread_create(&result->battery_thread, NULL, battery_task, (void *)result) < 0)
         {
             printf("could not create battery_task thread\n");
         }
 
-        if(pthread_create(&result->brightness_thread, NULL, brightness_task, (void*)result) < 0)
+        if (pthread_create(&result->brightness_thread, NULL, brightness_task, (void *)result) < 0)
         {
             printf("could not create brightness_task thread\n");
         }
-
     }
 
     return result;
 
-/*
-err_01:
-    libevdev_free(result->dev);
+    /*
+    err_01:
+        libevdev_free(result->dev);
 
-err_00:
-    close(result->fd);
-    free(result);
+    err_00:
+        close(result->fd);
+        free(result);
 
-out:
-    return NULL;*/
+    out:
+        return NULL;*/
 }
 
-void go2_input_destroy(go2_input_t* input)
+void go2_input_destroy(go2_input_t *input)
 {
     input->terminating = true;
 
@@ -488,10 +526,10 @@ void go2_input_destroy(go2_input_t* input)
     free(input);
 }
 
-void go2_input_gamepad_read(go2_input_t* input, go2_gamepad_state_t* outGamepadState)
+void go2_input_gamepad_read(go2_input_t *input, go2_gamepad_state_t *outGamepadState)
 {
     pthread_mutex_lock(&input->gamepadMutex);
-    
+
     outGamepadState->thumb.x = input->current_state.thumbs[Go2InputThumbstick_Left].x;
     outGamepadState->thumb.y = input->current_state.thumbs[Go2InputThumbstick_Left].y;
 
@@ -515,10 +553,10 @@ void go2_input_gamepad_read(go2_input_t* input, go2_gamepad_state_t* outGamepadS
     outGamepadState->buttons.f5 = input->current_state.buttons[Go2InputButton_F5];
     outGamepadState->buttons.f6 = input->current_state.buttons[Go2InputButton_F6];
 
-    pthread_mutex_unlock(&input->gamepadMutex);  
+    pthread_mutex_unlock(&input->gamepadMutex);
 }
 
-void go2_input_battery_read(go2_input_t* input, go2_battery_state_t* outBatteryState)
+void go2_input_battery_read(go2_input_t *input, go2_battery_state_t *outBatteryState)
 {
     pthread_mutex_lock(&input->batteryMutex);
 
@@ -527,29 +565,33 @@ void go2_input_battery_read(go2_input_t* input, go2_battery_state_t* outBatteryS
     pthread_mutex_unlock(&input->batteryMutex);
 }
 
-void go2_input_brightness_write(int value) {
+void go2_input_brightness_write(int value)
+{
     FILE *brightness_file = fopen(BRIGHTNESS_VALUE_NAME, "w");
-    if (brightness_file == NULL) {
+    if (brightness_file == NULL)
+    {
         perror("Cannot open file for brightness");
         return;
     }
-    
-    if (fprintf(brightness_file, "%d", value) < 0) {
+
+    if (fprintf(brightness_file, "%d", value) < 0)
+    {
         perror("Error writing value for brightness");
         return;
     }
-    
-    if (fclose(brightness_file) != 0) {
+
+    if (fclose(brightness_file) != 0)
+    {
         perror("Error closing file for brightness");
         return;
     }
-    
-    printf("Brightness set to %d\n",value);
-    
+
+    printf("Brightness set to %d\n", value);
+
     return;
 }
 
-void go2_input_brightness_read(go2_input_t* input, go2_brightness_state_t* outBrightnessState)
+void go2_input_brightness_read(go2_input_t *input, go2_brightness_state_t *outBrightnessState)
 {
     pthread_mutex_lock(&input->brightnessMutex);
 
@@ -558,18 +600,17 @@ void go2_input_brightness_read(go2_input_t* input, go2_brightness_state_t* outBr
     pthread_mutex_unlock(&input->brightnessMutex);
 }
 
-
 // v1.1 API
-go2_input_feature_flags_t go2_input_features_get(go2_input_t* input)
+go2_input_feature_flags_t go2_input_features_get(go2_input_t *input)
 {
     go2_input_feature_flags_t result = Go2InputFeatureFlags_None;
 
-    //if (go2_hardware_revision_get() == Go2HardwareRevision_V1_1)
+    // if (go2_hardware_revision_get() == Go2HardwareRevision_V1_1)
 
     if (libevdev_has_event_code(input->dev, EV_KEY, BTN_TL2) &&
         libevdev_has_event_code(input->dev, EV_KEY, BTN_TR2))
     {
-        int resultInt=(int) result;
+        int resultInt = (int)result;
         resultInt |= Go2InputFeatureFlags_Triggers;
         result = (go2_input_feature_flags_t)resultInt;
     }
@@ -577,8 +618,8 @@ go2_input_feature_flags_t go2_input_features_get(go2_input_t* input)
     if (libevdev_has_event_code(input->dev, EV_ABS, ABS_RX) &&
         libevdev_has_event_code(input->dev, EV_ABS, ABS_RY))
     {
-        
-        int resultInt=(int) result;
+
+        int resultInt = (int)result;
         resultInt |= Go2InputFeatureFlags_RightAnalog;
         result = (go2_input_feature_flags_t)resultInt;
     }
@@ -586,17 +627,16 @@ go2_input_feature_flags_t go2_input_features_get(go2_input_t* input)
     return result;
 }
 
-void go2_input_state_read(go2_input_t* input, go2_input_state_t* outState)
+void go2_input_state_read(go2_input_t *input, go2_input_state_t *outState)
 {
     *outState = input->current_state;
 }
 
-
-go2_input_state_t* go2_input_state_create()
+go2_input_state_t *go2_input_state_create()
 {
-    go2_input_state_t* result = NULL;
+    go2_input_state_t *result = NULL;
 
-    result = (go2_input_state_t*)malloc(sizeof(*result));
+    result = (go2_input_state_t *)malloc(sizeof(*result));
     if (result)
     {
         memset(result, 0, sizeof(*result));
@@ -605,22 +645,22 @@ go2_input_state_t* go2_input_state_create()
     return result;
 }
 
-void go2_input_state_destroy(go2_input_state_t* state)
+void go2_input_state_destroy(go2_input_state_t *state)
 {
     free(state);
 }
 
-go2_button_state_t go2_input_state_button_get(go2_input_state_t* state, go2_input_button_t button)
+go2_button_state_t go2_input_state_button_get(go2_input_state_t *state, go2_input_button_t button)
 {
     return state->buttons[button];
 }
 
-void go2_input_state_button_set(go2_input_state_t* state, go2_input_button_t button, go2_button_state_t value)
+void go2_input_state_button_set(go2_input_state_t *state, go2_input_button_t button, go2_button_state_t value)
 {
     state->buttons[button] = value;
 }
 
-go2_thumb_t go2_input_state_thumbstick_get(go2_input_state_t* state, go2_input_thumbstick_t thumbstick)
+go2_thumb_t go2_input_state_thumbstick_get(go2_input_state_t *state, go2_input_thumbstick_t thumbstick)
 {
     return state->thumbs[thumbstick];
 }

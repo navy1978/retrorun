@@ -1047,114 +1047,7 @@ void go2_presenter_black(go2_presenter_t *presenter, int dstX, int dstY, int dst
     sem_post(&presenter->usedSem);
 }
 
-/*
-void go2_presenter_post_double(go2_presenter_t* presenter, go2_surface_t* surface1, go2_surface_t* surface2, int srcX, int srcY, int srcWidth, int srcHeight, int dstX, int dstY, int dstWidth, int dstHeight, go2_rotation_t rotation)
-{
-    sem_wait(&presenter->freeSem);
 
-
-    pthread_mutex_lock(&presenter->queueMutex);
-
-    if (go2_queue_count_get(presenter->freeFrameBuffers) < 1)
-    {
-        printf("no framebuffer available.\n");
-        abort();
-    }
-
-    go2_frame_buffer_t* dstFrameBuffer = (go2_frame_buffer_t*) go2_queue_pop(presenter->freeFrameBuffers);
-
-    pthread_mutex_unlock(&presenter->queueMutex);
-
-
-    go2_surface_t* dstSurface = go2_frame_buffer_surface_get(dstFrameBuffer);
-
-    rga_info_t dst = { 0 };
-    dst.fd = go2_surface_prime_fd(dstSurface);
-    dst.mmuFlag = 1;
-    dst.rect.xoffset = 0;
-    dst.rect.yoffset = 0;
-    dst.rect.width = go2_surface_width_get(dstSurface);
-    dst.rect.height = go2_surface_height_get(dstSurface);
-    dst.rect.wstride = go2_surface_stride_get(dstSurface) / (go2_drm_format_get_bpp(go2_surface_format_get(dstSurface)) / 8);
-    dst.rect.hstride = go2_surface_height_get(dstSurface);
-    dst.rect.format = go2_rkformat_get(go2_surface_format_get(dstSurface));
-    dst.color = presenter->background_color;
-
-    int ret = c_RkRgaColorFill(&dst);
-    if (ret)
-    {
-        printf("c_RkRgaColorFill failed.\n");
-    }
-
-
-    go2_surface_blit(surface1, srcX, srcY, srcWidth, srcHeight, dstSurface, dstX, dstY, dstWidth, dstHeight, rotation);
-    //printf("quit width: %d height: %d - altro width: %d height: %d.\n", surface2->width, surface2->height, dstWidth, dstHeight);
-   // go2_surface_blit(surface2, 0, 0, surface2->width, surface2->height, dstSurface, 320-49, 480-152, 49, 152, rotation);
-
-    int dest2X=0;
-    int dest2Y=0;
-    int dest2Width=151;//surface2->width*presenter->display->width/480;
-    int dest2Height=651;//surface2->height*presenter->display->height/320;
-    if (rotation == GO2_ROTATION_DEGREES_0){
-        printf("rotation 0\n");
-    }else if (rotation == GO2_ROTATION_DEGREES_90){
-        printf("rotation 90\n");
-    }else if (rotation == GO2_ROTATION_DEGREES_180){
-        printf("rotation 180\n");
-    }
-    else if (rotation == GO2_ROTATION_DEGREES_270){
-        //printf("rotation 270\n");
-        dest2X = presenter->display->width -surface2->height;
-        dest2Y = presenter->display->height-surface2->width;
-        dest2Width=surface2->height*presenter->display->height/480;
-        dest2Height=surface2->width*presenter->display->width/320;
-    }
-
-
-    go2_surface_blit(surface2, 0, 0, surface2->width, surface2->height, dstSurface, dest2X, dest2Y, dest2Width, dest2Height, rotation);
-
-
-    pthread_mutex_lock(&presenter->queueMutex);
-    go2_queue_push(presenter->usedFrameBuffers, dstFrameBuffer);
-    pthread_mutex_unlock(&presenter->queueMutex);
-
-    sem_post(&presenter->usedSem);
-}*/
-/*
-#include <cmath>
-void translateCoordinates(int x_orig, int y_orig, int w_orig, int h_orig,
-                          float aspect_ratio, float rotation_angle,
-                          int &x_new, int &y_new, int &w_new, int &h_new)
-{
-    float scaling_factor, padding_h, padding_v;
-    float x_center = x_orig + w_orig / 2.0;
-    float y_center = y_orig + h_orig / 2.0;
-
-    if (aspect_ratio >= 1.0)
-    { // translate to a wider aspect ratio
-        scaling_factor = aspect_ratio / 16.0 * 4.75;
-        padding_h = (int)((800 - 800 / scaling_factor - w_orig) / 2);
-        padding_v = (int)((600 - h_orig * scaling_factor) / 2);
-    }
-    else
-    { // translate to a narrower aspect ratio
-        scaling_factor = aspect_ratio / 9.0 * 1.75;
-        padding_h = (int)((640 - 640 / scaling_factor - w_orig) / 2);
-        padding_v = (int)((480 - h_orig * scaling_factor) / 2);
-    }
-
-    // Rotate the center point of the bounding box
-    float x_center_new = x_center * cos(rotation_angle) - y_center * sin(rotation_angle);
-    float y_center_new = x_center * sin(rotation_angle) + y_center * cos(rotation_angle);
-
-    // Calculate the new coordinates of the top-left corner of the bounding box
-    x_new = (int)(x_center_new - w_new / 2.0);
-    y_new = (int)(y_center_new - h_new / 2.0);
-
-    // Scale the width and height
-    w_new = (int)(w_orig * scaling_factor);
-    h_new = (int)(h_orig * scaling_factor);
-}*/
 
 int mx = 0;
 
@@ -1232,7 +1125,7 @@ void blit_surface_status(go2_presenter_t *presenter, go2_surface_t *source_surfa
             dest_height_scaled = max_height;
         }
     }
-    else if (isRG351P() || isRG351M() || isRG552())
+    else if (isRG351P() || isRG351M() || isRG552() || isRG503())
     {
         // Scale the surface dimensions based on the display resolution and rotation
 
@@ -1341,7 +1234,7 @@ void blit_surface_status2(go2_presenter_t *presenter, go2_surface_t *surface, go
      }else if (rotation == GO2_ROTATION_DEGREES_180){
          printf("rotation 180\n");
      }*/
-    else if (isRG351P() || isRG351M() || isRG552())
+    else if (isRG351P() || isRG351M() || isRG552() || isRG503())
     { //(rotation == GO2_ROTATION_DEGREES_270){
         // printf("rotation 270\n");
 

@@ -22,9 +22,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <string>
 #include <sstream>
 #include <regex>
+#include <iostream>
+#include <unistd.h>
 
 // #include <cstring>
-const char *OS_ARCH = "cat /storage/.config/.OS_ARCH";
+const std::string OS_ARCH_FILE = "/storage/.config/.OS_ARCH";
+std::string OS_ARCH = "cat " + OS_ARCH_FILE;
+
 static const int DEVICE_NAME_SIZE = 1024;
 static char DEVICE_NAME[DEVICE_NAME_SIZE];
 static bool deviceInitialized = false;
@@ -205,24 +209,21 @@ void getCpuInfo()
 
     printf("list size:%d\n" + cpu_info_list.size());
 
-
     // get the name of the GPU
 
-    //find /sys/devices/platform/ -maxdepth 2 -type d -name "*.gpu" | xargs -I{} sh -c 'cat {}/gpuinfo'
+    // find /sys/devices/platform/ -maxdepth 2 -type d -name "*.gpu" | xargs -I{} sh -c 'cat {}/gpuinfo'
 
+    std::vector<std::string> output2 = exec("find /sys/devices/platform/ -maxdepth 2 -type d -name '*.gpu' | xargs -I{} sh -c 'cat {}/gpuinfo | grep -o \"^[^ ]* [^ ]* cores\"'");
 
-std::vector<std::string> output2 = exec("find /sys/devices/platform/ -maxdepth 2 -type d -name '*.gpu' | xargs -I{} sh -c 'cat {}/gpuinfo | grep -o \"^[^ ]* [^ ]* cores\"'");
+    for (const auto &line : output2)
+    {
 
-     for (const auto &line : output2)
-     {
-
-         gpu_name = line;
-         if (gpu_name.length()>1){
+        gpu_name = line;
+        if (gpu_name.length() > 1)
+        {
             gpu_name.erase(std::remove(gpu_name.begin(), gpu_name.end(), '\n'), gpu_name.end());
-         }
-    
-     }
-
+        }
+    }
 
     /* std::vector<std::string> output2 = exec("cat /proc/cpuinfo | grep Hardware");
 
@@ -256,53 +257,96 @@ std::vector<std::string> output2 = exec("find /sys/devices/platform/ -maxdepth 2
 
 const char *getDeviceName() noexcept
 {
-
+    printf("-RR- getting device name \n");
     if (!deviceInitialized)
     {
-        FILE *pipe = popen(OS_ARCH, "r");
-        if (!pipe)
-        {
-            printf("-RR- Error: Could not open pipe to `cat` command.\n");
-            return "";
-        }
 
-        char *result = fgets(DEVICE_NAME, DEVICE_NAME_SIZE, pipe);
-        if (!result)
+        if (access(OS_ARCH_FILE.c_str(), F_OK) == 0)
         {
-            printf("-RR- Error: Could not read output from `cat` command.\n");
-            return "";
-        }
+            printf("-RR- File %s found! \n", OS_ARCH_FILE.c_str());
+            FILE *pipe = popen(OS_ARCH.c_str(), "r");
+            if (!pipe)
+            {
+                printf("-RR- Error: Could not open pipe to `cat` command.\n");
+                return "";
+            }
 
-        // Close the pipe
-        pclose(pipe);
+            char *result = fgets(DEVICE_NAME, DEVICE_NAME_SIZE, pipe);
+            if (!result)
+            {
+                printf("-RR- Error: Could not read output from `cat` command.\n");
+                return "";
+            }
+
+            // Close the pipe
+            pclose(pipe);
+            deviceInitialized = true;
+            printf("-RR- Device name: %s\n", DEVICE_NAME);
+
+            // get extra info
+            getCpuInfo();
+        }
+        else
+    {
+         printf("-RR- File %s not found. Let's try to search in envioronment variables to identify the device name....\n", OS_ARCH_FILE.c_str());
+        const char *envVar = std::getenv("DEVICE_NAME");
+        if (envVar != nullptr)
+        {
+            // Copy the environment variable value to DEVICE_NAME
+            std::strncpy(DEVICE_NAME, envVar, DEVICE_NAME_SIZE - 1);
+            DEVICE_NAME[DEVICE_NAME_SIZE - 1] = '\0'; // Ensure null-termination
+
+            std::cout << "Environment variable value: " << DEVICE_NAME << std::endl;
+            
+        }
+        else
+        {
+            std::cout << "Environment variable \"DEVICE_NAME\" not set. Device name undefined!" << std::endl;
+        }
         deviceInitialized = true;
-        printf("-RR- Device name: %s\n", DEVICE_NAME);
-
-        // get extra info
-        getCpuInfo();
     }
+    }
+    
     return DEVICE_NAME;
+}
+
+bool checkDeviceName(char *target)
+{
+
+    size_t targetLength = strlen(target);
+
+    // Check if the first part of DEVICE_NAME matches the target
+    if (strncmp(DEVICE_NAME, target, targetLength) == 0)
+    {
+        // Check if the next character is '\n' or if DEVICE_NAME is exactly "RG351M"
+        return (DEVICE_NAME[targetLength] == '\n' || DEVICE_NAME[targetLength] == '\0');
+    }
+    return false;
 }
 
 bool isRG351M()
 {
-    return strcmp(DEVICE_NAME, "RG351M\n") == 0;
+    return checkDeviceName((char *)"RG351M"); // strcmp(DEVICE_NAME, "RG351M\n") == 0;
 }
 bool isRG351P()
 {
-    return strcmp(DEVICE_NAME, "RG351P\n") == 0;
+    return checkDeviceName((char *)"RG351P"); // strcmp(DEVICE_NAME, "RG351P\n") == 0;
 }
 bool isRG351V()
 {
-    return strcmp(DEVICE_NAME, "RG351V\n") == 0;
+    return checkDeviceName((char *)"RG351V"); // strcmp(DEVICE_NAME, "RG351V\n") == 0;
 }
 bool isRG351MP()
 {
-    return strcmp(DEVICE_NAME, "RG351MP\n") == 0;
+    return checkDeviceName((char *)"RG351MP"); // strcmp(DEVICE_NAME, "RG351MP\n") == 0;
 }
 bool isRG552()
 {
-    return strcmp(DEVICE_NAME, "RG552\n") == 0;
+    return checkDeviceName((char *)"RG552"); // strcmp(DEVICE_NAME, "RG552\n") == 0;
+}
+bool isRG503()
+{
+    return checkDeviceName((char *)"RG503"); // strcmp(DEVICE_NAME, "RG552\n") == 0;
 }
 
 std::vector<std::string> exec(const char *cmd)

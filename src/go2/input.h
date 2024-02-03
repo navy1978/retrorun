@@ -128,6 +128,23 @@ typedef enum
     Go2InputButton_F4,
     Go2InputButton_F5,
     Go2InputButton_F6,
+    Go2InputButton_F7,
+    Go2InputButton_F8,
+    Go2InputButton_F9,
+    Go2InputButton_F10,
+    Go2InputButton_F11,
+    Go2InputButton_F12,
+    Go2InputButton_F13,
+    Go2InputButton_F14,
+    Go2InputButton_F15,
+    Go2InputButton_F16,
+
+
+    
+    Go2InputButton_SELECT,
+    Go2InputButton_START,
+    Go2InputButton_THUMBR,
+    Go2InputButton_THUMBL,
 
     Go2InputButton_TopLeft,
     Go2InputButton_TopRight,

@@ -215,10 +215,10 @@ static void core_log(enum retro_log_level level, const char *fmt, ...)
         0};
 
     static const char *levelstr[] = {
-        "dbg",
-        "inf",
-        "wrn",
-        "err"};
+        "DEBUG:",
+        "INFO:",
+        "WARN:",
+        "ERROR:"};
 
     va_list va;
 
@@ -229,7 +229,7 @@ static void core_log(enum retro_log_level level, const char *fmt, ...)
     if (level == 0)
         return;
 
-    fprintf(stdout, "<-- %s --> [%s] %s ", coreName.c_str(), levelstr[level], buffer);
+    fprintf(stdout, "-- %s -- [%s] %s \n", coreName.c_str(), levelstr[level], buffer);
     fflush(stdout);
 
 #if 0
@@ -377,6 +377,66 @@ static bool core_environment(unsigned cmd, void *data)
         printf("-RR- -> SETTING REFRESH RATE CALLED!\n");
         return true;
     }
+
+     case RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE: 
+    {
+        bool *bval = (bool*)data;
+		*bval = false;
+        return true;
+    }
+
+    case RETRO_ENVIRONMENT_SET_ROTATION: {
+        printf("--LIBRETRO-- RETRO_ENVIRONMENT_SET_ROTATION not implemented \n");
+        return false;
+        
+    }
+    case RETRO_ENVIRONMENT_GET_DISK_CONTROL_INTERFACE_VERSION: {
+        printf("--LIBRETRO-- RETRO_ENVIRONMENT_GET_DISK_CONTROL_INTERFACE_VERSION not implemented \n");
+        return false;
+    }   
+
+    case RETRO_ENVIRONMENT_GET_PERF_INTERFACE: {
+        printf("--LIBRETRO-- RETRO_ENVIRONMENT_GET_PERF_INTERFACE not implemented \n");
+        return false;
+    }
+
+    case RETRO_ENVIRONMENT_GET_LANGUAGE: {
+        printf("--LIBRETRO-- RETRO_ENVIRONMENT_GET_LANGUAGE not implemented \n");
+        return false;
+    }
+
+    case RETRO_ENVIRONMENT_SET_KEYBOARD_CALLBACK: {
+        printf("--LIBRETRO-- RETRO_ENVIRONMENT_SET_KEYBOARD_CALLBACK not implemented \n");
+        return false;
+    }
+    case RETRO_ENVIRONMENT_SET_DISK_CONTROL_INTERFACE: {
+        printf("--LIBRETRO-- RETRO_ENVIRONMENT_SET_DISK_CONTROL_INTERFACE not implemented \n");
+        return false;
+    }
+
+
+    case RETRO_ENVIRONMENT_SET_CONTROLLER_INFO : {
+        printf("--LIBRETRO-- RETRO_ENVIRONMENT_SET_CONTROLLER_INFO not implemented \n");
+            return false;
+    }
+
+    case RETRO_ENVIRONMENT_SET_CORE_OPTIONS_INTL: {
+        printf("--LIBRETRO-- RETRO_ENVIRONMENT_SET_CORE_OPTIONS_INTL not implemented \n");
+            return false;
+    }
+
+          case RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY: {
+            printf("--LIBRETRO-- RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY not implemented \n");
+            return false;
+        }
+
+    case RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS: {
+            printf("--LIBRETRO-- RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS not implemented \n");
+            return false;
+    }
+
+
+
 
     case RETRO_ENVIRONMENT_GET_VARIABLE:
     {
@@ -1038,7 +1098,7 @@ void initConfig()
             printf("-RR- Info: retrorun_mouse_speed_factor parameter not found in retrorun.cfg using default value (5).\n");
         }
 
-        processVideoInAnotherThread = isRG552() ? true : false;
+        processVideoInAnotherThread = (isRG552() /*|| isRG503()*/) ? true : false;
 
         adaptiveFps = false;
 
@@ -1463,6 +1523,7 @@ int main(int argc, char *argv[])
 
     while (isRunning)
     {
+       // printf("-RR- is running \n");
         input_message = false;
         auto nextClock = std::chrono::high_resolution_clock::now();
         // double deltaTime = (nextClock - prevClock).count() / 1e9;

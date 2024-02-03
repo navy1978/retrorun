@@ -47,6 +47,9 @@ std::mutex mtx; // mutex for critical section
 bool firstTime=true;
 int init_freq;
 
+ std::string soundCardName ; 
+        
+
 
 void audio_init(int freq)
 {
@@ -55,14 +58,16 @@ void audio_init(int freq)
     init_freq = freq;
     audio = go2_audio_create(freq);
     audioFrameCount = 0;
+
+      soundCardName = isRG552()? "DAC" : isRG503()? "Playback Path" : "Playback";
     
     if (opt_volume > -1)
     {
-        go2_audio_volume_set(audio, (uint32_t)opt_volume, isRG552()? "DAC" : "Playback");
+        go2_audio_volume_set(audio, (uint32_t)opt_volume, soundCardName.c_str());
     }
     else
     {
-        opt_volume = go2_audio_volume_get(audio, isRG552()? "DAC" : "Playback");
+        opt_volume = go2_audio_volume_get(audio, soundCardName.c_str());
     }
     prevVolume = opt_volume;
 }
@@ -78,19 +83,19 @@ static void SetVolume()
 {
     if (opt_volume != prevVolume)
     {
-        go2_audio_volume_set(audio, (uint32_t)opt_volume, isRG552()? "DAC" : "Playback");
+        go2_audio_volume_set(audio, (uint32_t)opt_volume, soundCardName.c_str());
         prevVolume = opt_volume;
     }
 }
 
 int getVolume(){
-    int value = go2_audio_volume_get(audio, isRG552()? "DAC" : "Playback");
+    int value = go2_audio_volume_get(audio,  soundCardName.c_str() );
     //printf("VOLUME:%d\n", value);
     return value;
 }
 
 void setVolume(int value){
-    go2_audio_volume_set(audio, (uint32_t)value, isRG552()? "DAC" : "Playback");
+    go2_audio_volume_set(audio, (uint32_t)value,  soundCardName.c_str());
 }
 
 void core_audio_sample(int16_t left, int16_t right)
@@ -180,6 +185,7 @@ size_t core_audio_sample_batch(const int16_t *data, size_t frames)
      int currentFrame = (int)frames;
 
     if (currentFrame > FRAMES_MAX){
+        printf("-RR- AUDIO FRAME NOT VALID!\n");
         return frames;
     }
 
