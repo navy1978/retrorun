@@ -59,7 +59,7 @@ strip retrorun
 ```
 
 
-Confoguragion file
+Configuration file
 ======
 
 The configuration file looks like the following:
