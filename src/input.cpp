@@ -80,7 +80,7 @@ static go2_input_button_t r2Button = Go2InputButton_F3;
 static go2_input_button_t l3Button = Go2InputButton_F2;
 static go2_input_button_t r3Button = Go2InputButton_F5;
 bool firstExecution = true;
-bool elable_key_log = true;
+bool elable_key_log = false;
 
 void input_gamepad_read()
 {

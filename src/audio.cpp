@@ -44,12 +44,10 @@ static int audioFrameLimit;
 static int prevVolume;
 std::mutex mtx; // mutex for critical section
 
-bool firstTime=true;
+bool firstTime = true;
 int init_freq;
 
- std::string soundCardName ; 
-        
-
+std::string soundCardName;
 
 void audio_init(int freq)
 {
@@ -59,8 +57,9 @@ void audio_init(int freq)
     audio = go2_audio_create(freq);
     audioFrameCount = 0;
 
-      soundCardName = isRG552()? "DAC" : isRG503()? "Playback Path" : "Playback";
-    
+    soundCardName = isRG552() ? "DAC" : isRG503() ? "Playback Path"
+                                                  : "Playback";
+
     if (opt_volume > -1)
     {
         go2_audio_volume_set(audio, (uint32_t)opt_volume, soundCardName.c_str());
@@ -76,7 +75,6 @@ void audio_deinit()
 {
     if (audio != NULL)
         go2_audio_destroy(audio);
-
 }
 
 static void SetVolume()
@@ -88,19 +86,22 @@ static void SetVolume()
     }
 }
 
-int getVolume(){
-    int value = go2_audio_volume_get(audio,  soundCardName.c_str() );
-    //printf("VOLUME:%d\n", value);
+int getVolume()
+{
+    int value = go2_audio_volume_get(audio, soundCardName.c_str());
+    // printf("VOLUME:%d\n", value);
     return value;
 }
 
-void setVolume(int value){
-    go2_audio_volume_set(audio, (uint32_t)value,  soundCardName.c_str());
+void setVolume(int value)
+{
+    go2_audio_volume_set(audio, (uint32_t)value, soundCardName.c_str());
 }
 
 void core_audio_sample(int16_t left, int16_t right)
 {
-    if (input_ffwd_requested){
+    if (input_ffwd_requested)
+    {
         return;
     }
 
@@ -116,9 +117,7 @@ void core_audio_sample(int16_t left, int16_t right)
     }
 }
 
-
-
-  #include <stdint.h>
+#include <stdint.h>
 #include <string.h>
 
 static inline void newmemcpy(void *__restrict__ dstp,
@@ -147,26 +146,31 @@ static inline void newmemcpy(void *__restrict__ dstp,
     }
 }
 
-
 size_t core_audio_sample_batch(const int16_t *data, size_t frames)
 {
-    
 
+  
 
-    if (firstTime){
+    if (firstTime && originalFps > 0)
+    {
+        printf("-RR (Audio init) config...\n");
         audioFrameLimit = 1.0 / originalFps * init_freq;
 
-    
-
-        if (retrorun_audio_buffer==-1){
+        if (retrorun_audio_buffer == -1)
+        {
             retrorun_audio_buffer = audioFrameLimit;
         }
-        printf("-RR (Audio init)- originalFps:%f\n",originalFps);
-        printf("-RR (Audio init)- audioFrameLimit:%d\n",audioFrameLimit);
-        printf("-RR (Audio init)- retrorun_audio_buffer:%d\n",retrorun_audio_buffer);
+        printf("-RR (Audio init)- originalFps:%f\n", originalFps);
+        printf("-RR (Audio init)- audioFrameLimit:%d\n", audioFrameLimit);
+        printf("-RR (Audio init)- retrorun_audio_buffer:%d\n", retrorun_audio_buffer);
         firstTime = false;
     }
 
+    if (originalFps < 1)
+    {
+        printf("-RR- ORIGINAL FPS NOT VALID!\n");
+        return frames;
+    }
     audioCounter++;
     // the following is for Fast Forwarding
     if (audioCounter != audioCounterSkip)
@@ -182,24 +186,23 @@ size_t core_audio_sample_batch(const int16_t *data, size_t frames)
     }
     SetVolume();
 
-     int currentFrame = (int)frames;
+    int currentFrame = (int)frames;
 
-    if (currentFrame > FRAMES_MAX){
+    if (currentFrame > FRAMES_MAX)
+    {
         printf("-RR- AUDIO FRAME NOT VALID!\n");
         return frames;
     }
 
     if (audioFrameCount + frames > static_cast<size_t>(retrorun_audio_buffer))
-   //if (audioFrameCount + frames > retrorun_audio_buffer)
+    // if (audioFrameCount + frames > retrorun_audio_buffer)
     {
         go2_audio_submit(audio, (const short *)audioBuffer, audioFrameCount);
         audioFrameCount = 0;
     }
 
     size_t size = frames * sizeof(int16_t) * CHANNELS;
-    newmemcpy(audioBuffer + (audioFrameCount * CHANNELS), (void*) data, size);
+    newmemcpy(audioBuffer + (audioFrameCount * CHANNELS), (void *)data, size);
     audioFrameCount += frames;
     return frames;
 }
-
-

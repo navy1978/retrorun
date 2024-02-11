@@ -1370,7 +1370,7 @@ inline void core_video_refresh_OPENGL(const void *data, unsigned width, unsigned
     // eglSwapInterval(display, 0);
     if (data != RETRO_HW_FRAME_BUFFER_VALID){
         printf("-RR- WARN - RETRO HW FRAME BUFFER NOT VALID - skipping frame\n");
-        return;
+        /*return;*/
     }
         
 

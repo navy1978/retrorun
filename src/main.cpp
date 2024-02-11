@@ -1445,6 +1445,12 @@ int main(int argc, char *argv[])
     double max_fps = info.timing.fps;
     double previous_fps = 0;
     originalFps = info.timing.fps;
+    if (max_fps<1){ // just to be sure info are there
+        max_fps=60;
+    }
+    if (originalFps<1){ // just to be sure info are ther
+        originalFps=60;
+    }
     // adaptiveFps = isFlycast() ? true: false;
     bool redrawInfo = true;
     // we postpone this here because if we do it before some emulators dont like it (Dosbox core)
