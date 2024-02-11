@@ -269,7 +269,7 @@ void video_configure(struct retro_game_geometry *geom)
         device = UNKNOWN;
     }
     // some games like Resident Evil 2 for Flycast has an ovescan issue in 640x480
-    bool skipGeomSet = ((isFlycast()||isFlycast2021() )&& device == RG_552);
+    bool skipGeomSet = ((isFlycast() || isFlycast2021()) && device == RG_552);
 
     if (resolution == R_320_240)
     {
@@ -495,7 +495,7 @@ inline void showInfoDevice(int w, go2_surface_t **surface, int posX)
     {
         long total_ram_val = sys_info.totalram / (1024 * 1024);
         long free_ram_val = sys_info.freeram / (1024 * 1024);
-        //long number_procs = sys_info.procs;
+        // long number_procs = sys_info.procs;
         tot_ram = std::to_string(total_ram_val) + " MB";
         free_ram = std::to_string(free_ram_val) + " MB";
         // procs = "# of processes:" + std::to_string(number_procs);
@@ -649,7 +649,7 @@ inline void showInfo(int w, go2_surface_t **surface)
         }
         else if (mi.m_valueCalculator != NULL)
         {
-            showCenteredText(getRowForText(), (tabSpaces + mi.get_name() + ": < " + mi.getStringValue()+ mi.getMisUnit() + " >").c_str(), mi.isSelected() ? WHITE : DARKGREY, surface);
+            showCenteredText(getRowForText(), (tabSpaces + mi.get_name() + ": < " + mi.getStringValue() + mi.getMisUnit() + " >").c_str(), mi.isSelected() ? WHITE : DARKGREY, surface);
         }
         else
         {
@@ -948,28 +948,28 @@ int colorInc = 0;
 
 inline void makeScreenBlackCredits(go2_surface_t *go2_surface, int res_width, int res_height)
 {
-    //bool specialCase = (isJaguar() || isBeetleVB() || isDosBox() || isDosCore() || isMame());
-    // res_width = specialCase? res_width * 2 : res_width; // just to be sure to cover the full screen (in some emulators is not enough to use res_width)
+    // bool specialCase = (isJaguar() || isBeetleVB() || isDosBox() || isDosCore() || isMame());
+    //  res_width = specialCase? res_width * 2 : res_width; // just to be sure to cover the full screen (in some emulators is not enough to use res_width)
     uint8_t *dst = (uint8_t *)go2_surface_map(go2_surface);
     if (dst == nullptr)
     {
         return;
     }
 
-   /* int lineWidth = 2;
-    int lineSpacing = 14; // spacing between the two lines
+    /* int lineWidth = 2;
+     int lineSpacing = 14; // spacing between the two lines
 
-    // Calculate the x-coordinates of the lines
-    int lineX1 = res_width - lineWidth - lineSpacing - 20;
-    int lineX2 = res_width - lineWidth - lineSpacing * 2 - 30;
-    int lineX3 = res_width - lineSpacing - 2;*/
+     // Calculate the x-coordinates of the lines
+     int lineX1 = res_width - lineWidth - lineSpacing - 20;
+     int lineX2 = res_width - lineWidth - lineSpacing * 2 - 30;
+     int lineX3 = res_width - lineSpacing - 2;*/
 
     int yy = res_height;
     while (yy > 0)
     {
         for (int x = 0; x < (short)res_width * 2; ++x)
         {
-            if (false)//(x < 30 || x > res_width * 2 - 30)
+            if (false) //(x < 30 || x > res_width * 2 - 30)
             {
                 int newColor = ((colorInc + x + yy) % 16) + 160; // >255 ;
                 dst[x] = newColor >= 255 ? 0 : newColor;         // 240; // white color for the lines
@@ -986,9 +986,9 @@ inline void makeScreenBlackCredits(go2_surface_t *go2_surface, int res_width, in
 }
 
 int colSwitch = 145;
-//int col = 42;
-int col_increase=0;
-int col=72;
+// int col = 42;
+int col_increase = 0;
+int col = 72;
 inline void makeScreenBlack(go2_surface_t *go2_surface, int res_width, int res_height)
 {
     // res_width = (isJaguar() || isBeetleVB() || isDosBox() || isDosCore() || isMame()) ? res_width * 2 : res_width; // just to be sure to cover the full screen (in some emulators is not enough to use res_width)
@@ -999,29 +999,29 @@ inline void makeScreenBlack(go2_surface_t *go2_surface, int res_width, int res_h
     }
     int yy = res_height;
 
-   /* if (col_increase % colSwitch ==0)
-    col++;*/
+    /* if (col_increase % colSwitch ==0)
+     col++;*/
 
-    //printf("color:%d\n",col);
+    // printf("color:%d\n",col);
     while (yy > 0)
     {
 
         for (int x = 0; x < (short)res_width * 2; ++x)
         {
-            
-           
-            int color = 74;//162;
-            
+
+            int color = 74; // 162;
+
             if (yy < 12)
             {
-                dst[x] = color;//33; // 42;
+                dst[x] = color; // 33; // 42;
             }
             else if (yy > res_height - 12)
             {
-                dst[x] = color;//33;
-            } else  if ( x < 2 || x >= (short)res_width * 2 - 2)
+                dst[x] = color; // 33;
+            }
+            else if (x < 2 || x >= (short)res_width * 2 - 2)
             {
-                dst[x] = color;//33; // set to any color you want
+                dst[x] = color; // 33; // set to any color you want
             }
             else
             {
@@ -1032,8 +1032,8 @@ inline void makeScreenBlack(go2_surface_t *go2_surface, int res_width, int res_h
         dst += go2_surface_stride_get(go2_surface);
         --yy;
     }
-    
-    //col_increase++;
+
+    // col_increase++;
 }
 
 inline void makeScreenTotalBlack(go2_surface_t *go2_surface, int res_width, int res_height)
@@ -1179,7 +1179,7 @@ bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
     if (input_info_requested || input_credits_requested /*|| cleanUpScreen*/)
     {
 
-        //printf("cleanUpScreen:%s\n", cleanUpScreen ? "true" : "false");
+        // printf("cleanUpScreen:%s\n", cleanUpScreen ? "true" : "false");
         res_width = INFO_MENU_WIDTH;
         res_height = INFO_MENU_HEIGHT;
 
@@ -1197,16 +1197,16 @@ bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
         else
         {
 
-           // if (!cleanUpScreen)
-           // {
-                makeScreenBlack(status_surface_full, res_width, res_height);
-                showInfo(gs_w, &status_surface_full);
-               
+            // if (!cleanUpScreen)
+            // {
+            makeScreenBlack(status_surface_full, res_width, res_height);
+            showInfo(gs_w, &status_surface_full);
+
             /*}
             else
             {
                 printf("Devo fare tutto neor!!!!\n");
-              
+
 
                makeScreenTotalBlack(status_surface_full, res_width, res_height);
             }*/
@@ -1222,16 +1222,15 @@ bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
             drawNonOpenGL(data, width, height, pitch);
         }
     }
-    if (input_fps_requested && !input_info_requested && !input_credits_requested) 
+    if (input_fps_requested && !input_info_requested && !input_credits_requested)
     {
         if (status_surface_top_right == nullptr)
         {
             status_surface_top_right = go2_surface_create(display, numbers.width * 2, (numbers.height / 10), format_565);
         }
 
-        
         showFPSImage();
-        
+
         showStatus = true;
         status_obj->show_top_right = true;
     }
@@ -1255,24 +1254,26 @@ bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
     }
     if (input_ffwd_requested || input_message)
     {
-        if (input_message )
-    {
-        showText(10, 10, status_message.c_str(), 0xffff, &status_surface_top_left);
-        showStatus = true;
-        status_obj->show_top_left = true;
-    }else{
-          showImage(fast, &status_surface_top_left);
-        
-        showStatus = true;
-        status_obj->show_top_left = true;
+        if (input_message)
+        {
+            showText(10, 10, status_message.c_str(), 0xffff, &status_surface_top_left);
+            showStatus = true;
+            status_obj->show_top_left = true;
+        }
+        else
+        {
+            showImage(fast, &status_surface_top_left);
+
+            showStatus = true;
+            status_obj->show_top_left = true;
+        }
     }
-    }
-     
+
     else
     {
         status_obj->show_top_left = false;
     }
-    if (input_exit_requested_firstTime && !input_info_requested && !input_credits_requested) 
+    if (input_exit_requested_firstTime && !input_info_requested && !input_credits_requested)
     {
         showImage(quit, &status_surface_bottom_left);
         showStatus = true;
@@ -1280,8 +1281,8 @@ bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
     }
     if (input_pause_requested && !input_info_requested)
     {
-         showImage(pause_img, &status_surface_bottom_left);
-        
+        showImage(pause_img, &status_surface_bottom_left);
+
         showStatus = true;
         status_obj->show_bottom_left = true;
     }
@@ -1316,14 +1317,14 @@ bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
         }
         if (isOpenGL)
         {
-            
-            //blit_surface_status(presenter,status_obj->full, dstSurface, dstWidth, dstHeight,rotation, FULL);
-           /* if (cleanUpScreen){
 
-                 go2_presenter_black(presenter,
-                           x, y, width, height,
-                           _351Rotation);
-            }else{*/
+            // blit_surface_status(presenter,status_obj->full, dstSurface, dstWidth, dstHeight,rotation, FULL);
+            /* if (cleanUpScreen){
+
+                  go2_presenter_black(presenter,
+                            x, y, width, height,
+                            _351Rotation);
+             }else{*/
             go2_presenter_post_multiple(presenter,
                                         gles_surface, status_obj,
                                         0, (gs_h - height), width, height,
@@ -1340,20 +1341,25 @@ bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
                                         _351Rotation, isWideScreen);
         }
     }
-    return showStatus ;
+    return showStatus;
 }
 
 inline void core_video_refresh_NON_OPENGL(const void *data, unsigned width, unsigned height, size_t pitch)
 {
 
     if (!data)
-        return;
-
+    {
+        if (!input_info_requested)
+        {
+            printf("-RR- WARN - DATA NOT VALID - skipping frame.\n");
+            return;
+        }
+    }
     gs_w = go2_surface_width_get(surface);
     gs_h = go2_surface_height_get(surface);
 
     bool showStatus = osdDrawing(data, width, height, pitch);
-    //printf("showStatus %s\n:", showStatus ? "true" : "false");
+    // printf("showStatus %s\n:", showStatus ? "true" : "false");
     if (!showStatus)
     {
         go2_presenter_post(presenter,
@@ -1368,11 +1374,14 @@ inline void core_video_refresh_OPENGL(const void *data, unsigned width, unsigned
 {
 
     // eglSwapInterval(display, 0);
-    if (data != RETRO_HW_FRAME_BUFFER_VALID){
-        printf("-RR- WARN - RETRO HW FRAME BUFFER NOT VALID - skipping frame\n");
-        /*return;*/
+    if (data != RETRO_HW_FRAME_BUFFER_VALID)
+    {
+        if (!input_info_requested)
+        {
+            printf("-RR- WARN - RETRO HW FRAME BUFFER NOT VALID - skipping frame.\n");
+            return;
+        }
     }
-        
 
     /*if (!isWideScreen)
    {  //on V tate games should be rotated on the opposide side
@@ -1425,33 +1434,33 @@ bool set_last_input_action_active()
 
 bool check_input_action_active()
 {
-   return status_obj->last_full || 
-   
-     status_obj->last_bottom_left  || 
-     
+   return status_obj->last_full ||
+
+     status_obj->last_bottom_left  ||
+
      status_obj->last_bottom_right ||
-     
+
       status_obj->last_top_left || status_obj->last_top_right;
-    
+
 }
 
 bool showBlackScreen()
 {
-   return ((status_obj->last_full && !input_info_requested ) || 
-   
-     (status_obj->last_bottom_left && !input_exit_requested_firstTime) || 
-     
+   return ((status_obj->last_full && !input_info_requested ) ||
+
+     (status_obj->last_bottom_left && !input_exit_requested_firstTime) ||
+
      (status_obj->last_bottom_right && !input_fps_requested));
-     
+
      //|| status_obj->last_top_left || status_obj->last_top_right;
-    
+
 }
 
 void reset_last_input_action_active(){
-    status_obj->last_full =false; 
+    status_obj->last_full =false;
     status_obj->last_bottom_left =false;
-     status_obj->last_bottom_right=false;  
-     status_obj->last_top_left=false; 
+     status_obj->last_bottom_right=false;
+     status_obj->last_top_left=false;
      status_obj->last_top_right=false;
 
 }
@@ -1464,33 +1473,29 @@ int numberOfClear = 3;*/
 void core_video_refresh(const void *data, unsigned width, unsigned height, size_t pitch)
 {
 
-
-
-    
-
-   /* if (showBlackScreen() && width > 0 && cleanNumber < numberOfClear)
-    {
-        printf("we need to clean up the screen\n");
-        cleanUpScreen = true;
-        cleanNumber++;
-    }
-    else
-    {
-        cleanUpScreen = false;
-    }
+    /* if (showBlackScreen() && width > 0 && cleanNumber < numberOfClear)
+     {
+         printf("we need to clean up the screen\n");
+         cleanUpScreen = true;
+         cleanNumber++;
+     }
+     else
+     {
+         cleanUpScreen = false;
+     }
 
 
 
 
-    if (!check_input_action_active()){
-        if (width > 0 && cleanNumber == numberOfClear - 1)
-        {
-            reset_last_input_action_active();
-            cleanNumber = 0;
-        }
-    }
+     if (!check_input_action_active()){
+         if (width > 0 && cleanNumber == numberOfClear - 1)
+         {
+             reset_last_input_action_active();
+             cleanNumber = 0;
+         }
+     }
 
-    set_last_input_action_active();*/
+     set_last_input_action_active();*/
 
     if (input_info_requested)
     {
@@ -1501,20 +1506,19 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         data = lastData;
         pitch = lastPitch;
         processVideoInAnotherThread = false;
-    }else if (input_message)
-    {      
+    }
+    else if (input_message)
+    {
         width = INFO_MENU_WIDTH;
-        height = INFO_MENU_HEIGHT;   
+        height = INFO_MENU_HEIGHT;
         processVideoInAnotherThread = false;
     }
     else
     {
 
-        
         lastData = data;
         lastPitch = pitch;
         processVideoInAnotherThread = (isRG552() /*|| isRG503()*/) ? true : false;
-        
     }
 
     frameCounter++;
@@ -1533,8 +1537,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
 
     if (first_video_refresh)
     {
-        
-        
+
         prepareScreen(width, height);
 
         printf("-RR- Real aspect_ratio=%f\n", aspect_ratio);
@@ -1575,9 +1578,6 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
     if (isOpenGL)
     {
 
-
-
- 
         go2_context_swap_buffers(context3D);
 
         gles_surface = go2_context_surface_lock(context3D);
@@ -1590,7 +1590,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         {
             core_video_refresh_OPENGL(data, width, height, pitch);
         }
-          
+
         go2_context_surface_unlock(context3D, gles_surface);
     }
     else
@@ -1608,6 +1608,4 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
             core_video_refresh_NON_OPENGL(data, width, height, pitch);
         }
     }
-
-
 }
