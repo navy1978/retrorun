@@ -63,7 +63,7 @@ Confoguragion file
 ======
 
 The configuration file looks like the following:
-
+````
 # ---- RETRORUN INTERNAL SETTINGS ----
 retrorun_screenshot_folder = /storage/roms/screenshots
 # ---- FLYCAST ----
@@ -121,3 +121,4 @@ virtualjaguar_usefastblitter = enabled
 virtualjaguar_bios = enabled
 # ---- RETRORUN RUNTIME SETTINGS ----
 
+````
