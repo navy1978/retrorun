@@ -80,7 +80,7 @@ void go2_presenter_destroy(go2_presenter_t* presenter);
 void go2_presenter_post(go2_presenter_t* presenter, go2_surface_t* surface, int srcX, int srcY, int srcWidth, int srcHeight, int dstX, int dstY, int dstWidth, int dstHeight, go2_rotation_t rotation);
 void go2_presenter_black(go2_presenter_t* presenter, int dstX, int dstY, int dstWidth, int dstHeight, go2_rotation_t rotation);
 //void go2_presenter_post_double(go2_presenter_t* presenter, go2_surface_t* surface1, go2_surface_t* surface2, int srcX, int srcY, int srcWidth, int srcHeight, int dstX, int dstY, int dstWidth, int dstHeight, go2_rotation_t rotation);
-void go2_presenter_post_multiple(go2_presenter_t* presenter, go2_surface_t* surface, status* status, int srcX, int srcY, int srcWidth, int srcHeight, int dstX, int dstY, int dstWidth, int dstHeight, go2_rotation_t rotation, bool isWidescreen);
+void go2_presenter_post_multiple(go2_presenter_t* presenter, go2_surface_t* surface, status* status, int srcX, int srcY, int srcWidth, int srcHeight, int dstX, int dstY, int dstWidth, int dstHeight, go2_rotation_t rotation,go2_rotation_t blitRotation, bool isWidescreen);
 
 
 go2_context_t* go2_context_create(go2_display_t* display, int width, int height, const go2_context_attributes_t* attributes);

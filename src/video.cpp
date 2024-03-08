@@ -89,7 +89,7 @@ int hasStencil = false;
 bool screenshot_requested = false;
 bool pause_requested = false;
 int prevBacklight;
-bool isTate = false;
+//bool isTate = false;
 int display_width, display_height;
 int base_width, base_height, max_width, max_height;
 int aw, ah;
@@ -126,6 +126,10 @@ int h;
 float screen_aspect_ratio;
 go2_rotation_t _351BlitRotation;
 go2_rotation_t _351Rotation;
+go2_rotation last351Rotation;
+go2_rotation last351BlitRotation;
+bool drawOneFrame;
+bool isGameVertical;
 
 int width_fixed = 640;
 int height_fixed = 480;
@@ -134,6 +138,91 @@ int INFO_MENU_WIDTH = 240;  // 288;
 int INFO_MENU_HEIGHT = 160; // 192;
 
 uint32_t format_565 = DRM_FORMAT_RGB565; // DRM_FORMAT_RGB888; // DRM_FORMAT_XRGB8888;//color_format;
+
+
+
+
+go2_rotation getBlitRotation()
+{
+   /* if (lastRotation < maxRotationItarations)
+    {
+        printf("return last rotation blit\n");
+        return last351BlitRotation;
+    }*/
+    if (isGameVertical) // portrait
+    {
+        if (!isTate())
+        {
+            
+            return  (isRG351V() || isRG351MP()) ? GO2_ROTATION_DEGREES_0 : GO2_ROTATION_DEGREES_270;
+        }
+        if (tateState == REVERSED)
+        {
+            return (isRG351V() || isRG351MP()) ? GO2_ROTATION_DEGREES_90 : GO2_ROTATION_DEGREES_0;
+        }
+        else
+        {
+            return (isRG351V() || isRG351MP()) ? GO2_ROTATION_DEGREES_270 : GO2_ROTATION_DEGREES_180;
+        }
+    }
+    else // landscape
+    {
+
+        if (!isTate() && tateState != REVERSED)
+        {
+            return  (isRG351V() || isRG351MP()) ? GO2_ROTATION_DEGREES_0 : GO2_ROTATION_DEGREES_270;
+        }
+        if (tateState == REVERSED)
+        {
+            return (isRG351V() || isRG351MP()) ? GO2_ROTATION_DEGREES_90 : GO2_ROTATION_DEGREES_0;
+        }
+        else
+        {
+            return (isRG351V() || isRG351MP()) ? GO2_ROTATION_DEGREES_270 : GO2_ROTATION_DEGREES_180;
+        }
+    }
+}
+
+go2_rotation getRotation()
+{
+    /*if (lastRotation < maxRotationItarations)
+    {
+        printf("return last rotation\n");
+        return last351Rotation;
+    }*/
+    if (isGameVertical) // portrait
+    {
+        if (!isTate())
+        {
+            return (isRG351V() || isRG351MP()) ? GO2_ROTATION_DEGREES_270 : GO2_ROTATION_DEGREES_180;
+        }
+        if (tateState == REVERSED)
+        {
+            return (isRG351V() || isRG351MP()) ? GO2_ROTATION_DEGREES_0 : GO2_ROTATION_DEGREES_270;
+        }
+        else
+        {
+            return (isRG351V() || isRG351MP()) ? GO2_ROTATION_DEGREES_180 :GO2_ROTATION_DEGREES_90;
+        }
+    }
+    else
+    { // landscape
+        if (!isTate() && tateState != REVERSED)
+        {
+            return (isRG351V() || isRG351MP()) ? GO2_ROTATION_DEGREES_0 :  GO2_ROTATION_DEGREES_270;
+        }
+        if (tateState == REVERSED)
+        {
+            return (isRG351V() || isRG351MP()) ? GO2_ROTATION_DEGREES_90 : GO2_ROTATION_DEGREES_0;
+        }
+        else
+        {
+            return (isRG351V() || isRG351MP()) ? GO2_ROTATION_DEGREES_270 : GO2_ROTATION_DEGREES_180;
+        }
+    }
+}
+
+
 
 int getFixedWidth(int alternative)
 {
@@ -540,7 +629,7 @@ inline void showInfoGame(int w, go2_surface_t **surface, int posX)
     std::string res2 = tabSpaces + "Resolution: ";
     showCenteredText(getRowForText(), const_cast<char *>(res2.append(std::to_string(currentWidth)).append("x").append(std::to_string(currentHeight)).c_str()), DARKGREY, surface);
     std::string tate = tabSpaces + "Tate mode: ";
-    showCenteredText(getRowForText(), const_cast<char *>(tate.append(isTate ? "no:" : "off").c_str()), DARKGREY, surface);
+    showCenteredText(getRowForText(), const_cast<char *>(tate.append(isTate() ? "no:" : "off").c_str()), DARKGREY, surface);
 }
 
 inline void showCredits(go2_surface_t **surface)
@@ -841,7 +930,7 @@ inline void showImage(Image img, go2_surface_t **surface)
     showFullImage(0, 0, img.width, img.height, img.pixel_data, surface);
 }
 
-inline void takeScreenshot(int w, int h, go2_rotation_t _351BlitRotation)
+inline void takeScreenshot(int w, int h)
 {
     printf("-RR- Screenshot.\n");
     w = isOpenGL ? gles_surface->width : surface->width;
@@ -857,7 +946,7 @@ inline void takeScreenshot(int w, int h, go2_rotation_t _351BlitRotation)
                      0, 0, w, h,
                      screenshot,
                      0, 0, w, h,
-                     _351BlitRotation);
+                     getBlitRotation());
 
     // snap in screenshot directory
     std::string fullPath = screenShotFolder + "/" + romName + "-" + getCurrentTimeForFileName() + ".png";
@@ -874,76 +963,7 @@ inline bool cmpf(float A, float B, float epsilon = 0.005f)
     return (fabs(A - B) < epsilon);
 }
 
-inline void prepareScreen(int width, int height)
-{
-    screen_aspect_ratio = (float)go2_display_height_get(display) / (float)go2_display_width_get(display);
-    if (aspect_ratio >= 1.0f)
-    {
-        if (isWideScreen)
-        {
-            if (cmpf(aspect_ratio, screen_aspect_ratio))
-            {
-                h = go2_display_height_get(display);
-                w = go2_display_width_get(display);
-                x = 0;
-                y = 0;
-            }
-            else if (aspect_ratio < screen_aspect_ratio)
-            {
-                w = go2_display_width_get(display);
-                h = w * aspect_ratio;
-                h = (h > go2_display_height_get(display)) ? go2_display_height_get(display) : h;
-                y = (go2_display_height_get(display) / 2) - (h / 2);
-                x = 0;
-            }
-            else if (aspect_ratio > screen_aspect_ratio)
-            {
-                h = go2_display_height_get(display);
-                w = h / aspect_ratio;
-                w = (w > go2_display_width_get(display)) ? go2_display_width_get(display) : w;
-                x = (go2_display_width_get(display) / 2) - (w / 2);
-                y = 0;
-            }
-        }
-        else
-        {
-            screen_aspect_ratio = 1 / screen_aspect_ratio; // screen is rotated
 
-            if (cmpf(aspect_ratio, screen_aspect_ratio))
-            {
-                h = go2_display_height_get(display);
-                w = go2_display_width_get(display);
-                x = 0;
-                y = 0;
-            }
-            else if (aspect_ratio < screen_aspect_ratio)
-            {
-                h = go2_display_height_get(display);
-                w = h / aspect_ratio;
-                w = (w > go2_display_width_get(display)) ? go2_display_width_get(display) : w;
-                x = (go2_display_width_get(display) / 2) - (w / 2);
-                y = 0;
-            }
-            else if (aspect_ratio > screen_aspect_ratio)
-            {
-                w = go2_display_width_get(display);
-                h = w / aspect_ratio;
-                h = (h > go2_display_height_get(display)) ? go2_display_height_get(display) : h;
-                y = (go2_display_height_get(display) / 2) - (h / 2);
-                x = 0;
-            }
-        }
-    }
-    else
-    {
-        // tate mode
-        x = 0;
-        y = 0;
-        h = go2_display_height_get(display);
-        w = go2_display_width_get(display);
-        isTate = (Retrorun_Core == RETRORUN_CORE_FLYCAST); // we rotate the screen (Tate) for some arcade games when apsect ratio < 0
-    }
-}
 int colorInc = 0;
 
 inline void makeScreenBlackCredits(go2_surface_t *go2_surface, int res_width, int res_height)
@@ -1094,6 +1114,122 @@ inline void makeScreenBlack_old(go2_surface_t *go2_surface, int res_width, int r
     }
 }
 
+
+
+inline void prepareScreen(int width, int height)
+{
+
+    screen_aspect_ratio = (float)go2_display_height_get(display) / (float)go2_display_width_get(display);
+    if (aspect_ratio >= 1.0f)
+    {
+        printf("game is landscape\n");
+        isGameVertical=false;
+        if (isWideScreen)
+        {
+            printf("device is widescreen\n");
+            
+            if (isTate())
+        {
+            printf("is Tate\n");
+            x = 0;
+            y = 0;
+            h = go2_display_height_get(display);
+            w = go2_display_width_get(display);
+        }
+        else
+        {
+            printf("is not Tate\n");
+            if (cmpf(aspect_ratio, screen_aspect_ratio))
+            {
+                h = go2_display_height_get(display);
+                w = go2_display_width_get(display);
+                x = 0;
+                y = 0;
+            }
+            else if (aspect_ratio < screen_aspect_ratio)
+            {
+                w = go2_display_width_get(display);
+                h = w * aspect_ratio;
+                h = (h > go2_display_height_get(display)) ? go2_display_height_get(display) : h;
+                y = (go2_display_height_get(display) / 2) - (h / 2);
+                x = 0;
+            }
+            else if (aspect_ratio > screen_aspect_ratio)
+            {
+                h = go2_display_height_get(display);
+                w = h / aspect_ratio;
+                w = (w > go2_display_width_get(display)) ? go2_display_width_get(display) : w;
+                x = (go2_display_width_get(display) / 2) - (w / 2);
+                y = 0;
+            }
+        }
+        }
+        else
+        {
+            screen_aspect_ratio = 1 / screen_aspect_ratio; // screen is rotated
+
+            if (cmpf(aspect_ratio, screen_aspect_ratio))
+            {
+                h = go2_display_height_get(display);
+                w = go2_display_width_get(display);
+                x = 0;
+                y = 0;
+            }
+            else if (aspect_ratio < screen_aspect_ratio)
+            {
+                h = go2_display_height_get(display);
+                w = h / aspect_ratio;
+                w = (w > go2_display_width_get(display)) ? go2_display_width_get(display) : w;
+                x = (go2_display_width_get(display) / 2) - (w / 2);
+                y = 0;
+            }
+            else if (aspect_ratio > screen_aspect_ratio)
+            {
+                w = go2_display_width_get(display);
+                h = w / aspect_ratio;
+                h = (h > go2_display_height_get(display)) ? go2_display_height_get(display) : h;
+                y = (go2_display_height_get(display) / 2) - (h / 2);
+                x = 0;
+            }
+        }
+    }
+    else
+    {
+        // the game is vertical
+        isGameVertical=true;
+        printf("game is portrait (vertical)\n");
+        if (isTate())
+        {
+            printf("is Tate\n");
+            x = 0;
+            y = 0;
+            h = go2_display_height_get(display);
+            w = go2_display_width_get(display);
+        }
+        else
+        {
+            if (aspect_ratio < screen_aspect_ratio)
+            {
+                printf("aspect_ratio < screen_aspect_ratio\n");
+                w = go2_display_width_get(display);
+                h = w / aspect_ratio;
+                h = (h > go2_display_height_get(display)) ? go2_display_height_get(display) : h;
+                y = (go2_display_height_get(display) / 2) - (h / 2);
+                x = 0;
+            }
+            else if (aspect_ratio > screen_aspect_ratio)
+            {
+                printf("aspect_ratio > screen_aspect_ratio\n");
+                h = go2_display_height_get(display);
+                w = h / aspect_ratio;
+                w = (w > go2_display_width_get(display)) ? go2_display_width_get(display) : w;
+                x = (go2_display_width_get(display) / 2) - (w / 2);
+                y = 0;
+            }
+        }
+    }
+}
+
 inline bool continueToShowScreenshotImage()
 {
     gettimeofday(&valTime2, NULL);
@@ -1127,7 +1263,7 @@ inline void presenter_post(int width, int height)
                        gles_surface,
                        0, (gs_h - height), width, height,
                        x, y, w, h,
-                       _351Rotation);
+                       getRotation());
 }
 
 void drawNonOpenGL(const void *data, unsigned width, unsigned height, size_t pitch)
@@ -1240,7 +1376,7 @@ bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
     }
     if (screenshot_requested && !input_info_requested && !input_credits_requested)
     {
-        takeScreenshot(res_width, res_height, _351BlitRotation);
+        takeScreenshot(res_width, res_height);
     }
     if (continueToShowScreenshotImage())
     {
@@ -1329,17 +1465,21 @@ bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
                                         gles_surface, status_obj,
                                         0, (gs_h - height), width, height,
                                         x, y, w, h,
-                                        _351Rotation, isWideScreen);
+                                        getRotation(), getBlitRotation(), isWideScreen);
+            
+            
             //}
         }
         else
         {
+            
             go2_presenter_post_multiple(presenter,
                                         surface, status_obj,
                                         0, 0, res_width, res_height,
                                         x, y, w, h,
-                                        _351Rotation, isWideScreen);
-        }
+                                        getRotation(), getBlitRotation(), isWideScreen);
+        
+            }
     }
     return showStatus;
 }
@@ -1352,6 +1492,7 @@ inline void core_video_refresh_NON_OPENGL(const void *data, unsigned width, unsi
         if (!input_info_requested)
         {
             printf("-RR- WARN - DATA NOT VALID - skipping frame.\n");
+            core_input_poll();
             return;
         }
     }
@@ -1362,11 +1503,11 @@ inline void core_video_refresh_NON_OPENGL(const void *data, unsigned width, unsi
     // printf("showStatus %s\n:", showStatus ? "true" : "false");
     if (!showStatus)
     {
-        go2_presenter_post(presenter,
+       go2_presenter_post(presenter,
                            surface,
                            0, 0, width, height,
                            x, y, w, h,
-                           _351Rotation);
+                           getRotation());
     }
 }
 
@@ -1379,6 +1520,7 @@ inline void core_video_refresh_OPENGL(const void *data, unsigned width, unsigned
         if (!input_info_requested)
         {
             printf("-RR- WARN - RETRO HW FRAME BUFFER NOT VALID - skipping frame.\n");
+            core_input_poll();
             return;
         }
     }
@@ -1407,7 +1549,7 @@ inline void core_video_refresh_OPENGL(const void *data, unsigned width, unsigned
                            gles_surface,
                            0, (gs_h - height), width, height,
                            x, y, w, h,
-                           _351Rotation);
+                           getRotation());
     }
 }
 
@@ -1544,7 +1686,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         printf("-RR- Screen aspect_ratio=%f\n", screen_aspect_ratio);
         printf("-RR- Drawing info: w=%d, h=%d, x=%d, y=%d\n", w, h, x, y);
         printf("-RR- OpenGL=%s\n", isOpenGL ? "true" : "false");
-        printf("-RR- isTate=%s\n", isTate ? "true" : "false");
+        printf("-RR- isTate=%s\n", isTate() ? "true" : "false");
 
         if (color_format == DRM_FORMAT_RGBA5551)
         {
@@ -1564,8 +1706,10 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         }
 
         real_aspect_ratio = aspect_ratio;
-        _351BlitRotation = isTate ? GO2_ROTATION_DEGREES_270 : GO2_ROTATION_DEGREES_0;
-        _351Rotation = isTate ? GO2_ROTATION_DEGREES_180 : GO2_ROTATION_DEGREES_270;
+        _351BlitRotation = getBlitRotation();
+        _351Rotation = getRotation();
+        last351Rotation = _351Rotation;
+        last351BlitRotation = _351BlitRotation;
         first_video_refresh = false;
     }
     if (height != currentHeight || width != currentWidth)

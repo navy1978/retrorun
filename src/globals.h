@@ -33,6 +33,14 @@ enum RETRORUN_CORE_TYPE
 
 };
 
+
+enum TateState {
+    DISABLED,
+    ENABLED,
+    REVERSED,
+    AUTO
+};
+
 enum Device
 {
   P_M,
@@ -80,6 +88,7 @@ extern std::string gpu_name;
 };*/
 
 extern RETRORUN_CORE_TYPE Retrorun_Core;
+extern TateState tateState;
 extern bool force_left_analog_stick;
 
 extern float originalFps;
@@ -96,6 +105,7 @@ extern bool opt_triggers;
 extern bool gpio_joypad;
 extern bool adaptiveFps;
 extern bool swapL1R1WithL2R2;
+extern bool swapSticks;
 
 extern float opt_aspect;
 extern float aspect_ratio;
@@ -134,6 +144,7 @@ bool isRG351V();
 bool isRG351MP();
 bool isRG552();
 bool isRG503();
+bool isTate();
 
 extern bool processVideoInAnotherThread;
 

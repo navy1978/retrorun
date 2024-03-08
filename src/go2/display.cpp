@@ -563,7 +563,7 @@ void go2_surface_blit(go2_surface_t *srcSurface, int srcX, int srcY, int srcWidt
     src.mmuFlag = 1;
 
     // ont MP and V we dont need to rotate
-    rotation = (isRG351V() || isRG351MP()) ? GO2_ROTATION_DEGREES_0 : rotation;
+    //rotation = (isRG351V() || isRG351MP()) ? GO2_ROTATION_DEGREES_0 : rotation;
 
     switch (rotation)
     {
@@ -582,6 +582,15 @@ void go2_surface_blit(go2_surface_t *srcSurface, int srcX, int srcY, int srcWidt
     case GO2_ROTATION_DEGREES_270:
         src.rotation = HAL_TRANSFORM_ROT_270;
         break;
+    case GO2_ROTATION_HORIZONTAL:
+        src.rotation = HAL_TRANSFORM_FLIP_H;
+        break;    
+    case GO2_ROTATION_VERTICAL:
+        src.rotation = HAL_TRANSFORM_FLIP_H;
+        break;  
+    
+
+
 
     default:
         printf("rotation not supported.\n");
@@ -1090,9 +1099,17 @@ void blit_surface_status(go2_presenter_t *presenter, go2_surface_t *source_surfa
     if (isRG351V() || isRG351MP())
     {
         // Scale the surface dimensions based on the display resolution
-        dest_width_scaled = source_surface->width * (max_width / 480);
-        dest_height_scaled = source_surface->height * (max_height / 320);
+        if (rotation== GO2_ROTATION_DEGREES_0 || rotation== GO2_ROTATION_DEGREES_180){
+            // Tate is off
+            dest_width_scaled = source_surface->width * (max_width / 480);
+            dest_height_scaled = source_surface->height * (max_height / 320);
 
+        }  else{
+            // in tate mode we need to rotate in the images
+            dest_height_scaled = source_surface->width * (max_width / 480);
+            dest_width_scaled = source_surface->height * (max_height / 320);
+
+        }
         // Double the size if it's too small
         dest_width_scaled *= 1.5;
         dest_height_scaled *= 1.5;
@@ -1128,13 +1145,17 @@ void blit_surface_status(go2_presenter_t *presenter, go2_surface_t *source_surfa
     else if (isRG351P() || isRG351M() || isRG552() || isRG503())
     {
         // Scale the surface dimensions based on the display resolution and rotation
+        if (rotation== GO2_ROTATION_DEGREES_270 || rotation== GO2_ROTATION_DEGREES_90){
+            // Tate is off
+            dest_width_scaled = source_surface->height * (max_height / 480);
+            dest_height_scaled = source_surface->width * (max_width / 320);
+        }  else{
+            // in tate mode we need to rotate in the images
+            dest_height_scaled = source_surface->height * (max_height / 480);
+            dest_width_scaled = source_surface->width * (max_width / 320);
+        }
 
-        dest_width_scaled = source_surface->height * (max_height / 480);
-        dest_height_scaled = source_surface->width * (max_width / 320);
-        /*
-                  dest_width_scaled=source_surface->height*(presenter->display->height/480);
-                dest_height_scaled=source_surface->width*(presenter->display->width/320);
-        */
+        
 
         if (position == BUTTOM_LEFT)
         {
@@ -1286,10 +1307,16 @@ void blit_surface_status2(go2_presenter_t *presenter, go2_surface_t *surface, go
     }
 }
 
-void go2_presenter_post_multiple(go2_presenter_t *presenter, go2_surface_t *surface1, status *status_obj, int srcX, int srcY, int srcWidth, int srcHeight, int dstX, int dstY, int dstWidth, int dstHeight, go2_rotation_t rotation, bool isWideScreen)
+
+
+
+
+void go2_presenter_post_multiple(go2_presenter_t *presenter, go2_surface_t *surface1, status *status_obj, int srcX, int srcY, int srcWidth, int srcHeight, int dstX, int dstY, int dstWidth, int dstHeight, go2_rotation_t rotation, go2_rotation_t blitRotation, bool isWideScreen)
 {
 
-    // printf("go2_presenter_post_multiple called!.\n");
+    //printf("Name of rotation: %s\n", rotation_names[rotation]);
+    //printf("Name of blitRotation: %s\n", rotation_names[blitRotation]);
+
 
     sem_wait(&presenter->freeSem);
 
@@ -1335,7 +1362,7 @@ void go2_presenter_post_multiple(go2_presenter_t *presenter, go2_surface_t *surf
         surface = status_obj->bottom_left;
         if (surface != nullptr)
         {
-            blit_surface_status(presenter, surface, dstSurface, dstWidth, dstHeight, rotation, BUTTOM_LEFT, isWideScreen);
+            blit_surface_status(presenter, surface, dstSurface, dstWidth, dstHeight, blitRotation, BUTTOM_LEFT, isWideScreen);
         }
     }
 
@@ -1344,7 +1371,7 @@ void go2_presenter_post_multiple(go2_presenter_t *presenter, go2_surface_t *surf
         surface = status_obj->bottom_right;
         if (surface != nullptr)
         {
-            blit_surface_status(presenter, surface, dstSurface, dstWidth, dstHeight, rotation, BUTTOM_RIGHT, isWideScreen);
+            blit_surface_status(presenter, surface, dstSurface, dstWidth, dstHeight, blitRotation, BUTTOM_RIGHT, isWideScreen);
         }
     }
 
@@ -1353,7 +1380,7 @@ void go2_presenter_post_multiple(go2_presenter_t *presenter, go2_surface_t *surf
         surface = status_obj->top_right;
         if (surface != nullptr)
         {
-            blit_surface_status(presenter, surface, dstSurface, dstWidth, dstHeight, rotation, TOP_RIGHT, isWideScreen);
+            blit_surface_status(presenter, surface, dstSurface, dstWidth, dstHeight, blitRotation, TOP_RIGHT, isWideScreen);
         }
     }
 
@@ -1362,7 +1389,7 @@ void go2_presenter_post_multiple(go2_presenter_t *presenter, go2_surface_t *surf
         surface = status_obj->top_left;
         if (surface != nullptr)
         {
-            blit_surface_status(presenter, surface, dstSurface, dstWidth, dstHeight, rotation, TOP_LEFT, isWideScreen);
+            blit_surface_status(presenter, surface, dstSurface, dstWidth, dstHeight, blitRotation, TOP_LEFT, isWideScreen);
         }
     }
 
@@ -1372,7 +1399,7 @@ void go2_presenter_post_multiple(go2_presenter_t *presenter, go2_surface_t *surf
         if (surface != nullptr)
         {
             // printf("status non è null!!!");
-            blit_surface_status(presenter, surface, dstSurface, dstWidth - 50, dstHeight - 50, rotation, FULL, isWideScreen);
+            blit_surface_status(presenter, surface, dstSurface, dstWidth - 50, dstHeight - 50, blitRotation, FULL, isWideScreen);
         }
     }
 

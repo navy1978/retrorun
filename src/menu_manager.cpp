@@ -18,6 +18,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 #include "menu_manager.h"
+#include "globals.h"
 #include <queue>
 #include <mutex>
 
@@ -51,6 +52,34 @@ void MenuManager::handle_input_credits(int buttonPressed)
     MenuItem &mi = menu.getItems()[selected];
     mi.execute(buttonPressed);
 }
+
+
+bool buttonPressedIs(int buttonPressed, int direction) {
+    if (!isTate() &&
+        (buttonPressed == direction)) {
+        return true;
+    } else if (tateState == REVERSED){
+         if ((buttonPressed == UP && direction== LEFT) || 
+         (buttonPressed == DOWN && direction== RIGHT)  ||
+         (buttonPressed == RIGHT && direction== UP)  ||
+         (buttonPressed == LEFT && direction== DOWN)  
+         ){
+        return true;
+         }
+    }else if (isTate()){
+        if ((buttonPressed == UP && direction== RIGHT) || 
+         (buttonPressed == DOWN && direction== LEFT)  ||
+         (buttonPressed == RIGHT && direction== DOWN)  ||
+         (buttonPressed == LEFT && direction== UP)  
+         ){
+        return true;
+         }
+    }
+    
+    return false;
+}
+
+
 
 void MenuManager::handle_input(int buttonPressed)
 {
@@ -88,13 +117,13 @@ void MenuManager::handle_input(int buttonPressed)
                 break; // add this line
             }
         }
-        if (buttonPressed == UP)
+        if (buttonPressedIs(buttonPressed, UP))
         {
             selected--;
             if (selected < 0)
                 selected = 0;
         }
-        else if (buttonPressed == DOWN)
+        if (buttonPressedIs(buttonPressed, DOWN))
         {
             selected++;
             if (selected > menu.getSize() - 1)
@@ -116,7 +145,7 @@ void MenuManager::handle_input(int buttonPressed)
         }
 
         // managing the change of the values vie LEFT and RIGHT
-        if (buttonPressed == LEFT)
+        if (buttonPressedIs(buttonPressed, LEFT))
         {
             MenuItem &mi = menu.getItems()[selected];
             if (mi.isQuit())
@@ -130,7 +159,7 @@ void MenuManager::handle_input(int buttonPressed)
             }
         }
 
-        if (buttonPressed == RIGHT)
+        if (buttonPressedIs(buttonPressed, RIGHT))
         {
             MenuItem &mi = menu.getItems()[selected];
             if (mi.isQuit())

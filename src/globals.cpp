@@ -33,7 +33,8 @@ static const int DEVICE_NAME_SIZE = 1024;
 static char DEVICE_NAME[DEVICE_NAME_SIZE];
 static bool deviceInitialized = false;
 
-std::string release = "2.3.5";
+std::string release = "2.4.0";
+TateState tateState = DISABLED;
 
 RETRORUN_CORE_TYPE Retrorun_Core = RETRORUN_CORE_UNKNOWN;
 Device device = UNKNOWN;
@@ -43,6 +44,7 @@ bool force_left_analog_stick = true;
 bool opt_triggers = false;
 bool gpio_joypad = false;
 bool swapL1R1WithL2R2 = false;
+bool swapSticks= false;
 float opt_aspect = 0.0f;
 float aspect_ratio = 0.0f;
 
@@ -368,4 +370,25 @@ std::vector<std::string> exec(const char *cmd)
     }
     pclose(pipe);
     return output;
+}
+
+bool isTate(){
+    //return true; //(aspect_ratio < 1.0f && (isFlycast() || isFlycast2021()));
+
+    switch (tateState) {
+        case DISABLED:
+            return false;
+            break;
+        case ENABLED:
+            return true;
+            break;
+        case REVERSED:
+            return true;//(aspect_ratio < 1.0f && (isFlycast() || isFlycast2021()));
+            break;
+        case AUTO:
+            return (aspect_ratio < 1.0f && (isFlycast() || isFlycast2021()));
+            break;
+        default:
+            return false;
+    }
 }

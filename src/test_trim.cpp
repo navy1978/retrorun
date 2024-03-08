@@ -22,8 +22,12 @@ std::cout << t;
  * 
  * 
 
--)gestire una risoluzione piu alta nel menu 
-(ma bisogna modificare come è fatoo ora altrimenti lancia exception per core con risoluzioni basse)
+
+
+
+
+
+
 
 
 

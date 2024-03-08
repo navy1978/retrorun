@@ -55,7 +55,9 @@ typedef enum go2_rotation
     GO2_ROTATION_DEGREES_0 = 0,
     GO2_ROTATION_DEGREES_90,
     GO2_ROTATION_DEGREES_180,
-    GO2_ROTATION_DEGREES_270
+    GO2_ROTATION_DEGREES_270,
+    GO2_ROTATION_HORIZONTAL,
+    GO2_ROTATION_VERTICAL
 } go2_rotation_t;
 
 typedef struct go2_context_attributes

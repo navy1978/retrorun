@@ -254,7 +254,6 @@ static __eglMustCastToProperFunctionPointerType get_proc_address(const char *sym
 static bool core_environment(unsigned cmd, void *data)
 {
     bool *bval;
-
     switch (cmd)
     {
     case RETRO_ENVIRONMENT_GET_FASTFORWARDING:
@@ -313,6 +312,7 @@ static bool core_environment(unsigned cmd, void *data)
 
     case RETRO_ENVIRONMENT_GET_PREFERRED_HW_RENDER:
     {
+        printf("-RR- RETRO_ENVIRONMENT_GET_PREFERRED_HW_RENDER: called!\n");
         unsigned int *preferred = (unsigned int *)data;
         *preferred = RETRO_HW_CONTEXT_OPENGLES3;
         return true;
@@ -416,8 +416,26 @@ static bool core_environment(unsigned cmd, void *data)
 
 
     case RETRO_ENVIRONMENT_SET_CONTROLLER_INFO : {
-        printf("--LIBRETRO-- RETRO_ENVIRONMENT_SET_CONTROLLER_INFO not implemented \n");
-            return false;
+        //printf("--LIBRETRO-- RETRO_ENVIRONMENT_SET_CONTROLLER_INFO not implemented \n");
+        //    return false;
+        // Cast data to retro_controller_info
+            //struct retro_controller_info *controller_info = (struct retro_controller_info *)data;
+            const struct retro_controller_info *arg = (retro_controller_info *)data;
+
+			for (unsigned x = 0; x < arg->num_types; x++) {
+				const struct retro_controller_description *type = &arg->types[x];
+
+				/*if (type->id == RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG, 0))
+					RETRO_CONTROLLER_DEVICE = type->id;*/
+
+				 printf("\t%s: %u\n", type->desc, type->id);
+			}
+            
+			//return true;
+            // Process controller information
+            // (You need to implement how you want to handle this)
+            
+            return true; // Return true to indicate successful handling
     }
 
     case RETRO_ENVIRONMENT_SET_CORE_OPTIONS_INTL: {
@@ -578,6 +596,42 @@ static void core_load(const char *sofile)
     set_audio_sample(core_audio_sample);
     set_audio_sample_batch(core_audio_sample_batch);
 
+    
+
+/*
+retro_hw_render_callback hw_render_callback;
+
+// Set fields of retro_hw_render_callback
+hw_render_callback.context_type = RETRO_HW_CONTEXT_OPENGLES2; // Set the context type
+hw_render_callback.version_major = 0; // Set the major version
+hw_render_callback.version_minor = 0; // Set the minor version
+
+// Other fields can be set similarly
+
+// Example of setting a callback function
+hw_render_callback.get_current_framebuffer = core_video_get_current_framebuffer;
+hw_render_callback.get_proc_address = (retro_hw_get_proc_address_t)get_proc_address;
+
+
+
+// You can print the values to verify they are set correctly
+printf("context_type: %d, version_major: %d, version_minor: %d\n", hw_render_callback.context_type, hw_render_callback.version_major, hw_render_callback.version_minor);
+
+// Pass the modified hw_render_callback object to Libretro
+// This could be done during initialization or when setting up hardware rendering
+// For example:
+
+if (set_environment != NULL) {
+    // Chiamata alla funzione retro_set_environment tramite il puntatore a funzione
+   set_environment( (retro_environment_t)&hw_render_callback);
+} else {
+    // Caricamento fallito, gestire l'errore di conseguenza
+    printf("Errore: impossibile caricare la funzione retro_set_environment\n");
+}
+       isOpenGL = true;
+        GLContextMajor =  0;
+        GLContextMinor = 0;
+*/
     g_retro.retro_init();
     g_retro.initialized = true;
 
@@ -949,6 +1003,22 @@ float getAspectRatio(const std::string aspect)
         return 0.0f; // will be the default (provided by core)
 }
 
+
+TateState getTateMode(const std::string tate)
+{
+    if (tate == "enabled")
+        return ENABLED;
+    else if (tate == "disabled")
+        return DISABLED;
+    else if (tate== "reversed")
+        return REVERSED;
+    else if (tate == "auto")
+        return AUTO;
+    else
+        return DISABLED; // will be the default
+}
+
+
 void initConfig()
 {
     std::ifstream infile(opt_setting_file);
@@ -1069,6 +1139,16 @@ void initConfig()
         {
             printf("-RR- Warning: retrorun_swap_l1r1_with_l2r2 parameter not found in retrorun.cfg using default value (%s).\n", swapL1R1WithL2R2 ? "true" : "false");
         }
+        try
+        {
+            const std::string &asValue = conf_map.at("retrorun_swap_sticks");
+            swapSticks = asValue == "true" ? true : false;
+            printf("-RR - Info - Swap joypad sticks: %s.\n", swapSticks ? "true" : "false");
+        }
+        catch (...)
+        {
+            printf("-RR- Warning: retrorun_swap_sticks parameter not found in retrorun.cfg using default value (%s).\n", swapSticks ? "true" : "false");
+        }
 
         try
         {
@@ -1098,6 +1178,18 @@ void initConfig()
             printf("-RR- Info: retrorun_mouse_speed_factor parameter not found in retrorun.cfg using default value (5).\n");
         }
 
+
+        try
+            {
+                const std::string &arValue = conf_map.at("retrorun_tate_mode");
+                tateState = getTateMode(arValue);
+                printf("-RR - Info - retrorun_tate_mode :%f\n", opt_aspect);
+            }
+            catch (...)
+            {
+                printf("-RR- Warning: retrorun_tate_mode parameter not found in retrorun.cfg using default value (DISABLED).\n");
+            }
+
         processVideoInAnotherThread = (isRG552() /*|| isRG503()*/) ? true : false;
 
         adaptiveFps = false;
@@ -1110,8 +1202,33 @@ void initConfig()
 
 void fake(int button)
 {
-    printf("fake function...");
+    //printf("fake function...");
 }
+
+
+
+
+
+int getTateMode()
+{
+
+    return (int)tateState;
+}
+
+
+void setTateMode(int button)
+{
+    if (button == RIGHT){
+        // Incrementa tateState e fai il ciclo all'indietro se supera l'ultimo valore AUTO
+        tateState = static_cast<TateState>((tateState + 1) % (AUTO + 1));
+    } else if (button == LEFT){
+        // Decrementa tateState e fai il ciclo all'indietro se è inferiore a DISABLED
+        tateState = static_cast<TateState>((tateState - 1) < DISABLED ? AUTO : (tateState - 1));
+    }
+    
+    //prepareScreen(currentWidth ,currentHeight);
+}
+
 
 int getSwapTriggers()
 {
@@ -1333,6 +1450,8 @@ int main(int argc, char *argv[])
 
     input_gamepad_read();
 
+
+
     core_load(arg_core);
     // conf_map.clear();
 
@@ -1484,7 +1603,7 @@ int main(int argc, char *argv[])
         MenuItem("Brightness", getBrightnessValue, setBrightnessValue, "%"),
         MenuItem("Swap triggers", getSwapTriggers, setSwapTriggers, "bool"),
         MenuItem("Lock declared FPS", getLockDeclaredFPS, setLockDeclaredFPS, "bool"),
-
+        MenuItem("Tate", getTateMode, setTateMode, "rotation"),
     };
 
     Menu menuSettings = Menu("Settings", itemsSettings);

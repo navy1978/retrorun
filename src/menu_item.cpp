@@ -134,7 +134,7 @@ Menu *MenuItem::getMenu()
 std::string MenuItem::getMisUnit()
 {
 
-    if (mis_unit_ == "bool")
+    if (mis_unit_ == "bool"|| mis_unit_ == "rotation")
     {
         return "";
     }
@@ -147,11 +147,22 @@ std::string MenuItem::getMisUnit()
     return is_menu_;
 }*/
 
+const char* rotation_names[] = {
+    "DISABLED",
+    "ENABLED",
+    "REVERSED",
+    "AUTO"
+};
+
+
 std::string MenuItem::getStringValue()
 {
     if (mis_unit_ == "bool")
     {
         return getValue() == 1 ? "yes" : "no";
+    }else if (mis_unit_ == "rotation")
+    {
+        return rotation_names[getValue()];
     }
     else
     {
