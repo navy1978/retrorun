@@ -295,6 +295,15 @@ int getGeom_max_height(const struct retro_game_geometry *geom)
 void video_configure(struct retro_game_geometry *geom)
 {
 
+    if (isPPSSPP() && geom->base_height ==0 ){
+    // for PPSSPP is possible to receive geom with 0 values
+    // in this case we need to set the resolution manually
+        geom->base_height = 272;
+        geom->base_width = 480;
+        geom->max_height = 272;
+        geom->max_width = 480;
+    }
+
     display = go2_display_create();
     display_width = go2_display_height_get(display);
     display_height = go2_display_width_get(display);
@@ -1661,6 +1670,14 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         lastData = data;
         lastPitch = pitch;
         processVideoInAnotherThread = (isRG552() /*|| isRG503()*/) ? true : false;
+
+    if (isPPSSPP() && width<1 ){
+        // for PPSSPP is possible to receive  with with 0 values
+        // in this case we need to set the resolution manually
+        width=480;
+        height=272;
+    }
+
     }
 
     frameCounter++;

@@ -135,6 +135,7 @@ bool isDosBox();
 bool isDosCore();
 bool isBeetleVB();
 bool isMame();
+bool isPPSSPP();
 
 // Devices
 const char* getDeviceName() noexcept ;
