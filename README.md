@@ -15,6 +15,7 @@ Use this for RG351*/RG552 with rg351p-js2box available [here](https://github.com
 - DOSBox-pure
 - DOSBox-core
 - Beetle VB
+- PPSSPP
 
 ## This branch adds some features, the following are part of them:
 1) External library libgo2 (https://github.com/OtherCrashOverride/libgo2) now is part of retrorun
@@ -29,7 +30,7 @@ Use this for RG351*/RG552 with rg351p-js2box available [here](https://github.com
 10) Info Menu with device / game information
 
 
-Retrorun parameters
+Retrorun configuration parameters (to be set in the retrorun.cfg file)
 ======
 1)  retrorun_screenshot_folder = <whatever>
     Define the folder in which the screenshots are saved. Default: /storage/roms/screenshots
@@ -47,6 +48,13 @@ Retrorun parameters
     1 => basically the buffer is emptied in each call
     from 256 to 2028 => we wait until the buffer reaches that limit before empty it
     -1 => in this case the limit is linked to the original FPS of the game (for 60 FPS the audio buffer is 1/60 * 44100 = 735)
+8) retrorun_swap_l1r1_with_l2r2 = true, false
+    if true swaps the thriggers L1 and L2 with L2 and R2
+9) retrorun_swap_sticks= true, false
+    if true swpas the left analog stick with the right analog stick
+10) retrorun_tate_mode = auto, enabled, disabled , reverted
+    enable the tate mode (vertical games) can be enabled , disabled , reverted (rotating the screen of 180 degrees) and auto. In case of auto retrorun will automatically enable
+    tate mode for vertical games           
 
 
 
@@ -119,6 +127,40 @@ virtualjaguar_doom_res_hack = enabled
 virtualjaguar_pal = disabled
 virtualjaguar_usefastblitter = enabled
 virtualjaguar_bios = enabled
+# ---- PPSSPP ----
+ppsspp_cpu_core = JIT
+ppsspp_detect_vsync_swap_interval = disabled
+ppsspp_fast_memory = enabled
+ppsspp_frameskip = 2
+ppsspp_frameskiptype = Number of frames
+ppsspp_ignore_bad_memory_access = enabled
+ppsspp_internal_resolution = 480x272
+ppsspp_rendering_mode=buffered
+ppsspp_audio_latency=medium
+ppsspp_block_transfer_gpu= disabled
+ppsspp_texture_anisotropic_filtering = off
+ppsspp_vertex_cache=enabled
+ppsspp_separate_io_thread=enabled
+ppsspp_sound_speedhack=enabled
+ppsspp_lazy_texture_caching = enabled
+ppsspp_cache_iso = enabled
+ppsspp_hardware_tesselation = disabled
+ppsspp_lower_resolution_for_effects = enabled
+ppsspp_spline_quality = Low
+ppsspp_language= Automatic
+ppsspp_locked_cpu_speed= off
+ppsspp_lower_resolution_for_effects= Aggressive
+ppsspp_retain_changed_textures= disabled
+ppsspp_software_skinning= disabled
+ppsspp_texture_anisotropic_filtering= off
+ppsspp_texture_deposterize= disabled
+ppsspp_texture_filtering= Nearest
+ppsspp_texture_replacement= enabled
+ppsspp_texture_scaling_level= Off
+ppsspp_texture_scaling_type= xbrz
+ppsspp_texture_shader= Off
+ppsspp_vertex_cache= enabled
+
 # ---- RETRORUN RUNTIME SETTINGS ----
 
 ````
