@@ -15,6 +15,8 @@ Use this for RG351*/RG552 with rg351p-js2box available [here](https://github.com
 - DOSBox-pure
 - DOSBox-core
 - Beetle VB
+- Yaba Sanshiro
+- Snes9x
 - PPSSPP
 
 ## This branch adds some features, the following are part of them:
