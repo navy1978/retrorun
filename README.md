@@ -8,6 +8,7 @@ Use this for RG351*/RG552 with rg351p-js2box available [here](https://github.com
 - Flycast, Flycast 2021
 - ParaLLEl N64
 - SwanStation
+- PCSX-ReARMed
 - mGBA
 - VBA-M
 - Virtual Jaguar
