@@ -5,8 +5,7 @@ Use this for RG351*/RG552 with rg351p-js2box available [here](https://github.com
 
 ## supported Cores (tested):
 
-- Flycast
-- Flycast 2021
+- Flycast, Flycast 2021
 - ParaLLEl N64
 - SwanStation
 - mGBA
@@ -16,7 +15,7 @@ Use this for RG351*/RG552 with rg351p-js2box available [here](https://github.com
 - DOSBox-core
 - Beetle VB
 - Yaba Sanshiro
-- Snes9x
+- Snes9x, Snes9x 2002, Snes9x 2005 Plus, Snes9x 2010
 - PPSSPP
 
 ## This branch adds some features, the following are part of them:
