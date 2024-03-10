@@ -17,6 +17,8 @@ Use this for RG351*/RG552 with rg351p-js2box available [here](https://github.com
 - Beetle VB
 - Yaba Sanshiro
 - Snes9x, Snes9x 2002, Snes9x 2005 Plus, Snes9x 2010
+- Genesis Plus GX
+- PicoDrive
 - PPSSPP
 
 ## This branch adds some features, the following are part of them:
