@@ -303,10 +303,26 @@ void video_configure(struct retro_game_geometry *geom)
         geom->max_height = 272;
         geom->max_width = 480;
     }
-
+    
     display = go2_display_create();
     display_width = go2_display_height_get(display);
     display_height = go2_display_width_get(display);
+
+    float aspect_ratio_display = (float)display_width / (float)display_height;
+    if (aspect_ratio_display > 1)
+    {
+        isWideScreen = true;
+    }
+    printf("-RR- Are we on wide screen? %s\n", isWideScreen == true ? "true" : "false");
+
+
+
+    if (isDuckStation()){
+        // for DuckStation we need to invert the width and the height 
+        geom->max_width = display_height;  
+        geom->max_height =  display_width;
+    }
+    
 
     presenter = go2_presenter_create(display, DRM_FORMAT_RGB888, 0xff080808); // ABGR
 
@@ -390,12 +406,7 @@ void video_configure(struct retro_game_geometry *geom)
     max_width = geom->max_width;
     max_height = geom->max_height;
 
-    float aspect_ratio_display = (float)display_width / (float)display_height;
-    if (aspect_ratio_display > 1)
-    {
-        isWideScreen = true;
-    }
-    printf("-RR- Are we on wide screen? %s\n", isWideScreen == true ? "true" : "false");
+    
 
     if (isOpenGL)
     {
@@ -1129,6 +1140,18 @@ inline void prepareScreen(int width, int height)
 {
 
     screen_aspect_ratio = (float)go2_display_height_get(display) / (float)go2_display_width_get(display);
+    
+    if (isDuckStation()){
+        // for DuckStation we need to invert the width and the height 
+        x=0;y=0;w=display_height;h=display_width;
+        if (isWideScreen){
+            int temp =h;
+            h= w*4/3;
+            y=(temp-h)/2;x=0;
+        }
+        return;
+    }
+    
     if (aspect_ratio >= 1.0f)
     {
         printf("game is landscape\n");

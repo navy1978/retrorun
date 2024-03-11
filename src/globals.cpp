@@ -33,7 +33,7 @@ static const int DEVICE_NAME_SIZE = 1024;
 static char DEVICE_NAME[DEVICE_NAME_SIZE];
 static bool deviceInitialized = false;
 
-std::string release = "2.4.1";
+std::string release = "2.4.2";
 TateState tateState = DISABLED;
 
 RETRORUN_CORE_TYPE Retrorun_Core = RETRORUN_CORE_UNKNOWN;
@@ -151,6 +151,11 @@ bool isMame()
 bool isPPSSPP()
 {
     return coreName == "PPSSPP";
+}
+
+bool isDuckStation()
+{
+    return coreName == "DuckStation";
 }
 
 std::string gpu_name;
