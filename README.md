@@ -136,7 +136,7 @@ virtualjaguar_bios = enabled
 ppsspp_cpu_core = JIT
 ppsspp_detect_vsync_swap_interval = disabled
 ppsspp_fast_memory = enabled
-ppsspp_frameskip = 2
+ppsspp_frameskip = 0
 ppsspp_frameskiptype = Number of frames
 ppsspp_ignore_bad_memory_access = enabled
 ppsspp_internal_resolution = 480x272
@@ -165,6 +165,19 @@ ppsspp_texture_scaling_level= Off
 ppsspp_texture_scaling_type= xbrz
 ppsspp_texture_shader= Off
 ppsspp_vertex_cache= enabled
+# ---- DUCKSTATION ----
+duckstation_CPU.Overclock = 100
+duckstation_CPU.RecompilerICache = false
+duckstation_Display.AspectRatio = Auto
+duckstation_Display.CropMode = Overscan
+duckstation_Display.Force4_3For24Bit = false
+duckstation_GPU.Renderer = OpenGL
+duckstation_GPU.ResolutionScale = 1
+duckstation_GPU.ScaledDithering = true
+duckstation_GPU.TextureFilter = Nearest
+duckstation_GPU.TrueColor = false
+duckstation_GPU.UseThread = true
+duckstation_GPU.WidescreenHack = false
 
 # ---- RETRORUN RUNTIME SETTINGS ----
 
