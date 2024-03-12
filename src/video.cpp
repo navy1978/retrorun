@@ -139,7 +139,7 @@ int INFO_MENU_HEIGHT = 160; // 192;
 
 uint32_t format_565 = DRM_FORMAT_RGB565; // DRM_FORMAT_RGB888; // DRM_FORMAT_XRGB8888;//color_format;
 
-
+float game_aspect_ratio;
 
 
 go2_rotation getBlitRotation()
@@ -352,7 +352,7 @@ void video_configure(struct retro_game_geometry *geom)
         printf("-RR- Forcing aspect ratio to: %f.\n", opt_aspect);
         aspect_ratio = opt_aspect;
     }
-
+game_aspect_ratio=geom->aspect_ratio;
     printf("-RR- Display info: width=%d, height=%d\n", display_width, display_height);
     // Display info: width=480, height=320
     if (display_width == 480 && display_height == 320)
@@ -1152,7 +1152,7 @@ inline void prepareScreen(int width, int height)
         return;
     }
     
-    if (aspect_ratio >= 1.0f)
+    if (game_aspect_ratio >= 1.0f)
     {
         printf("game is landscape\n");
         isGameVertical=false;
