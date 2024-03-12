@@ -134,50 +134,19 @@ virtualjaguar_usefastblitter = enabled
 virtualjaguar_bios = enabled
 # ---- PPSSPP ----
 ppsspp_cpu_core = JIT
-ppsspp_detect_vsync_swap_interval = disabled
+#ppsspp_detect_vsync_swap_interval = disabled
 ppsspp_fast_memory = enabled
 ppsspp_frameskip = 0
 ppsspp_frameskiptype = Number of frames
 ppsspp_ignore_bad_memory_access = enabled
 ppsspp_internal_resolution = 480x272
 ppsspp_rendering_mode=buffered
-ppsspp_audio_latency=medium
-ppsspp_block_transfer_gpu= disabled
-ppsspp_texture_anisotropic_filtering = off
-ppsspp_vertex_cache=enabled
-ppsspp_separate_io_thread=enabled
-ppsspp_sound_speedhack=enabled
-ppsspp_lazy_texture_caching = enabled
-ppsspp_cache_iso = enabled
-ppsspp_hardware_tesselation = disabled
-ppsspp_lower_resolution_for_effects = enabled
-ppsspp_spline_quality = Low
-ppsspp_language= Automatic
-ppsspp_locked_cpu_speed= off
-ppsspp_lower_resolution_for_effects= Aggressive
-ppsspp_retain_changed_textures= disabled
-ppsspp_software_skinning= disabled
-ppsspp_texture_anisotropic_filtering= off
-ppsspp_texture_deposterize= disabled
-ppsspp_texture_filtering= Nearest
-ppsspp_texture_replacement= enabled
-ppsspp_texture_scaling_level= Off
-ppsspp_texture_scaling_type= xbrz
-ppsspp_texture_shader= Off
-ppsspp_vertex_cache= enabled
 # ---- DUCKSTATION ----
 duckstation_CPU.Overclock = 100
-duckstation_CPU.RecompilerICache = false
-duckstation_Display.AspectRatio = Auto
-duckstation_Display.CropMode = Overscan
-duckstation_Display.Force4_3For24Bit = false
-duckstation_GPU.Renderer = OpenGL
-duckstation_GPU.ResolutionScale = 1
-duckstation_GPU.ScaledDithering = true
-duckstation_GPU.TextureFilter = Nearest
-duckstation_GPU.TrueColor = false
-duckstation_GPU.UseThread = true
-duckstation_GPU.WidescreenHack = false
+duckstation_Controller1.Type=AnalogController
+# ---- SWANSTATION ----
+swanstation_CPU_Overclock = 100
+swanstation_GPU_Renderer = Software
 
 # ---- RETRORUN RUNTIME SETTINGS ----
 
