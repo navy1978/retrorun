@@ -109,6 +109,7 @@ extern bool swapSticks;
 
 extern float opt_aspect;
 extern float aspect_ratio;
+extern float game_aspect_ratio;
 extern std::string romName;
 extern std::string coreName;
 extern std::string coreVersion;

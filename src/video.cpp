@@ -139,7 +139,7 @@ int INFO_MENU_HEIGHT = 160; // 192;
 
 uint32_t format_565 = DRM_FORMAT_RGB565; // DRM_FORMAT_RGB888; // DRM_FORMAT_XRGB8888;//color_format;
 
-float game_aspect_ratio;
+
 
 
 go2_rotation getBlitRotation()
@@ -631,7 +631,7 @@ inline void showInfoCore(int w, go2_surface_t **surface, int posX)
     showCenteredText(getRowForText(), const_cast<char *>(core.append(coreName).c_str()), DARKGREY, surface);
     std::string version = tabSpaces + "Version: ";
     showCenteredText(getRowForText(), const_cast<char *>(version.append(coreVersion).c_str()), DARKGREY, surface);
-    std::string canzip = tabSpaces + "Can read zipped file: ";
+    std::string canzip = tabSpaces + "Files .zip allowed: ";
     showCenteredText(getRowForText(), const_cast<char *>(canzip.append(coreReadZippedFiles ? "true" : "false").c_str()), DARKGREY, surface);
 
     std::string openGl = tabSpaces + "OpenGL: ";
@@ -648,8 +648,8 @@ inline void showInfoGame(int w, go2_surface_t **surface, int posX)
 
     std::string res2 = tabSpaces + "Resolution: ";
     showCenteredText(getRowForText(), const_cast<char *>(res2.append(std::to_string(currentWidth)).append("x").append(std::to_string(currentHeight)).c_str()), DARKGREY, surface);
-    std::string tate = tabSpaces + "Tate mode: ";
-    showCenteredText(getRowForText(), const_cast<char *>(tate.append(isTate() ? "no:" : "off").c_str()), DARKGREY, surface);
+    std::string orientation = tabSpaces + "Orientation: ";
+    showCenteredText(getRowForText(), const_cast<char *>(orientation.append(isGameVertical? "Portrait" : "Landscape").c_str()), DARKGREY, surface);
 }
 
 inline void showCredits(go2_surface_t **surface)
@@ -1551,7 +1551,8 @@ inline void core_video_refresh_OPENGL(const void *data, unsigned width, unsigned
     {
         if (!input_info_requested)
         {
-            printf("-RR- WARN - RETRO HW FRAME BUFFER NOT VALID - skipping frame.\n");
+            // we remove this log, there are too many non valid frames
+            //printf("-RR- WARN - RETRO HW FRAME BUFFER NOT VALID - skipping frame.\n");
             core_input_poll();
             return;
         }

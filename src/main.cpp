@@ -378,83 +378,90 @@ static bool core_environment(unsigned cmd, void *data)
         return true;
     }
 
-     case RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE: 
+    case RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE:
     {
-        bool *bval = (bool*)data;
-		*bval = false;
+        bool *bval = (bool *)data;
+        *bval = false;
         return true;
     }
 
-    case RETRO_ENVIRONMENT_SET_ROTATION: {
+    case RETRO_ENVIRONMENT_SET_ROTATION:
+    {
         printf("--LIBRETRO-- RETRO_ENVIRONMENT_SET_ROTATION not implemented \n");
         return false;
-        
     }
-    case RETRO_ENVIRONMENT_GET_DISK_CONTROL_INTERFACE_VERSION: {
+    case RETRO_ENVIRONMENT_GET_DISK_CONTROL_INTERFACE_VERSION:
+    {
         printf("--LIBRETRO-- RETRO_ENVIRONMENT_GET_DISK_CONTROL_INTERFACE_VERSION not implemented \n");
         return false;
-    }   
+    }
 
-    case RETRO_ENVIRONMENT_GET_PERF_INTERFACE: {
+    case RETRO_ENVIRONMENT_GET_PERF_INTERFACE:
+    {
         printf("--LIBRETRO-- RETRO_ENVIRONMENT_GET_PERF_INTERFACE not implemented \n");
         return false;
     }
 
-    case RETRO_ENVIRONMENT_GET_LANGUAGE: {
+    case RETRO_ENVIRONMENT_GET_LANGUAGE:
+    {
         printf("--LIBRETRO-- RETRO_ENVIRONMENT_GET_LANGUAGE not implemented \n");
         return false;
     }
 
-    case RETRO_ENVIRONMENT_SET_KEYBOARD_CALLBACK: {
+    case RETRO_ENVIRONMENT_SET_KEYBOARD_CALLBACK:
+    {
         printf("--LIBRETRO-- RETRO_ENVIRONMENT_SET_KEYBOARD_CALLBACK not implemented \n");
         return false;
     }
-    case RETRO_ENVIRONMENT_SET_DISK_CONTROL_INTERFACE: {
+    case RETRO_ENVIRONMENT_SET_DISK_CONTROL_INTERFACE:
+    {
         printf("--LIBRETRO-- RETRO_ENVIRONMENT_SET_DISK_CONTROL_INTERFACE not implemented \n");
         return false;
     }
 
+    case RETRO_ENVIRONMENT_SET_CONTROLLER_INFO:
+    {
+        // printf("--LIBRETRO-- RETRO_ENVIRONMENT_SET_CONTROLLER_INFO not implemented \n");
+        //     return false;
+        //  Cast data to retro_controller_info
+        // struct retro_controller_info *controller_info = (struct retro_controller_info *)data;
+        const struct retro_controller_info *arg = (retro_controller_info *)data;
 
-    case RETRO_ENVIRONMENT_SET_CONTROLLER_INFO : {
-        //printf("--LIBRETRO-- RETRO_ENVIRONMENT_SET_CONTROLLER_INFO not implemented \n");
-        //    return false;
-        // Cast data to retro_controller_info
-            //struct retro_controller_info *controller_info = (struct retro_controller_info *)data;
-            const struct retro_controller_info *arg = (retro_controller_info *)data;
+        for (unsigned x = 0; x < arg->num_types; x++)
+        {
+            const struct retro_controller_description *type = &arg->types[x];
 
-			for (unsigned x = 0; x < arg->num_types; x++) {
-				const struct retro_controller_description *type = &arg->types[x];
+            /*if (type->id == RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG, 0))
+                RETRO_CONTROLLER_DEVICE = type->id;*/
 
-				/*if (type->id == RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG, 0))
-					RETRO_CONTROLLER_DEVICE = type->id;*/
-
-				 printf("\t%s: %u\n", type->desc, type->id);
-			}
-            
-			//return true;
-            // Process controller information
-            // (You need to implement how you want to handle this)
-            
-            return true; // Return true to indicate successful handling
-    }
-
-    case RETRO_ENVIRONMENT_SET_CORE_OPTIONS_INTL: {
-        printf("--LIBRETRO-- RETRO_ENVIRONMENT_SET_CORE_OPTIONS_INTL not implemented \n");
-            return false;
-    }
-
-          case RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY: {
-            printf("--LIBRETRO-- RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY not implemented \n");
-            return false;
+            printf("\t%s: %u\n", type->desc, type->id);
         }
 
-    case RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS: {
-            printf("--LIBRETRO-- RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS not implemented \n");
-            return false;
+        // return true;
+        //  Process controller information
+        //  (You need to implement how you want to handle this)
+
+        return true; // Return true to indicate successful handling
     }
 
+    case RETRO_ENVIRONMENT_SET_CORE_OPTIONS_INTL:
+    {
+        printf("--LIBRETRO-- RETRO_ENVIRONMENT_SET_CORE_OPTIONS_INTL not implemented \n");
+        return false;
+    }
 
+    case RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY:
+    {
+        // we comment this logs otherwise we cannot read the logs, there are too many
+        // printf("--LIBRETRO-- RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY not implemented \n");
+        return false;
+    }
 
+    case RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS:
+    {
+        printf("--LIBRETRO-- RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS not implemented \n");
+        return false;
+    }
 
     case RETRO_ENVIRONMENT_GET_VARIABLE:
     {
@@ -596,42 +603,40 @@ static void core_load(const char *sofile)
     set_audio_sample(core_audio_sample);
     set_audio_sample_batch(core_audio_sample_batch);
 
-    
+    /*
+    retro_hw_render_callback hw_render_callback;
 
-/*
-retro_hw_render_callback hw_render_callback;
+    // Set fields of retro_hw_render_callback
+    hw_render_callback.context_type = RETRO_HW_CONTEXT_OPENGLES2; // Set the context type
+    hw_render_callback.version_major = 0; // Set the major version
+    hw_render_callback.version_minor = 0; // Set the minor version
 
-// Set fields of retro_hw_render_callback
-hw_render_callback.context_type = RETRO_HW_CONTEXT_OPENGLES2; // Set the context type
-hw_render_callback.version_major = 0; // Set the major version
-hw_render_callback.version_minor = 0; // Set the minor version
+    // Other fields can be set similarly
 
-// Other fields can be set similarly
-
-// Example of setting a callback function
-hw_render_callback.get_current_framebuffer = core_video_get_current_framebuffer;
-hw_render_callback.get_proc_address = (retro_hw_get_proc_address_t)get_proc_address;
+    // Example of setting a callback function
+    hw_render_callback.get_current_framebuffer = core_video_get_current_framebuffer;
+    hw_render_callback.get_proc_address = (retro_hw_get_proc_address_t)get_proc_address;
 
 
 
-// You can print the values to verify they are set correctly
-printf("context_type: %d, version_major: %d, version_minor: %d\n", hw_render_callback.context_type, hw_render_callback.version_major, hw_render_callback.version_minor);
+    // You can print the values to verify they are set correctly
+    printf("context_type: %d, version_major: %d, version_minor: %d\n", hw_render_callback.context_type, hw_render_callback.version_major, hw_render_callback.version_minor);
 
-// Pass the modified hw_render_callback object to Libretro
-// This could be done during initialization or when setting up hardware rendering
-// For example:
+    // Pass the modified hw_render_callback object to Libretro
+    // This could be done during initialization or when setting up hardware rendering
+    // For example:
 
-if (set_environment != NULL) {
-    // Chiamata alla funzione retro_set_environment tramite il puntatore a funzione
-   set_environment( (retro_environment_t)&hw_render_callback);
-} else {
-    // Caricamento fallito, gestire l'errore di conseguenza
-    printf("Errore: impossibile caricare la funzione retro_set_environment\n");
-}
-       isOpenGL = true;
-        GLContextMajor =  0;
-        GLContextMinor = 0;
-*/
+    if (set_environment != NULL) {
+        // Chiamata alla funzione retro_set_environment tramite il puntatore a funzione
+       set_environment( (retro_environment_t)&hw_render_callback);
+    } else {
+        // Caricamento fallito, gestire l'errore di conseguenza
+        printf("Errore: impossibile caricare la funzione retro_set_environment\n");
+    }
+           isOpenGL = true;
+            GLContextMajor =  0;
+            GLContextMinor = 0;
+    */
     g_retro.retro_init();
     g_retro.initialized = true;
 
@@ -1003,6 +1008,116 @@ float getAspectRatio(const std::string aspect)
         return 0.0f; // will be the default (provided by core)
 }
 
+std::map<float, int> aspectRatioMap = {
+    {2.0f, 0},
+    {1.333333f, 1},
+    {1.25f, 2},
+    {1.777777f, 3},
+    {1.6f, 4},
+    {1.0f, 5},
+    {1.5f, 6},
+    {game_aspect_ratio, 7}};
+
+const char *aspect_ratio_names_array[] = {
+    "2:1",
+    "4:3",
+    "5:4",
+    "16:9",
+    "16:10",
+    "1:1",
+    "3:2",
+    "auto"};
+
+int getClosestValue(float value)
+{
+    int result = 1; // 4:3 by default
+    // we need to refresh the game_aspect_ratio
+    //float current_game_aspect_ratio = game_aspect_ratio == 0.0f ? aspect_ratio : game_aspect_ratio;
+    aspectRatioMap = {
+        {2.0f, 0},
+        {1.333333f, 1},
+        {1.25f, 2},
+        {1.777777f, 3},
+        {1.6f, 4},
+        {1.0f, 5},
+        {1.5f, 6},
+        {1.333333f, 7}};
+
+    float minDifference = std::numeric_limits<float>::max();
+    // float closestAspectRatio = 0.0f;
+
+    for (const auto &pair : aspectRatioMap)
+    {
+        float difference = std::abs(pair.first - value);
+        if (difference < minDifference)
+        {
+            minDifference = difference;
+            // closestAspectRatio = pair.first;
+            result = pair.second;
+        }
+    }
+    return result;
+}
+
+int getAspectRatioSettings()
+{
+
+    int result = getClosestValue(aspect_ratio);
+
+    return result;
+}
+
+void setAspectRatioSettings(int button)
+{
+
+    const int aspect_ratio_count = sizeof(aspect_ratio_names_array) / sizeof(aspect_ratio_names_array[0]);
+
+    int currentIndex = getClosestValue(aspect_ratio);
+
+    if (button == RIGHT)
+    {
+        currentIndex = currentIndex + 1;
+    }
+    else if (button == LEFT)
+    {
+        currentIndex = currentIndex - 1;
+    }
+
+    if (currentIndex < 0)
+    {
+        currentIndex = aspect_ratio_count - 1;
+    }
+    else if (currentIndex >= aspect_ratio_count - 1)
+    {
+        currentIndex = 0;
+    }
+    aspect_ratio = getAspectRatio(aspect_ratio_names_array[currentIndex]);
+    prepareScreen(currentWidth, currentHeight);
+}
+
+/*
+std::string getAspectRatio(float aspect)
+{
+
+    if (aspect == 2.0f)
+        return "2:1";
+    else if (aspect == 1.333333f)
+        return "4:3";
+    else if (aspect == 1.25f)
+        return "5:4";
+    else if (aspect == 1.777777f)
+        return "16:9";
+    else if (aspect == 1.6f)
+        return "16:10";
+    else if (aspect == 1.0f)
+        return "1:1";
+    else if (aspect == 1.5f)
+        return "3:2";
+    else if (aspect == 0.0f)
+        return "-";
+    else
+        return "-"; // will be the default (provided by core)
+}*/
 
 TateState getTateMode(const std::string tate)
 {
@@ -1010,14 +1125,13 @@ TateState getTateMode(const std::string tate)
         return ENABLED;
     else if (tate == "disabled")
         return DISABLED;
-    else if (tate== "reversed")
+    else if (tate == "reversed")
         return REVERSED;
     else if (tate == "auto")
         return AUTO;
     else
         return DISABLED; // will be the default
 }
-
 
 void initConfig()
 {
@@ -1178,17 +1292,16 @@ void initConfig()
             printf("-RR- Info: retrorun_mouse_speed_factor parameter not found in retrorun.cfg using default value (5).\n");
         }
 
-
         try
-            {
-                const std::string &arValue = conf_map.at("retrorun_tate_mode");
-                tateState = getTateMode(arValue);
-                printf("-RR - Info - retrorun_tate_mode :%f\n", opt_aspect);
-            }
-            catch (...)
-            {
-                printf("-RR- Warning: retrorun_tate_mode parameter not found in retrorun.cfg using default value (DISABLED).\n");
-            }
+        {
+            const std::string &arValue = conf_map.at("retrorun_tate_mode");
+            tateState = getTateMode(arValue);
+            printf("-RR - Info - retrorun_tate_mode :%f\n", opt_aspect);
+        }
+        catch (...)
+        {
+            printf("-RR- Warning: retrorun_tate_mode parameter not found in retrorun.cfg using default value (DISABLED).\n");
+        }
 
         processVideoInAnotherThread = (isRG552() /*|| isRG503()*/) ? true : false;
 
@@ -1202,12 +1315,8 @@ void initConfig()
 
 void fake(int button)
 {
-    //printf("fake function...");
+    // printf("fake function...");
 }
-
-
-
-
 
 int getTateMode()
 {
@@ -1215,20 +1324,19 @@ int getTateMode()
     return (int)tateState;
 }
 
-
 void setTateMode(int button)
 {
-    if (button == RIGHT){
-        // Incrementa tateState e fai il ciclo all'indietro se supera l'ultimo valore AUTO
+    if (button == RIGHT)
+    {
         tateState = static_cast<TateState>((tateState + 1) % (AUTO + 1));
-    } else if (button == LEFT){
-        // Decrementa tateState e fai il ciclo all'indietro se è inferiore a DISABLED
+    }
+    else if (button == LEFT)
+    {
         tateState = static_cast<TateState>((tateState - 1) < DISABLED ? AUTO : (tateState - 1));
     }
-    
-    //prepareScreen(currentWidth ,currentHeight);
-}
 
+    // prepareScreen(currentWidth ,currentHeight);
+}
 
 int getSwapTriggers()
 {
@@ -1242,6 +1350,21 @@ void setSwapTriggers(int button)
     if (button == LEFT || button == RIGHT)
     {
         swapL1R1WithL2R2 = !swapL1R1WithL2R2;
+    }
+}
+
+int getSwapSticks()
+{
+
+    return swapSticks ? 1 : 0;
+}
+
+void setSwapSticks(int button)
+{
+
+    if (button == LEFT || button == RIGHT)
+    {
+        swapSticks = !swapSticks;
     }
 }
 
@@ -1456,11 +1579,11 @@ int main(int argc, char *argv[])
     // conf_map.clear();
 
     // on MP is reverted (4:3 -> 3:4)
-    /*if (isSwanStation())
+    if (isSwanStation() && (isRG351V() || isRG351MP()))
     {
         printf("-RR- isSwanStation.\n");
         opt_aspect = 0.75f;
-    }*/
+    }
 
     core_load_game(arg_rom);
     // conf_map.clear();
@@ -1564,11 +1687,13 @@ int main(int argc, char *argv[])
     double max_fps = info.timing.fps;
     double previous_fps = 0;
     originalFps = info.timing.fps;
-    if (max_fps<1){ // just to be sure info are there
-        max_fps=60;
+    if (max_fps < 1)
+    { // just to be sure info are there
+        max_fps = 60;
     }
-    if (originalFps<1){ // just to be sure info are ther
-        originalFps=60;
+    if (originalFps < 1)
+    { // just to be sure info are ther
+        originalFps = 60;
     }
     // adaptiveFps = isFlycast() ? true: false;
     bool redrawInfo = true;
@@ -1598,12 +1723,32 @@ int main(int argc, char *argv[])
          numbers100_2.push_back(num_str_2);
      }*/
 
-    std::vector<MenuItem> itemsSettings = {
+    std::vector<MenuItem> itemsSystem = {
         MenuItem("Volume", getAudioValue, setAudioValue, "%"),
         MenuItem("Brightness", getBrightnessValue, setBrightnessValue, "%"),
+    };
+
+    Menu menuSystem = Menu("System", itemsSystem);
+
+    std::vector<MenuItem> itemsControl = {
         MenuItem("Swap triggers", getSwapTriggers, setSwapTriggers, "bool"),
-        MenuItem("Lock declared FPS", getLockDeclaredFPS, setLockDeclaredFPS, "bool"),
-        MenuItem("Tate", getTateMode, setTateMode, "rotation"),
+        MenuItem("Swap analog sticks", getSwapSticks, setSwapSticks, "bool"),
+    };
+
+    Menu menuControl = Menu("Control", itemsControl);
+
+    std::vector<MenuItem> itemsVideo = {
+        MenuItem("Aspect ratio", getAspectRatioSettings, setAspectRatioSettings, "aspect-ratio"),
+        MenuItem("Lock FPS", getLockDeclaredFPS, setLockDeclaredFPS, "bool"),
+        MenuItem("Tate mode", getTateMode, setTateMode, "rotation"),
+    };
+
+    Menu menuVideo = Menu("Video", itemsVideo);
+
+    std::vector<MenuItem> itemsSettings = {
+        MenuItem("System", &menuSystem, fake),
+        MenuItem("Control", &menuControl, fake),
+        MenuItem("Video", &menuVideo, fake),
     };
 
     Menu menuSettings = Menu("Settings", itemsSettings);
@@ -1648,7 +1793,7 @@ int main(int argc, char *argv[])
 
     while (isRunning)
     {
-       // printf("-RR- is running \n");
+        // printf("-RR- is running \n");
         input_message = false;
         auto nextClock = std::chrono::high_resolution_clock::now();
         // double deltaTime = (nextClock - prevClock).count() / 1e9;

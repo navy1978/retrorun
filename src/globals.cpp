@@ -47,6 +47,7 @@ bool swapL1R1WithL2R2 = false;
 bool swapSticks= false;
 float opt_aspect = 0.0f;
 float aspect_ratio = 0.0f;
+float game_aspect_ratio= 0.0f;
 
 std::string romName;
 std::string coreName;
@@ -271,7 +272,7 @@ void getCpuInfo()
 
 const char *getDeviceName() noexcept
 {
-    printf("-RR- getting device name \n");
+    //printf("-RR- getting device name \n");
     if (!deviceInitialized)
     {
 

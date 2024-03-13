@@ -134,7 +134,7 @@ Menu *MenuItem::getMenu()
 std::string MenuItem::getMisUnit()
 {
 
-    if (mis_unit_ == "bool"|| mis_unit_ == "rotation")
+    if (mis_unit_ == "bool" || mis_unit_ == "rotation" || mis_unit_ == "aspect-ratio")
     {
         return "";
     }
@@ -147,22 +147,35 @@ std::string MenuItem::getMisUnit()
     return is_menu_;
 }*/
 
-const char* rotation_names[] = {
+const char *rotation_names[] = {
     "DISABLED",
     "ENABLED",
     "REVERSED",
-    "AUTO"
-};
+    "AUTO"};
 
+const char *aspect_ratio_names[] = {
+    "2:1",
+    "4:3",
+    "5:4",
+    "16:9",
+    "16:10",
+    "1:1",
+    "3:2",
+    "auto"};
 
 std::string MenuItem::getStringValue()
 {
     if (mis_unit_ == "bool")
     {
         return getValue() == 1 ? "yes" : "no";
-    }else if (mis_unit_ == "rotation")
+    }
+    else if (mis_unit_ == "rotation")
     {
         return rotation_names[getValue()];
+    }
+    else if (mis_unit_ == "aspect-ratio")
+    {
+        return aspect_ratio_names[getValue()];
     }
     else
     {
