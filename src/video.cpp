@@ -49,11 +49,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include <chrono>
 
-#include "imgs_press.h"
-#include "imgs_numbers.h"
-#include "imgs_pause.h"
-#include "imgs_screenshot.h"
-#include "imgs_fast_forwarding.h"
+#include "imgs/imgs_press.h"
+#include "imgs/imgs_numbers.h"
+#include "imgs/imgs_pause.h"
+#include "imgs/imgs_screenshot.h"
+#include "imgs/imgs_fast_forwarding.h"
 
 #include <chrono>
 #include <thread>
@@ -89,7 +89,7 @@ int hasStencil = false;
 bool screenshot_requested = false;
 bool pause_requested = false;
 int prevBacklight;
-//bool isTate = false;
+// bool isTate = false;
 int display_width, display_height;
 int base_width, base_height, max_width, max_height;
 int aw, ah;
@@ -139,22 +139,15 @@ int INFO_MENU_HEIGHT = 160; // 192;
 
 uint32_t format_565 = DRM_FORMAT_RGB565; // DRM_FORMAT_RGB888; // DRM_FORMAT_XRGB8888;//color_format;
 
-
-
-
 go2_rotation getBlitRotation()
 {
-   /* if (lastRotation < maxRotationItarations)
-    {
-        printf("return last rotation blit\n");
-        return last351BlitRotation;
-    }*/
+    
     if (isGameVertical) // portrait
     {
         if (!isTate())
         {
-            
-            return  (isRG351V() || isRG351MP()) ? GO2_ROTATION_DEGREES_0 : GO2_ROTATION_DEGREES_270;
+
+            return (isRG351V() || isRG351MP()) ? GO2_ROTATION_DEGREES_0 : GO2_ROTATION_DEGREES_270;
         }
         if (tateState == REVERSED)
         {
@@ -170,7 +163,7 @@ go2_rotation getBlitRotation()
 
         if (!isTate() && tateState != REVERSED)
         {
-            return  (isRG351V() || isRG351MP()) ? GO2_ROTATION_DEGREES_0 : GO2_ROTATION_DEGREES_270;
+            return (isRG351V() || isRG351MP()) ? GO2_ROTATION_DEGREES_0 : GO2_ROTATION_DEGREES_270;
         }
         if (tateState == REVERSED)
         {
@@ -185,11 +178,7 @@ go2_rotation getBlitRotation()
 
 go2_rotation getRotation()
 {
-    /*if (lastRotation < maxRotationItarations)
-    {
-        printf("return last rotation\n");
-        return last351Rotation;
-    }*/
+    
     if (isGameVertical) // portrait
     {
         if (!isTate())
@@ -202,14 +191,14 @@ go2_rotation getRotation()
         }
         else
         {
-            return (isRG351V() || isRG351MP()) ? GO2_ROTATION_DEGREES_180 :GO2_ROTATION_DEGREES_90;
+            return (isRG351V() || isRG351MP()) ? GO2_ROTATION_DEGREES_180 : GO2_ROTATION_DEGREES_90;
         }
     }
     else
     { // landscape
         if (!isTate() && tateState != REVERSED)
         {
-            return (isRG351V() || isRG351MP()) ? GO2_ROTATION_DEGREES_0 :  GO2_ROTATION_DEGREES_270;
+            return (isRG351V() || isRG351MP()) ? GO2_ROTATION_DEGREES_0 : GO2_ROTATION_DEGREES_270;
         }
         if (tateState == REVERSED)
         {
@@ -221,8 +210,6 @@ go2_rotation getRotation()
         }
     }
 }
-
-
 
 int getFixedWidth(int alternative)
 {
@@ -295,15 +282,16 @@ int getGeom_max_height(const struct retro_game_geometry *geom)
 void video_configure(struct retro_game_geometry *geom)
 {
 
-    if (isPPSSPP() && geom->base_height ==0 ){
-    // for PPSSPP is possible to receive geom with 0 values
-    // in this case we need to set the resolution manually
+    if (isPPSSPP() && geom->base_height == 0)
+    {
+        // for PPSSPP is possible to receive geom with 0 values
+        // in this case we need to set the resolution manually
         geom->base_height = 272;
         geom->base_width = 480;
         geom->max_height = 272;
         geom->max_width = 480;
     }
-    
+
     display = go2_display_create();
     display_width = go2_display_height_get(display);
     display_height = go2_display_width_get(display);
@@ -313,16 +301,14 @@ void video_configure(struct retro_game_geometry *geom)
     {
         isWideScreen = true;
     }
-    printf("-RR- Are we on wide screen? %s\n", isWideScreen == true ? "true" : "false");
+    logger.log(Logger::INF, "Are we on wide screen? %s", isWideScreen == true ? "true" : "false");
 
-
-
-    if (isDuckStation()){
-        // for DuckStation we need to invert the width and the height 
-        geom->max_width = display_height;  
-        geom->max_height =  display_width;
+    if (isDuckStation())
+    {
+        // for DuckStation we need to invert the width and the height
+        geom->max_width = display_height;
+        geom->max_height = display_width;
     }
-    
 
     presenter = go2_presenter_create(display, DRM_FORMAT_RGB888, 0xff080808); // ABGR
 
@@ -338,48 +324,49 @@ void video_configure(struct retro_game_geometry *geom)
 
     if (opt_aspect == 0.0f)
     {
-        printf("-RR- Using original game aspect ratio.\n");
+        logger.log(Logger::INF, "Using original game aspect ratio.");
         aspect_ratio = geom->aspect_ratio; // dont print the value here because is wrong
         // for PC games (the default apsect ratio should be 4:3)
         if (isDosBox())
         {
-            printf("-RR- Dosbox default apsect ratio 4/3.\n");
+            logger.log(Logger::INF, "Dosbox default apsect ratio 4/3.");
             aspect_ratio = 1.333333f;
         }
     }
     else
     {
-        printf("-RR- Forcing aspect ratio to: %f.\n", opt_aspect);
+        logger.log(Logger::INF, "Forcing aspect ratio to: %f.", opt_aspect);
         aspect_ratio = opt_aspect;
     }
-game_aspect_ratio=geom->aspect_ratio;
-    printf("-RR- Display info: width=%d, height=%d\n", display_width, display_height);
+    game_aspect_ratio = geom->aspect_ratio;
+    logger.log(Logger::INF, "Display info: width=%d, height=%d", display_width, display_height);
     // Display info: width=480, height=320
     if (display_width == 480 && display_height == 320)
     {
-        printf("-RR- Device info: RG351-P / RG351-M\n");
+        logger.log(Logger::INF, "Device info: RG351-P / RG351-M");
         device = P_M;
     }
     else if (display_width == 480 && display_height == 640)
     {
-        printf("-RR- Device info: RG351-V / RG351-MP\n");
+        logger.log(Logger::INF, "Device info: RG351-V / RG351-MP");
         device = V_MP;
     }
     else if (display_width == 1920 && display_height == 1152)
     {
-        printf("-RR- Device info: RG552 \n");
+        logger.log(Logger::INF, "Device info: RG552");
         device = RG_552;
     }
     else if (display_width == 544 && display_height == 960)
     {
-        printf("-RR- Device info: RG503 \n");
+        logger.log(Logger::INF, "Device info: RG503");
         device = RG_503;
     }
 
     // width=544, height=960
     else
     {
-        printf("-RR- Device info: unknown! display_width:%d, display_height:%d\n", display_width, display_height);
+        logger.log(Logger::WARN, "Device info: unknown! display_width:%d, display_height:%d\n", display_width, display_height);
+
         device = UNKNOWN;
     }
     // some games like Resident Evil 2 for Flycast has an ovescan issue in 640x480
@@ -400,13 +387,12 @@ game_aspect_ratio=geom->aspect_ratio;
         geom->max_width = 640;
     }
 
-    printf("-RR- Game info: base_width=%d, base_height=%d, max_width=%d, max_height=%d\n", geom->base_width, geom->base_height, geom->max_width, geom->max_height);
+    logger.log(Logger::INF, "Game info: base_width=%d, base_height=%d, max_width=%d, max_height=%d", geom->base_width, geom->base_height, geom->max_width, geom->max_height);
+
     base_width = geom->base_width;
     base_height = geom->base_height;
     max_width = geom->max_width;
     max_height = geom->max_height;
-
-    
 
     if (isOpenGL)
     {
@@ -454,8 +440,8 @@ game_aspect_ratio=geom->aspect_ratio;
 
         int aw = ALIGN(getGeom_max_width(geom), 32);
         int ah = ALIGN(getGeom_max_height(geom), 32);
-        printf("-RR- video_configure: aw=%d, ah=%d\n", aw, ah);
-        printf("-RR- video_configure: base_width=%d, base_height=%d\n", geom->base_width, geom->base_height);
+        logger.log(Logger::INF, "video_configure: aw=%d, ah=%d", aw, ah);
+        logger.log(Logger::INF, "video_configure: base_width=%d, base_height=%d", geom->base_width, geom->base_height);
 
         if (color_format == DRM_FORMAT_RGBA5551)
         {
@@ -468,7 +454,7 @@ game_aspect_ratio=geom->aspect_ratio;
 
         if (!surface)
         {
-            printf("-RR- go2_surface_create failed.\n");
+            logger.log(Logger::ERR, "go2_surface_create failed.\n");
             throw std::exception();
         }
 
@@ -649,7 +635,7 @@ inline void showInfoGame(int w, go2_surface_t **surface, int posX)
     std::string res2 = tabSpaces + "Resolution: ";
     showCenteredText(getRowForText(), const_cast<char *>(res2.append(std::to_string(currentWidth)).append("x").append(std::to_string(currentHeight)).c_str()), DARKGREY, surface);
     std::string orientation = tabSpaces + "Orientation: ";
-    showCenteredText(getRowForText(), const_cast<char *>(orientation.append(isGameVertical? "Portrait" : "Landscape").c_str()), DARKGREY, surface);
+    showCenteredText(getRowForText(), const_cast<char *>(orientation.append(isGameVertical ? "Portrait" : "Landscape").c_str()), DARKGREY, surface);
 }
 
 inline void showCredits(go2_surface_t **surface)
@@ -952,13 +938,13 @@ inline void showImage(Image img, go2_surface_t **surface)
 
 inline void takeScreenshot(int w, int h)
 {
-    printf("-RR- Screenshot.\n");
+    logger.log(Logger::INF, "Taking a screenshot!");
     w = isOpenGL ? gles_surface->width : surface->width;
     h = isOpenGL ? gles_surface->height : surface->height;
     go2_surface_t *screenshot = go2_surface_create(display, w, h, DRM_FORMAT_RGB888);
     if (!screenshot)
     {
-        printf("-RR- go2_surface_create for screenshot failed.\n");
+        logger.log(Logger::ERR, "go2_surface_create for screenshot failed.");
         throw std::exception();
     }
 
@@ -971,7 +957,7 @@ inline void takeScreenshot(int w, int h)
     // snap in screenshot directory
     std::string fullPath = screenShotFolder + "/" + romName + "-" + getCurrentTimeForFileName() + ".png";
     go2_surface_save_as_png(screenshot, fullPath.c_str());
-    printf("-RR- Screenshot saved:'%s'\n", fullPath.c_str());
+    logger.log(Logger::INF, "Screenshot saved:'%s'\n", fullPath.c_str());
     go2_surface_destroy(screenshot);
     screenshot_requested = false;
     flash = true;
@@ -982,7 +968,6 @@ inline bool cmpf(float A, float B, float epsilon = 0.005f)
 {
     return (fabs(A - B) < epsilon);
 }
-
 
 int colorInc = 0;
 
@@ -1134,67 +1119,71 @@ inline void makeScreenBlack_old(go2_surface_t *go2_surface, int res_width, int r
     }
 }
 
-
-
 inline void prepareScreen(int width, int height)
 {
 
     screen_aspect_ratio = (float)go2_display_height_get(display) / (float)go2_display_width_get(display);
-    
-    if (isDuckStation()){
-        // for DuckStation we need to invert the width and the height 
-        x=0;y=0;w=display_height;h=display_width;
-        if (isWideScreen){
-            int temp =h;
-            h= w*4/3;
-            y=(temp-h)/2;x=0;
+
+    if (isDuckStation())
+    {
+        // for DuckStation we need to invert the width and the height
+        x = 0;
+        y = 0;
+        w = display_height;
+        h = display_width;
+        if (isWideScreen)
+        {
+            int temp = h;
+            h = w * 4 / 3;
+            y = (temp - h) / 2;
+            x = 0;
         }
         return;
     }
-    
+
     if (game_aspect_ratio >= 1.0f)
     {
-        printf("game is landscape\n");
-        isGameVertical=false;
+        logger.log(Logger::DEB, "game is landscape");
+        isGameVertical = false;
         if (isWideScreen)
         {
-            printf("device is widescreen\n");
-            
+            logger.log(Logger::DEB, "device is widescreen");
+
             if (isTate())
-        {
-            printf("is Tate\n");
-            x = 0;
-            y = 0;
-            h = go2_display_height_get(display);
-            w = go2_display_width_get(display);
-        }
-        else
-        {
-            printf("is not Tate\n");
-            if (cmpf(aspect_ratio, screen_aspect_ratio))
             {
-                h = go2_display_height_get(display);
-                w = go2_display_width_get(display);
+                logger.log(Logger::DEB, "Tate mode active");
                 x = 0;
                 y = 0;
-            }
-            else if (aspect_ratio < screen_aspect_ratio)
-            {
-                w = go2_display_width_get(display);
-                h = w * aspect_ratio;
-                h = (h > go2_display_height_get(display)) ? go2_display_height_get(display) : h;
-                y = (go2_display_height_get(display) / 2) - (h / 2);
-                x = 0;
-            }
-            else if (aspect_ratio > screen_aspect_ratio)
-            {
                 h = go2_display_height_get(display);
-                w = h / aspect_ratio;
-                w = (w > go2_display_width_get(display)) ? go2_display_width_get(display) : w;
-                x = (go2_display_width_get(display) / 2) - (w / 2);
-                y = 0;
+                w = go2_display_width_get(display);
             }
-        }
+            else
+            {
+                logger.log(Logger::DEB, "Tate mode not active");
+                if (cmpf(aspect_ratio, screen_aspect_ratio))
+                {
+                    h = go2_display_height_get(display);
+                    w = go2_display_width_get(display);
+                    x = 0;
+                    y = 0;
+                }
+                else if (aspect_ratio < screen_aspect_ratio)
+                {
+                    w = go2_display_width_get(display);
+                    h = w * aspect_ratio;
+                    h = (h > go2_display_height_get(display)) ? go2_display_height_get(display) : h;
+                    y = (go2_display_height_get(display) / 2) - (h / 2);
+                    x = 0;
+                }
+                else if (aspect_ratio > screen_aspect_ratio)
+                {
+                    h = go2_display_height_get(display);
+                    w = h / aspect_ratio;
+                    w = (w > go2_display_width_get(display)) ? go2_display_width_get(display) : w;
+                    x = (go2_display_width_get(display) / 2) - (w / 2);
+                    y = 0;
+                }
+            }
         }
         else
         {
@@ -1228,11 +1217,11 @@ inline void prepareScreen(int width, int height)
     else
     {
         // the game is vertical
-        isGameVertical=true;
-        printf("game is portrait (vertical)\n");
+        isGameVertical = true;
+        logger.log(Logger::DEB, "game is portrait (vertical)");
         if (isTate())
         {
-            printf("is Tate\n");
+            logger.log(Logger::DEB, "Tate mode is active");
             x = 0;
             y = 0;
             h = go2_display_height_get(display);
@@ -1240,9 +1229,10 @@ inline void prepareScreen(int width, int height)
         }
         else
         {
+            logger.log(Logger::DEB, "Tate mode is NOT active");
             if (aspect_ratio < screen_aspect_ratio)
             {
-                printf("aspect_ratio < screen_aspect_ratio\n");
+                logger.log(Logger::DEB, "aspect_ratio < screen_aspect_ratio");
                 w = go2_display_width_get(display);
                 h = w / aspect_ratio;
                 h = (h > go2_display_height_get(display)) ? go2_display_height_get(display) : h;
@@ -1251,7 +1241,7 @@ inline void prepareScreen(int width, int height)
             }
             else if (aspect_ratio > screen_aspect_ratio)
             {
-                printf("aspect_ratio > screen_aspect_ratio\n");
+                logger.log(Logger::DEB, "aspect_ratio > screen_aspect_ratio");
                 h = go2_display_height_get(display);
                 w = h / aspect_ratio;
                 w = (w > go2_display_width_get(display)) ? go2_display_width_get(display) : w;
@@ -1498,20 +1488,18 @@ bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
                                         0, (gs_h - height), width, height,
                                         x, y, w, h,
                                         getRotation(), getBlitRotation(), isWideScreen);
-            
-            
+
             //}
         }
         else
         {
-            
+
             go2_presenter_post_multiple(presenter,
                                         surface, status_obj,
                                         0, 0, res_width, res_height,
                                         x, y, w, h,
                                         getRotation(), getBlitRotation(), isWideScreen);
-        
-            }
+        }
     }
     return showStatus;
 }
@@ -1523,7 +1511,7 @@ inline void core_video_refresh_NON_OPENGL(const void *data, unsigned width, unsi
     {
         if (!input_info_requested)
         {
-            printf("-RR- WARN - DATA NOT VALID - skipping frame.\n");
+            logger.log(Logger::DEB, "DATA NOT VALID - skipping frame.");
             core_input_poll();
             return;
         }
@@ -1535,7 +1523,7 @@ inline void core_video_refresh_NON_OPENGL(const void *data, unsigned width, unsi
     // printf("showStatus %s\n:", showStatus ? "true" : "false");
     if (!showStatus)
     {
-       go2_presenter_post(presenter,
+        go2_presenter_post(presenter,
                            surface,
                            0, 0, width, height,
                            x, y, w, h,
@@ -1551,8 +1539,7 @@ inline void core_video_refresh_OPENGL(const void *data, unsigned width, unsigned
     {
         if (!input_info_requested)
         {
-            // we remove this log, there are too many non valid frames
-            //printf("-RR- WARN - RETRO HW FRAME BUFFER NOT VALID - skipping frame.\n");
+            logger.log(Logger::DEB, "RETRO HW FRAME BUFFER NOT VALID - skipping frame.");
             core_input_poll();
             return;
         }
@@ -1675,7 +1662,6 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
     if (input_info_requested)
     {
 
-        
         width = currentWidth;
         height = currentHeight;
         data = lastData;
@@ -1695,13 +1681,13 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         lastPitch = pitch;
         processVideoInAnotherThread = (isRG552() /*|| isRG503()*/) ? true : false;
 
-    if (isPPSSPP() && width<1 ){
-        // for PPSSPP is possible to receive  with with 0 values
-        // in this case we need to set the resolution manually
-        width=480;
-        height=272;
-    }
-
+        if (isPPSSPP() && width < 1)
+        {
+            // for PPSSPP is possible to receive  with with 0 values
+            // in this case we need to set the resolution manually
+            width = 480;
+            height = 272;
+        }
     }
 
     frameCounter++;
@@ -1723,27 +1709,27 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
 
         prepareScreen(width, height);
 
-        printf("-RR- Real aspect_ratio=%f\n", aspect_ratio);
-        printf("-RR- Screen aspect_ratio=%f\n", screen_aspect_ratio);
-        printf("-RR- Drawing info: w=%d, h=%d, x=%d, y=%d\n", w, h, x, y);
-        printf("-RR- OpenGL=%s\n", isOpenGL ? "true" : "false");
-        printf("-RR- isTate=%s\n", isTate() ? "true" : "false");
+        logger.log(Logger::DEB, "Real aspect_ratio=%f", aspect_ratio);
+        logger.log(Logger::DEB, "Screen aspect_ratio=%f\n", screen_aspect_ratio);
+        logger.log(Logger::DEB, "Drawing info: w=%d, h=%d, x=%d, y=%d\n", w, h, x, y);
+        logger.log(Logger::DEB, "OpenGL=%s", isOpenGL ? "true" : "false");
+        logger.log(Logger::DEB, "isTate=%s", isTate() ? "true" : "false");
 
         if (color_format == DRM_FORMAT_RGBA5551)
         {
-            printf("-RR- Color format:DRM_FORMAT_RGBA5551\n");
+            logger.log(Logger::DEB, "Color format:DRM_FORMAT_RGBA5551");
         }
         else if (color_format == DRM_FORMAT_RGB888)
         {
-            printf("-RR- Color format:DRM_FORMAT_RGB888\n");
+            logger.log(Logger::DEB, "Color format:DRM_FORMAT_RGB888");
         }
         else if (color_format == DRM_FORMAT_XRGB8888)
         {
-            printf("-RR- Color format:DRM_FORMAT_XRGB8888\n");
+            logger.log(Logger::DEB, "Color format:DRM_FORMAT_XRGB8888");
         }
         else
         {
-            printf("-RR- Color format:Unknown\n");
+            logger.log(Logger::WARN, "Color format:Unknown");
         }
 
         real_aspect_ratio = aspect_ratio;
@@ -1755,7 +1741,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
     }
     if (height != currentHeight || width != currentWidth)
     {
-        printf("-RR- Resolution switched to width=%d, height=%d\n", width, height);
+        logger.log(Logger::INF, "Resolution switched to width=%d, height=%d", width, height);
         currentWidth = width;
         currentHeight = height;
     }

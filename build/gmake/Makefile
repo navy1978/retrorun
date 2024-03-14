@@ -24,7 +24,7 @@ ifeq ($(config),debug)
   TARGETDIR  = ../..
   TARGET     = $(TARGETDIR)/retrorun
   DEFINES   += -DDEBUG
-  INCLUDES  += -I../../src -I../.. -I../../src/go2
+  INCLUDES  += -I../../src -I../.. -I../../src/go2 -I../../src/menu
   CPPFLAGS  += -MMD -MP $(DEFINES) $(INCLUDES)
   CFLAGS    += $(CPPFLAGS) $(ARCH) -g -Wall -D__GBM__
   CXXFLAGS  += $(CFLAGS) -std=c++2a
@@ -46,7 +46,7 @@ ifeq ($(config),release)
   TARGETDIR  = ../..
   TARGET     = $(TARGETDIR)/retrorun
   DEFINES   += -DNDEBUG
-  INCLUDES  += -I../../src -I../.. -I../../src/go2
+  INCLUDES  += -I../../src -I../.. -I../../src/go2 -I../../src/menu
   CPPFLAGS  += -MMD -MP $(DEFINES) $(INCLUDES)
   CFLAGS    += $(CPPFLAGS) $(ARCH) -Ofast -Wall -D__GBM__
   CXXFLAGS  += $(CFLAGS) -std=c++2a
@@ -64,9 +64,10 @@ ifeq ($(config),release)
 endif
 
 OBJECTS := \
-	$(OBJDIR)/menu_item.o \
-	$(OBJDIR)/menu.o \
-	$(OBJDIR)/menu_manager.o \
+	$(OBJDIR)/logger.o \
+	$(OBJDIR)/menu/menu_item.o \
+	$(OBJDIR)/menu/menu.o \
+	$(OBJDIR)/menu/menu_manager.o \
 	$(OBJDIR)/fonts.o \
 	$(OBJDIR)/input.o \
 	$(OBJDIR)/audio.o \
@@ -111,6 +112,7 @@ $(OBJDIR):
 ifeq (posix,$(SHELLTYPE))
 	$(SILENT) mkdir -p $(OBJDIR)
 	$(SILENT) mkdir -p $(OBJDIR)/go2
+	$(SILENT) mkdir -p $(OBJDIR)/menu
 else
 	$(SILENT) mkdir $(subst /,\\,$(OBJDIR))
 endif
@@ -137,13 +139,16 @@ $(GCH): $(PCH)
 	-$(SILENT) cp $< $(OBJDIR)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 endif
-$(OBJDIR)/menu_item.o: ../../src/menu_item.cpp
+$(OBJDIR)/logger.o: ../../src/logger.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"	
-$(OBJDIR)/menu.o: ../../src/menu.cpp
+$(OBJDIR)/menu/menu_item.o: ../../src/menu/menu_item.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"	
+$(OBJDIR)/menu/menu.o: ../../src/menu/menu.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/menu_manager.o: ../../src/menu_manager.cpp
+$(OBJDIR)/menu/menu_manager.o: ../../src/menu/menu_manager.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"	
 $(OBJDIR)/fonts.o: ../../src/fonts.cpp

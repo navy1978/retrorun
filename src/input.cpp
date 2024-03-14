@@ -102,7 +102,7 @@ void input_gamepad_read()
 
         if (firstExecution)
         {
-            printf("GPIO JOYPAD: ENABLED!\n");
+            logger.log(Logger::INF, "GPIO JOYPAD: ENABLED!");
             //firstExecution = false;
         }
     }
@@ -124,13 +124,13 @@ void input_gamepad_read()
         if (go2_input_features_get(input) & Go2InputFeatureFlags_Triggers)
         {
             has_triggers = true;
-            printf("input: Hardware triggers enabled.\n");
+            logger.log(Logger::INF, "input: Hardware triggers enabled.");
         }
 
         if (go2_input_features_get(input) & Go2InputFeatureFlags_RightAnalog)
         {
             has_right_analog = true;
-            printf("input: Right analog enabled.\n");
+            logger.log(Logger::INF, "input: Right analog enabled.");
         }
 
         gamepadState = go2_input_state_create();
@@ -459,7 +459,7 @@ void core_input_poll(void)
         gettimeofday(&valTime, NULL);
         double currentTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
         double elapsed = currentTime - lastInforequestTime;
-        printf("input: Info requested\n");
+        logger.log(Logger::DEB, "Input: Info requested");
         if (elapsed >= 0.5)
         {
             input_info_requested = !input_info_requested;
@@ -467,7 +467,7 @@ void core_input_poll(void)
             input_credits_requested=false;
             // printf("pause_requested:%s input_info_requested:%s\n", pause_requested? "true": "false", input_info_requested? "true": "false");
             lastInforequestTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);    
-            printf("input: Info requested OK\n");
+            logger.log(Logger::DEB, "Input: Info requested OK");
         }else{
           //  printf("input: Info requested NOT OK (too quick)\n");
           
@@ -484,7 +484,7 @@ void core_input_poll(void)
         screenshot_requested = true;
         gettimeofday(&valTime, NULL);
         lastScreenhotrequestTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
-        printf("input: Screenshot requested\n");
+        logger.log(Logger::DEB, "Input: Screenshot requested");
     }
 
      if ( (go2_input_state_button_get(gamepadState, selectButton) == ButtonState_Pressed /*|| (currentTime - lastL3Pressed <=0.2)*/)&&
@@ -496,12 +496,12 @@ void core_input_poll(void)
         
         if (elapsed >= 0.5)
         {
-            printf("input: pause requested\n");
+            logger.log(Logger::DEB, "Input: Pause requested");
             input_pause_requested = !input_pause_requested;
             if (!input_pause_requested){
                 pause_requested = false;
             }
-            printf("%s\n", input_pause_requested ? "Paused" : "Un-paused");
+            logger.log(Logger::DEB, "Input: %s", input_pause_requested ? "Paused" : "Un-paused");
             pauseRequestTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
         }else{
            // printf("input: pause requested NOT OK (too quick)\n");
@@ -519,7 +519,7 @@ void core_input_poll(void)
             go2_input_state_button_get(prevGamepadState, r2Button) == ButtonState_Released)
        {
             input_ffwd_requested = !input_ffwd_requested;
-            printf("Fast-forward %s\n", input_ffwd_requested ? "on" : "off");
+            logger.log(Logger::DEB, "Input: Fast-forward %s", input_ffwd_requested ? "on" : "off");
         }
         
     }

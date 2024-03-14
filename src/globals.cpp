@@ -25,6 +25,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <iostream>
 #include <unistd.h>
 
+Logger logger(Logger::INF);
+
 // #include <cstring>
 const std::string OS_ARCH_FILE = "/storage/.config/.OS_ARCH";
 std::string OS_ARCH = "cat " + OS_ARCH_FILE;
@@ -86,6 +88,9 @@ float avgFps = 0;
 int current_volume = 0;
 
 MenuManager menuManager = MenuManager();
+
+
+
 
 const char *getEnv(const char *tag) noexcept
 {
@@ -198,36 +203,7 @@ void getCpuInfo()
         }
     }
 
-    // cpu_info_list.push_back(cpu_info);
-
-    /*for (const auto &line : output) {
-    std::regex regex(R"(^\s*([^:]+):\s*(.+?)\s*$)");
-
-    std::smatch match;
-    if (std::regex_match(line, match, regex)) {
-        std::string key = std::regex_replace(match[1].str(), std::regex("^\\s+|\\s+$"), "");
-        std::string value = std::regex_replace(match[2].str(), std::regex("^\\s+|\\s+$"), "");
-
-        if (key == "CPU(s)") {
-            printf("creo un nuovo elemento da mettere in lista\n");
-            CpuInfo cpu_info;
-            cpu_info.number_of_cpu = value;
-            cpu_info_list.push_back(cpu_info);
-        }
-        else if (key == "Model name") {
-            cpu_info_list.back().cpu_name = value;
-        }
-        else if (key == "Thread(s) per core") {
-            cpu_info_list.back().thread_per_cpu = value;
-        }
-    }*/
-
-    printf("list size:%d\n" + cpu_info_list.size());
-
-    // get the name of the GPU
-
-    // find /sys/devices/platform/ -maxdepth 2 -type d -name "*.gpu" | xargs -I{} sh -c 'cat {}/gpuinfo'
-
+    
     std::vector<std::string> output2 = exec("find /sys/devices/platform/ -maxdepth 2 -type d -name '*.gpu' | xargs -I{} sh -c 'cat {}/gpuinfo | grep -o \"^[^ ]* [^ ]* cores\"'");
 
     for (const auto &line : output2)
@@ -240,83 +216,54 @@ void getCpuInfo()
         }
     }
 
-    /* std::vector<std::string> output2 = exec("cat /proc/cpuinfo | grep Hardware");
-
-     for (const auto &line : output2)
-     {
-
-         //std::regex regex("\\s*(.+):\\s*(.+)");
-         std::regex regex(R"(^\s*([^:]+):\s*(.+?)\s*$)"); // utilizzo la raw string R"()" per evitare di dover "escapare" i backslash
-
-         std::smatch match;
-         if (std::regex_match(line, match, regex))
-         {
-
-             std::string key = std::regex_replace(match[1].str(), std::regex("^\\s+|\\s+$"), "");
-             std::string value = std::regex_replace(match[2].str(), std::regex("^\\s+|\\s+$"), "");
-             printf("key:%s\n",key.c_str());
-             printf("value:%s\n",value.c_str());
-             printf("line length: %d\n", line.length());
-             printf("key length: %d\n", key.length());
-             printf("value length: %d\n", value.length());
-             if (key == "Hardware")
-             {
-                 printf("sono qui!");
-                 cpu_info.device_name = value.c_str();
-             }else{
-                 printf("NON sono qui!");
-             }
-         }
-     }*/
+   
 }
 
 const char *getDeviceName() noexcept
 {
-    //printf("-RR- getting device name \n");
+    
     if (!deviceInitialized)
     {
 
         if (access(OS_ARCH_FILE.c_str(), F_OK) == 0)
         {
-            printf("-RR- File %s found! \n", OS_ARCH_FILE.c_str());
+            logger.log(Logger::INF, "File %s found! ", OS_ARCH_FILE.c_str());
             FILE *pipe = popen(OS_ARCH.c_str(), "r");
             if (!pipe)
             {
-                printf("-RR- Error: Could not open pipe to `cat` command.\n");
+                logger.log(Logger::ERR, "Could not open pipe to `cat` command.");
                 return "";
             }
 
             char *result = fgets(DEVICE_NAME, DEVICE_NAME_SIZE, pipe);
             if (!result)
             {
-                printf("-RR- Error: Could not read output from `cat` command.\n");
+                logger.log(Logger::ERR, "Could not read output from `cat` command.");
                 return "";
             }
 
             // Close the pipe
             pclose(pipe);
             deviceInitialized = true;
-            printf("-RR- Device name: %s\n", DEVICE_NAME);
+            logger.log(Logger::INF, "Device name: %s",DEVICE_NAME);
 
             // get extra info
             getCpuInfo();
         }
         else
     {
-         printf("-RR- File %s not found. Let's try to search in envioronment variables to identify the device name....\n", OS_ARCH_FILE.c_str());
-        const char *envVar = std::getenv("DEVICE_NAME");
+         logger.log(Logger::WARN, "File %s not found. Let's try to search in envioronment variables to identify the device name...",OS_ARCH_FILE.c_str());
+         const char *envVar = std::getenv("DEVICE_NAME");
         if (envVar != nullptr)
         {
             // Copy the environment variable value to DEVICE_NAME
             std::strncpy(DEVICE_NAME, envVar, DEVICE_NAME_SIZE - 1);
             DEVICE_NAME[DEVICE_NAME_SIZE - 1] = '\0'; // Ensure null-termination
-
-            std::cout << "Environment variable value: " << DEVICE_NAME << std::endl;
-            
+            logger.log(Logger::INF, "Environment variable value: %s",DEVICE_NAME);
         }
         else
         {
-            std::cout << "Environment variable \"DEVICE_NAME\" not set. Device name undefined!" << std::endl;
+            logger.log(Logger::ERR, "Environment variable \"DEVICE_NAME\" not set. Device name undefined!");
         }
         deviceInitialized = true;
     }
@@ -371,7 +318,7 @@ std::vector<std::string> exec(const char *cmd)
     FILE *pipe = popen(cmd, "r");
     if (!pipe)
     {
-        printf("-RR- Error executing command\n");
+        logger.log(Logger::ERR, "Error executing command");
         return output;
     }
     while (!feof(pipe))

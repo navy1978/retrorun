@@ -26,7 +26,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include "imgs_screenshot.h"
+#include "../imgs/imgs_screenshot.h"
 #include<stdio.h>
 #include <unistd.h>
 #include <fcntl.h>

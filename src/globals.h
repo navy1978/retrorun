@@ -19,7 +19,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 #pragma once
 #include <string>
-#include "menu_manager.h"
+#include "menu/menu_manager.h"
+#include "logger.h"
 
 extern std::string release;
 
@@ -118,6 +119,9 @@ extern std::string screenShotFolder;
 extern std::vector<CpuInfo> cpu_info_list;
 
 extern std::string status_message;
+
+
+extern Logger logger;
 
 // get system env 
 const char* getEnv( const char* tag) noexcept ;

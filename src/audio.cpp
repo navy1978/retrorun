@@ -89,7 +89,6 @@ static void SetVolume()
 int getVolume()
 {
     int value = go2_audio_volume_get(audio, soundCardName.c_str());
-    // printf("VOLUME:%d\n", value);
     return value;
 }
 
@@ -153,22 +152,22 @@ size_t core_audio_sample_batch(const int16_t *data, size_t frames)
 
     if (firstTime && originalFps > 0)
     {
-        printf("-RR (Audio init) config...\n");
+        logger.log(Logger::DEB, "(Audio init) config...");
         audioFrameLimit = 1.0 / originalFps * init_freq;
 
         if (retrorun_audio_buffer == -1)
         {
             retrorun_audio_buffer = audioFrameLimit;
         }
-        printf("-RR (Audio init)- originalFps:%f\n", originalFps);
-        printf("-RR (Audio init)- audioFrameLimit:%d\n", audioFrameLimit);
-        printf("-RR (Audio init)- retrorun_audio_buffer:%d\n", retrorun_audio_buffer);
+        logger.log(Logger::DEB, "(Audio init)- originalFps:%f", originalFps);
+        logger.log(Logger::DEB, "(Audio init)- audioFrameLimit:%d", audioFrameLimit);
+        logger.log(Logger::DEB, "(Audio init)- retrorun_audio_buffer:%d", retrorun_audio_buffer);
         firstTime = false;
     }
 
     if (originalFps < 1)
     {
-        printf("-RR- ORIGINAL FPS NOT VALID!\n");
+        logger.log(Logger::DEB, "ORIGINAL FPS NOT VALID! skipping audio");
         return frames;
     }
     audioCounter++;
@@ -190,7 +189,7 @@ size_t core_audio_sample_batch(const int16_t *data, size_t frames)
 
     if (currentFrame > FRAMES_MAX)
     {
-        printf("-RR- AUDIO FRAME NOT VALID!\n");
+        logger.log(Logger::DEB, "AUDIO FRAME NOT VALID! skipping audio");
         return frames;
     }
 
