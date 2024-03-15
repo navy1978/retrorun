@@ -1091,6 +1091,22 @@ TateState getTateMode(const std::string tate)
         return DISABLED; // will be the default
 }
 
+
+Logger::LogLevel getLogLevel(const std::string level)
+{
+    if (level == "INFO")
+        return Logger::INF;
+    else if (level == "WARNING")
+        return Logger::WARN;
+    else if (level == "ERROR")
+        return Logger::ERR;
+    else if (level == "DEBUG")
+        return Logger::DEB;
+    else
+        return Logger::INF;// will be the default
+}
+
+
 void initConfig()
 {
     std::ifstream infile(opt_setting_file);
@@ -1261,6 +1277,19 @@ void initConfig()
         catch (...)
         {
             logger.log(Logger::WARN, "retrorun_tate_mode parameter not found in retrorun.cfg using default value (DISABLED).\n");
+        }
+
+
+        try
+        {
+            const std::string &arValue = conf_map.at("retrorun_log_level");
+            logger.setLogLevel(getLogLevel(arValue));
+            
+            logger.log(Logger::INF, "retrorun_log_level :%s\n", arValue);
+        }
+        catch (...)
+        {
+            logger.log(Logger::WARN, "retrorun_log_level parameter not found in retrorun.cfg using default value (INFO).\n");
         }
 
         processVideoInAnotherThread = (isRG552() /*|| isRG503()*/) ? true : false;
