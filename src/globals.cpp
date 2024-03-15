@@ -50,6 +50,7 @@ bool swapSticks= false;
 float opt_aspect = 0.0f;
 float aspect_ratio = 0.0f;
 float game_aspect_ratio= 0.0f;
+bool audio_disabled=false;
 
 std::string romName;
 std::string coreName;
@@ -79,7 +80,7 @@ bool adaptiveFps = false;
 bool runLoopAtDeclaredfps = true;
 
 int retrorun_audio_buffer = -1; // means it will be fixed to a value related with the original FPS of the game
-
+int new_retrorun_audio_buffer = -1;
 int retrorun_mouse_speed_factor = 5;
 std::vector<CpuInfo> cpu_info_list;
 
@@ -163,6 +164,11 @@ bool isDuckStation()
 {
     return coreName == "DuckStation";
 }
+
+/*bool isPUAE()
+{
+    return coreName == "PUAE";
+}*/
 
 std::string gpu_name;
 void getCpuInfo()

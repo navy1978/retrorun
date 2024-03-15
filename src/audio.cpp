@@ -99,7 +99,8 @@ void setVolume(int value)
 
 void core_audio_sample(int16_t left, int16_t right)
 {
-    if (input_ffwd_requested)
+    
+    if (input_ffwd_requested || audio_disabled)
     {
         return;
     }
@@ -113,6 +114,7 @@ void core_audio_sample(int16_t left, int16_t right)
     {
         go2_audio_submit(audio, (const short *)audioBuffer, audioFrameCount);
         audioFrameCount = 0;
+        retrorun_audio_buffer = new_retrorun_audio_buffer;
     }
 }
 
@@ -148,7 +150,10 @@ static inline void newmemcpy(void *__restrict__ dstp,
 size_t core_audio_sample_batch(const int16_t *data, size_t frames)
 {
 
-  
+    if (audio_disabled)
+        {
+            return frames;
+        }
 
     if (firstTime && originalFps > 0)
     {
@@ -198,6 +203,7 @@ size_t core_audio_sample_batch(const int16_t *data, size_t frames)
     {
         go2_audio_submit(audio, (const short *)audioBuffer, audioFrameCount);
         audioFrameCount = 0;
+        retrorun_audio_buffer = new_retrorun_audio_buffer;
     }
 
     size_t size = frames * sizeof(int16_t) * CHANNELS;

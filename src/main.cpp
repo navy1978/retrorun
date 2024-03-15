@@ -60,6 +60,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #define RETRO_DEVICE_ATARI_JOYSTICK RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_JOYPAD, 1)
 #define RETRO_ENVIRONMENT_GET_PREFERRED_HW_RENDER 56
+#define ENABLE_VIDEO 1
+#define ENABLE_AUDIO 2
+#define USE_FAST_SAVESTATES 4
+#define HARD_DISABLE_AUDIO 8
 /* unsigned * --
  *
  * Allows an implementation to ask frontend preferred hardware
@@ -478,6 +482,27 @@ static bool core_environment(unsigned cmd, void *data)
         return false;
     }
 
+/*case RETRO_ENVIRONMENT_GET_AUDIO_VIDEO_ENABLE: {
+    int audioVideoEnable = 0; // Inizializziamo il flag
+    
+    // Impostiamo l'abilitazione del video (bit 0)
+    audioVideoEnable |= ENABLE_VIDEO;
+
+    // Impostiamo l'abilitazione/diabilitazione dell'audio (bit 1)
+    if (!audio_disabled) {
+        audioVideoEnable |= ENABLE_AUDIO;
+    }
+
+    // Impostiamo l'abilitazione del fast savestates (bit 2)
+    audioVideoEnable |= USE_FAST_SAVESTATES;
+
+    // Impostiamo la disabilitazione dell'audio (bit 3)
+    if (audio_disabled) {
+        audioVideoEnable |= HARD_DISABLE_AUDIO;
+    }
+			*(int*)data = audioVideoEnable;
+		}
+*/
     case RETRO_ENVIRONMENT_GET_CORE_OPTIONS_VERSION:
     {
         unsigned int *options_version = (unsigned int *)data;
@@ -1203,6 +1228,7 @@ void initConfig()
             if (!audioBufferValue.empty())
             {
                 retrorun_audio_buffer = stoi(audioBufferValue);
+                new_retrorun_audio_buffer = retrorun_audio_buffer;
                 logger.log(Logger::INF, "retrorun_audio_buffer: %d.", retrorun_audio_buffer);
             }
         }
@@ -1307,6 +1333,65 @@ void setLockDeclaredFPS(int button)
         runLoopAtDeclaredfps = !runLoopAtDeclaredfps;
     }
 }
+
+int getAudioDisabled()
+{
+    return audio_disabled ? 1 : 0;
+}
+
+void setAudioDisabled(int button)
+{
+    if (button == LEFT || button == RIGHT)
+    {
+        audio_disabled = !audio_disabled;
+        printf("audio: %s\n", audio_disabled? "FALSE": "TRUE");
+    }
+}
+
+
+int audio_buffer_array[] = {
+    -1,
+    1,
+    256,
+    512,
+    1024,
+    2048,
+    4096};
+
+int getAudioBuffer()
+{
+    return new_retrorun_audio_buffer;
+}
+
+void setAudioBuffer(int button)
+{
+    int audio_buffer_array_size = sizeof(audio_buffer_array) / sizeof(audio_buffer_array[0]);
+
+int current_index = -1; // indice corrente di retrorun_audio_buffer nell'array
+    for (int i = 0; i < audio_buffer_array_size; ++i) {
+        if (new_retrorun_audio_buffer == audio_buffer_array[i]) {
+            current_index = i;
+            break;
+        }
+    }
+    int new_index=-1; 
+
+    if (button == RIGHT)
+    {
+        
+            new_index = (current_index + 1) % audio_buffer_array_size; // Incrementiamo l'indice in modo circolare
+        
+    }
+    else if (button == LEFT)
+    {
+        
+            new_index = (current_index - 1 + audio_buffer_array_size) % audio_buffer_array_size; // Decrementiamo l'indice in modo circolare
+        
+    }
+    new_retrorun_audio_buffer = audio_buffer_array[new_index]; 
+}
+
+
 
 int getBrightnessValue()
 {
@@ -1645,6 +1730,13 @@ int main(int argc, char *argv[])
 
     Menu menuControl = Menu("Control", itemsControl);
 
+    std::vector<MenuItem> itemsAudio = {
+        MenuItem("Audio Buffer", getAudioBuffer, setAudioBuffer, "audio-buffer"),
+        MenuItem("Audio Disabled", getAudioDisabled, setAudioDisabled, "bool"),
+    };
+
+    Menu menuAudio = Menu("Audio", itemsAudio);
+
     std::vector<MenuItem> itemsVideo = {
         MenuItem("Aspect ratio", getAspectRatioSettings, setAspectRatioSettings, "aspect-ratio"),
         MenuItem("Lock FPS", getLockDeclaredFPS, setLockDeclaredFPS, "bool"),
@@ -1657,6 +1749,7 @@ int main(int argc, char *argv[])
         MenuItem("System", &menuSystem, fake),
         MenuItem("Control", &menuControl, fake),
         MenuItem("Video", &menuVideo, fake),
+        MenuItem("Audio", &menuAudio, fake),
     };
 
     Menu menuSettings = Menu("Settings", itemsSettings);
@@ -1762,7 +1855,7 @@ int main(int argc, char *argv[])
         // If the remaining time is positive, sleep to ensure fixed frame rate
         if ((runLoopAtDeclaredfps && sleepTime > nanoseconds::zero()) && !input_ffwd_requested)
         {
-            std::this_thread::sleep_for(sleepTime* 0.99);
+            std::this_thread::sleep_for(sleepTime * 0.99);
         }
 
         /*if ((runLoopAtDeclaredfps && sleepSecs > 0) && !input_ffwd_requested)

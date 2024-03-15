@@ -107,6 +107,7 @@ extern bool gpio_joypad;
 extern bool adaptiveFps;
 extern bool swapL1R1WithL2R2;
 extern bool swapSticks;
+extern bool audio_disabled;
 
 extern float opt_aspect;
 extern float aspect_ratio;
@@ -142,6 +143,7 @@ bool isBeetleVB();
 bool isMame();
 bool isPPSSPP();
 bool isDuckStation();
+//bool isPUAE();
 
 // Devices
 const char* getDeviceName() noexcept ;
@@ -158,6 +160,7 @@ extern bool processVideoInAnotherThread;
 
 extern bool runLoopAtDeclaredfps;
 extern int retrorun_audio_buffer;
+extern int  new_retrorun_audio_buffer; // this is only need when we change the other one on the fly via menu
 extern int retrorun_mouse_speed_factor;
 
 extern float avgFps;
