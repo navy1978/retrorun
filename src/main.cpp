@@ -489,7 +489,7 @@ static bool core_environment(unsigned cmd, void *data)
     {
         const struct retro_core_option_definition *options = ((const struct retro_core_option_definition *)data);
         int i = 0;
-        while (options[i].key != 0)
+        while (options[i].key != nullptr && options[i].default_value != nullptr)
         {
             std::string key = options[i].key;
             std::string value = options[i].default_value;
