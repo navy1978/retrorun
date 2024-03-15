@@ -21,6 +21,7 @@ Use this for RG351*/RG552 with rg351p-js2box available [here](https://github.com
 - Genesis Plus GX
 - PicoDrive
 - PPSSPP
+- Stella, Stella2014
 
 ## This branch adds some features, the following are part of them:
 1) External library libgo2 (https://github.com/OtherCrashOverride/libgo2) now is part of retrorun
