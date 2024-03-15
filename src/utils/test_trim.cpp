@@ -24,7 +24,8 @@ std::cout << t;
 
 
 
-
+settgin log level from setttings
+adding the save status in 3 differetn slot in the menu
 
 
 
@@ -39,7 +40,6 @@ std::cout << t;
 suonare un file per fare sentire il rumore:
 
 aplay /usr/share/sounds/alsa/Noise.wav
-
 oppure converti il file wav in c array :
 https://www.youtube.com/watch?v=1cWkjzU5vg8
 e poi lo suoni con la libreria che hai già ... in imput.cpp

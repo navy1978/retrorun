@@ -209,39 +209,10 @@ void initMapConfig(std::string pathConfFile)
     file_in.close();
 }
 
-static void core_log(enum retro_log_level level, const char *fmt, ...)
-{
-    char buffer[4096] = {
-        0};
-
-    static const char *levelstr[] = {
-        "DEBUG",
-        "INFO",
-        "WARN",
-        "ERROR"};
-
-    va_list va;
-
-    va_start(va, fmt);
-    vsnprintf(buffer, sizeof(buffer), fmt, va);
-    va_end(va);
-
-    if (level == 0)
-        return;
-
-    fprintf(stdout, "> %s < [%s] %s ", coreName.c_str(), levelstr[level], buffer);
-    fflush(stdout);
-
-#if 0
-	if (level == RETRO_LOG_ERROR)
-		exit(EXIT_FAILURE);
-#endif
-}
-
 static __eglMustCastToProperFunctionPointerType get_proc_address(const char *sym)
 {
     __eglMustCastToProperFunctionPointerType result = eglGetProcAddress(sym);
-    logger.log(Logger::DEB, "get_proc_address: sym='%s', result=%p", sym, (void*)result);
+    logger.log(Logger::DEB, "get_proc_address: sym='%s', result=%p", sym, (void *)result);
 
     return result;
 }
@@ -264,7 +235,7 @@ static bool core_environment(unsigned cmd, void *data)
     case RETRO_ENVIRONMENT_GET_LOG_INTERFACE:
     {
         struct retro_log_callback *cb = (struct retro_log_callback *)data;
-        cb->log = core_log;
+        cb->log = Logger::core_log;
         break;
     }
 
@@ -419,7 +390,7 @@ static bool core_environment(unsigned cmd, void *data)
 
     case RETRO_ENVIRONMENT_SET_CONTROLLER_INFO:
     {
-        
+
         const struct retro_controller_info *arg = (retro_controller_info *)data;
         logger.log(Logger::INF, "Controllers Available:");
         for (unsigned x = 0; x < arg->num_types; x++)
@@ -427,8 +398,6 @@ static bool core_environment(unsigned cmd, void *data)
             const struct retro_controller_description *type = &arg->types[x];
             logger.log(Logger::INF, " -\t%s: %u", type->desc, type->id);
         }
-
-        
 
         return true; // Return true to indicate successful handling
     }
@@ -658,6 +627,7 @@ static void core_load(const char *sofile)
         Retrorun_Core = RETRORUN_CORE_FLYCAST;
     }
     coreName = system.library_name;
+    Logger::setCoreName(coreName);
     coreVersion = system.library_version;
     coreReadZippedFiles = system.block_extract;
 }
@@ -1427,6 +1397,11 @@ void showCredit(int button)
     }
 }
 
+#include <chrono> // Add this include for chrono functionalities
+#include <thread> // Add this include for thread sleep
+
+using namespace std::chrono;
+
 int main(int argc, char *argv[])
 {
     printf("\n");
@@ -1723,10 +1698,10 @@ int main(int argc, char *argv[])
 
     menuManager.setCurrentMenu(&menu);
     // end menu
-
+    auto frameDuration = duration_cast<nanoseconds>(seconds(1)) / max_fps;
     while (isRunning)
     {
-        
+        auto loopStart = high_resolution_clock::now();
         input_message = false;
         auto nextClock = std::chrono::high_resolution_clock::now();
         // double deltaTime = (nextClock - prevClock).count() / 1e9;
@@ -1763,9 +1738,9 @@ int main(int argc, char *argv[])
 
         // make sure each frame takes *at least* 1/60th of a second
         // auto frameClock = std::chrono::high_resolution_clock::now();
-        double deltaTime = (nextClock - prevClock).count() / 1e9;
+        // double deltaTime = (nextClock - prevClock).count() / 1e9;
         // printf("frame time: %.2lf ms\n", deltaTime * 1e3);
-        double sleepSecs = 1.0 / max_fps - deltaTime;
+        // double sleepSecs = 1.0 / max_fps - deltaTime;
 
         // gettimeofday(&startTime, NULL);
         if (input_exit_requested)
@@ -1778,18 +1753,30 @@ int main(int argc, char *argv[])
             g_retro.retro_reset();
         }
 
-        if ((runLoopAtDeclaredfps && sleepSecs > 0) && !input_ffwd_requested)
+        auto loopEnd = high_resolution_clock::now();
+        auto loopDuration = duration_cast<nanoseconds>(loopEnd - loopStart);
+
+        // Calculate the remaining time to meet the frame duration
+        auto sleepTime = frameDuration - loopDuration;
+
+        // If the remaining time is positive, sleep to ensure fixed frame rate
+        if ((runLoopAtDeclaredfps && sleepTime > nanoseconds::zero()) && !input_ffwd_requested)
         {
-            
-            std::this_thread::sleep_for(std::chrono::nanoseconds((int64_t)(sleepSecs * 1e9)));
+            std::this_thread::sleep_for(sleepTime* 0.99);
         }
+
+        /*if ((runLoopAtDeclaredfps && sleepSecs > 0) && !input_ffwd_requested)
+        {
+            printf("WAITING...");
+            std::this_thread::sleep_for(std::chrono::nanoseconds((int64_t)(sleepSecs * 1e9)));
+        }*/
         prevClock = nextClock;
         totClock = std::chrono::high_resolution_clock::now();
 
         totalFrames++;
         elapsed += (totClock - nextClock).count() / 1e9;
         newFps = (int)(totalFrames / elapsed);
-
+        retrorunLoopSkip = newFps;
         if (!startCalAvgFps)
         {
             auto current_time = std::chrono::steady_clock::now();
@@ -1809,7 +1796,7 @@ int main(int argc, char *argv[])
         }
         retrorunLoopCounter++;
         bool drawFps = false;
-        if (retrorunLoopCounter == retrorunLoopSkip)
+        if (retrorunLoopCounter >= retrorunLoopSkip)
         {
             drawFps = true;
             newFps = (int)(totalFrames / elapsed);
@@ -1832,7 +1819,7 @@ int main(int argc, char *argv[])
         if (drawFps)
         {
             if (!input_ffwd_requested)
-                fps = newFps > max_fps ? max_fps : newFps;
+                fps = newFps; // > max_fps ? max_fps : newFps;
 
             if (opt_show_fps && elapsed >= 1.0)
             {

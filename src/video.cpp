@@ -852,8 +852,9 @@ inline void showFPSImage()
 {
     int x = getWidthFPS() - (numbers.width * 2); // depends on the width of the image
     int y = 0;
-    showNumberSprite(x, y, getDigit(fps, 2), numbers.width, numbers.height, numbers.pixel_data);
-    showNumberSprite(x + numbers.width, y, getDigit(fps, 1), numbers.width, numbers.height, numbers.pixel_data);
+    int capFps = fps>99 ? 99: fps;
+    showNumberSprite(x, y, getDigit(capFps, 2), numbers.width, numbers.height, numbers.pixel_data);
+    showNumberSprite(x + numbers.width, y, getDigit(capFps, 1), numbers.width, numbers.height, numbers.pixel_data);
 }
 
 inline void showFullImage_888(int x, int y, int width, int height, const uint8_t *src, go2_surface_t **surface)
