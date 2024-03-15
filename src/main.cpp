@@ -1344,7 +1344,6 @@ void setAudioDisabled(int button)
     if (button == LEFT || button == RIGHT)
     {
         audio_disabled = !audio_disabled;
-        printf("audio: %s\n", audio_disabled? "FALSE": "TRUE");
     }
 }
 
@@ -1731,7 +1730,7 @@ int main(int argc, char *argv[])
     Menu menuControl = Menu("Control", itemsControl);
 
     std::vector<MenuItem> itemsAudio = {
-        MenuItem("Audio Buffer", getAudioBuffer, setAudioBuffer, "audio-buffer"),
+        MenuItem("Audio Buffer", getAudioBuffer, setAudioBuffer, ""),
         MenuItem("Audio Disabled", getAudioDisabled, setAudioDisabled, "bool"),
     };
 
