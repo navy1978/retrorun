@@ -60,7 +60,9 @@ Retrorun configuration parameters (to be set in the retrorun.cfg file)
     if true swpas the left analog stick with the right analog stick
 10) retrorun_tate_mode = auto, enabled, disabled , reverted
     enable the tate mode (vertical games) can be enabled , disabled , reverted (rotating the screen of 180 degrees) and auto. In case of auto retrorun will automatically enable
-    tate mode for vertical games           
+    tate mode for vertical games
+11) retrorun_log_level= INFO, DEBUG, WARNING, ERROR
+    set the level for the logger            
 
 
 
