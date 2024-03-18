@@ -1532,7 +1532,6 @@ int getAudioValue()
 
 auto setAudioValue = [](int button) -> std::function<void(int)>
 {
-    
     int selectedVolume = getVolume();
     if (button == LEFT)
     {
@@ -1990,14 +1989,29 @@ int main(int argc, char *argv[])
 
     // define Main Menu
     Menu menuInfo = Menu("Info", itemsInfo);
-    std::vector<MenuItem> items = {
-        MenuItem("Resume", resume),
-        MenuItem("Info", &menuInfo, fake),
-        MenuItem("Settings", &menuSettings, fake),
-        MenuItem("Load/Save", &menuState, fake),
-        MenuItem("Credits", showCredit),
-        MenuItem("Quit", &menuInfoQuit, fake),
-    };
+    std::vector<MenuItem> items;
+    if (isFlycast2021())
+    {
+        items = {
+            MenuItem("Resume", resume),
+            MenuItem("Info", &menuInfo, fake),
+            MenuItem("Settings", &menuSettings, fake),
+            MenuItem("Credits", showCredit),
+            MenuItem("Quit", &menuInfoQuit, fake),
+        };
+    }
+    else
+    {
+        items = {
+            MenuItem("Resume", resume),
+            MenuItem("Info", &menuInfo, fake),
+            MenuItem("Settings", &menuSettings, fake),
+            MenuItem("Load/Save", &menuState, fake),
+            MenuItem("Credits", showCredit),
+            MenuItem("Quit", &menuInfoQuit, fake),
+        };
+    }
+
     Menu menu = Menu("Main Menu", items);
 
     menuManager.setCurrentMenu(&menu);
