@@ -83,8 +83,7 @@ bool buttonPressedIs(int buttonPressed, int direction) {
 
 void MenuManager::handle_input(int buttonPressed)
 {
-    // mutex.lock();
-
+   
     std::lock_guard<std::mutex> lock(mutexManager);
     currentPress = std::chrono::steady_clock::now();
     auto now_seconds = std::chrono::duration_cast<std::chrono::seconds>(currentPress - lastPress).count();
@@ -122,6 +121,7 @@ void MenuManager::handle_input(int buttonPressed)
             selected--;
             if (selected < 0)
                 selected = 0;
+                
         }
         if (buttonPressedIs(buttonPressed, DOWN))
         {
@@ -148,7 +148,7 @@ void MenuManager::handle_input(int buttonPressed)
         if (buttonPressedIs(buttonPressed, LEFT))
         {
             MenuItem &mi = menu.getItems()[selected];
-            if (mi.isQuit())
+            if (mi.isQuit() || mi.isQuestion())
             {
                 int newSelected = mi.getValue() == 0 ? 1 : 0;
                 mi.setValue(newSelected);
@@ -162,7 +162,7 @@ void MenuManager::handle_input(int buttonPressed)
         if (buttonPressedIs(buttonPressed, RIGHT))
         {
             MenuItem &mi = menu.getItems()[selected];
-            if (mi.isQuit())
+            if (mi.isQuit() || mi.isQuestion())
             {
                 int newSelected = mi.getValue() == 0 ? 1 : 0;
                 mi.setValue(newSelected);
@@ -177,14 +177,14 @@ void MenuManager::handle_input(int buttonPressed)
         if (buttonPressed == A_BUTTON)
         {
             MenuItem &mi = menu.getItems()[selected];
-            if (mi.isQuit())
+            if (mi.isQuit() || mi.isQuestion())
             {
                 int quit = mi.getValue();
                 if (quit == 1)
                 {
                     mi.execute(A_BUTTON);
                 }
-                else
+                if (mi.isQuestion())
                 {
                     // we go back to the main menu
                     if (!queueMenus.empty())
@@ -196,9 +196,12 @@ void MenuManager::handle_input(int buttonPressed)
                     }
                 }
                 return;
+                
             }
 
-            if (mi.get_name() == SHOW_DEVICE || mi.get_name() == SHOW_CORE || mi.get_name() == SHOW_GAME)
+            if (mi.get_name() == SHOW_DEVICE || mi.get_name() == SHOW_CORE 
+            || mi.get_name() == SHOW_GAME 
+            || (mi.get_name().find("empty") != std::string::npos && mi.get_name().find("<-") != std::string::npos ))
             {
                 return;
             }

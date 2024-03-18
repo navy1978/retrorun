@@ -733,7 +733,7 @@ inline void showInfo(int w, go2_surface_t **surface)
             showInfoGame(w, surface, posX);
         }
 
-        else if (mi.isQuit())
+        else if (mi.isQuit()|| mi.isQuestion())
         {
             showCenteredText(getRowForText(), (tabSpaces + mi.get_name() + ": < " + mi.getValues()[mi.getValue()] + " >").c_str(), mi.isSelected() ? WHITE : DARKGREY, surface);
         }

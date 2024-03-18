@@ -22,6 +22,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "video.h"
 #include "audio.h"
 #include "input.h"
+#include <functional>
+
+#include <unistd.h>   // Per la funzione access()
+#include <cstdio>     // Per std::printf
+#include <cstdlib>    // Per std::free
+#include <sys/stat.h> // Per le funzioni stat()
+#include <ctime>      // Per le funzioni localtime() e strftime()
 
 #include <unistd.h>
 
@@ -482,27 +489,27 @@ static bool core_environment(unsigned cmd, void *data)
         return false;
     }
 
-/*case RETRO_ENVIRONMENT_GET_AUDIO_VIDEO_ENABLE: {
-    int audioVideoEnable = 0; // Inizializziamo il flag
-    
-    // Impostiamo l'abilitazione del video (bit 0)
-    audioVideoEnable |= ENABLE_VIDEO;
+        /*case RETRO_ENVIRONMENT_GET_AUDIO_VIDEO_ENABLE: {
+            int audioVideoEnable = 0; // Inizializziamo il flag
 
-    // Impostiamo l'abilitazione/diabilitazione dell'audio (bit 1)
-    if (!audio_disabled) {
-        audioVideoEnable |= ENABLE_AUDIO;
-    }
+            // Impostiamo l'abilitazione del video (bit 0)
+            audioVideoEnable |= ENABLE_VIDEO;
 
-    // Impostiamo l'abilitazione del fast savestates (bit 2)
-    audioVideoEnable |= USE_FAST_SAVESTATES;
+            // Impostiamo l'abilitazione/diabilitazione dell'audio (bit 1)
+            if (!audio_disabled) {
+                audioVideoEnable |= ENABLE_AUDIO;
+            }
 
-    // Impostiamo la disabilitazione dell'audio (bit 3)
-    if (audio_disabled) {
-        audioVideoEnable |= HARD_DISABLE_AUDIO;
-    }
-			*(int*)data = audioVideoEnable;
-		}
-*/
+            // Impostiamo l'abilitazione del fast savestates (bit 2)
+            audioVideoEnable |= USE_FAST_SAVESTATES;
+
+            // Impostiamo la disabilitazione dell'audio (bit 3)
+            if (audio_disabled) {
+                audioVideoEnable |= HARD_DISABLE_AUDIO;
+            }
+                    *(int*)data = audioVideoEnable;
+                }
+        */
     case RETRO_ENVIRONMENT_GET_CORE_OPTIONS_VERSION:
     {
         unsigned int *options_version = (unsigned int *)data;
@@ -1049,9 +1056,8 @@ int getAspectRatioSettings()
     return result;
 }
 
-void setAspectRatioSettings(int button)
+auto setAspectRatioSettings = [](int button) -> std::function<void(int)>
 {
-
     const int aspect_ratio_count = sizeof(aspect_ratio_names_array) / sizeof(aspect_ratio_names_array[0]);
 
     int currentIndex = getClosestValue(aspect_ratio);
@@ -1075,7 +1081,8 @@ void setAspectRatioSettings(int button)
     }
     aspect_ratio = getAspectRatio(aspect_ratio_names_array[currentIndex]);
     prepareScreen(currentWidth, currentHeight);
-}
+    return std::function<void(int)>();
+};
 
 TateState getTateMode(const std::string tate)
 {
@@ -1091,7 +1098,6 @@ TateState getTateMode(const std::string tate)
         return DISABLED; // will be the default
 }
 
-
 Logger::LogLevel getLogLevel(const std::string level)
 {
     if (level == "INFO")
@@ -1103,9 +1109,73 @@ Logger::LogLevel getLogLevel(const std::string level)
     else if (level == "DEBUG")
         return Logger::DEB;
     else
-        return Logger::INF;// will be the default
+        return Logger::INF; // will be the default
 }
 
+bool fileExists(const char *path)
+{
+    if (access(path, F_OK) != -1)
+    {
+        // Il file esiste
+        return true;
+    }
+    else
+    {
+        // Il file non esiste
+        return false;
+    }
+}
+
+// Funzione per ottenere la data e l'orario dell'ultima modifica di un file
+std::string getLastModifiedTime(const char *path)
+{
+    struct stat fileInfo;
+    if (stat(path, &fileInfo) != 0)
+    {
+        // Errore nell'ottenere le informazioni sul file
+        return "Errore nell'ottenere le informazioni sul file";
+    }
+
+    // Ottieni l'orario dell'ultima modifica del file
+    std::time_t modifiedTime = fileInfo.st_mtime;
+
+    // Converti l'orario in una struttura tm (tempo locale)
+    struct tm *timeinfo = std::localtime(&modifiedTime);
+
+    // Formatta la data e l'orario come stringa
+    char buffer[80];
+    std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", timeinfo);
+
+    return buffer;
+}
+
+char *createSramPath(const std::string &arg_rom, const std::string &opt_savedir)
+{
+    const char *fileName = FileNameFromPath(arg_rom.c_str());
+
+    std::string srmAutoPath = opt_savedir + "/<gameName>.srm";
+    std::string srmPathFinal = replace(srmAutoPath, "<gameName>", fileName);
+
+    char *sramPath = (char *)malloc(srmPathFinal.length() + 1);
+    strcpy(sramPath, srmPathFinal.c_str());
+
+    // logger.log(Logger::INF, "sramPath='%s'", sramPath);
+    return sramPath;
+}
+
+char *createSavePath(const std::string &arg_rom, const std::string &opt_savedir)
+{
+    const char *fileName = FileNameFromPath(arg_rom.c_str());
+
+    std::string stateAutoPath = opt_savedir + "/<gameName>.rrstate.auto";
+    std::string statePathFinal = replace(stateAutoPath, "<gameName>", fileName);
+
+    char *savePath = (char *)malloc(statePathFinal.length() + 1);
+    strcpy(savePath, statePathFinal.c_str());
+
+    // logger.log(Logger::INF, "savePath='%s'", savePath);
+    return savePath;
+}
 
 void initConfig()
 {
@@ -1279,12 +1349,11 @@ void initConfig()
             logger.log(Logger::WARN, "retrorun_tate_mode parameter not found in retrorun.cfg using default value (DISABLED).\n");
         }
 
-
         try
         {
             const std::string &arValue = conf_map.at("retrorun_log_level");
             logger.setLogLevel(getLogLevel(arValue));
-            
+
             logger.log(Logger::INF, "retrorun_log_level :%s\n", arValue);
         }
         catch (...)
@@ -1312,7 +1381,7 @@ int getTateMode()
     return (int)tateState;
 }
 
-void setTateMode(int button)
+auto setTateMode = [](int button) -> std::function<void(int)>
 {
     if (button == RIGHT)
     {
@@ -1322,60 +1391,64 @@ void setTateMode(int button)
     {
         tateState = static_cast<TateState>((tateState - 1) < DISABLED ? AUTO : (tateState - 1));
     }
-}
+    return std::function<void(int)>();
+};
 
 int getSwapTriggers()
 {
     return swapL1R1WithL2R2 ? 1 : 0;
 }
 
-void setSwapTriggers(int button)
+auto setSwapTriggers = [](int button) -> std::function<void(int)>
 {
     if (button == LEFT || button == RIGHT)
     {
         swapL1R1WithL2R2 = !swapL1R1WithL2R2;
     }
-}
+    return std::function<void(int)>();
+};
 
 int getSwapSticks()
 {
     return swapSticks ? 1 : 0;
 }
 
-void setSwapSticks(int button)
+auto setSwapSticks = [](int button) -> std::function<void(int)>
 {
     if (button == LEFT || button == RIGHT)
     {
         swapSticks = !swapSticks;
     }
-}
+    return std::function<void(int)>();
+};
 
 int getLockDeclaredFPS()
 {
     return runLoopAtDeclaredfps ? 1 : 0;
 }
 
-void setLockDeclaredFPS(int button)
+auto setLockDeclaredFPS = [](int button) -> std::function<void(int)>
 {
     if (button == LEFT || button == RIGHT)
     {
         runLoopAtDeclaredfps = !runLoopAtDeclaredfps;
     }
-}
+    return std::function<void(int)>();
+};
 
 int getAudioDisabled()
 {
     return audio_disabled ? 1 : 0;
 }
 
-void setAudioDisabled(int button)
+auto setAudioDisabled = [](int button) -> std::function<void(int)>
 {
     if (button == LEFT || button == RIGHT)
     {
         audio_disabled = !audio_disabled;
     }
-}
-
+    return std::function<void(int)>();
+};
 
 int audio_buffer_array[] = {
     -1,
@@ -1391,35 +1464,34 @@ int getAudioBuffer()
     return new_retrorun_audio_buffer;
 }
 
-void setAudioBuffer(int button)
+auto setAudioBuffer = [](int button) -> std::function<void(int)>
 {
     int audio_buffer_array_size = sizeof(audio_buffer_array) / sizeof(audio_buffer_array[0]);
 
-int current_index = -1; // indice corrente di retrorun_audio_buffer nell'array
-    for (int i = 0; i < audio_buffer_array_size; ++i) {
-        if (new_retrorun_audio_buffer == audio_buffer_array[i]) {
+    int current_index = -1; // indice corrente di retrorun_audio_buffer nell'array
+    for (int i = 0; i < audio_buffer_array_size; ++i)
+    {
+        if (new_retrorun_audio_buffer == audio_buffer_array[i])
+        {
             current_index = i;
             break;
         }
     }
-    int new_index=-1; 
+    int new_index = -1;
 
     if (button == RIGHT)
     {
-        
-            new_index = (current_index + 1) % audio_buffer_array_size; // Incrementiamo l'indice in modo circolare
-        
+
+        new_index = (current_index + 1) % audio_buffer_array_size; // Incrementiamo l'indice in modo circolare
     }
     else if (button == LEFT)
     {
-        
-            new_index = (current_index - 1 + audio_buffer_array_size) % audio_buffer_array_size; // Decrementiamo l'indice in modo circolare
-        
+
+        new_index = (current_index - 1 + audio_buffer_array_size) % audio_buffer_array_size; // Decrementiamo l'indice in modo circolare
     }
-    new_retrorun_audio_buffer = audio_buffer_array[new_index]; 
-}
-
-
+    new_retrorun_audio_buffer = audio_buffer_array[new_index];
+    return std::function<void(int)>();
+};
 
 int getBrightnessValue()
 {
@@ -1428,7 +1500,7 @@ int getBrightnessValue()
 }
 int step_left_right = 10;
 
-void setBrightnessValue(int button)
+auto setBrightnessValue = [](int button) -> std::function<void(int)>
 {
     int selectedBrigthness = brightnessState.level;
     if (button == LEFT)
@@ -1449,7 +1521,8 @@ void setBrightnessValue(int button)
             selectedBrigthness = 100;
         go2_input_brightness_write(selectedBrigthness);
     }
-}
+    return std::function<void(int)>();
+};
 
 int getAudioValue()
 {
@@ -1457,8 +1530,9 @@ int getAudioValue()
     return value;
 }
 
-void setAudioValue(int button)
+auto setAudioValue = [](int button) -> std::function<void(int)>
 {
+    
     int selectedVolume = getVolume();
     if (button == LEFT)
     {
@@ -1478,7 +1552,8 @@ void setAudioValue(int button)
             selectedVolume = 100;
         setVolume(selectedVolume);
     }
-}
+    return std::function<void(int)>();
+};
 
 void resume(int button)
 {
@@ -1488,12 +1563,64 @@ void resume(int button)
     }
 }
 
-void quit(int button)
+auto getSlotName = [](int slotNumber, std::string type) -> std::string
 {
-    if (button == A_BUTTON)
+    std::string result = "<empty>";
+    char *savePath = createSavePath(arg_rom, opt_savedir);
+    std::string savePath1 = savePath;
+    savePath1 += slotNumber == 1 ? "" : "" + std::to_string(slotNumber - 1);
+    if (fileExists(savePath1.c_str()))
     {
-        isRunning = false;
+        result = getLastModifiedTime(savePath1.c_str());
     }
+    std::free(savePath);
+    // free(savePath);
+    if (type == "Load")
+    {
+        return "<- " + std::to_string(slotNumber) + " " + result;
+    }
+    else
+    {
+        return "-> " + std::to_string(slotNumber) + " " + result;
+    }
+};
+
+auto loadSaveSlot = [](int slotNumber, std::string type) -> std::function<void(int)>
+{
+    return [slotNumber, type](int button)
+    {
+        if (button == A_BUTTON)
+        {
+            /*if (getSlotName(slotNumber, type).find("empty") != std::string::npos)
+            {
+                return;
+            }*/
+            logger.log(Logger::INF, "Slot number :%d\n", slotNumber);
+            char *savePath = createSavePath(arg_rom, opt_savedir);
+            std::string savePath1 = savePath;
+            savePath1 += slotNumber == 1 ? "" : "" + std::to_string(slotNumber - 1);
+
+            if (type == "Load")
+            {
+                logger.log(Logger::INF, "loading file :%s\n", savePath1);
+                LoadState(savePath1.c_str());
+            }
+            else
+            {
+                logger.log(Logger::INF, "saving file :%s\n", savePath1.c_str());
+                SaveState(savePath1.c_str());
+            }
+            free(savePath);
+            sleep(1);
+        }
+    };
+};
+
+// Definisci una funzione statica che chiama la tua lambda function con i parametri richiesti
+static void loadSaveSlotWrapper(int button, int slotNumber, std::string type)
+{
+    auto slotFunction = loadSaveSlot(slotNumber, type);
+    slotFunction(button);
 }
 
 void showCredit(int button)
@@ -1632,42 +1759,13 @@ int main(int argc, char *argv[])
     }
 
     // State
-    char *sramPath = NULL;
-    char *savePath = NULL;
+    // Chiamata alla funzione createSramPath
+    char *sramPath = createSramPath(arg_rom, opt_savedir);
+    // Chiamata alla funzione createSavePath
+    char *savePath = createSavePath(arg_rom, opt_savedir);
 
-    const char *fileName = FileNameFromPath(arg_rom);
-
-    std::string fullNameString(fileName);
-    // removing extension
-    size_t lastindex = fullNameString.find_last_of(".");
-    std::string rawname = fullNameString.substr(0, lastindex);
-    romName = rawname;
-
-    std::string system = opt_savedir; // getSystemFromRomPath(arg_rom );
-
-    if (opt_savedir == NULL || opt_savedir[0] == '\0')
-    {
-        opt_savedir = getSystemFromRomPath(arg_rom).c_str();
-    }
-
-    std::string srmAutoPath = std::string(opt_savedir) + "/<gameName>.srm";
-    // std::string tempSrmPath = replace(srmAutoPath, "<system>", system);
-    std::string srmPathFinal = replace(srmAutoPath, "<gameName>", romName);
-
-    std::string stateAutoPath = std::string(opt_savedir) + "/<gameName>.rrstate.auto";
-    // std::string tempStatePath = replace(stateAutoPath, "<system>", system);
-    std::string statePathFinal = replace(stateAutoPath, "<gameName>", romName);
-
-    std::string sramFileName = rawname + ".srm";
-    std::string savFileName = rawname + ".sav";
-
-    // sramPath = PathCombine(opt_savedir, sramFileName.c_str());
-    sramPath = (char *)malloc(srmPathFinal.length() + 1);
-    sramPath = strcpy(sramPath, const_cast<char *>(srmPathFinal.c_str()));
-    logger.log(Logger::INF, "sramPath='%s'", sramPath);
-    savePath = (char *)malloc(statePathFinal.length() + 1);
-    savePath = strcpy(savePath, const_cast<char *>(statePathFinal.c_str()));
     logger.log(Logger::INF, "savePath='%s'", savePath);
+    logger.log(Logger::INF, "sramPath='%s'", sramPath);
 
     if (opt_restart)
     {
@@ -1744,6 +1842,87 @@ int main(int argc, char *argv[])
 
     // menu
 
+    MenuItem menuItem_slot1Load = MenuItem("Are you sure?", [](int arg)
+                                           { loadSaveSlotWrapper(arg, 1, "Load"); });
+    menuItem_slot1Load.setQuestionItem();
+    std::vector<MenuItem> slot1Load_sure = {menuItem_slot1Load};
+
+    Menu menuInfoSlot1Load = Menu("Slot1", slot1Load_sure);
+
+    MenuItem menuItem_slot2Load = MenuItem("Are you sure?", [](int arg)
+                                           { loadSaveSlotWrapper(arg, 2, "Load"); });
+    menuItem_slot2Load.setQuestionItem();
+    std::vector<MenuItem> slot2Load_sure = {menuItem_slot2Load};
+
+    Menu menuInfoSlot2Load = Menu("Slot2", slot2Load_sure);
+
+    MenuItem menuItem_slot3Load = MenuItem("Are you sure?", [](int arg)
+                                           { loadSaveSlotWrapper(arg, 3, "Load"); });
+    menuItem_slot3Load.setQuestionItem();
+    std::vector<MenuItem> slot3Load_sure = {menuItem_slot3Load};
+
+    Menu menuInfoSlot3Load = Menu("Slot3", slot3Load_sure);
+
+    std::vector<MenuItem> itemsLoadStateLoad = {
+        MenuItem([]()
+                 { return getSlotName(1, "Load"); },
+                 &menuInfoSlot1Load, fake),
+        MenuItem([]()
+                 { return getSlotName(2, "Load"); },
+                 &menuInfoSlot2Load, fake),
+        MenuItem([]()
+                 { return getSlotName(3, "Load"); },
+                 &menuInfoSlot3Load, fake)
+
+    };
+
+    Menu menuLoadState = Menu("Load State", itemsLoadStateLoad);
+
+    // save state
+
+    MenuItem menuItem_slot1Save = MenuItem("Are you sure?", [](int arg)
+                                           { loadSaveSlotWrapper(arg, 1, "Save"); });
+    menuItem_slot1Save.setQuestionItem();
+    std::vector<MenuItem> slot1Save_sure = {menuItem_slot1Save};
+
+    Menu menuInfoSlot1Save = Menu("Slot1", slot1Save_sure);
+
+    MenuItem menuItem_slot2Save = MenuItem("Are you sure?", [](int arg)
+                                           { loadSaveSlotWrapper(arg, 2, "Save"); });
+    menuItem_slot2Save.setQuestionItem();
+    std::vector<MenuItem> slot2Save_sure = {menuItem_slot2Save};
+
+    Menu menuInfoSlot2Save = Menu("Slot2", slot2Save_sure);
+
+    MenuItem menuItem_slot3Save = MenuItem("Are you sure?", [](int arg)
+                                           { loadSaveSlotWrapper(arg, 3, "Save"); });
+    menuItem_slot3Save.setQuestionItem();
+    std::vector<MenuItem> slot3Save_sure = {menuItem_slot3Save};
+
+    Menu menuInfoSlot3Save = Menu("Slot3", slot3Save_sure);
+
+    std::vector<MenuItem> itemsLoadStateSave = {
+        MenuItem([]()
+                 { return getSlotName(1, "Save"); },
+                 &menuInfoSlot1Save, fake),
+        MenuItem([]()
+                 { return getSlotName(2, "Save"); },
+                 &menuInfoSlot2Save, fake),
+        MenuItem([]()
+                 { return getSlotName(3, "Save"); },
+                 &menuInfoSlot3Save, fake)
+
+    };
+
+    Menu menuSaveState = Menu("Load State", itemsLoadStateSave);
+
+    std::vector<MenuItem> itemsState = {
+        MenuItem("Load state", &menuLoadState, fake),
+        MenuItem("Save state", &menuSaveState, fake),
+    };
+
+    Menu menuState = Menu("State", itemsState);
+
     std::vector<MenuItem> itemsSystem = {
         MenuItem("Volume", getAudioValue, setAudioValue, "%"),
         MenuItem("Brightness", getBrightnessValue, setBrightnessValue, "%"),
@@ -1800,7 +1979,10 @@ int main(int argc, char *argv[])
         MenuItem("Libretro core", &menuInfoCore, fake),
         MenuItem("Current game", &menuInfoGame, fake)};
 
-    MenuItem menuItem_q = MenuItem("Are you sure?", quit);
+    // MenuItem menuItem_q = MenuItem("Are you sure?", quit);
+    MenuItem menuItem_q = MenuItem("Are you sure?", [](int button)
+                                   { if (button == A_BUTTON) { isRunning = false; } });
+
     menuItem_q.setQuitItem();
     std::vector<MenuItem> quit_sure = {menuItem_q};
 
@@ -1812,6 +1994,7 @@ int main(int argc, char *argv[])
         MenuItem("Resume", resume),
         MenuItem("Info", &menuInfo, fake),
         MenuItem("Settings", &menuSettings, fake),
+        MenuItem("Load/Save", &menuState, fake),
         MenuItem("Credits", showCredit),
         MenuItem("Quit", &menuInfoQuit, fake),
     };

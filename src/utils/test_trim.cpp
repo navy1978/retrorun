@@ -24,9 +24,10 @@ std::cout << t;
 
 
 
-settgin log level from setttings
-adding the save status in 3 differetn slot in the menu
 
+adding the save status in 3 differetn slot in the menu
+- NON FUNZIONA NIENTE ALTRO DELLE ACTIONS
+- IL NOEM DEL FILE CHE SI SALVA E SEMPRE LO STESSO
 
 
 

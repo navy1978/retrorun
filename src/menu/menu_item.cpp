@@ -19,51 +19,85 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 
 #include "menu_item.h"
+
 // #include <iostream>
 
-MenuItem::MenuItem(std::string name, std::vector<std::string> values, int valueSelected, void (*action)(int))
+MenuItem::MenuItem(std::string name, std::vector<std::string> values, int valueSelected, std::function<void(int)> action)
 {
     name_ = name;
     values_ = values;
     valueSelected_ = valueSelected;
     action_ = action;
     is_menu_ = true;
-    menu_ = NULL;
+    menu_ = nullptr;
+    mis_unit_ = "";
     is_quit_item = false;
+    is_question_item= false;
+    m_valueCalculator = nullptr;
+    m_nameCalculator=nullptr;
 }
-MenuItem::MenuItem(std::string name, ValueCalculator valueCalculator, void (*action)(int), std::string mis_unit)
+MenuItem::MenuItem(std::string name, ValueCalculator valueCalculator, std::function<void(int)> action, std::string mis_unit)
 {
     name_ = name;
-    m_valueCalculator = valueCalculator;
+    valueSelected_ = -1;
     action_ = action;
     is_menu_ = true;
-    menu_ = NULL;
+    menu_ = nullptr;
     mis_unit_ = mis_unit;
     is_quit_item = false;
+    is_question_item= false;
+    m_valueCalculator = valueCalculator;
+    m_nameCalculator=nullptr;
 }
 
-MenuItem::MenuItem(std::string name, void (*action)(int))
+//MenuItem::MenuItem(std::string name, void (*action)(int))
+MenuItem::MenuItem(std::string name, std::function<void(int)> action) 
 {
     name_ = name;
+    valueSelected_ = -1;
     action_ = action;
     is_menu_ = false;
-    valueSelected_ = -1; // to distinguish from a normal menu item with options...
-    menu_ = NULL;
-    m_valueCalculator = NULL;
+    menu_ = nullptr;
     mis_unit_ = "";
     is_quit_item = false;
+    is_question_item = false;
+    m_valueCalculator = nullptr;
+    m_nameCalculator = nullptr;
+    
 }
 
-MenuItem::MenuItem(std::string name, Menu *menu, void (*action)(int))
+
+MenuItem::MenuItem(std::string name, Menu *menu, std::function<void(int)> action)
 {
     name_ = name;
+    valueSelected_=0;
+    action_ = action;
+    is_menu_ = false;
     menu_ = menu;
-    action_ = action;
-    is_menu_ = false;
-    m_valueCalculator = NULL;
     mis_unit_ = "";
     is_quit_item = false;
+    is_question_item= false;
+    m_valueCalculator = nullptr;
+    m_nameCalculator=nullptr;
+    
 }
+
+
+MenuItem::MenuItem(NameCalculator nameCalculator, Menu *menu, std::function<void(int)> action)
+{
+    
+    name_ = "fake"; // we will use the nameCalculator instead
+    valueSelected_=0;
+    action_ = action;
+    is_menu_ = false;
+    menu_ = menu;
+    mis_unit_ = "";
+    is_quit_item = false;
+    is_question_item= false;
+    m_valueCalculator = nullptr;
+    m_nameCalculator=nameCalculator;
+}
+
 
 void MenuItem::setQuitItem()
 {
@@ -78,15 +112,34 @@ bool MenuItem::isQuit()
     return is_quit_item;
 }
 
+void MenuItem::setQuestionItem()
+{
+    is_question_item = true;
+    values_ = {"no", "yes"};
+    selected_ = "no";
+    valueSelected_ = 0;
+}
+
+bool MenuItem::isQuestion()
+{
+    return is_question_item;
+}
+
+
+
 void MenuItem::execute(int button)
 {
-    if (action_ != NULL)
+    if (action_ != NULL){
+        //printf( "Executing action for button: %d\n", button);
         action_(button);
+    }
 }
 
 std::string MenuItem::get_name()
 {
-    return name_;
+    if (m_nameCalculator!= nullptr){
+        return m_nameCalculator();
+    }else return name_;
 }
 
 void MenuItem::setName(std::string value)
@@ -122,7 +175,7 @@ int MenuItem::getValue()
     else
     {
 
-        return valueSelected_;
+        return valueSelected_ ;
     }
 }
 

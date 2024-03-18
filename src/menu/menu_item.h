@@ -21,19 +21,23 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #pragma once
 #include <string>
 #include <vector>
+#include <functional>
 
 class Menu; // forward declaration
 
 typedef int (*ValueCalculator)();
+typedef std::string (*NameCalculator)();
 
 class MenuItem
 {
 public:
-    MenuItem(std::string name, std::vector<std::string> values, int valueSelected, void (*action)(int));
+    MenuItem(std::string name, std::vector<std::string> values, int valueSelected, std::function<void(int)> action);
     // MenuItem(std::string name, int (*valueFunc)(), void (*action)());
-    MenuItem(std::string name, ValueCalculator valueCalculator, void (*action)(int), std::string mis_unit);
-    MenuItem(std::string name, Menu *menu, void (*action)(int));
-    MenuItem(std::string name, void (*action)(int));
+    MenuItem(std::string name, ValueCalculator valueCalculator, std::function<void(int)> action, std::string mis_unit);
+    MenuItem(std::string name, Menu *menu, std::function<void(int)> action);
+    MenuItem(NameCalculator nameCalculator, Menu *menu, std::function<void(int)> action);
+    //MenuItem(std::string name, void (*action)(int));
+    MenuItem(std::string name, std::function<void(int)> action);
     void execute(int button);
     std::string get_name();
     std::string getMisUnit();
@@ -43,20 +47,24 @@ public:
     std::vector<std::string> getValues();
     void setValue(int value);
     void setQuitItem();
+    void setQuestionItem();
     bool isQuit();
+    bool isQuestion();
     int getValue();
     Menu *getMenu();
     // bool isMenu();
     bool selected_;
     bool is_menu_;
     ValueCalculator m_valueCalculator;
+    NameCalculator m_nameCalculator;
     std::string getStringValue();
 
 private:
     std::string name_;
     std::string mis_unit_;
-    void (*action_)(int);
+    std::function<void(int)> action_;
     bool is_quit_item;
+    bool is_question_item;
     std::string key_;
     std::vector<std::string> values_;
     int valueSelected_;

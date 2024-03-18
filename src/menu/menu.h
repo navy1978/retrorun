@@ -30,7 +30,7 @@ class MenuItem;
 
 class Menu {
 public:
-     Menu(std::string name, std::vector<MenuItem> items);
+    Menu(std::string name, std::vector<MenuItem> items);
     Menu();
     int getId() const;
     void setId(int id);
