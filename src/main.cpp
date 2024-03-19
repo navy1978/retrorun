@@ -1153,8 +1153,14 @@ char *createSramPath(const std::string &arg_rom, const std::string &opt_savedir)
 {
     const char *fileName = FileNameFromPath(arg_rom.c_str());
 
+
+    std::string fullNameString(fileName);
+    // removing extension
+    size_t lastindex = fullNameString.find_last_of(".");
+    std::string rawname = fullNameString.substr(0, lastindex);
+    
     std::string srmAutoPath = opt_savedir + "/<gameName>.srm";
-    std::string srmPathFinal = replace(srmAutoPath, "<gameName>", fileName);
+    std::string srmPathFinal = replace(srmAutoPath, "<gameName>", rawname);
 
     char *sramPath = (char *)malloc(srmPathFinal.length() + 1);
     strcpy(sramPath, srmPathFinal.c_str());
@@ -1166,9 +1172,13 @@ char *createSramPath(const std::string &arg_rom, const std::string &opt_savedir)
 char *createSavePath(const std::string &arg_rom, const std::string &opt_savedir)
 {
     const char *fileName = FileNameFromPath(arg_rom.c_str());
+    std::string fullNameString(fileName);
+    // removing extension
+    size_t lastindex = fullNameString.find_last_of(".");
+    std::string rawname = fullNameString.substr(0, lastindex);
 
     std::string stateAutoPath = opt_savedir + "/<gameName>.rrstate.auto";
-    std::string statePathFinal = replace(stateAutoPath, "<gameName>", fileName);
+    std::string statePathFinal = replace(stateAutoPath, "<gameName>", rawname);
 
     char *savePath = (char *)malloc(statePathFinal.length() + 1);
     strcpy(savePath, statePathFinal.c_str());
