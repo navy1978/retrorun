@@ -1120,7 +1120,7 @@ inline void makeScreenBlack_old(go2_surface_t *go2_surface, int res_width, int r
     }
 }
 
-inline void prepareScreen(int width, int height)
+void prepareScreen(int width, int height)
 {
 
     screen_aspect_ratio = (float)go2_display_height_get(display) / (float)go2_display_width_get(display);
