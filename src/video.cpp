@@ -560,6 +560,79 @@ inline void showCenteredText(int y, const char *text, unsigned short color, go2_
     // showText(0, y, title.c_str(), color, surface);
 }
 
+int offset = 0;
+bool direction_forward = true;
+constexpr int PIXELS_PER_FRAME = 1; // Adjust the number of pixels scrolled per frame
+
+inline void showLongCenteredText(int y, const char *text, unsigned short color, go2_surface_t **surface)
+{
+    static int offset = 0;
+    static bool direction_forward = true;
+    
+    std::string title(text); // The text to scroll
+    int title_length = title.length();
+
+    // Calculate the total width of the text
+    int total_text_width = title_length * 8;
+
+    if (total_text_width > INFO_MENU_WIDTH) {
+        // we add some extra spaces to make it more readable
+        title = " " + title + " ";
+        title_length = title.length();
+        total_text_width = title_length * 8;
+
+        // Text exceeds display width, so scroll it
+        if (direction_forward) {
+            offset += PIXELS_PER_FRAME; // Scroll to the left
+            if (offset >= total_text_width - INFO_MENU_WIDTH) {
+                offset = total_text_width - INFO_MENU_WIDTH; // Reverse direction
+                direction_forward = false;
+            }
+        } else {
+            offset -= PIXELS_PER_FRAME; // Scroll to the right
+            if (offset <= 0) {
+                offset = 0; // Reset offset to start from the left
+                direction_forward = true; // Reverse direction
+            }
+        }
+
+        // Calculate the starting index of the truncated text
+        int start_index = offset / 8;
+        if (start_index < 0) {
+            start_index = 0;
+        }
+
+        // Calculate the width of the truncated text
+        int remaining_text_width = total_text_width - offset;
+        int truncated_text_width = std::min(INFO_MENU_WIDTH / 8, remaining_text_width / 8);
+
+        // Truncate the text to fit within the display width
+        std::string truncated_text = title.substr(start_index, truncated_text_width);
+
+        // Calculate the x position dynamically based on the offset
+        int x = -(offset % 8);
+
+        // Show the truncated text at the calculated x position
+        showText(x, y, truncated_text.c_str(), color, surface);
+    } else {
+        // Text fits within display width, so display it centered
+        showText(INFO_MENU_WIDTH / 2 - total_text_width / 2, y, title.c_str(), color, surface);
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 inline void drawCreditLine(int y, const char *text, unsigned short color, go2_surface_t **surface)
 {
 

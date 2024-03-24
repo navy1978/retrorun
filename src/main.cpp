@@ -1153,12 +1153,11 @@ char *createSramPath(const std::string &arg_rom, const std::string &opt_savedir)
 {
     const char *fileName = FileNameFromPath(arg_rom.c_str());
 
-
     std::string fullNameString(fileName);
     // removing extension
     size_t lastindex = fullNameString.find_last_of(".");
     std::string rawname = fullNameString.substr(0, lastindex);
-    
+
     std::string srmAutoPath = opt_savedir + "/<gameName>.srm";
     std::string srmPathFinal = replace(srmAutoPath, "<gameName>", rawname);
 
@@ -1260,11 +1259,6 @@ void initConfig()
             const std::string &asValue = conf_map.at("retrorun_auto_load");
             auto_load = asValue == "true" ? true : false;
             logger.log(Logger::INF, "retrorun_auto_load: %s.", auto_load ? "true" : "false");
-            if (isFlycast2021())
-            {
-                auto_load = false;
-                logger.log(Logger::WARN, "retrorun_auto_load disabled on Flycast2021, because it doesnt work!");
-            }
         }
         catch (...)
         {
@@ -1782,6 +1776,12 @@ int main(int argc, char *argv[])
     }
     else
     {
+
+        if (isFlycast2021())
+        {
+            auto_load = false;
+            logger.log(Logger::WARN, "retrorun_auto_load disabled on Flycast2021, because it doesnt work!");
+        }
         if (auto_load)
         {
             input_message = true;
