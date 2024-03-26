@@ -1111,8 +1111,8 @@ void blit_surface_status(go2_presenter_t *presenter, go2_surface_t *source_surfa
 
         }
         // Double the size if it's too small
-        dest_width_scaled *= 1.5;
-        dest_height_scaled *= 1.5;
+        //dest_width_scaled *= 1.5;
+        //dest_height_scaled *= 1.5;
 
         if (position == BUTTOM_LEFT)
         {
