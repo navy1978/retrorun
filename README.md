@@ -44,34 +44,82 @@ This branch of RetroRun includes several features:
 These parameters can be set in the `retrorun.cfg` file:
 
 ---
+Retrorun configuration parameters (to be set in the retrorun.cfg file)
+======
 
-**retrorun_screenshot_folder**: Defines the folder for saving screenshots. Default: `/storage/roms/screenshots`
+**`retrorun_screenshot_folder`** = Defines the folder in which screenshots are saved. Default: /storage/roms/screenshots
 
-**retrorun_fps_counter**: Enables/disables the FPS counter. Default: `false`
+**`retrorun_fps_counter`** = true | false 
+- `true`: Display the FPS counter.
+- `false`: Do not display the FPS counter. 
+Default: false
 
-**retrorun_aspect_ratio**: Sets the screen aspect ratio. Default: provided by the core.
+**`retrorun_aspect_ratio`** = 2:1 | 4:3 | 5:4 | 16:9 | 16:10 | 1:1 | 3:2 | auto 
+- `2:1`: Aspect ratio 2:1.
+- `4:3`: Aspect ratio 4:3.
+- `5:4`: Aspect ratio 5:4.
+- `16:9`: Aspect ratio 16:9.
+- `16:10`: Aspect ratio 16:10.
+- `1:1`: Aspect ratio 1:1.
+- `3:2`: Aspect ratio 3:2.
+- `auto`: Automatically determine the aspect ratio. 
+Default: provided by the core
 
-**retrorun_force_left_analog_stick**: Forces the left analog stick to act like the D-pad. Default: `false`
+**`retrorun_force_left_analog_stick`** = true | false 
+- `true`: Force the left analog stick to act like the D-pad.
+- `false`: Do not force the left analog stick to act like the D-pad.
+Default: false
 
-**retrorun_auto_save**: Specifies whether auto-save should be enabled. Default: `false`
+**`retrorun_auto_save`** = true | false 
+- `true`: Enable auto-save.
+- `false`: Disable auto-save.
+Default: false
 
-**retrorun_auto_load**: Specifies whether auto-load should be enabled. Default: same as auto-save.
+**`retrorun_auto_load`** = true | false 
+- `true`: Enable auto-load.
+- `false`: Disable auto-load.
+Default: same as auto-save
 
-**retrorun_loop_60_fps**: Restricts the game loop to not exceed 60 FPS. Default: `true`
+**`retrorun_loop_60_fps`** = true | false 
+- `true`: Restrict the game loop to not exceed 60 FPS.
+- `false`: Do not restrict the game loop to 60 FPS.
+Default: true
 
-**retrorun_audio_buffer**: Specifies the audio buffer size. Default: `-1`
+**`retrorun_audio_buffer`** = -1, 1, 256, 512, 1024, 2048, ... 
+- `-1`: Audio buffer size linked to original FPS of the game.
+- `1`, `256`, `512`, `1024`, `2048`, ...: Specific audio buffer size.
+Default: -1
 
-**retrorun_swap_l1r1_with_l2r2**: Swaps L1 and L2 triggers with R1 and R2. Default: `false`
+**`retrorun_swap_l1r1_with_l2r2`** = true | false 
+- `true`: Swap the triggers L1 and L2 with R1 and R2.
+- `false`: Do not swap the triggers L1 and L2 with R1 and R2.
+Default: false
 
-**retrorun_swap_sticks**: Swaps the left analog stick with the right analog stick. Default: `false`
+**`retrorun_swap_sticks`** = true | false 
+- `true`: Swap the left analog stick with the right analog stick.
+- `false`: Do not swap the left analog stick with the right analog stick.
+Default: false
 
-**retrorun_tate_mode**: Enables tate mode (vertical games). Default: `disabled`
+**`retrorun_tate_mode`** = auto | enabled | disabled | reverted 
+- `auto`: Automatically enable tate mode for vertical games.
+- `enabled`: Enable tate mode.
+- `disabled`: Disable tate mode.
+- `reverted`: Rotate the screen by 180 degrees.
+Default: disabled
 
-**retrorun_log_level**: Sets the logger level. Default: `INFO`
+**`retrorun_log_level`** = INFO | DEBUG | WARNING | ERROR 
+- `INFO`: Display informational logs.
+- `DEBUG`: Display debug logs.
+- `WARNING`: Display warning logs.
+- `ERROR`: Display error logs.
+Default: INFO
 
-**retrorun_device_name**: Sets the device name. If not found in config, the device name will be detected differently.
+**`retrorun_device_name`** = 
+- Sets the device name. If not found in the config, the device name will be detected differently.
 
-**retrorun_mouse_speed_factor**: Sets the speed factor for the mouse. Default: `5`
+**`retrorun_mouse_speed_factor`** = 
+- Sets the speed factor for the mouse.
+Default: 5
 
 ---
 
