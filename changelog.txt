@@ -1,6 +1,10 @@
 Retrorun
 =======================
 
+Version 2.5.0 (Mar 28, 2024)
+----------------------------------
+- Fixed audio buffer for snes
+- Different way to identify flycast2021 core
 
 Version 2.4.9 (Mar 28, 2024)
 ----------------------------------
