@@ -34,10 +34,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define FRAMES_MAX (48000)
 #define CHANNELS (2)
 
+// Calculate the size of the audioBuffer array
+#define AUDIO_BUFFER_SIZE (FRAMES_MAX * CHANNELS)
+
 extern int opt_volume;
 
 static go2_audio_t *audio;
-static u_int16_t audioBuffer[FRAMES_MAX * CHANNELS];
+static u_int16_t audioBuffer[AUDIO_BUFFER_SIZE];
 
 static int audioFrameCount;
 static int audioFrameLimit;
@@ -57,7 +60,7 @@ void audio_init(int freq)
     audio = go2_audio_create(freq);
     audioFrameCount = 0;
 
-    soundCardName = isRG552() ? "DAC" : isRG503() ? "Playback Path"
+    soundCardName = isRG552() ? "DAC" : isRG503() ? "Master"
                                                   : "Playback";
 
     if (opt_volume > -1)
@@ -114,7 +117,7 @@ void core_audio_sample(int16_t left, int16_t right)
     {
         go2_audio_submit(audio, (const short *)audioBuffer, audioFrameCount);
         audioFrameCount = 0;
-        retrorun_audio_buffer = new_retrorun_audio_buffer;
+        retrorun_audio_buffer = new_retrorun_audio_buffer==-1 ? 0:new_retrorun_audio_buffer;
     }
 }
 
@@ -192,7 +195,7 @@ size_t core_audio_sample_batch(const int16_t *data, size_t frames)
 
     int currentFrame = (int)frames;
 
-    if (currentFrame > FRAMES_MAX)
+    if (currentFrame > FRAMES_MAX || currentFrame < 1)
     {
         logger.log(Logger::DEB, "AUDIO FRAME NOT VALID! skipping audio");
         return frames;
@@ -203,7 +206,7 @@ size_t core_audio_sample_batch(const int16_t *data, size_t frames)
     {
         go2_audio_submit(audio, (const short *)audioBuffer, audioFrameCount);
         audioFrameCount = 0;
-        retrorun_audio_buffer = new_retrorun_audio_buffer;
+        retrorun_audio_buffer = new_retrorun_audio_buffer==-1 ? 0:new_retrorun_audio_buffer;
     }
 
     size_t size = frames * sizeof(int16_t) * CHANNELS;

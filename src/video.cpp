@@ -147,15 +147,15 @@ go2_rotation getBlitRotation()
         if (!isTate())
         {
 
-            return (isRG351V() || isRG351MP()) ? GO2_ROTATION_DEGREES_0 : GO2_ROTATION_DEGREES_270;
+            return (isRG351V() || isRG351MP() || isRG503()) ? GO2_ROTATION_DEGREES_0 : GO2_ROTATION_DEGREES_270;
         }
         if (tateState == REVERSED)
         {
-            return (isRG351V() || isRG351MP()) ? GO2_ROTATION_DEGREES_90 : GO2_ROTATION_DEGREES_0;
+            return (isRG351V() || isRG351MP() || isRG503()) ? GO2_ROTATION_DEGREES_90 : GO2_ROTATION_DEGREES_0;
         }
         else
         {
-            return (isRG351V() || isRG351MP()) ? GO2_ROTATION_DEGREES_270 : GO2_ROTATION_DEGREES_180;
+            return (isRG351V() || isRG351MP() || isRG503()) ? GO2_ROTATION_DEGREES_270 : GO2_ROTATION_DEGREES_180;
         }
     }
     else // landscape
@@ -163,50 +163,50 @@ go2_rotation getBlitRotation()
 
         if (!isTate() && tateState != REVERSED)
         {
-            return (isRG351V() || isRG351MP()) ? GO2_ROTATION_DEGREES_0 : GO2_ROTATION_DEGREES_270;
+            return (isRG351V() || isRG351MP() || isRG503()) ? GO2_ROTATION_DEGREES_0 : GO2_ROTATION_DEGREES_270;
         }
         if (tateState == REVERSED)
         {
-            return (isRG351V() || isRG351MP()) ? GO2_ROTATION_DEGREES_90 : GO2_ROTATION_DEGREES_0;
+            return (isRG351V() || isRG351MP() || isRG503()) ? GO2_ROTATION_DEGREES_90 : GO2_ROTATION_DEGREES_0;
         }
         else
         {
-            return (isRG351V() || isRG351MP()) ? GO2_ROTATION_DEGREES_270 : GO2_ROTATION_DEGREES_180;
+            return (isRG351V() || isRG351MP() || isRG503()) ? GO2_ROTATION_DEGREES_270 : GO2_ROTATION_DEGREES_180;
         }
     }
 }
 
 go2_rotation getRotation()
 {
-    
+
     if (isGameVertical) // portrait
     {
         if (!isTate())
         {
-            return (isRG351V() || isRG351MP()) ? GO2_ROTATION_DEGREES_270 : GO2_ROTATION_DEGREES_180;
+            return (isRG351V() || isRG351MP() || isRG503()) ? GO2_ROTATION_DEGREES_270 : GO2_ROTATION_DEGREES_180;
         }
         if (tateState == REVERSED)
         {
-            return (isRG351V() || isRG351MP()) ? GO2_ROTATION_DEGREES_0 : GO2_ROTATION_DEGREES_270;
+            return (isRG351V() || isRG351MP() || isRG503()) ? GO2_ROTATION_DEGREES_0 : GO2_ROTATION_DEGREES_270;
         }
         else
         {
-            return (isRG351V() || isRG351MP()) ? GO2_ROTATION_DEGREES_180 : GO2_ROTATION_DEGREES_90;
+            return (isRG351V() || isRG351MP() || isRG503()) ? GO2_ROTATION_DEGREES_180 : GO2_ROTATION_DEGREES_90;
         }
     }
     else
     { // landscape
         if (!isTate() && tateState != REVERSED)
         {
-            return (isRG351V() || isRG351MP()) ? GO2_ROTATION_DEGREES_0 : GO2_ROTATION_DEGREES_270;
+            return (isRG351V() || isRG351MP() || isRG503()) ? GO2_ROTATION_DEGREES_0 : GO2_ROTATION_DEGREES_270;
         }
         if (tateState == REVERSED)
         {
-            return (isRG351V() || isRG351MP()) ? GO2_ROTATION_DEGREES_90 : GO2_ROTATION_DEGREES_0;
+            return (isRG351V() || isRG351MP() || isRG503()) ? GO2_ROTATION_DEGREES_90 : GO2_ROTATION_DEGREES_0;
         }
         else
         {
-            return (isRG351V() || isRG351MP()) ? GO2_ROTATION_DEGREES_270 : GO2_ROTATION_DEGREES_180;
+            return (isRG351V() || isRG351MP() || isRG503()) ? GO2_ROTATION_DEGREES_270 : GO2_ROTATION_DEGREES_180;
         }
     }
 }
@@ -292,9 +292,20 @@ void video_configure(struct retro_game_geometry *geom)
         geom->max_width = 480;
     }
 
-    display = go2_display_create();
-    display_width = go2_display_height_get(display);
-    display_height = go2_display_width_get(display);
+    if (isRG503())
+    {
+        /*geom->base_height = 544;
+        geom->base_width = 960;
+        geom->max_height = 544;
+        geom->max_width = 960;*/
+        display = go2_display_create();
+        display_width = go2_display_width_get(display);
+        display_height = go2_display_height_get(display);
+    }else {
+        display = go2_display_create();
+        display_width = go2_display_height_get(display);
+        display_height = go2_display_width_get(display);
+    }
 
     float aspect_ratio_display = (float)display_width / (float)display_height;
     if (aspect_ratio_display > 1)
@@ -397,7 +408,7 @@ void video_configure(struct retro_game_geometry *geom)
     if (isOpenGL)
     {
         go2_context_attributes_t attr;
-        if (color_format == DRM_FORMAT_XRGB8888) // should be always true
+        if (color_format == DRM_FORMAT_XRGB8888 && !isRG503()) // should be always true
         {
             attr.major = 3;
             attr.minor = 2;
@@ -1196,8 +1207,8 @@ inline void makeScreenBlack_old(go2_surface_t *go2_surface, int res_width, int r
 void prepareScreen(int width, int height)
 {
 
+    bool wideScreenNotRotated= isRG503();
     screen_aspect_ratio = (float)go2_display_height_get(display) / (float)go2_display_width_get(display);
-
     if (isDuckStation())
     {
         // for DuckStation we need to invert the width and the height
@@ -1236,6 +1247,7 @@ void prepareScreen(int width, int height)
                 logger.log(Logger::DEB, "Tate mode not active");
                 if (cmpf(aspect_ratio, screen_aspect_ratio))
                 {
+                    logger.log(Logger::DEB, "aspect_ratio = screen_aspect_ratio");
                     h = go2_display_height_get(display);
                     w = go2_display_width_get(display);
                     x = 0;
@@ -1243,6 +1255,7 @@ void prepareScreen(int width, int height)
                 }
                 else if (aspect_ratio < screen_aspect_ratio)
                 {
+                    logger.log(Logger::DEB, "aspect_ratio < screen_aspect_ratio");
                     w = go2_display_width_get(display);
                     h = w * aspect_ratio;
                     h = (h > go2_display_height_get(display)) ? go2_display_height_get(display) : h;
@@ -1251,20 +1264,29 @@ void prepareScreen(int width, int height)
                 }
                 else if (aspect_ratio > screen_aspect_ratio)
                 {
+                    logger.log(Logger::DEB, "aspect_ratio > screen_aspect_ratio");
                     h = go2_display_height_get(display);
-                    w = h / aspect_ratio;
+                    if (wideScreenNotRotated){
+                        w = h * aspect_ratio;
+                    }else{
+                        w = h / aspect_ratio;
+                    }
                     w = (w > go2_display_width_get(display)) ? go2_display_width_get(display) : w;
                     x = (go2_display_width_get(display) / 2) - (w / 2);
                     y = 0;
+                    
                 }
             }
         }
         else
         {
+            logger.log(Logger::DEB, "screen is NOT widescreen");
+            
             screen_aspect_ratio = 1 / screen_aspect_ratio; // screen is rotated
 
             if (cmpf(aspect_ratio, screen_aspect_ratio))
             {
+                logger.log(Logger::DEB, "aspect_ratio = screen_aspect_ratio");
                 h = go2_display_height_get(display);
                 w = go2_display_width_get(display);
                 x = 0;
@@ -1272,6 +1294,7 @@ void prepareScreen(int width, int height)
             }
             else if (aspect_ratio < screen_aspect_ratio)
             {
+                logger.log(Logger::DEB, "aspect_ratio < screen_aspect_ratio");
                 h = go2_display_height_get(display);
                 w = h / aspect_ratio;
                 w = (w > go2_display_width_get(display)) ? go2_display_width_get(display) : w;
@@ -1280,6 +1303,7 @@ void prepareScreen(int width, int height)
             }
             else if (aspect_ratio > screen_aspect_ratio)
             {
+                logger.log(Logger::DEB, "aspect_ratio > screen_aspect_ratio");
                 w = go2_display_width_get(display);
                 h = w / aspect_ratio;
                 h = (h > go2_display_height_get(display)) ? go2_display_height_get(display) : h;
@@ -1589,6 +1613,11 @@ inline void core_video_refresh_NON_OPENGL(const void *data, unsigned width, unsi
             core_input_poll();
             return;
         }
+    }else{
+        if (firstTimeCorrectFrame){
+            logger.log(Logger::DEB, "Loading finished!");
+            firstTimeCorrectFrame=false;
+        }
     }
     gs_w = go2_surface_width_get(surface);
     gs_h = go2_surface_height_get(surface);
@@ -1616,6 +1645,11 @@ inline void core_video_refresh_OPENGL(const void *data, unsigned width, unsigned
             logger.log(Logger::DEB, "RETRO HW FRAME BUFFER NOT VALID - skipping frame.");
             core_input_poll();
             return;
+        }
+    }else{
+        if (firstTimeCorrectFrame){
+            logger.log(Logger::DEB, "Loading finished!");
+            firstTimeCorrectFrame=false;
         }
     }
 

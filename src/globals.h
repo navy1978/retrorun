@@ -186,4 +186,6 @@ extern float avgFps;
 // Define the menu
 extern MenuManager menuManager;
 extern int current_volume;
+extern std::string retrorun_device_name;
+extern bool firstTimeCorrectFrame;
 

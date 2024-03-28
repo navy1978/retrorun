@@ -1,0 +1,289 @@
+Retrorun
+=======================
+
+
+Version 2.4.9 (Mar 28, 2024)
+----------------------------------
+- Fix: Resolved black screen issue on RG503 caused by a previous erroneous merge.
+- Introduced retrorun_device_name parameter, facilitating the setting of device names without reliance on file or environment settings.
+- Added the option to override retrorun.cfg with another version of the file located in the same directory as the executable.
+
+Version 2.4.8 (Mar 26, 2024)
+----------------------------------
+- Fix: Reduced OSD image size for RG351V and RG351MP; they were too large.
+
+Version 2.4.7 (Mar 26, 2024)
+----------------------------------
+- Fix: SEG FAULT occurred when audio buffer value was -1.
+
+Version 2.4.6 (Mar 24, 2024)
+----------------------------------
+- Fixed autosave disabled on flycast2021.
+- Fixed core version info when it's too long in OSD menu item.
+
+Version 2.4.5 (Mar 19, 2024)
+----------------------------------
+- Fix: Wrong path for srm and state files.
+- Fix: Compilation on gcc13.
+
+Version 2.4.4 (Mar 18, 2024)
+----------------------------------
+- New feature: Save/restore state in OSD menu.
+- Disable save/restore state for flycast2021 (since it doesn't work for this core).
+
+Version 2.4.4 (Mar 15, 2024)
+----------------------------------
+- Refactoring and introduced Retrorun logger.
+- Libretro now uses Retrorun logger.
+- Fixed locked FPS in the loop.
+- Minor fix in core options.
+- Added menu item for audio in OSD Menu.
+- Adds retrorun_log_level parameter to change the logger level.
+
+Version 2.4.3 (Mar 13, 2024)
+----------------------------------
+- Added options to menu: aspect ratio.
+
+Version 2.4.2 (Mar 12, 2024)
+----------------------------------
+- Fixed aspect ratio.
+
+Version 2.4.1 (Mar 11, 2024)
+----------------------------------
+- Added support for DuckStation.
+
+Version 2.4.1 (Mar 9, 2024)
+----------------------------------
+- Added support for PPSSPP.
+
+Version 2.4.0 (Mar 8, 2024)
+----------------------------------
+- Different way to manage tate mode.
+- Added parameter to swap analog sticks.
+- Minor bug fixing and improvements.
+
+Version 2.3.5 (Feb 11, 2023)
+----------------------------------
+- pcsx_rearmed: info menu not consistently appear.
+
+Version 2.3.4 (Feb 3, 2023)
+----------------------------------
+- Certain cores access to sound before having set originalFps.
+- Process video even if data!= RETRO_HW_FRAME_BUFFER_VALID.
+
+Version 2.3.3 (Apr 23, 2023)
+----------------------------------
+- Added support for RG503.
+
+Version 2.3.2 (Apr 23, 2023)
+----------------------------------
+- Adds parameter to swap L1 and R2 with R1 and R2.
+- Adds parameter to force loop to run at declared FPS.
+
+Version 2.3.1 (Apr 23, 2023)
+----------------------------------
+- Fixed fast forward image not displaying.
+
+Version 2.3.0 (Apr 23, 2023)
+----------------------------------
+- Fixed save status and save ram.
+- Minor fixes for Flycast2021.
+
+Version 2.2.2 (Apr 8, 2023)
+----------------------------------
+- Interactive menu improvements.
+- Cleanup unuseful printf.
+
+Version 2.2.1 (Mar 3, 2023)
+----------------------------------
+- Audio improvements.
+
+Version 2.2.1 (Feb 23, 2023)
+----------------------------------
+- New images.
+
+Version 2.1.0 (Feb 23, 2023)
+----------------------------------
+- Fixes title position in info screen.
+- New interactive menu.
+
+Version 2.0.2 (Feb 23, 2023)
+----------------------------------
+- Fix issue with distorted images for non OpenGL.
+- Fix rotation on RG351V (device was not correctly identified).
+- Fix regression on joypad for 552 and MP.
+- Fixed device name.
+- Fixed screenshot (wrong resolution).
+- Fixed size of the OSD in V and MP.
+- Improved OSD.
+- New voice in menu: Average FPS.
+- Fix: regression on 552 (flycast games not working anymore).
+
+Version 2.0.1 (Jan 15, 2023)
+----------------------------------
+- New way of getting device info.
+- Added license in libgo2.
+- Changed C++ compiler version.
+- Added support for MAME.
+
+Version 2.0.0 (Jan 6, 2023)
+----------------------------------
+- Inglobe libgo2 inside retrorun: to avoid creation of patches and to manage better the logic for audio, video, and input.
+- Converted libgo2 from C to C++.
+- Refactoring.
+- Fixed issue with battery information on RG552.
+
+Version 1.5.8 (Dec 30, 2022)
+----------------------------------
+- Add support for DOSBox-core on top of DOSBox-pure.
+
+Version 1.5.8 (Dec 29, 2022)
+----------------------------------
+- Fix screenshot resolution.
+- Fix crash on mgba and vba cores when info screen is displayed.
+- Fixes info section crashes in all cores supported (regression).
+
+Version 1.5.7 (Dec 17, 2022)
+----------------------------------
+- Fix wrong mapping buttons for non flycast games for which tate was wrongly enabled in input.
+- Fix info image for non-OpenGL cores.
+- Set default aspect ratio to 4:3 for dosbox.
+
+Version 1.5.6 (Dec 5, 2022)
+----------------------------------
+- New audio buffer parameter.
+- Minor improvements.
+
+Version 1.5.5 (Oct 10, 2022)
+----------------------------------
+- Fix: missing FPS on pcsx rearmed.
+- Fix: menu not always working on parallel_n64.
+- Removed device name from title in menu.
+
+Version 1.5.4 (Aug 2, 2022)
+----------------------------------
+- Fix: some games like Resident Evil 2 for Flycast have an overscan issue in 640x480.
+- Fix: Revert "Experimental boost".
+- Revert force on exit in another thread and minor improvements in audio.
+- Add flycast2021 (thanks to dhwz).
+
+Version 1.5.4 (Jun 7, 2022)
+----------------------------------
+- Fix FPS position on the screen.
+- Fix virtualJaguar black screen on MP.
+- Experimental boost.
+
+Version 1.5.3 (Jun 5, 2022)
+----------------------------------
+- Disable audio in another thread.
+
+Version 1.5.2 (Jun 5, 2022)
+----------------------------------
+- Fix jaguar and flycast issue with audio multithread.
+- Audio and video in another thread also for non-OpenGL cores.
+- Set fixed resolution for 640x480 at startup.
+- Fix FPS info with 320x240 resolution on M/P.
+- Adds clock and original FPS to info section.
+
+Version 1.5.1 (May 3, 2022)
+----------------------------------
+- Add fps adaptive and other improvements.
+- Switch to RGB8888 images.
+- Fast forward implementation.
+- Fix srm for flycast.
+- libretro.h updated to the latest version.
+
+Version 1.5.0 (Apr 16, 2022)
+----------------------------------
+- Fix: audio wait for 0 in new thread.
+- Fix: process audio and video in another thread.
+- Fix for flycast: issues with flycast_threaded_rendering = enabled.
+
+Version 1.4.0 (Mar 29, 2022)
+----------------------------------
+- Fix: swanstation menu.
+- Fix: rendering issues with swanstation.
+- Improvement: Use some inline functions.
+- Fix: sram not loading.
+
+Version 1.3.0 (Dec 13, 2021)
+----------------------------------
+- Refactoring: use only one method to show images.
+- Fix pcsx-rearmed (and not openGL cores) status surface causing issues.
+- New images (pause and screenshot) by Szalik.
+- Fix srm file not saved correctly.
+- Minor improvements.
+
+Version 1.2.0 (Dec 6, 2021)
+----------------------------------
+- Fixes for pcsx-reARMed and mgba cores.
+- Fix for pause hotkey.
+- Prevent right analog stick to trigger more events for parallel64.
+- Add new images for screenshot and pause, minor fixes.
+
+Version 1.1.6 (Nov 21, 2021)
+----------------------------------
+- Aligned L1, L2, R1, R2 buttons to RetroArch standards.
+- Implemented bug fixes.
+
+Version 1.1.5 (Nov 14, 2021)
+----------------------------------
+- Added button mapping for C buttons on Nintendo 64.
+- Fixed left analog stick issue in Parallel Nintendo 64 emulator.
+
+Version 1.1.4 (Nov 2, 2021)
+----------------------------------
+- Introduced new aspect ratios: 3:2 and auto.
+- Removed mapping of D-pad on right analog stick for Parallel Nintendo 64.
+- Switched compilation to Ofast to enable FPS counter functionality even when input_fps_requested is disabled.
+
+Version 1.1.3 (Oct 18, 2021)
+----------------------------------
+- Fixed perpetual tate mode activation for analog stick.
+- Added joypad mapping for RG351MP (GPIO).
+- Addressed slowdown issues.
+- Conducted code cleanup and minor fixes.
+
+Version 1.1.2 (Aug 29, 2021)
+----------------------------------
+- Corrected make file errors.
+- Implemented configuration management in retrorun via cfg file for "aspect ratio" and "autosave" settings.
+- Fixed save state functionality.
+- Resolved rendering issues for non-OpenGL cores.
+
+Version 1.1.1 (Aug 22, 2021)
+----------------------------------
+- Implemented on-screen FPS display using images instead of fonts. Exit combo requires a double press.
+- Fixed screenshot resolution on RG351 P/M devices.
+- Resolved issue with getDigit for 64-bit systems.
+
+Version 1.1.0 (Jul 18, 2021)
+----------------------------------
+- Added Take-screen functionality and on-screen text display (hotkey SELECT+B).
+- Conducted bug fixes for configuration file.
+- Resolved black screen issue on RG351V.
+
+Version 1.0.3 (Jun 7, 2021)
+----------------------------------
+- Implemented force quit at the end of the loop to bypass flycast hang-up issues.
+- Conducted code cleanup and bug fixes.
+
+Version 1.0.2 (May 29, 2021)
+----------------------------------
+- Added retrorun.cfg for configuring cores via file, eliminating the need for rebuilding each time core settings are updated.
+- Conducted bug fixes.
+
+Version 1.0.2 (May 22, 2021)
+----------------------------------
+- Enabled Left Analog Stick for ParaLLEl N64 GLN64.
+- Fixed right analog stick issue and FPS logging with ParallelN64.
+- Removed saveState and fixed srm name by removing the rom's file extension.
+
+Version 1.0.1 (May 15, 2021)
+----------------------------------
+- Added option to print FPS into logs via parameter.
+
+Version 1.0.0 (May 14, 2021)
+----------------------------------
+- Initial commit on the pre-existing project developed by OtherCrashOverride and patched by christianhaitian.
+- Introduced tate mode for automatic screen rotation in vertical games.

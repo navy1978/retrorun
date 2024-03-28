@@ -35,7 +35,7 @@ static const int DEVICE_NAME_SIZE = 1024;
 static char DEVICE_NAME[DEVICE_NAME_SIZE];
 static bool deviceInitialized = false;
 
-std::string release = "2.4.6";
+std::string release = "2.4.9";
 TateState tateState = DISABLED;
 
 RETRORUN_CORE_TYPE Retrorun_Core = RETRORUN_CORE_UNKNOWN;
@@ -46,11 +46,11 @@ bool force_left_analog_stick = true;
 bool opt_triggers = false;
 bool gpio_joypad = false;
 bool swapL1R1WithL2R2 = false;
-bool swapSticks= false;
+bool swapSticks = false;
 float opt_aspect = 0.0f;
 float aspect_ratio = 0.0f;
-float game_aspect_ratio= 0.0f;
-bool audio_disabled=false;
+float game_aspect_ratio = 0.0f;
+bool audio_disabled = false;
 
 std::string romName;
 std::string coreName;
@@ -82,16 +82,16 @@ bool runLoopAtDeclaredfps = true;
 int retrorun_audio_buffer = -1; // means it will be fixed to a value related with the original FPS of the game
 int new_retrorun_audio_buffer = -1;
 int retrorun_mouse_speed_factor = 5;
+std::string retrorun_device_name;
 std::vector<CpuInfo> cpu_info_list;
 
 float avgFps = 0;
 
 int current_volume = 0;
 
+bool firstTimeCorrectFrame=true;
+
 MenuManager menuManager = MenuManager();
-
-
-
 
 const char *getEnv(const char *tag) noexcept
 {
@@ -154,7 +154,6 @@ bool isMame()
     return coreName.find("MAME") != std::string::npos;
 }
 
-
 bool isPPSSPP()
 {
     return coreName == "PPSSPP";
@@ -173,13 +172,12 @@ bool isDuckStation()
 std::string gpu_name;
 void getCpuInfo()
 {
-
+    logger.log(Logger::INF, "Getting CPU info...");
     std::vector<std::string> output = exec("lscpu | egrep 'Model name|Model|Thread|CPU\\(s\\)'");
 
-    // CpuInfo cpu_info;
-    std::string current_cpu_name;
-    std::string current_thread_per_cpu;
-    std::string current_number_of_cpu;
+    // Ensure that cpu_info_list is cleared before populating it
+    cpu_info_list.clear();
+
     std::string current_cpu_model = "";
     for (const auto &line : output)
     {
@@ -198,83 +196,115 @@ void getCpuInfo()
                 cpu_info.cpu_name = current_cpu_model;
                 cpu_info_list.push_back(cpu_info);
             }
-            else if (key == "Model")
+            else if (!cpu_info_list.empty()) // Check if cpu_info_list is not empty
             {
-                cpu_info_list.back().number_of_cpu = value;
-            }
-            else if (key == "Thread(s) per core")
-            {
-                cpu_info_list.back().thread_per_cpu = value;
+                if (key == "Model")
+                {
+                    cpu_info_list.back().number_of_cpu = value;
+                }
+                else if (key == "Thread(s) per core")
+                {
+                    cpu_info_list.back().thread_per_cpu = value;
+                }
             }
         }
     }
 
-    
+    // Check if output2 is not empty
     std::vector<std::string> output2 = exec("find /sys/devices/platform/ -maxdepth 2 -type d -name '*.gpu' | xargs -I{} sh -c 'cat {}/gpuinfo | grep -o \"^[^ ]* [^ ]* cores\"'");
-
-    for (const auto &line : output2)
+    if (!output2.empty())
     {
-
-        gpu_name = line;
-        if (gpu_name.length() > 1)
-        {
-            gpu_name.erase(std::remove(gpu_name.begin(), gpu_name.end(), '\n'), gpu_name.end());
-        }
+        gpu_name = output2[0]; // Assign the first line to gpu_name
+        // Remove newline characters
+        gpu_name.erase(std::remove(gpu_name.begin(), gpu_name.end(), '\n'), gpu_name.end());
     }
 
-   
+    logger.log(Logger::INF, "OK CPU info...");
 }
+
 
 const char *getDeviceName() noexcept
 {
-    
+
     if (!deviceInitialized)
     {
 
-        if (access(OS_ARCH_FILE.c_str(), F_OK) == 0)
+        if (!retrorun_device_name.empty())
         {
-            logger.log(Logger::INF, "File %s found! ", OS_ARCH_FILE.c_str());
-            FILE *pipe = popen(OS_ARCH.c_str(), "r");
-            if (!pipe)
-            {
-                logger.log(Logger::ERR, "Could not open pipe to `cat` command.");
-                return "";
-            }
-
-            char *result = fgets(DEVICE_NAME, DEVICE_NAME_SIZE, pipe);
-            if (!result)
-            {
-                logger.log(Logger::ERR, "Could not read output from `cat` command.");
-                return "";
-            }
-
-            // Close the pipe
-            pclose(pipe);
-            deviceInitialized = true;
-            logger.log(Logger::INF, "Device name: %s",DEVICE_NAME);
-
+            logger.log(Logger::ERR, "Getting device info from congiguration...");
             // get extra info
             getCpuInfo();
+            deviceInitialized = true;
+            // Ensure retrorun_device_name can fit into DEVICE_NAME
+            if (retrorun_device_name.size() < DEVICE_NAME_SIZE)
+            {
+                // Copy the string to DEVICE_NAME
+                strncpy(DEVICE_NAME, retrorun_device_name.c_str(), DEVICE_NAME_SIZE - 1);
+                // Add null terminator
+                DEVICE_NAME[DEVICE_NAME_SIZE - 1] = '\0';
+            }
+            else
+            {
+                // Handle the case where retrorun_device_name is too long to fit into DEVICE_NAME
+                // For example, truncate the string or handle the error as appropriate
+                // Here, we'll just truncate the string
+                strncpy(DEVICE_NAME, retrorun_device_name.c_str(), DEVICE_NAME_SIZE - 1);
+                DEVICE_NAME[DEVICE_NAME_SIZE - 1] = '\0'; // Ensure null termination
+            }
+            return retrorun_device_name.c_str();
         }
         else
-    {
-         logger.log(Logger::WARN, "File %s not found. Let's try to search in envioronment variables to identify the device name...",OS_ARCH_FILE.c_str());
-         const char *envVar = std::getenv("DEVICE_NAME");
-        if (envVar != nullptr)
         {
-            // Copy the environment variable value to DEVICE_NAME
-            std::strncpy(DEVICE_NAME, envVar, DEVICE_NAME_SIZE - 1);
-            DEVICE_NAME[DEVICE_NAME_SIZE - 1] = '\0'; // Ensure null-termination
-            logger.log(Logger::INF, "Environment variable value: %s",DEVICE_NAME);
+
+            if (access(OS_ARCH_FILE.c_str(), F_OK) == 0)
+            {
+                logger.log(Logger::INF, "File %s found! ", OS_ARCH_FILE.c_str());
+                FILE *pipe = popen(OS_ARCH.c_str(), "r");
+                if (!pipe)
+                {
+                    logger.log(Logger::ERR, "Could not open pipe to `cat` command.");
+                    return "";
+                }
+
+                char *result = fgets(DEVICE_NAME, DEVICE_NAME_SIZE, pipe);
+                if (!result)
+                {
+                    logger.log(Logger::ERR, "Could not read output from `cat` command.");
+                    return "";
+                }
+
+                // Close the pipe
+                pclose(pipe);
+
+                logger.log(Logger::INF, "Device name: %s", DEVICE_NAME);
+                // get extra info
+                getCpuInfo();
+                deviceInitialized = true;
+                return DEVICE_NAME;
+            }
+            else
+            {
+                logger.log(Logger::WARN, "File %s not found. Let's try to search in envioronment variables to identify the device name...", OS_ARCH_FILE.c_str());
+                const char *envVar = std::getenv("DEVICE_NAME");
+                if (envVar != nullptr)
+                {
+                    // Copy the environment variable value to DEVICE_NAME
+                    std::strncpy(DEVICE_NAME, envVar, DEVICE_NAME_SIZE - 1);
+                    DEVICE_NAME[DEVICE_NAME_SIZE - 1] = '\0'; // Ensure null-termination
+                    logger.log(Logger::INF, "Environment variable value: %s", DEVICE_NAME);
+                }
+                else
+                {
+                    logger.log(Logger::ERR, "Environment variable \"DEVICE_NAME\" not set. Device name undefined!");
+                }
+                // get extra info
+                getCpuInfo();
+                deviceInitialized = true;
+                return DEVICE_NAME;
+            }
         }
-        else
-        {
-            logger.log(Logger::ERR, "Environment variable \"DEVICE_NAME\" not set. Device name undefined!");
-        }
-        deviceInitialized = true;
     }
-    }
-    
+
     return DEVICE_NAME;
 }
 
@@ -338,23 +368,25 @@ std::vector<std::string> exec(const char *cmd)
     return output;
 }
 
-bool isTate(){
-    //return true; //(aspect_ratio < 1.0f && (isFlycast() || isFlycast2021()));
+bool isTate()
+{
+    // return true; //(aspect_ratio < 1.0f && (isFlycast() || isFlycast2021()));
 
-    switch (tateState) {
-        case DISABLED:
-            return false;
-            break;
-        case ENABLED:
-            return true;
-            break;
-        case REVERSED:
-            return true;//(aspect_ratio < 1.0f && (isFlycast() || isFlycast2021()));
-            break;
-        case AUTO:
-            return (aspect_ratio < 1.0f && (isFlycast() || isFlycast2021()));
-            break;
-        default:
-            return false;
+    switch (tateState)
+    {
+    case DISABLED:
+        return false;
+        break;
+    case ENABLED:
+        return true;
+        break;
+    case REVERSED:
+        return true; //(aspect_ratio < 1.0f && (isFlycast() || isFlycast2021()));
+        break;
+    case AUTO:
+        return (aspect_ratio < 1.0f && (isFlycast() || isFlycast2021()));
+        break;
+    default:
+        return false;
     }
 }

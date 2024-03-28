@@ -1188,15 +1188,29 @@ char *createSavePath(const std::string &arg_rom, const std::string &opt_savedir)
 
 void initConfig()
 {
-    std::ifstream infile(opt_setting_file);
+
+    std::string config_file = "retrorun.cfg";
+    
+
+    // Check if the local config file exists
+    if (fileExists(config_file.c_str()))
+    {
+        logger.log(Logger::INF, "Using local configuration file: '%s'", config_file.c_str());
+    }
+    else
+    {
+        logger.log(Logger::INF, "Local configuration file not found. Using default configuration file: '%s'", opt_setting_file);
+        config_file = opt_setting_file; // Use the default config file
+    }
+    std::ifstream infile(config_file);
     if (!infile.good())
     {
         logger.log(Logger::ERR, "Configuration file:'%s' doesn't exist default core settings will be used", opt_setting_file);
     }
     else
     {
-        logger.log(Logger::INF, "Reading configuration file:'%s'", opt_setting_file);
-        initMapConfig(opt_setting_file);
+        logger.log(Logger::INF, "Reading configuration file:'%s'", config_file.c_str());
+        initMapConfig(config_file.c_str());
         try
         {
             const std::string &ssFolderValue = conf_map.at("retrorun_screenshot_folder");
@@ -1364,6 +1378,19 @@ void initConfig()
         {
             logger.log(Logger::WARN, "retrorun_log_level parameter not found in retrorun.cfg using default value (INFO).\n");
         }
+
+        try
+        {
+            const std::string &asValue = conf_map.at("retrorun_device_name");
+            retrorun_device_name = asValue; 
+            logger.log(Logger::INF, "retrorun_device_name: %s.", retrorun_device_name.c_str());
+            
+        }
+        catch (...)
+        {
+            logger.log(Logger::WARN, "retrorun_device_name parameter not found in retrorun.cfg, device name will be detected in a different way..." );
+        }
+
 
         processVideoInAnotherThread = (isRG552() /*|| isRG503()*/) ? true : false;
 
@@ -1650,8 +1677,9 @@ int main(int argc, char *argv[])
     printf("\n");
     logger.log(Logger::INF, "#### RETRORUN %s ####", release.c_str());
     printf("\n");
-    getDeviceName(); // we need this call here (otherwise it doesnt work because the methos is called only later , this need to be refactored)
     initConfig();
+    getDeviceName(); // we need this call here (otherwise it doesnt work because the methos is called only later , this need to be refactored)
+    
 
     int c;
     int option_index = 0;

@@ -1075,6 +1075,16 @@ void blit_surface_status(go2_presenter_t *presenter, go2_surface_t *source_surfa
 
     double scarto_w = presenter->display->width - dest_width;
     double scarto_h = presenter->display->height - dest_height;
+    // TO-DO: need to be fixed 
+    /*if (isRG503()){
+        dest_width_scaled = source_surface->height;
+        dest_height_scaled = source_surface->width;
+        max_width = presenter->display->width;
+        max_height = presenter->display->height;
+
+        scarto_w = presenter->display->width - dest_width;
+        scarto_h = presenter->display->height - dest_height;
+    }*/    
    // printf(" scarto_w:%f, scarto_h:%f\n", scarto_w, scarto_h);
 
     /**/
@@ -1096,7 +1106,7 @@ void blit_surface_status(go2_presenter_t *presenter, go2_surface_t *source_surfa
 
     // int dest2HeightScaled = dest2Height * scaleFactor * 0.75; // scale height by 0.75 to maintain 4:3 aspect ratio
 
-    if (isRG351V() || isRG351MP())
+    if (isRG351V() || isRG351MP()|| isRG503())
     {
         // Scale the surface dimensions based on the display resolution
         if (rotation== GO2_ROTATION_DEGREES_0 || rotation== GO2_ROTATION_DEGREES_180){
@@ -1111,8 +1121,8 @@ void blit_surface_status(go2_presenter_t *presenter, go2_surface_t *source_surfa
 
         }
         // Double the size if it's too small
-        dest_width_scaled *= 1.5;
-        dest_height_scaled *= 1.5;
+        //dest_width_scaled *= 1.5;
+        //dest_height_scaled *= 1.5;
 
         if (position == BUTTOM_LEFT)
         {
@@ -1142,7 +1152,7 @@ void blit_surface_status(go2_presenter_t *presenter, go2_surface_t *source_surfa
             dest_height_scaled = max_height;
         }
     }
-    else if (isRG351P() || isRG351M() || isRG552() || isRG503())
+    else if (isRG351P() || isRG351M() || isRG552() )
     {
         // Scale the surface dimensions based on the display resolution and rotation
         if (rotation== GO2_ROTATION_DEGREES_270 || rotation== GO2_ROTATION_DEGREES_90){
@@ -1207,7 +1217,7 @@ void blit_surface_status2(go2_presenter_t *presenter, go2_surface_t *surface, go
     int max_width = presenter->display->width;
     int max_height = presenter->display->height;
 
-    if (isRG351V() || isRG351MP())
+    if (isRG351V() || isRG351MP()|| isRG503())
     { // rotation == GO2_ROTATION_DEGREES_0){
 
         dest2Width = surface->width * (max_width / 480);
@@ -1255,7 +1265,7 @@ void blit_surface_status2(go2_presenter_t *presenter, go2_surface_t *surface, go
      }else if (rotation == GO2_ROTATION_DEGREES_180){
          printf("rotation 180\n");
      }*/
-    else if (isRG351P() || isRG351M() || isRG552() || isRG503())
+    else if (isRG351P() || isRG351M() || isRG552())
     { //(rotation == GO2_ROTATION_DEGREES_270){
         // printf("rotation 270\n");
 
