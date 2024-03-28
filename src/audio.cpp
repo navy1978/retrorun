@@ -117,7 +117,7 @@ void core_audio_sample(int16_t left, int16_t right)
     {
         go2_audio_submit(audio, (const short *)audioBuffer, audioFrameCount);
         audioFrameCount = 0;
-        retrorun_audio_buffer = new_retrorun_audio_buffer==-1 ? 0:new_retrorun_audio_buffer;
+        retrorun_audio_buffer = new_retrorun_audio_buffer==-1 ? audioFrameLimit:new_retrorun_audio_buffer;
     }
 }
 
@@ -206,7 +206,7 @@ size_t core_audio_sample_batch(const int16_t *data, size_t frames)
     {
         go2_audio_submit(audio, (const short *)audioBuffer, audioFrameCount);
         audioFrameCount = 0;
-        retrorun_audio_buffer = new_retrorun_audio_buffer==-1 ? 0:new_retrorun_audio_buffer;
+        retrorun_audio_buffer = new_retrorun_audio_buffer==-1 ? audioFrameLimit :new_retrorun_audio_buffer;
     }
 
     size_t size = frames * sizeof(int16_t) * CHANNELS;
