@@ -150,7 +150,7 @@ static struct
         if (!((*(void **)&V) = dlsym(g_retro.handle, #S)))                     \
         {                                                                      \
             printf("[noarch] Failed to load symbol '" #S "'': %s", dlerror()); \
-            abort();                                                           \
+            exit(1);                                                           \
         }                                                                      \
     } while (0)
 
@@ -702,7 +702,7 @@ static void core_load_game(const char *filename)
     if (!g_retro.retro_load_game(&info))
     {
         logger.log(Logger::ERR, "The core failed to load the content.");
-        abort();
+        exit(1);
     }
 
     g_retro.retro_get_system_av_info(&av);
@@ -714,7 +714,7 @@ static void core_load_game(const char *filename)
 
 libc_error:
     logger.log(Logger::ERR, "Failed to load content '%s'", filename);
-    abort();
+    exit(1);
 }
 
 void *unload(void *arg)
@@ -816,7 +816,7 @@ static int LoadState(const char *saveName)
     if (!ptr)
     {
         logger.log(Logger::ERR, "Error loading state, ptr not valid aborting...");
-        abort();
+        exit(1);
     }
     size_t count = fread(ptr, 1, size, file);
 
@@ -824,7 +824,7 @@ static int LoadState(const char *saveName)
     {
         logger.log(Logger::ERR, "Error loading state, in file '%s': size mismatch!", saveName);
         free(ptr);
-        abort();
+        exit(1);
     }
     fclose(file);
     bool result = g_retro.retro_unserialize(ptr, size);
@@ -872,13 +872,13 @@ static int LoadSram(const char *saveName)
         if (!ptr)
         {
             logger.log(Logger::ERR, "Error loading sram, file '%s': contains wrong memory data!", saveName);
-            abort();
+            exit(1);
         }
         size_t count = fread(ptr, 1, size, file);
         if ((size_t)size != count)
         {
             logger.log(Logger::ERR, "Error loading sram, in file '%s': size mismatch!", saveName);
-            abort();
+            exit(1);
         }
         fclose(file);
         logger.log(Logger::INF, "File '%s': loaded correctly!\n", saveName);
@@ -897,7 +897,7 @@ static void SaveState(const char *saveName)
     if (!ptr)
     {
         logger.log(Logger::ERR, "Error saving state: ptr not valid!");
-        abort();
+        exit(1);
     }
     g_retro.retro_serialize(ptr, size);
     FILE *file = fopen(saveName, "wb");
@@ -905,14 +905,14 @@ static void SaveState(const char *saveName)
     {
         logger.log(Logger::ERR, "Error saving state: File '%s' cannot be opened!", saveName);
         free(ptr);
-        abort();
+        exit(1);
     }
     size_t count = fwrite(ptr, 1, size, file);
     if (count != size)
     {
         logger.log(Logger::ERR, "Error saving state: File '%s' count not valid!", saveName);
         free(ptr);
-        abort();
+        exit(1);
     }
     fclose(file);
     free(ptr);
@@ -933,21 +933,21 @@ static void SaveSram(const char *saveName)
     if (!ptr)
     {
         logger.log(Logger::ERR, "Error saving sram: ptr not valid!");
-        abort();
+        exit(1);
     }
 
     FILE *file = fopen(saveName, "wb");
     if (!file)
     {
         logger.log(Logger::ERR, "Error saving sram: File '%s' cannot be opened!", saveName);
-        abort();
+        exit(1);
     }
 
     size_t count = fwrite(ptr, 1, size, file);
     if (count != size)
     {
         logger.log(Logger::ERR, "Error saving sram: File '%s' count not valid!", saveName);
-        abort();
+        exit(1);
     }
 
     fclose(file);
@@ -2189,7 +2189,7 @@ int main(int argc, char *argv[])
     logger.log(Logger::INF, "Saving sram into file:%", sramPath);
     SaveSram(sramPath);
     free(sramPath);
-    sleep(2); // wait a little bit
+    usleep(500000); // wait a little bit
     if (auto_save)
     {
         logger.log(Logger::INF, "Saving sav into file:%s", savePath);
@@ -2206,7 +2206,7 @@ int main(int argc, char *argv[])
     pthread_t threadId;
     pthread_create(&threadId, NULL, &unload, NULL);
 
-    sleep(1); // wait a little bit
+    usleep(500000); // wait a little bit
     if (exitFlag == 0)
     { // if everything is ok we join the thread otherwise we exit without joining
         pthread_join(threadId, NULL);

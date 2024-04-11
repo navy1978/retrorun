@@ -1,6 +1,11 @@
 Retrorun
 =======================
 
+Version 2.5.1 (Apr 12, 2024)
+----------------------------------
+- reduced exit time
+- switch to exit(1) instead of abort()
+
 Version 2.5.0 (Mar 28, 2024)
 ----------------------------------
 - Fixed audio buffer for snes

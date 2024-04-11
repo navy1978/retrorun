@@ -447,7 +447,7 @@ void video_configure(struct retro_game_geometry *geom)
     else
     {
         if (surface)
-            abort();
+            exit(1);
 
         int aw = ALIGN(getGeom_max_width(geom), 32);
         int ah = ALIGN(getGeom_max_height(geom), 32);

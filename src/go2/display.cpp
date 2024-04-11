@@ -872,7 +872,7 @@ static void *go2_presenter_renderloop(void *arg)
         if (go2_queue_count_get(presenter->usedFrameBuffers) < 1)
         {
             printf("no framebuffer available.\n");
-            abort();
+            exit(1);
         }
 
         go2_frame_buffer_t *dstFrameBuffer = (go2_frame_buffer_t *)go2_queue_pop(presenter->usedFrameBuffers);
@@ -1007,7 +1007,7 @@ void go2_presenter_post(go2_presenter_t *presenter, go2_surface_t *surface, int 
     if (push_result != 0)
     {
         printf("queue push failed.\n");
-        abort();
+        exit(1);
     }
 
     sem_post(&presenter->usedSem);
@@ -1050,7 +1050,7 @@ void go2_presenter_black(go2_presenter_t *presenter, int dstX, int dstY, int dst
     if (push_result != 0)
     {
         printf("queue push failed.\n");
-        abort();
+        exit(1);
     }
 
     sem_post(&presenter->usedSem);
@@ -1335,7 +1335,7 @@ void go2_presenter_post_multiple(go2_presenter_t *presenter, go2_surface_t *surf
     if (go2_queue_count_get(presenter->freeFrameBuffers) < 1)
     {
         printf("no framebuffer available.\n");
-        abort();
+        exit(1);
     }
 
     go2_frame_buffer_t *dstFrameBuffer = (go2_frame_buffer_t *)go2_queue_pop(presenter->freeFrameBuffers);
@@ -1465,7 +1465,7 @@ static EGLConfig FindConfig(EGLDisplay eglDisplay, int redBits, int greenBits, i
     if (success != EGL_TRUE)
     {
         printf("eglChooseConfig failed.\n");
-        abort();
+        exit(1);
     }
 
     // EGLConfig* configs = new EGLConfig[num_configs];
@@ -1474,7 +1474,7 @@ static EGLConfig FindConfig(EGLDisplay eglDisplay, int redBits, int greenBits, i
     if (success != EGL_TRUE)
     {
         printf("eglChooseConfig failed.\n");
-        abort();
+        exit(1);
     }
 
     EGLConfig match = 0;
@@ -1592,14 +1592,14 @@ go2_context_t *go2_context_create(go2_display_t *display, int width, int height,
     if (!result->gbmSurface)
     {
         printf("gbm_surface_create failed.\n");
-        abort();
+        exit(1);
     }
 
     result->eglSurface = eglCreateWindowSurface(result->eglDisplay, eglConfig, (EGLNativeWindowType)result->gbmSurface, NULL);
     if (result->eglSurface == EGL_NO_SURFACE)
     {
         printf("eglCreateWindowSurface failed\n");
-        abort();
+        exit(1);
     }
 
     // Create a context
@@ -1613,14 +1613,14 @@ go2_context_t *go2_context_create(go2_display_t *display, int width, int height,
     if (result->eglContext == EGL_NO_CONTEXT)
     {
         printf("eglCreateContext failed\n");
-        abort();
+        exit(1);
     }
 
     success = eglMakeCurrent(result->eglDisplay, result->eglSurface, result->eglSurface, result->eglContext);
     if (success != EGL_TRUE)
     {
         printf("eglMakeCurrent failed\n");
-        abort();
+        exit(1);
     }
 
     return result;
@@ -1661,7 +1661,7 @@ void go2_context_make_current(go2_context_t *context)
     if (success != EGL_TRUE)
     {
         printf("eglMakeCurrent failed\n");
-        abort();
+        exit(1);
     }
 }
 
@@ -1671,7 +1671,7 @@ void go2_context_swap_buffers(go2_context_t *context)
     if (ret == EGL_FALSE)
     {
         printf("eglSwapBuffers failed\n");
-        // abort();
+        // exit(1);
     }
 }
 
@@ -1681,7 +1681,7 @@ go2_surface_t *go2_context_surface_lock(go2_context_t *context)
     if (!bo)
     {
         printf("gbm_surface_lock_front_buffer failed.\n");
-        abort();
+        exit(1);
     }
 
     go2_surface_t *surface = NULL;
@@ -1700,14 +1700,14 @@ go2_surface_t *go2_context_surface_lock(go2_context_t *context)
         if (context->bufferCount >= BUFFER_MAX)
         {
             printf("swap buffers count exceeded.\n");
-            abort();
+            exit(1);
         }
 
         surface = (go2_surface_t *)malloc(sizeof(*surface));
         if (!surface)
         {
             printf("malloc failed.\n");
-            abort();
+            exit(1);
         }
 
         memset(surface, 0, sizeof(*surface));
@@ -1745,7 +1745,7 @@ void go2_context_surface_unlock(go2_context_t *context, go2_surface_t *surface)
 
     if (!bo)
     {
-        abort();
+        exit(1);
     }
 
     gbm_surface_release_buffer(context->gbmSurface, bo);
