@@ -502,7 +502,11 @@ void core_input_poll(void)
                 pause_requested = false;
             }
             logger.log(Logger::DEB, "Input: %s", input_pause_requested ? "Paused" : "Un-paused");
+
             pauseRequestTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
+
+go2_input_rumble_start(input, 1.0f);
+
         }else{
            // printf("input: pause requested NOT OK (too quick)\n");
         }
@@ -620,7 +624,7 @@ go2_button_state_t getInputY(){
 
 
 
-
+bool core_support_analog=false;
 
 int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigned id)
 {
@@ -630,11 +634,21 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
     go2_input_button_t realR1 = gpio_joypad ? r1Button : Go2InputButton_TopRight ;
 // for set we dont need to take care of tate mode
     
-    if (force_left_analog_stick)
+    if ((analogToDigital== LEFT_ANALOG && !core_support_analog) || 
+        (analogToDigital== RIGHT_ANALOG && !core_support_analog) ||
+        (analogToDigital== LEFT_ANALOG_FORCED ) || 
+        (analogToDigital== RIGHT_ANALOG_FORCED )
+        
+        )
     {
         // Map thumbstick to dpad (force to enable the left analog stick mapping to it the DPAD)
         const float TRIM = 0.35f;
-        go2_thumb_t thumb = go2_input_state_thumbstick_get(gamepadState, Go2InputThumbstick_Left);
+        go2_thumb_t thumb;
+        if (analogToDigital== LEFT_ANALOG){
+         thumb = go2_input_state_thumbstick_get(gamepadState, Go2InputThumbstick_Left);
+        }else if (analogToDigital== RIGHT_ANALOG){
+         thumb = go2_input_state_thumbstick_get(gamepadState, Go2InputThumbstick_Right);
+        }
 
         if (thumb.y < -TRIM)
             go2_input_state_button_set(gamepadState, Go2InputButton_DPadUp, ButtonState_Pressed);
@@ -848,11 +862,12 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
 
 
 
-        else if (!force_left_analog_stick 
+        else if (analogToDigital != LEFT_ANALOG_FORCED && analogToDigital != RIGHT_ANALOG_FORCED
         && device == RETRO_DEVICE_ANALOG 
         && (index == RETRO_DEVICE_INDEX_ANALOG_LEFT || RETRO_DEVICE_INDEX_ANALOG_RIGHT)) 
         {
 
+            core_support_analog =true;
             if (swapSticks)
             {
                 if (index == RETRO_DEVICE_INDEX_ANALOG_LEFT)

@@ -637,6 +637,36 @@ inline void showLongCenteredText(int y, const char *text, unsigned short color, 
 
 
 
+std::string truncate_string(const std::string& input_string) {
+    std::string truncated_string = input_string; // Crea una copia della stringa di input
+
+    int length = truncated_string.length();
+    int total_text_width = length * 8; // Larghezza approssimativa in pixel (assumendo 8 pixel per carattere)
+    
+    if (total_text_width > INFO_MENU_WIDTH) {
+        size_t start = truncated_string.find('<');
+        size_t end = truncated_string.find('>');
+        if (start != std::string::npos && end != std::string::npos && end > start) {
+           std::string beginning= truncated_string.substr(0, start + 1) ;
+           std::string ending= truncated_string.substr(end-1 , truncated_string.length()-1) ;
+           std::string center= truncated_string.substr(start + 1, end) ;
+           int max = INFO_MENU_WIDTH/8-(beginning.length()+ending.length());//-3;
+            center= center.substr(0,max);
+            //center+="...";
+           truncated_string = beginning+center+ending;
+        }
+    }
+
+    return truncated_string; // Restituisce la stringa troncata
+}
+
+
+
+
+
+
+
+
 
 
 
@@ -819,7 +849,7 @@ inline void showInfo(int w, go2_surface_t **surface)
 
         else if (mi.isQuit()|| mi.isQuestion())
         {
-            showCenteredText(getRowForText(), (tabSpaces + mi.get_name() + ": < " + mi.getValues()[mi.getValue()] + " >").c_str(), mi.isSelected() ? WHITE : DARKGREY, surface);
+            showCenteredText(getRowForText(), (truncate_string(tabSpaces + mi.get_name() + ": < " + mi.getValues()[mi.getValue()] + " >")).c_str(), mi.isSelected() ? WHITE : DARKGREY, surface);
         }
         else if (mi.getMenu() != NULL)
         {
@@ -828,7 +858,7 @@ inline void showInfo(int w, go2_surface_t **surface)
         }
         else if (mi.m_valueCalculator != NULL)
         {
-            showCenteredText(getRowForText(), (tabSpaces + mi.get_name() + ": < " + mi.getStringValue() + mi.getMisUnit() + " >").c_str(), mi.isSelected() ? WHITE : DARKGREY, surface);
+            showCenteredText(getRowForText(), (truncate_string(tabSpaces + mi.get_name() + ": < " + mi.getStringValue() + mi.getMisUnit() + " >")).c_str(), mi.isSelected() ? WHITE : DARKGREY, surface);
         }
         else
         {

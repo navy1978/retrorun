@@ -35,13 +35,17 @@ static const int DEVICE_NAME_SIZE = 1024;
 static char DEVICE_NAME[DEVICE_NAME_SIZE];
 static bool deviceInitialized = false;
 
-std::string release = "2.5.0";
+std::string release = "2.5.1";
 TateState tateState = DISABLED;
 
 RETRORUN_CORE_TYPE Retrorun_Core = RETRORUN_CORE_UNKNOWN;
 Device device = UNKNOWN;
 Resolution resolution = R_UNKNOWN;
-bool force_left_analog_stick = true;
+//bool force_left_analog_stick = true;
+AnalogToDigital analogToDigital = LEFT_ANALOG;
+
+int deviceTypeSelected=1;
+std::map<unsigned, std::string> controllerMap;
 
 bool opt_triggers = false;
 bool gpio_joypad = false;

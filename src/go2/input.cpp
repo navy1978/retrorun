@@ -59,6 +59,7 @@ typedef struct go2_input_state
 {
     go2_thumb_t thumbs[GO2_THUMBSTICK_COUNT];
     go2_button_state_t buttons[GO2_BUTTON_COUNT];
+    float rumble_intensity;
 } go2_input_state_t;
 
 typedef struct go2_input
@@ -284,7 +285,18 @@ static void *input_task(void *arg)
 			       ev.value);
 #endif
 
-            if (ev.type == EV_KEY)
+            if (ev.type == EV_FF) { // Evento rumble
+                if (ev.code == FF_RUMBLE) {
+                    // Calcola l'intensità del rumble
+                    float rumble_intensity = (float)ev.value / 255.0f;
+                    
+                    // Aggiorna lo stato del rumble
+                    pthread_mutex_lock(&input->dev->gamepadMutex);
+                    input->dev->current_state.rumble_intensity = rumble_intensity;
+                    pthread_mutex_unlock(&input->dev->gamepadMutex);
+                }
+            }
+            else if (ev.type == EV_KEY)
             {
                 go2_button_state_t state = ev.value ? ButtonState_Pressed : ButtonState_Released;
 
@@ -528,6 +540,13 @@ void go2_input_destroy(go2_input_t *input)
 
 void go2_input_gamepad_read(go2_input_t *input, go2_gamepad_state_t *outGamepadState)
 {
+
+
+// Leggi lo stato del rumble da input->current_state.rumble_intensity
+    pthread_mutex_lock(&input->gamepadMutex);
+    float rumble_intensity = input->current_state.rumble_intensity;
+    pthread_mutex_unlock(&input->gamepadMutex);
+
     pthread_mutex_lock(&input->gamepadMutex);
 
     outGamepadState->thumb.x = input->current_state.thumbs[Go2InputThumbstick_Left].x;
@@ -554,6 +573,9 @@ void go2_input_gamepad_read(go2_input_t *input, go2_gamepad_state_t *outGamepadS
     outGamepadState->buttons.f6 = input->current_state.buttons[Go2InputButton_F6];
 
     pthread_mutex_unlock(&input->gamepadMutex);
+
+       // Includi lo stato del rumble nella struttura di output
+    outGamepadState->rumble_intensity = rumble_intensity;
 }
 
 void go2_input_battery_read(go2_input_t *input, go2_battery_state_t *outBatteryState)
@@ -663,4 +685,52 @@ void go2_input_state_button_set(go2_input_state_t *state, go2_input_button_t but
 go2_thumb_t go2_input_state_thumbstick_get(go2_input_state_t *state, go2_input_thumbstick_t thumbstick)
 {
     return state->thumbs[thumbstick];
+}
+
+
+void go2_input_rumble_start(go2_input_t *input, float intensity) {
+    // Verifica che l'intensità sia nel range valido [0, 1]
+    if (intensity < 0.0f) intensity = 0.0f;
+    if (intensity > 1.0f) intensity = 1.0f;
+
+    // Calcola il valore da 0 a 255 corrispondente all'intensità del rumble
+    int rumble_value = (int)(intensity * 255.0f);
+
+    // Prepara l'evento di rumble
+    struct input_event event;
+    memset(&event, 0, sizeof(event));
+    event.type = EV_FF;
+    event.code = FF_RUMBLE;
+    event.value = rumble_value;
+
+    // Invia l'evento di rumble al dispositivo
+    if (write(input->fd, &event, sizeof(event)) < 0) {
+        perror("Error sending rumble event");
+        return;
+    }
+
+    // Aggiorna lo stato del rumble nella struttura input->current_state
+    pthread_mutex_lock(&input->gamepadMutex);
+    input->current_state.rumble_intensity = intensity;
+    pthread_mutex_unlock(&input->gamepadMutex);
+}
+
+void go2_input_rumble_stop(go2_input_t *input) {
+    // Prepara un evento per arrestare il rumble
+    struct input_event event;
+    memset(&event, 0, sizeof(event));
+    event.type = EV_FF;
+    event.code = FF_RUMBLE;
+    event.value = 0;
+
+    // Invia l'evento di rumble al dispositivo per arrestare il rumble
+    if (write(input->fd, &event, sizeof(event)) < 0) {
+        perror("Error stopping rumble event");
+        return;
+    }
+
+    // Azzera lo stato del rumble nella struttura input->current_state
+    pthread_mutex_lock(&input->gamepadMutex);
+    input->current_state.rumble_intensity = 0.0f;
+    pthread_mutex_unlock(&input->gamepadMutex);
 }

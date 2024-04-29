@@ -32,9 +32,10 @@ MenuItem::MenuItem(std::string name, std::vector<std::string> values, int valueS
     menu_ = nullptr;
     mis_unit_ = "";
     is_quit_item = false;
-    is_question_item= false;
+    is_question_item = false;
     m_valueCalculator = nullptr;
-    m_nameCalculator=nullptr;
+    m_nameCalculator = nullptr;
+    valuesMap = {}; // Inizializza la mappa vuota
 }
 MenuItem::MenuItem(std::string name, ValueCalculator valueCalculator, std::function<void(int)> action, std::string mis_unit)
 {
@@ -45,13 +46,14 @@ MenuItem::MenuItem(std::string name, ValueCalculator valueCalculator, std::funct
     menu_ = nullptr;
     mis_unit_ = mis_unit;
     is_quit_item = false;
-    is_question_item= false;
+    is_question_item = false;
     m_valueCalculator = valueCalculator;
-    m_nameCalculator=nullptr;
+    m_nameCalculator = nullptr;
+    valuesMap = {}; // Inizializza la mappa vuota
 }
 
-//MenuItem::MenuItem(std::string name, void (*action)(int))
-MenuItem::MenuItem(std::string name, std::function<void(int)> action) 
+// MenuItem::MenuItem(std::string name, void (*action)(int))
+MenuItem::MenuItem(std::string name, std::function<void(int)> action)
 {
     name_ = name;
     valueSelected_ = -1;
@@ -63,41 +65,39 @@ MenuItem::MenuItem(std::string name, std::function<void(int)> action)
     is_question_item = false;
     m_valueCalculator = nullptr;
     m_nameCalculator = nullptr;
-    
+    valuesMap = {}; // Inizializza la mappa vuota
 }
-
 
 MenuItem::MenuItem(std::string name, Menu *menu, std::function<void(int)> action)
 {
     name_ = name;
-    valueSelected_=0;
+    valueSelected_ = 0;
     action_ = action;
     is_menu_ = false;
     menu_ = menu;
     mis_unit_ = "";
     is_quit_item = false;
-    is_question_item= false;
+    is_question_item = false;
     m_valueCalculator = nullptr;
-    m_nameCalculator=nullptr;
-    
+    m_nameCalculator = nullptr;
+    valuesMap = {}; // Inizializza la mappa vuota
 }
-
 
 MenuItem::MenuItem(NameCalculator nameCalculator, Menu *menu, std::function<void(int)> action)
 {
-    
+
     name_ = "fake"; // we will use the nameCalculator instead
-    valueSelected_=0;
+    valueSelected_ = 0;
     action_ = action;
     is_menu_ = false;
     menu_ = menu;
     mis_unit_ = "";
     is_quit_item = false;
-    is_question_item= false;
+    is_question_item = false;
     m_valueCalculator = nullptr;
-    m_nameCalculator=nameCalculator;
+    m_nameCalculator = nameCalculator;
+    valuesMap = {}; // Inizializza la mappa vuota
 }
-
 
 void MenuItem::setQuitItem()
 {
@@ -125,21 +125,23 @@ bool MenuItem::isQuestion()
     return is_question_item;
 }
 
-
-
 void MenuItem::execute(int button)
 {
-    if (action_ != NULL){
-        //printf( "Executing action for button: %d\n", button);
+    if (action_ != NULL)
+    {
+        // printf( "Executing action for button: %d\n", button);
         action_(button);
     }
 }
 
 std::string MenuItem::get_name()
 {
-    if (m_nameCalculator!= nullptr){
+    if (m_nameCalculator != nullptr)
+    {
         return m_nameCalculator();
-    }else return name_;
+    }
+    else
+        return name_;
 }
 
 void MenuItem::setName(std::string value)
@@ -175,7 +177,7 @@ int MenuItem::getValue()
     else
     {
 
-        return valueSelected_ ;
+        return valueSelected_;
     }
 }
 
@@ -187,7 +189,12 @@ Menu *MenuItem::getMenu()
 std::string MenuItem::getMisUnit()
 {
 
-    if (mis_unit_ == "bool" || mis_unit_ == "rotation" || mis_unit_ == "aspect-ratio")
+    if (mis_unit_ == "bool" 
+    || mis_unit_ == "rotation" 
+    || mis_unit_ == "aspect-ratio"
+    || mis_unit_ == "device-type"
+    || mis_unit_ == "analog-to-digital"
+    )
     {
         return "";
     }
@@ -196,15 +203,22 @@ std::string MenuItem::getMisUnit()
         return mis_unit_;
     }
 }
-/*bool MenuItem::isMenu(){
-    return is_menu_;
-}*/
+void MenuItem::setPossibleValues(std::map<unsigned, std::string> possiblevaluesMap){
+    valuesMap=possiblevaluesMap;
+}
 
 const char *rotation_names[] = {
     "DISABLED",
     "ENABLED",
     "REVERSED",
     "AUTO"};
+
+const char *analog_to_digital_names[] = {
+    "NONE",
+  "LEFT",
+  "RIGHT",
+  "LEFT FORCED",
+  "RIGHT FORCED"};    
 
 const char *aspect_ratio_names[] = {
     "2:1",
@@ -215,6 +229,19 @@ const char *aspect_ratio_names[] = {
     "1:1",
     "3:2",
     "auto"};
+
+std::string MenuItem::getDeviceType(int deviceIndex)
+{
+    auto it = valuesMap.find(deviceIndex);
+    if (it != valuesMap.end())
+    {
+        return it->second; // Return description if ID is found
+    }
+    else
+    {
+        return "ID not found"; // Return error message if ID is not found
+    }
+}
 
 std::string MenuItem::getStringValue()
 {
@@ -229,6 +256,14 @@ std::string MenuItem::getStringValue()
     else if (mis_unit_ == "aspect-ratio")
     {
         return aspect_ratio_names[getValue()];
+    }
+    else if (mis_unit_ == "device-type")
+    {
+        return getDeviceType(getValue());
+    }
+    else if (mis_unit_ == "analog-to-digital")
+    {
+        return analog_to_digital_names[getValue()];
     }
     else
     {

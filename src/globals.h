@@ -21,6 +21,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <string>
 #include "menu/menu_manager.h"
 #include "logger.h"
+#include <map>
+
 
 extern std::string release;
 
@@ -58,10 +60,20 @@ enum Resolution
   R_UNKNOWN
 };
 
+enum AnalogToDigital
+{
+  NONE,
+  LEFT_ANALOG,
+  RIGHT_ANALOG,
+  LEFT_ANALOG_FORCED,
+  RIGHT_ANALOG_FORCED,
+
+};
+
 extern Device device;
 extern Resolution resolution;
 
-
+extern AnalogToDigital analogToDigital;
 
 struct Image
 {
@@ -90,7 +102,6 @@ extern std::string gpu_name;
 
 extern RETRORUN_CORE_TYPE Retrorun_Core;
 extern TateState tateState;
-extern bool force_left_analog_stick;
 
 extern float originalFps;
 extern float fps;
@@ -120,7 +131,10 @@ extern std::string screenShotFolder;
 extern std::vector<CpuInfo> cpu_info_list;
 
 extern std::string status_message;
+extern int deviceTypeSelected;
 
+// Define a map to store controller descriptions and their corresponding IDs
+extern std::map<unsigned, std::string> controllerMap;
 
 extern Logger logger;
 

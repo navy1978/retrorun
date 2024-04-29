@@ -68,6 +68,7 @@ typedef struct
     go2_thumb_t thumb;
     go2_dpad_t dpad;
     go2_gamepad_buttons_t buttons;
+    float rumble_intensity;
 } go2_gamepad_state_t;
 
 typedef struct go2_input go2_input_t;
@@ -179,6 +180,7 @@ void go2_input_state_destroy(go2_input_state_t* state);
 go2_button_state_t go2_input_state_button_get(go2_input_state_t* state, go2_input_button_t button);
 void go2_input_state_button_set(go2_input_state_t* state, go2_input_button_t button, go2_button_state_t value);
 go2_thumb_t go2_input_state_thumbstick_get(go2_input_state_t* state, go2_input_thumbstick_t thumbstick);
+void go2_input_rumble_start( go2_input_t *input, float intensity) ;
 
 #ifdef __cplusplus
 }

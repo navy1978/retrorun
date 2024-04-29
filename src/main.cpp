@@ -408,6 +408,8 @@ static bool core_environment(unsigned cmd, void *data)
         {
             const struct retro_controller_description *type = &arg->types[x];
             logger.log(Logger::INF, " -\t%s: %u", type->desc, type->id);
+            // Store the ID and description in the map
+            controllerMap[type->id] = type->desc;
         }
 
         return true; // Return true to indicate successful handling
@@ -1281,7 +1283,7 @@ void initConfig()
             logger.log(Logger::WARN, "retrorun_auto_load parameter not found in retrorun.cfg using default value (%s).", auto_load ? "true" : "false");
         }
 
-        try
+       /* try
         {
             const std::string &lasValue = conf_map.at("retrorun_force_left_analog_stick");
 
@@ -1292,7 +1294,7 @@ void initConfig()
         {
             logger.log(Logger::WARN, "etrorun_force_left_analog_stick parameter not found in retrorun.cfg using default value (%s).", force_left_analog_stick ? "true" : "false");
         }
-
+*/
         try
         {
             const std::string &tflValue = conf_map.at("retrorun_loop_declared_fps");
@@ -1585,6 +1587,65 @@ auto setAudioValue = [](int button) -> std::function<void(int)>
     return std::function<void(int)>();
 };
 
+
+
+int getDeviceType()
+{
+    return deviceTypeSelected;
+}
+
+auto setDeviceType = [](int button) -> std::function<void(int)>
+{
+    auto it = controllerMap.find(deviceTypeSelected);
+    if (it != controllerMap.end())
+    {
+        if (button == LEFT)
+        {
+            if (it == controllerMap.begin()) // Se siamo già al primo elemento, torna all'ultimo
+            {
+                it = controllerMap.end();
+            }
+            deviceTypeSelected = (--it)->first;
+        }
+        else if (button == RIGHT)
+        {
+            if (++it == controllerMap.end()) // Se siamo già all'ultimo elemento, torna al primo
+            {
+                it = controllerMap.begin();
+            }
+            deviceTypeSelected = it->first;
+        }
+    }
+    g_retro.retro_set_controller_port_device(0, deviceTypeSelected);
+    //return setDeviceType; // Ritorna se stesso per poter essere riutilizzato
+    return std::function<void(int)>();
+};
+
+int getAnalogToDigital()
+{
+    return analogToDigital;
+}
+
+auto setAnalogToDigital = [](int button) -> std::function<void(int)>
+{
+    if (button == LEFT)
+        {
+            if (analogToDigital == NONE)
+                analogToDigital = RIGHT_ANALOG_FORCED;
+            else
+                analogToDigital = static_cast<AnalogToDigital>(static_cast<int>(analogToDigital) - 1);
+        }
+        else if (button == RIGHT)
+        {
+            if (analogToDigital == RIGHT_ANALOG_FORCED)
+                analogToDigital = NONE;
+            else
+                analogToDigital = static_cast<AnalogToDigital>(static_cast<int>(analogToDigital) + 1);
+        }
+    return std::function<void(int)>();
+};
+
+
 void resume(int button)
 {
     if (button == A_BUTTON)
@@ -1717,7 +1778,7 @@ int main(int argc, char *argv[])
             break;
 
         case 'n':
-            force_left_analog_stick = false;
+            //force_left_analog_stick = false;
             logger.log(Logger::INF, "using '-n' as parameter, forces left analog stick to false!.");
             break;
 
@@ -1967,7 +2028,13 @@ int main(int argc, char *argv[])
 
     Menu menuSystem = Menu("System", itemsSystem);
 
+
+MenuItem deviceType("Device type", getDeviceType, setDeviceType, "device-type");
+deviceType.setPossibleValues(controllerMap);
+
     std::vector<MenuItem> itemsControl = {
+        deviceType,
+        MenuItem("Analog to DPAD", getAnalogToDigital, setAnalogToDigital, "analog-to-digital"),
         MenuItem("Swap triggers", getSwapTriggers, setSwapTriggers, "bool"),
         MenuItem("Swap analog sticks", getSwapSticks, setSwapSticks, "bool"),
     };
@@ -2027,6 +2094,17 @@ int main(int argc, char *argv[])
 
     // define Main Menu
     Menu menuInfo = Menu("Info", itemsInfo);
+
+
+
+MenuItem menu_item_restart = MenuItem("Are you sure?", [](int button)
+                                           { if (button == A_BUTTON) { g_retro.retro_reset(); }});
+    menu_item_restart.setQuestionItem();
+    std::vector<MenuItem> menu_restart_sure = {menu_item_restart};
+
+    Menu menuRestart = Menu("Slot3", menu_restart_sure);
+
+
     std::vector<MenuItem> items;
     if (isFlycast2021())
     {
@@ -2035,6 +2113,7 @@ int main(int argc, char *argv[])
             MenuItem("Info", &menuInfo, fake),
             MenuItem("Settings", &menuSettings, fake),
             MenuItem("Credits", showCredit),
+            MenuItem("Restart", &menuRestart, fake),
             MenuItem("Quit", &menuInfoQuit, fake),
         };
     }
@@ -2046,6 +2125,7 @@ int main(int argc, char *argv[])
             MenuItem("Settings", &menuSettings, fake),
             MenuItem("Load/Save", &menuState, fake),
             MenuItem("Credits", showCredit),
+            MenuItem("Restart", &menuRestart, fake),
             MenuItem("Quit", &menuInfoQuit, fake),
         };
     }
