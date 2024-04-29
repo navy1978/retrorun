@@ -890,24 +890,35 @@ static int LoadSram(const char *saveName)
     return 0;
 }
 
+#define SAVE_STATE_CHUNK_SIZE 4096 // Dimensione del chunk di salvataggio in byte
+
 static void SaveState(const char *saveName)
 {
+
+    logger.log(Logger::ERR, "Save state 1\n");
     size_t size = g_retro.retro_serialize_size();
     void *ptr = malloc(size);
+    logger.log(Logger::ERR, "Save state 2\n");
     if (!ptr)
     {
         logger.log(Logger::ERR, "Error saving state: ptr not valid!");
         abort();
     }
+    logger.log(Logger::ERR, "Save state 3\n");
     g_retro.retro_serialize(ptr, size);
+    logger.log(Logger::ERR, "Save state 4\n");
     FILE *file = fopen(saveName, "wb");
+    logger.log(Logger::ERR, "Save state 5\n");
     if (!file)
     {
+        logger.log(Logger::ERR, "Save state 6\n");
         logger.log(Logger::ERR, "Error saving state: File '%s' cannot be opened!", saveName);
         free(ptr);
         abort();
     }
+    logger.log(Logger::ERR, "Save state 7\n");
     size_t count = fwrite(ptr, 1, size, file);
+    logger.log(Logger::ERR, "Save state 8\n");
     if (count != size)
     {
         logger.log(Logger::ERR, "Error saving state: File '%s' count not valid!", saveName);
@@ -1382,15 +1393,23 @@ void initConfig()
         try
         {
             const std::string &asValue = conf_map.at("retrorun_device_name");
-            retrorun_device_name = asValue; 
+            retrorun_device_name = asValue;
             logger.log(Logger::INF, "retrorun_device_name: %s.", retrorun_device_name.c_str());
-            
         }
         catch (...)
         {
-            logger.log(Logger::WARN, "retrorun_device_name parameter not found in retrorun.cfg, device name will be detected in a different way..." );
+            logger.log(Logger::WARN, "retrorun_device_name parameter not found in retrorun.cfg, device name will be detected in a different way...");
         }
-
+        try
+        {
+            const std::string &asValue = conf_map.at("retrorun_key_log");
+            elable_key_log = asValue == "enabled" ? true : false;
+            logger.log(Logger::INF, "retrorun_key_log: %s.", elable_key_log ? "true" : "false");
+        }
+        catch (...)
+        {
+            logger.log(Logger::WARN, "retrorun_key_log parameter not found in retrorun.cfg using default value (%s).", elable_key_log ? "enabled" : "disabled");
+        }
 
         processVideoInAnotherThread = (isRG552() /*|| isRG503()*/) ? true : false;
 
@@ -1667,6 +1686,32 @@ void showCredit(int button)
     }
 }
 
+
+
+
+// Function to generate menu items for loading or saving a state
+std::vector<MenuItem> generateStateMenuItems(const std::string &actionType)
+{
+    std::vector<MenuItem> stateMenuItems;
+
+    for (int i = 1; i <= numberOfStateSlots; ++i)
+    {
+        std::string slotName = getSlotName(i, actionType);
+        std::string menuTitle = "Slot" + std::to_string(i);
+
+        MenuItem menuItem = MenuItem("Are you sure?", [i, actionType](int arg)
+                                     { loadSaveSlotWrapper(arg, i, actionType); });
+        menuItem.setQuestionItem();
+        std::vector<MenuItem> slotSure = {menuItem};
+
+        Menu menuInfoSlot = Menu(menuTitle, slotSure);
+
+        stateMenuItems.push_back(MenuItem(slotName, &menuInfoSlot, fake));
+    }
+
+    return stateMenuItems;
+}
+
 #include <chrono> // Add this include for chrono functionalities
 #include <thread> // Add this include for thread sleep
 
@@ -1679,7 +1724,6 @@ int main(int argc, char *argv[])
     printf("\n");
     initConfig();
     getDeviceName(); // we need this call here (otherwise it doesnt work because the methos is called only later , this need to be refactored)
-    
 
     int c;
     int option_index = 0;
@@ -1879,80 +1923,15 @@ int main(int argc, char *argv[])
 
     // menu
 
-    MenuItem menuItem_slot1Load = MenuItem("Are you sure?", [](int arg)
-                                           { loadSaveSlotWrapper(arg, 1, "Load"); });
-    menuItem_slot1Load.setQuestionItem();
-    std::vector<MenuItem> slot1Load_sure = {menuItem_slot1Load};
+    std::vector<MenuItem> itemsLoadState= generateStateMenuItems("Load");
+    Menu menuLoadState = Menu("Load State", itemsLoadState);
 
-    Menu menuInfoSlot1Load = Menu("Slot1", slot1Load_sure);
+    // Generate menu items for saving state
+    std::vector<MenuItem> itemsSaveState = generateStateMenuItems("Save");
+    Menu menuSaveState = Menu("Save State", itemsSaveState);
 
-    MenuItem menuItem_slot2Load = MenuItem("Are you sure?", [](int arg)
-                                           { loadSaveSlotWrapper(arg, 2, "Load"); });
-    menuItem_slot2Load.setQuestionItem();
-    std::vector<MenuItem> slot2Load_sure = {menuItem_slot2Load};
-
-    Menu menuInfoSlot2Load = Menu("Slot2", slot2Load_sure);
-
-    MenuItem menuItem_slot3Load = MenuItem("Are you sure?", [](int arg)
-                                           { loadSaveSlotWrapper(arg, 3, "Load"); });
-    menuItem_slot3Load.setQuestionItem();
-    std::vector<MenuItem> slot3Load_sure = {menuItem_slot3Load};
-
-    Menu menuInfoSlot3Load = Menu("Slot3", slot3Load_sure);
-
-    std::vector<MenuItem> itemsLoadStateLoad = {
-        MenuItem([]()
-                 { return getSlotName(1, "Load"); },
-                 &menuInfoSlot1Load, fake),
-        MenuItem([]()
-                 { return getSlotName(2, "Load"); },
-                 &menuInfoSlot2Load, fake),
-        MenuItem([]()
-                 { return getSlotName(3, "Load"); },
-                 &menuInfoSlot3Load, fake)
-
-    };
-
-    Menu menuLoadState = Menu("Load State", itemsLoadStateLoad);
-
-    // save state
-
-    MenuItem menuItem_slot1Save = MenuItem("Are you sure?", [](int arg)
-                                           { loadSaveSlotWrapper(arg, 1, "Save"); });
-    menuItem_slot1Save.setQuestionItem();
-    std::vector<MenuItem> slot1Save_sure = {menuItem_slot1Save};
-
-    Menu menuInfoSlot1Save = Menu("Slot1", slot1Save_sure);
-
-    MenuItem menuItem_slot2Save = MenuItem("Are you sure?", [](int arg)
-                                           { loadSaveSlotWrapper(arg, 2, "Save"); });
-    menuItem_slot2Save.setQuestionItem();
-    std::vector<MenuItem> slot2Save_sure = {menuItem_slot2Save};
-
-    Menu menuInfoSlot2Save = Menu("Slot2", slot2Save_sure);
-
-    MenuItem menuItem_slot3Save = MenuItem("Are you sure?", [](int arg)
-                                           { loadSaveSlotWrapper(arg, 3, "Save"); });
-    menuItem_slot3Save.setQuestionItem();
-    std::vector<MenuItem> slot3Save_sure = {menuItem_slot3Save};
-
-    Menu menuInfoSlot3Save = Menu("Slot3", slot3Save_sure);
-
-    std::vector<MenuItem> itemsLoadStateSave = {
-        MenuItem([]()
-                 { return getSlotName(1, "Save"); },
-                 &menuInfoSlot1Save, fake),
-        MenuItem([]()
-                 { return getSlotName(2, "Save"); },
-                 &menuInfoSlot2Save, fake),
-        MenuItem([]()
-                 { return getSlotName(3, "Save"); },
-                 &menuInfoSlot3Save, fake)
-
-    };
-
-    Menu menuSaveState = Menu("Load State", itemsLoadStateSave);
-
+    // Main state menu
+    
     std::vector<MenuItem> itemsState = {
         MenuItem("Load state", &menuLoadState, fake),
         MenuItem("Save state", &menuSaveState, fake),
@@ -2028,7 +2007,7 @@ int main(int argc, char *argv[])
     // define Main Menu
     Menu menuInfo = Menu("Info", itemsInfo);
     std::vector<MenuItem> items;
-    if (isFlycast2021())
+    if (false)//isFlycast2021())
     {
         items = {
             MenuItem("Resume", resume),
@@ -2107,6 +2086,18 @@ int main(int argc, char *argv[])
         {
             input_reset_requested = false;
             g_retro.retro_reset();
+        }else if (input_slot_memory_load_requested){
+            loadSaveSlotWrapper(-1, currentSlot,"Load");
+            input_slot_memory_load_requested = false;
+        }else if (input_slot_memory_save_requested){
+            loadSaveSlotWrapper(-1, currentSlot,"Save");
+            input_slot_memory_save_requested=false;
+        }else if (input_slot_memory_plus_requested){
+            currentSlot= ((currentSlot)%numberOfStateSlots)+1;
+            input_slot_memory_plus_requested=false;
+        }else if (input_slot_memory_minus_requested){
+            currentSlot= ((currentSlot)%numberOfStateSlots)-1;
+            input_slot_memory_minus_requested=false;
         }
 
         auto loopEnd = high_resolution_clock::now();

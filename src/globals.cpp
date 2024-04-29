@@ -35,7 +35,7 @@ static const int DEVICE_NAME_SIZE = 1024;
 static char DEVICE_NAME[DEVICE_NAME_SIZE];
 static bool deviceInitialized = false;
 
-std::string release = "2.5.0";
+std::string release = "X.X.X";
 TateState tateState = DISABLED;
 
 RETRORUN_CORE_TYPE Retrorun_Core = RETRORUN_CORE_UNKNOWN;
@@ -84,12 +84,15 @@ int new_retrorun_audio_buffer = -1;
 int retrorun_mouse_speed_factor = 5;
 std::string retrorun_device_name;
 std::vector<CpuInfo> cpu_info_list;
+bool elable_key_log = false;
+int numberOfStateSlots = 3;
+int currentSlot = 1;
 
 float avgFps = 0;
 
 int current_volume = 0;
 
-bool firstTimeCorrectFrame=true;
+bool firstTimeCorrectFrame = true;
 
 MenuManager menuManager = MenuManager();
 
@@ -106,8 +109,8 @@ bool isFlycast()
 
 bool isFlycast2021()
 {
-    return coreName == "Flycast 2021" || 
-            (isFlycast() &&  !coreVersion.empty() && coreVersion[0] != 'v');
+    return coreName == "Flycast 2021" ||
+           (isFlycast() && !coreVersion.empty() && coreVersion[0] != 'v');
 }
 
 bool isParalleln64()
@@ -223,7 +226,6 @@ void getCpuInfo()
     logger.log(Logger::INF, "OK CPU info...");
 }
 
-
 const char *getDeviceName() noexcept
 {
 
@@ -325,27 +327,37 @@ bool checkDeviceName(char *target)
 
 bool isRG351M()
 {
-    return checkDeviceName((char *)"RG351M"); // strcmp(DEVICE_NAME, "RG351M\n") == 0;
+    return checkDeviceName((char *)"RG351M");
 }
 bool isRG351P()
 {
-    return checkDeviceName((char *)"RG351P"); // strcmp(DEVICE_NAME, "RG351P\n") == 0;
+    return checkDeviceName((char *)"RG351P");
 }
 bool isRG351V()
 {
-    return checkDeviceName((char *)"RG351V"); // strcmp(DEVICE_NAME, "RG351V\n") == 0;
+    return checkDeviceName((char *)"RG351V");
 }
 bool isRG351MP()
 {
-    return checkDeviceName((char *)"RG351MP"); // strcmp(DEVICE_NAME, "RG351MP\n") == 0;
+    return checkDeviceName((char *)"RG351MP");
 }
 bool isRG552()
 {
-    return checkDeviceName((char *)"RG552"); // strcmp(DEVICE_NAME, "RG552\n") == 0;
+    return checkDeviceName((char *)"RG552");
 }
 bool isRG503()
 {
-    return checkDeviceName((char *)"RG503"); // strcmp(DEVICE_NAME, "RG552\n") == 0;
+    return checkDeviceName((char *)"RG503");
+}
+
+bool hasScreenRotated()
+{
+    return isRG351M() || isRG351P() || isRG552();
+}
+
+bool hasWideScreen()
+{
+    return isRG351M() || isRG351P() || isRG552() || isRG503();
 }
 
 std::vector<std::string> exec(const char *cmd)

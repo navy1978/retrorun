@@ -30,6 +30,7 @@ enum STATUS_POSITION
   TOP_RIGHT,
   BUTTOM_LEFT,
   BUTTOM_RIGHT,
+  BUTTOM_CENTER,
   FULL,
 
 };
@@ -41,23 +42,27 @@ class status  {
     go2_surface_t *bottom_right;
     go2_surface_t *top_left;
     go2_surface_t *bottom_left;
+    go2_surface_t *bottom_center;
     go2_surface_t *full;
     bool show_top_right;
     bool show_bottom_right;
     bool show_top_left;
     bool show_bottom_left;
+    bool show_bottom_center;
     bool show_full;
 
     bool clean_top_right;
     bool clean_bottom_right;
     bool clean_top_left;
     bool clean_bottom_left;
+    bool clean_bottom_center;
     bool clean_full;
 
     bool last_top_right;
     bool last_bottom_right;
     bool last_top_left;
     bool last_bottom_left;
+    bool last_bottom_center;
     bool last_full;
 
 } ;

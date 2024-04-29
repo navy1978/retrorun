@@ -44,14 +44,20 @@ double lastInforequestTime = -1;
 
 double lastScreenhotrequestTime = -1;
 
+bool input_slot_memory_plus_requested = false;
+double lastSlotPlusTime = -1;
+bool input_slot_memory_minus_requested = false;
+double lastSlotMinusTime = -1;
+bool input_slot_memory_load_requested = false;
+double lastSlotLoadTime = -1;
+bool input_slot_memory_save_requested = false;
+double lastSlotSaveTime = -1;
 
 double pauseRequestTime = -1;
-
 
 struct timeval valTime;
 struct timeval exitTimeStop;
 struct timeval exitTimeStart;
-
 
 double lastR3Pressed = -1;
 double lastL3Pressed = -1;
@@ -59,8 +65,8 @@ double lastL3Pressed = -1;
 bool input_reset_requested = false;
 bool input_pause_requested = false;
 
-bool input_credits_requested= false;
-//bool input_ffwd_requested = false;
+bool input_credits_requested = false;
+// bool input_ffwd_requested = false;
 go2_battery_state_t batteryState;
 go2_brightness_state_t brightnessState;
 
@@ -69,8 +75,8 @@ static go2_input_state_t *prevGamepadState;
 static go2_input_t *input;
 static bool has_triggers = false;
 static bool has_right_analog = false;
-//static bool isTate = false;
-// static unsigned lastId = 0;
+// static bool isTate = false;
+//  static unsigned lastId = 0;
 static go2_input_button_t selectButton = Go2InputButton_F1; // hotkey is a special one
 static go2_input_button_t startButton = Go2InputButton_F6;
 static go2_input_button_t l1Button = Go2InputButton_TriggerLeft;
@@ -80,13 +86,10 @@ static go2_input_button_t r2Button = Go2InputButton_F3;
 static go2_input_button_t l3Button = Go2InputButton_F2;
 static go2_input_button_t r3Button = Go2InputButton_F5;
 bool firstExecution = true;
-bool elable_key_log = false;
 
 void input_gamepad_read()
 {
 
-    
-    
     // if the device has a gpio_joypad (RG351MP) some buttons are reverted
     if (gpio_joypad == true)
     {
@@ -103,11 +106,23 @@ void input_gamepad_read()
         if (firstExecution)
         {
             logger.log(Logger::INF, "GPIO JOYPAD: ENABLED!");
-            //firstExecution = false;
+            // firstExecution = false;
         }
     }
 
-    if (isRG503()){
+    // TO BE VERIFIED
+
+    if (isRG351V())
+    {
+        l1Button = Go2InputButton_TopLeft;
+        r1Button = Go2InputButton_TopRight;
+
+        l2Button = Go2InputButton_TriggerLeft;
+        r2Button = Go2InputButton_TriggerRight;
+    }
+
+    if (isRG503())
+    {
         selectButton = Go2InputButton_SELECT; // check if this is ok!
         startButton = Go2InputButton_START;
         l3Button = Go2InputButton_THUMBL;
@@ -116,7 +131,8 @@ void input_gamepad_read()
 
     if (!input)
     {
-        if (firstExecution){
+        if (firstExecution)
+        {
             input = go2_input_create(getDeviceName());
             firstExecution = false;
         }
@@ -150,8 +166,9 @@ go2_input_state_t *input_gampad_current_get()
     return gamepadState;
 }
 
-void manageCredits(){
-if (go2_input_state_button_get(gamepadState, Go2InputButton_B) == ButtonState_Pressed)
+void manageCredits()
+{
+    if (go2_input_state_button_get(gamepadState, Go2InputButton_B) == ButtonState_Pressed)
     {
         menuManager.handle_input_credits(B_BUTTON);
     }
@@ -191,7 +208,6 @@ void manageMenu()
     // mutexInput.unlock();
 }
 
-
 void core_input_poll(void)
 {
 
@@ -205,7 +221,7 @@ void core_input_poll(void)
     go2_input_battery_read(input, &batteryState);
     go2_input_brightness_read(input, &brightnessState);
     gettimeofday(&exitTimeStop, NULL);
-    //double now = exitTime.tv_sec + (exitTime.tv_usec / 1000000.0);
+    // double now = exitTime.tv_sec + (exitTime.tv_usec / 1000000.0);
     double now_seconds = (exitTimeStop.tv_sec - exitTimeStart.tv_sec);
     double now_milliseconds = ((double)(exitTimeStop.tv_usec - exitTimeStart.tv_usec)) / 1000000.0;
     // double elapsed_time_ms = now - lastExitTime;
@@ -246,17 +262,17 @@ void core_input_poll(void)
             printf("input: F6.\n");
         }
 
-         if (go2_input_state_button_get(gamepadState, Go2InputButton_F7) == ButtonState_Pressed)
+        if (go2_input_state_button_get(gamepadState, Go2InputButton_F7) == ButtonState_Pressed)
         {
             printf("input: F7.\n");
         }
 
-         if (go2_input_state_button_get(gamepadState, Go2InputButton_F8) == ButtonState_Pressed)
+        if (go2_input_state_button_get(gamepadState, Go2InputButton_F8) == ButtonState_Pressed)
         {
             printf("input: F8.\n");
         }
 
-         if (go2_input_state_button_get(gamepadState, Go2InputButton_F9) == ButtonState_Pressed)
+        if (go2_input_state_button_get(gamepadState, Go2InputButton_F9) == ButtonState_Pressed)
         {
             printf("input: F9.\n");
         }
@@ -296,8 +312,7 @@ void core_input_poll(void)
             printf("input: F16.\n");
         }
 
-
-         if (go2_input_state_button_get(gamepadState, Go2InputButton_SELECT) == ButtonState_Pressed)
+        if (go2_input_state_button_get(gamepadState, Go2InputButton_SELECT) == ButtonState_Pressed)
         {
             printf("input: SELECT.\n");
         }
@@ -306,7 +321,6 @@ void core_input_poll(void)
         {
             printf("input: START.\n");
         }
-
 
         if (go2_input_state_button_get(gamepadState, Go2InputButton_THUMBR) == ButtonState_Pressed)
         {
@@ -317,9 +331,6 @@ void core_input_poll(void)
         {
             printf("input: THUMBR.\n");
         }
-
-
-        
 
         if (go2_input_state_button_get(gamepadState, Go2InputButton_A) == ButtonState_Pressed)
         {
@@ -382,19 +393,16 @@ void core_input_poll(void)
         }
     }
 
-
-
-
     // if we are in the menu info we have to manage the input for that
-    if (input_credits_requested) {
-        manageCredits();
-    }else
-    if (input_info_requested)
+    if (input_credits_requested)
     {
-          // Release the lock before calling manageMenu()
-            // lock.unlock();
-            manageMenu();
-       
+        manageCredits();
+    }
+    else if (input_info_requested)
+    {
+        // Release the lock before calling manageMenu()
+        // lock.unlock();
+        manageMenu();
     }
 
     if (!input_info_requested && go2_input_state_button_get(gamepadState, selectButton) == ButtonState_Pressed &&
@@ -451,9 +459,72 @@ void core_input_poll(void)
         lastR3Pressed = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
     }*/
 
-  
+    if ((go2_input_state_button_get(gamepadState, selectButton) == ButtonState_Pressed) &&
+        (go2_input_state_button_get(gamepadState, r1Button) == ButtonState_Pressed))
+    {
+        
+        gettimeofday(&valTime, NULL);
+        double currentTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
+        double elapsed = currentTime - lastSlotSaveTime;
+        if (elapsed >= 0.5)
+        {
+            input_slot_memory_save_requested = true;
+            // printf("pause_requested:%s input_info_requested:%s\n", pause_requested? "true": "false", input_info_requested? "true": "false");
+            lastSlotSaveTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
+            logger.log(Logger::DEB, "Input: We need to save the state\n");
+        }  
+    }
 
-    if ( (go2_input_state_button_get(gamepadState, l3Button) == ButtonState_Pressed /*|| (currentTime - lastL3Pressed <=0.2)*/)&&
+    if ((go2_input_state_button_get(gamepadState, selectButton) == ButtonState_Pressed) &&
+        (go2_input_state_button_get(gamepadState, Go2InputButton_DPadUp) == ButtonState_Pressed))
+    {
+
+        gettimeofday(&valTime, NULL);
+        double currentTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
+        double elapsed = currentTime - lastSlotPlusTime;
+        if (elapsed >= 0.5)
+        {
+            input_slot_memory_plus_requested = true;
+            // printf("pause_requested:%s input_info_requested:%s\n", pause_requested? "true": "false", input_info_requested? "true": "false");
+            lastSlotPlusTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
+            logger.log(Logger::DEB, "Input: We need to switch the slot to +1\n");
+        }  
+        
+    }
+
+    if ((go2_input_state_button_get(gamepadState, selectButton) == ButtonState_Pressed) &&
+        (go2_input_state_button_get(gamepadState, Go2InputButton_DPadDown) == ButtonState_Pressed))
+    {
+        
+        gettimeofday(&valTime, NULL);
+        double currentTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
+        double elapsed = currentTime - lastSlotPlusTime;
+        if (elapsed >= 0.5)
+        {
+            input_slot_memory_minus_requested = true;
+            // printf("pause_requested:%s input_info_requested:%s\n", pause_requested? "true": "false", input_info_requested? "true": "false");
+            lastSlotPlusTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
+            logger.log(Logger::DEB, "Input: We need to switch the slot to -1\n");
+        } 
+    }
+
+    if ((go2_input_state_button_get(gamepadState, selectButton) == ButtonState_Pressed) &&
+        (go2_input_state_button_get(gamepadState, l1Button) == ButtonState_Pressed))
+    {
+        
+        gettimeofday(&valTime, NULL);
+        double currentTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
+        double elapsed = currentTime - lastSlotPlusTime;
+        if (elapsed >= 0.5)
+        {
+            input_slot_memory_load_requested = true;
+            // printf("pause_requested:%s input_info_requested:%s\n", pause_requested? "true": "false", input_info_requested? "true": "false");
+            lastSlotPlusTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
+            logger.log(Logger::DEB, "Input: We need to load\n");
+        } 
+    }
+
+    if ((go2_input_state_button_get(gamepadState, l3Button) == ButtonState_Pressed /*|| (currentTime - lastL3Pressed <=0.2)*/) &&
         (go2_input_state_button_get(gamepadState, r3Button) == ButtonState_Pressed /*|| (currentTime - lastR3Pressed <=0.2)*/))
     {
         gettimeofday(&valTime, NULL);
@@ -464,18 +535,18 @@ void core_input_poll(void)
         {
             input_info_requested = !input_info_requested;
             pause_requested = input_info_requested;
-            input_credits_requested=false;
+            input_credits_requested = false;
             // printf("pause_requested:%s input_info_requested:%s\n", pause_requested? "true": "false", input_info_requested? "true": "false");
-            lastInforequestTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);    
+            lastInforequestTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
             logger.log(Logger::DEB, "Input: Info requested OK");
-        }else{
-          //  printf("input: Info requested NOT OK (too quick)\n");
-          
-          
-          /*input_info_requested = false;
-            pause_requested = false;*/
         }
-        
+        else
+        {
+            //  printf("input: Info requested NOT OK (too quick)\n");
+
+            /*input_info_requested = false;
+              pause_requested = false;*/
+        }
     }
 
     if (!input_info_requested && go2_input_state_button_get(gamepadState, selectButton) == ButtonState_Pressed &&
@@ -487,149 +558,176 @@ void core_input_poll(void)
         logger.log(Logger::DEB, "Input: Screenshot requested");
     }
 
-     if ( (go2_input_state_button_get(gamepadState, selectButton) == ButtonState_Pressed /*|| (currentTime - lastL3Pressed <=0.2)*/)&&
+    if ((go2_input_state_button_get(gamepadState, selectButton) == ButtonState_Pressed /*|| (currentTime - lastL3Pressed <=0.2)*/) &&
         (go2_input_state_button_get(gamepadState, Go2InputButton_A) == ButtonState_Pressed /*|| (currentTime - lastR3Pressed <=0.2)*/))
     {
         gettimeofday(&valTime, NULL);
         double currentTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
         double elapsed = currentTime - pauseRequestTime;
-        
+
         if (elapsed >= 0.5)
         {
             logger.log(Logger::DEB, "Input: Pause requested");
             input_pause_requested = !input_pause_requested;
-            if (!input_pause_requested){
+            if (!input_pause_requested)
+            {
                 pause_requested = false;
             }
             logger.log(Logger::DEB, "Input: %s", input_pause_requested ? "Paused" : "Un-paused");
             pauseRequestTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
-        }else{
-           // printf("input: pause requested NOT OK (too quick)\n");
         }
-        
+        else
+        {
+            // printf("input: pause requested NOT OK (too quick)\n");
+        }
     }
-
-
-
-
 
     if (!input_info_requested && go2_input_state_button_get(gamepadState, Go2InputButton_F1) == ButtonState_Pressed)
     {
         if (go2_input_state_button_get(gamepadState, r2Button) == ButtonState_Pressed &&
             go2_input_state_button_get(prevGamepadState, r2Button) == ButtonState_Released)
-       {
+        {
             input_ffwd_requested = !input_ffwd_requested;
             logger.log(Logger::DEB, "Input: Fast-forward %s", input_ffwd_requested ? "on" : "off");
         }
-        
     }
 }
 
-
-go2_button_state_t getInputUp(){
-    if (!isTate()){
-       return  go2_input_state_button_get(gamepadState, Go2InputButton_DPadUp);
+go2_button_state_t getInputUp()
+{
+    if (!isTate())
+    {
+        return go2_input_state_button_get(gamepadState, Go2InputButton_DPadUp);
     }
-    if (tateState== REVERSED){
+    if (tateState == REVERSED)
+    {
         return go2_input_state_button_get(gamepadState, Go2InputButton_DPadRight);
-    }else{
+    }
+    else
+    {
         return go2_input_state_button_get(gamepadState, Go2InputButton_DPadLeft);
     }
 }
 
-go2_button_state_t getInputDown(){
-    if (!isTate()){
-       return  go2_input_state_button_get(gamepadState, Go2InputButton_DPadDown);
+go2_button_state_t getInputDown()
+{
+    if (!isTate())
+    {
+        return go2_input_state_button_get(gamepadState, Go2InputButton_DPadDown);
     }
-    if (tateState== REVERSED){
+    if (tateState == REVERSED)
+    {
         return go2_input_state_button_get(gamepadState, Go2InputButton_DPadLeft);
-    }else{
+    }
+    else
+    {
         return go2_input_state_button_get(gamepadState, Go2InputButton_DPadRight);
     }
 }
 
-
-go2_button_state_t getInputLeft(){
-    if (!isTate()){
-       return  go2_input_state_button_get(gamepadState, Go2InputButton_DPadLeft);
+go2_button_state_t getInputLeft()
+{
+    if (!isTate())
+    {
+        return go2_input_state_button_get(gamepadState, Go2InputButton_DPadLeft);
     }
-    if (tateState== REVERSED){
+    if (tateState == REVERSED)
+    {
         return go2_input_state_button_get(gamepadState, Go2InputButton_DPadUp);
-    }else{
+    }
+    else
+    {
         return go2_input_state_button_get(gamepadState, Go2InputButton_DPadDown);
     }
 }
 
-go2_button_state_t getInputRight(){
-    if (!isTate()){
-       return  go2_input_state_button_get(gamepadState, Go2InputButton_DPadRight);
+go2_button_state_t getInputRight()
+{
+    if (!isTate())
+    {
+        return go2_input_state_button_get(gamepadState, Go2InputButton_DPadRight);
     }
-    if (tateState== REVERSED){
+    if (tateState == REVERSED)
+    {
         return go2_input_state_button_get(gamepadState, Go2InputButton_DPadDown);
-    }else{
+    }
+    else
+    {
         return go2_input_state_button_get(gamepadState, Go2InputButton_DPadUp);
     }
 }
 
-go2_button_state_t getInputA(){
-    if (!isTate()){
-       return go2_input_state_button_get(gamepadState, Go2InputButton_A);
+go2_button_state_t getInputA()
+{
+    if (!isTate())
+    {
+        return go2_input_state_button_get(gamepadState, Go2InputButton_A);
     }
-    if (tateState== REVERSED){
+    if (tateState == REVERSED)
+    {
         return go2_input_state_button_get(gamepadState, Go2InputButton_B);
-    }else{
+    }
+    else
+    {
         return go2_input_state_button_get(gamepadState, Go2InputButton_X);
     }
 }
 
-go2_button_state_t getInputB(){
-    if (!isTate()){
-       return go2_input_state_button_get(gamepadState, Go2InputButton_B);
+go2_button_state_t getInputB()
+{
+    if (!isTate())
+    {
+        return go2_input_state_button_get(gamepadState, Go2InputButton_B);
     }
-    if (tateState== REVERSED){
+    if (tateState == REVERSED)
+    {
         return go2_input_state_button_get(gamepadState, Go2InputButton_Y);
-    }else{
+    }
+    else
+    {
         return go2_input_state_button_get(gamepadState, Go2InputButton_A);
     }
 }
 
-go2_button_state_t getInputX(){
-    if (!isTate()){
-       return go2_input_state_button_get(gamepadState, Go2InputButton_X);
-    }
-    if (tateState== REVERSED){
-        return go2_input_state_button_get(gamepadState, Go2InputButton_A);
-    }else{
-        return go2_input_state_button_get(gamepadState, Go2InputButton_Y);
-    }
-}
-
-go2_button_state_t getInputY(){
-    if (!isTate()){
-       return go2_input_state_button_get(gamepadState, Go2InputButton_Y);
-    }
-    if (tateState== REVERSED){
+go2_button_state_t getInputX()
+{
+    if (!isTate())
+    {
         return go2_input_state_button_get(gamepadState, Go2InputButton_X);
-    }else{
+    }
+    if (tateState == REVERSED)
+    {
+        return go2_input_state_button_get(gamepadState, Go2InputButton_A);
+    }
+    else
+    {
+        return go2_input_state_button_get(gamepadState, Go2InputButton_Y);
+    }
+}
+
+go2_button_state_t getInputY()
+{
+    if (!isTate())
+    {
+        return go2_input_state_button_get(gamepadState, Go2InputButton_Y);
+    }
+    if (tateState == REVERSED)
+    {
+        return go2_input_state_button_get(gamepadState, Go2InputButton_X);
+    }
+    else
+    {
         return go2_input_state_button_get(gamepadState, Go2InputButton_B);
     }
 }
-
-
-
-
-
-
-
 
 int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigned id)
 {
 
+    go2_input_button_t realL1 = gpio_joypad ? l1Button : Go2InputButton_TopLeft;
+    go2_input_button_t realR1 = gpio_joypad ? r1Button : Go2InputButton_TopRight;
+    // for set we dont need to take care of tate mode
 
-    go2_input_button_t realL1 =  gpio_joypad ? l1Button : Go2InputButton_TopLeft;
-    go2_input_button_t realR1 = gpio_joypad ? r1Button : Go2InputButton_TopRight ;
-// for set we dont need to take care of tate mode
-    
     if (force_left_analog_stick)
     {
         // Map thumbstick to dpad (force to enable the left analog stick mapping to it the DPAD)
@@ -646,7 +744,6 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
             go2_input_state_button_set(gamepadState, Go2InputButton_DPadRight, ButtonState_Pressed);
     }
 
-
     if (Retrorun_Core == RETRORUN_CORE_PARALLEL_N64) // C buttons
     {
 
@@ -658,23 +755,23 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
             go2_input_state_button_set(gamepadState, r2Button, ButtonState_Pressed);
             go2_input_state_button_set(gamepadState, Go2InputButton_X, ButtonState_Pressed);
         }
-        if (thumb.y > TRIM) //DOWN
+        if (thumb.y > TRIM) // DOWN
         {
             go2_input_state_button_set(gamepadState, r2Button, ButtonState_Pressed);
             go2_input_state_button_set(gamepadState, Go2InputButton_B, ButtonState_Pressed);
         }
-        if (thumb.x < -TRIM)//LEFT
+        if (thumb.x < -TRIM) // LEFT
         {
             go2_input_state_button_set(gamepadState, r2Button, ButtonState_Pressed);
             go2_input_state_button_set(gamepadState, Go2InputButton_Y, ButtonState_Pressed);
         }
-        if (thumb.x > TRIM)// RIGHT
+        if (thumb.x > TRIM) // RIGHT
         {
             go2_input_state_button_set(gamepadState, r2Button, ButtonState_Pressed);
             go2_input_state_button_set(gamepadState, Go2InputButton_A, ButtonState_Pressed);
         }
         thumb.x = 0;
-        thumb.y = 0;    
+        thumb.y = 0;
     }
 
     /*else if (isTate())
@@ -712,43 +809,34 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
 #define RETRO_DEVICE_ID_JOYPAD_R3      15
 */
 
-
-
     if (port == 0)
     {
-        
-        
+
         // manage mouse ( for certain cores like dosbox)
         if (device == RETRO_DEVICE_MOUSE)
         {
-         
-            go2_thumb_t thumb = go2_input_state_thumbstick_get(gamepadState, Go2InputThumbstick_Right);
 
-          
+            go2_thumb_t thumb = go2_input_state_thumbstick_get(gamepadState, Go2InputThumbstick_Right);
 
             switch (id)
             {
             case RETRO_DEVICE_ID_ANALOG_X:
-                return thumb.x *retrorun_mouse_speed_factor;
+                return thumb.x * retrorun_mouse_speed_factor;
                 break;
 
             case RETRO_DEVICE_ID_JOYPAD_Y:
-                return thumb.y *retrorun_mouse_speed_factor;
+                return thumb.y * retrorun_mouse_speed_factor;
                 break;
 
             default:
                 return 0;
                 break;
             }
-
         }
-        
-        
+
         if (device == RETRO_DEVICE_JOYPAD)
         {
 
-            
-            
             /*if (isTate)
             {
                 // remap buttons
@@ -775,10 +863,10 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
                     break;
                 }
             }*/
-            //printf("ID: %u\n", id);
+            // printf("ID: %u\n", id);
             switch (id)
             {
-                
+
             case RETRO_DEVICE_ID_JOYPAD_SELECT:
                 return go2_input_state_button_get(gamepadState, selectButton);
                 break;
@@ -808,17 +896,17 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
                 break;
             case RETRO_DEVICE_ID_JOYPAD_B:
                 return getInputB();
-                break;    
+                break;
 
             case RETRO_DEVICE_ID_JOYPAD_X:
                 return getInputX();
                 break;
             case RETRO_DEVICE_ID_JOYPAD_Y:
                 return getInputY();
-                break;    
+                break;
 
             case RETRO_DEVICE_ID_JOYPAD_L:
-                return go2_input_state_button_get(gamepadState,swapL1R1WithL2R2 ? l2Button: realL1);
+                return go2_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? l2Button : realL1);
                 break;
             case RETRO_DEVICE_ID_JOYPAD_R:
                 return go2_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? r2Button : realR1);
@@ -829,7 +917,7 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
                 break;
 
             case RETRO_DEVICE_ID_JOYPAD_R2:
-                return go2_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? realR1: r2Button);
+                return go2_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? realR1 : r2Button);
                 break;
             case RETRO_DEVICE_ID_JOYPAD_L3:
                 return go2_input_state_button_get(gamepadState, l3Button);
@@ -837,8 +925,7 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
 
             case RETRO_DEVICE_ID_JOYPAD_R3:
                 return go2_input_state_button_get(gamepadState, r3Button);
-                break;    
-                
+                break;
 
             default:
                 return 0;
@@ -846,11 +933,7 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
             }
         }
 
-
-
-        else if (!force_left_analog_stick 
-        && device == RETRO_DEVICE_ANALOG 
-        && (index == RETRO_DEVICE_INDEX_ANALOG_LEFT || RETRO_DEVICE_INDEX_ANALOG_RIGHT)) 
+        else if (!force_left_analog_stick && device == RETRO_DEVICE_ANALOG && (index == RETRO_DEVICE_INDEX_ANALOG_LEFT || RETRO_DEVICE_INDEX_ANALOG_RIGHT))
         {
 
             if (swapSticks)
@@ -866,10 +949,13 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
             }
 
             go2_thumb_t thumb;
-            //go2_thumb_t thumb2;
-            if (index == RETRO_DEVICE_INDEX_ANALOG_LEFT ){
-            thumb = go2_input_state_thumbstick_get(gamepadState, Go2InputThumbstick_Left);
-            }else{
+            // go2_thumb_t thumb2;
+            if (index == RETRO_DEVICE_INDEX_ANALOG_LEFT)
+            {
+                thumb = go2_input_state_thumbstick_get(gamepadState, Go2InputThumbstick_Left);
+            }
+            else
+            {
                 thumb = go2_input_state_thumbstick_get(gamepadState, Go2InputThumbstick_Right);
             }
 
@@ -883,51 +969,61 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
             else if (thumb.y < -1.0f)
                 thumb.y = -1.0f;
 
-    if (!isTate()){
-        // in normal mode we invert the up down of the analog stick 
-        // to align this to retroarch
-        thumb.y = thumb.y * -1.0f; 
-    }
-    if (tateState== REVERSED){
-        
-        
-        thumb.x = thumb.x * 1.0f;
-        thumb.y = thumb.y * -1.0f;
-    }else{
-        thumb.x = thumb.x * 1.0f;
-        thumb.y = thumb.y * -1.0f;
-    }
+            if (!isTate())
+            {
+                // in normal mode we invert the up down of the analog stick
+                // to align this to retroarch
+                thumb.y = thumb.y * -1.0f;
+            }
+            if (tateState == REVERSED)
+            {
 
-// Prevent optimization
-//asm volatile("" ::: "memory");
+                thumb.x = thumb.x * 1.0f;
+                thumb.y = thumb.y * -1.0f;
+            }
+            else
+            {
+                thumb.x = thumb.x * 1.0f;
+                thumb.y = thumb.y * -1.0f;
+            }
 
-//printf("thumb.x %f\n", thumb.x);
-//printf("thumb.y %f\n", thumb.y);
-           
+            // Prevent optimization
+            // asm volatile("" ::: "memory");
+
+            // printf("thumb.x %f\n", thumb.x);
+            // printf("thumb.y %f\n", thumb.y);
 
             switch (id)
             {
             case RETRO_DEVICE_ID_ANALOG_X:
-                if (!isTate()){
+                if (!isTate())
+                {
                     return thumb.x * 0x7fff;
                 }
-                if (tateState== REVERSED){ // TODO: review this
+                if (tateState == REVERSED)
+                { // TODO: review this
                     return -1 * thumb.y * 0x7fff;
-                }else{
-                    return  thumb.y * 0x7fff;
                 }
-                
+                else
+                {
+                    return thumb.y * 0x7fff;
+                }
+
                 break;
 
             case RETRO_DEVICE_ID_ANALOG_Y:
-                
-                if (!isTate()){
+
+                if (!isTate())
+                {
                     return thumb.y * 0x7fff;
                 }
-                if (tateState== REVERSED){ // TODO : review this
+                if (tateState == REVERSED)
+                { // TODO : review this
                     return -1 * thumb.x * 0x7fff;
-                }else{
-                    return  thumb.x * 0x7fff;
+                }
+                else
+                {
+                    return thumb.x * 0x7fff;
                 }
                 break;
 

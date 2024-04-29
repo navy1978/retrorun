@@ -188,4 +188,7 @@ extern MenuManager menuManager;
 extern int current_volume;
 extern std::string retrorun_device_name;
 extern bool firstTimeCorrectFrame;
+extern bool elable_key_log;
+extern int numberOfStateSlots;
+extern int currentSlot;
 

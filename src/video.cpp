@@ -69,6 +69,7 @@ go2_display_t *display;
 go2_surface_t *surface;
 go2_surface_t *status_surface_bottom_right = NULL;
 go2_surface_t *status_surface_bottom_left = NULL;
+go2_surface_t *status_surface_bottom_center = NULL;
 go2_surface_t *status_surface_top_right = NULL;
 go2_surface_t *status_surface_top_left = NULL;
 go2_surface_t *status_surface_full = NULL;
@@ -141,7 +142,7 @@ uint32_t format_565 = DRM_FORMAT_RGB565; // DRM_FORMAT_RGB888; // DRM_FORMAT_XRG
 
 go2_rotation getBlitRotation()
 {
-    
+
     if (isGameVertical) // portrait
     {
         if (!isTate())
@@ -292,7 +293,7 @@ void video_configure(struct retro_game_geometry *geom)
         geom->max_width = 480;
     }
 
-    if (isRG503())
+    if (isRG503() && !isDuckStation())
     {
         /*geom->base_height = 544;
         geom->base_width = 960;
@@ -301,7 +302,9 @@ void video_configure(struct retro_game_geometry *geom)
         display = go2_display_create();
         display_width = go2_display_width_get(display);
         display_height = go2_display_height_get(display);
-    }else {
+    }
+    else
+    {
         display = go2_display_create();
         display_width = go2_display_height_get(display);
         display_height = go2_display_width_get(display);
@@ -480,6 +483,8 @@ void video_deinit()
         go2_surface_destroy(status_surface_bottom_right);
     if (status_surface_bottom_left != NULL)
         go2_surface_destroy(status_surface_bottom_left);
+    if (status_surface_bottom_center != NULL)
+        go2_surface_destroy(status_surface_bottom_center);
     if (status_surface_top_right != NULL)
         go2_surface_destroy(status_surface_top_right);
     if (status_surface_top_left != NULL)
@@ -579,37 +584,44 @@ inline void showLongCenteredText(int y, const char *text, unsigned short color, 
 {
     static int offset = 0;
     static bool direction_forward = true;
-    
+
     std::string title(text); // The text to scroll
     int title_length = title.length();
 
     // Calculate the total width of the text
     int total_text_width = title_length * 8;
 
-    if (total_text_width > INFO_MENU_WIDTH) {
+    if (total_text_width > INFO_MENU_WIDTH)
+    {
         // we add some extra spaces to make it more readable
         title = " " + title + " ";
         title_length = title.length();
         total_text_width = title_length * 8;
 
         // Text exceeds display width, so scroll it
-        if (direction_forward) {
+        if (direction_forward)
+        {
             offset += PIXELS_PER_FRAME; // Scroll to the left
-            if (offset >= total_text_width - INFO_MENU_WIDTH) {
+            if (offset >= total_text_width - INFO_MENU_WIDTH)
+            {
                 offset = total_text_width - INFO_MENU_WIDTH; // Reverse direction
                 direction_forward = false;
             }
-        } else {
+        }
+        else
+        {
             offset -= PIXELS_PER_FRAME; // Scroll to the right
-            if (offset <= 0) {
-                offset = 0; // Reset offset to start from the left
+            if (offset <= 0)
+            {
+                offset = 0;               // Reset offset to start from the left
                 direction_forward = true; // Reverse direction
             }
         }
 
         // Calculate the starting index of the truncated text
         int start_index = offset / 8;
-        if (start_index < 0) {
+        if (start_index < 0)
+        {
             start_index = 0;
         }
 
@@ -625,24 +637,13 @@ inline void showLongCenteredText(int y, const char *text, unsigned short color, 
 
         // Show the truncated text at the calculated x position
         showText(x, y, truncated_text.c_str(), color, surface);
-    } else {
+    }
+    else
+    {
         // Text fits within display width, so display it centered
         showText(INFO_MENU_WIDTH / 2 - total_text_width / 2, y, title.c_str(), color, surface);
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 inline void drawCreditLine(int y, const char *text, unsigned short color, go2_surface_t **surface)
 {
@@ -817,7 +818,7 @@ inline void showInfo(int w, go2_surface_t **surface)
             showInfoGame(w, surface, posX);
         }
 
-        else if (mi.isQuit()|| mi.isQuestion())
+        else if (mi.isQuit() || mi.isQuestion())
         {
             showCenteredText(getRowForText(), (tabSpaces + mi.get_name() + ": < " + mi.getValues()[mi.getValue()] + " >").c_str(), mi.isSelected() ? WHITE : DARKGREY, surface);
         }
@@ -936,7 +937,7 @@ inline void showFPSImage()
 {
     int x = getWidthFPS() - (numbers.width * 2); // depends on the width of the image
     int y = 0;
-    int capFps = fps>99 ? 99: fps;
+    int capFps = fps > 99 ? 99 : fps;
     showNumberSprite(x, y, getDigit(capFps, 2), numbers.width, numbers.height, numbers.pixel_data);
     showNumberSprite(x + numbers.width, y, getDigit(capFps, 1), numbers.width, numbers.height, numbers.pixel_data);
 }
@@ -1207,7 +1208,7 @@ inline void makeScreenBlack_old(go2_surface_t *go2_surface, int res_width, int r
 void prepareScreen(int width, int height)
 {
 
-    bool wideScreenNotRotated= isRG503();
+    bool wideScreenNotRotated = isRG503();
     screen_aspect_ratio = (float)go2_display_height_get(display) / (float)go2_display_width_get(display);
     if (isDuckStation())
     {
@@ -1222,6 +1223,15 @@ void prepareScreen(int width, int height)
             h = w * 4 / 3;
             y = (temp - h) / 2;
             x = 0;
+        }
+        else if (isRG503())
+        {
+            // some cores even is they are on RG503 make this iswideScreen to be false
+            // because they revet width with height
+            int temp = w;
+            w = h * 4 / 3;
+            x = (temp - w) / 2;
+            y = 0;
         }
         return;
     }
@@ -1266,22 +1276,24 @@ void prepareScreen(int width, int height)
                 {
                     logger.log(Logger::DEB, "aspect_ratio > screen_aspect_ratio");
                     h = go2_display_height_get(display);
-                    if (wideScreenNotRotated){
+                    if (wideScreenNotRotated)
+                    {
                         w = h * aspect_ratio;
-                    }else{
+                    }
+                    else
+                    {
                         w = h / aspect_ratio;
                     }
                     w = (w > go2_display_width_get(display)) ? go2_display_width_get(display) : w;
                     x = (go2_display_width_get(display) / 2) - (w / 2);
                     y = 0;
-                    
                 }
             }
         }
         else
         {
             logger.log(Logger::DEB, "screen is NOT widescreen");
-            
+
             screen_aspect_ratio = 1 / screen_aspect_ratio; // screen is rotated
 
             if (cmpf(aspect_ratio, screen_aspect_ratio))
@@ -1548,9 +1560,43 @@ bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
     }
     checkPaused();
 
-    if (showStatus)
+    if (input_slot_memory_load_requested ||
+        input_slot_memory_save_requested ||
+        input_slot_memory_plus_requested ||
+        input_slot_memory_minus_requested)
     {
 
+        if (status_surface_bottom_center == nullptr)
+        {
+            status_surface_bottom_center = go2_surface_create(display, 200, 100, format_565);
+        }
+        showStatus = true;
+        status_obj->show_bottom_center = true;
+
+        if (input_slot_memory_load_requested)
+        {
+            showText(0, 0, " Test ", ORANGE, &status_surface_bottom_center);
+        }
+        else if (input_slot_memory_save_requested)
+        {
+            showText(0, 0 ," Test ", ORANGE, &status_surface_bottom_center);
+        }
+        else if (input_slot_memory_plus_requested)
+        {
+            showText(0, 0 ," Test ", ORANGE, &status_surface_bottom_center);
+        }
+        else if (input_slot_memory_minus_requested)
+        {
+            showText(0, 0 ," Test ", ORANGE, &status_surface_bottom_center);
+        }
+    }
+
+    if (showStatus)
+    {
+        if (status_surface_bottom_center != nullptr)
+        {
+            status_obj->bottom_center = status_surface_bottom_center;
+        }
         if (status_surface_bottom_left != nullptr)
         {
             status_obj->bottom_left = status_surface_bottom_left;
@@ -1599,6 +1645,7 @@ bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
                                         getRotation(), getBlitRotation(), isWideScreen);
         }
     }
+
     return showStatus;
 }
 
@@ -1613,10 +1660,13 @@ inline void core_video_refresh_NON_OPENGL(const void *data, unsigned width, unsi
             core_input_poll();
             return;
         }
-    }else{
-        if (firstTimeCorrectFrame){
+    }
+    else
+    {
+        if (firstTimeCorrectFrame)
+        {
             logger.log(Logger::DEB, "Loading finished!");
-            firstTimeCorrectFrame=false;
+            firstTimeCorrectFrame = false;
         }
     }
     gs_w = go2_surface_width_get(surface);
@@ -1646,10 +1696,13 @@ inline void core_video_refresh_OPENGL(const void *data, unsigned width, unsigned
             core_input_poll();
             return;
         }
-    }else{
-        if (firstTimeCorrectFrame){
+    }
+    else
+    {
+        if (firstTimeCorrectFrame)
+        {
             logger.log(Logger::DEB, "Loading finished!");
-            firstTimeCorrectFrame=false;
+            firstTimeCorrectFrame = false;
         }
     }
 

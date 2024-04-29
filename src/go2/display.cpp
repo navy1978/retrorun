@@ -1134,6 +1134,11 @@ void blit_surface_status(go2_presenter_t *presenter, go2_surface_t *source_surfa
             dest_x = max_width - dest_width_scaled;
             dest_y = max_height - dest_height_scaled;
         }
+        else if (position == BUTTOM_CENTER)
+        {
+            dest_x = max_width - dest_width_scaled;
+            dest_y = max_height - dest_height_scaled;
+        }
         else if (position == TOP_RIGHT)
         {
             dest_x = max_width - dest_width_scaled;
@@ -1177,6 +1182,12 @@ void blit_surface_status(go2_presenter_t *presenter, go2_surface_t *source_surfa
             dest_x = max_width - dest_width_scaled + (scarto_w / 2);
             dest_y = coor_y_0;
         }
+
+        else if (position == BUTTOM_CENTER)
+        {
+            dest_x = max_width - dest_width_scaled + (scarto_w / 2);
+            dest_y = coor_y_0;
+        }
         else if (position == TOP_RIGHT)
         {
             dest_x = coor_x_0;
@@ -1200,120 +1211,6 @@ void blit_surface_status(go2_presenter_t *presenter, go2_surface_t *source_surfa
     if (source_surface != nullptr)
     {
         go2_surface_blit(source_surface, 0, 0, source_surface->width, source_surface->height, dest_surface, dest_x, dest_y, dest_width_scaled, dest_height_scaled, rotation);
-    }
-}
-
-void blit_surface_status2(go2_presenter_t *presenter, go2_surface_t *surface, go2_surface_t *dstSurface, int dstWidth, int dstHeight, go2_rotation_t rotation, STATUS_POSITION position)
-{
-    // printf("PRESENTER DISPLAY  width: %d height:%d \n", presenter->display->width, presenter->display->height);
-    //  go2_surface_blit(surface2, 0, 0, surface2->width, surface2->height, dstSurface, 320-49, 480-152, 49, 152, rotation);
-
-    // the dimension of the surfaces are done based on 351P so 480x320
-    int dest2X = 0;
-    int dest2Y = 0;
-    int dest2Width = surface->width;   //*presenter->display->width/480;
-    int dest2Height = surface->height; //*presenter->display->height/320;
-
-    int max_width = presenter->display->width;
-    int max_height = presenter->display->height;
-
-    if (isRG351V() || isRG351MP()|| isRG503())
-    { // rotation == GO2_ROTATION_DEGREES_0){
-
-        dest2Width = surface->width * (max_width / 480);
-        dest2Height = surface->height * (max_height / 320);
-        // we double the size since it's too small
-        dest2Width *= 1.5;
-        dest2Height *= 1.5;
-
-        // printf("rotation 0\n");
-
-        if (position == BUTTOM_LEFT)
-        {
-
-            dest2X = 0;
-            dest2Y = max_height - dest2Height;
-        }
-        else if (position == BUTTOM_RIGHT)
-        {
-            dest2X = max_width - dest2Width; // 320-49;//presenter->display->height;
-            dest2Y = max_height - dest2Height;
-        }
-        else if (position == TOP_RIGHT)
-        {
-            dest2X = max_width - dest2Width;
-            dest2Y = 0;
-
-            /*dest2X = 0;
-            dest2Y = 0;*/
-        }
-        else if (position == TOP_LEFT)
-        {
-            dest2X = 0;
-            dest2Y = 0; // presenter->display->height-dest2Height;
-        }
-        else if (position == FULL)
-        {
-            dest2X = 0;
-            dest2Y = 0;
-            dest2Width = max_width;
-            dest2Height = max_height;
-        }
-
-    } /*else if (rotation == GO2_ROTATION_DEGREES_90){
-         printf("rotation 90\n");
-     }else if (rotation == GO2_ROTATION_DEGREES_180){
-         printf("rotation 180\n");
-     }*/
-    else if (isRG351P() || isRG351M() || isRG552())
-    { //(rotation == GO2_ROTATION_DEGREES_270){
-        // printf("rotation 270\n");
-
-        dest2Width = surface->height * (presenter->display->height / 480);
-        dest2Height = surface->width * (presenter->display->width / 320);
-
-        if (position == BUTTOM_LEFT)
-        {
-
-            dest2X = presenter->display->width - dest2Width;
-            dest2Y = presenter->display->height - dest2Height;
-        }
-        else if (position == BUTTOM_RIGHT)
-        {
-            dest2X = presenter->display->width - dest2Width; // 320-49;//presenter->display->height;
-            dest2Y = 0;
-        }
-        else if (position == TOP_RIGHT)
-        {
-            dest2X = 0;
-            dest2Y = 0;
-        }
-        else if (position == TOP_LEFT)
-        {
-            dest2X = 0;
-            dest2Y = presenter->display->height - dest2Height;
-        }
-        else if (position == FULL)
-        {
-            dest2X = 0;
-            dest2Y = 0;
-            dest2Width = presenter->display->width;
-            dest2Height = presenter->display->height;
-        }
-        // go2_surface_blit(surface, 0, 0, dest2Height, dest2Width, dstSurface, dest2X, dest2Y, dest2Width, dest2Height, rotation);
-    }
-
-    /*printf("dovrebbe essere x: %d y: %d -  width: %d height: %d.\n", 320-49,480-152, 49, 152);
-    printf("invece è x: %d y: %d -  width: %d height: %d.\n", dest2X, dest2Y, dest2Width, dest2Height);*/
-
-    // normalmente è questo da eseguire:
-    if (surface != nullptr)
-    {
-
-        // translateCoordinates(dest2X, dest2Y, dest2Width, dest2Height,1.3333,rot, newDestX,newDestY,newDestWidth,newDestHeight);
-        go2_surface_blit(surface, 0, 0, surface->width, surface->height, dstSurface, dest2X, dest2Y, dest2Width, dest2Height, rotation);
-
-        // go2_surface_blit(surface, 0, 0, surface->width , surface->height, dstSurface, newDestX, newDestY, newDestWidth, newDestHeight, rotation);
     }
 }
 
@@ -1382,6 +1279,15 @@ void go2_presenter_post_multiple(go2_presenter_t *presenter, go2_surface_t *surf
         if (surface != nullptr)
         {
             blit_surface_status(presenter, surface, dstSurface, dstWidth, dstHeight, blitRotation, BUTTOM_RIGHT, isWideScreen);
+        }
+    }
+
+     if (status_obj->show_bottom_center)
+    {
+        surface = status_obj->bottom_center;
+        if (surface != nullptr)
+        {
+            blit_surface_status(presenter, surface, dstSurface, dstWidth, dstHeight, blitRotation, BUTTOM_CENTER, isWideScreen);
         }
     }
 

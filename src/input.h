@@ -34,6 +34,10 @@ extern bool input_ffwd_requested;
 extern bool input_pause_requested;
 extern bool input_credits_requested;
 extern bool input_message;
+extern bool input_slot_memory_plus_requested;
+extern bool input_slot_memory_minus_requested;
+extern bool input_slot_memory_load_requested;
+extern bool input_slot_memory_save_requested;
 
 extern double lastScreenhotrequestTime;
 
