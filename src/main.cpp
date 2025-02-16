@@ -2069,10 +2069,6 @@ int main(int argc, char *argv[])
     menuManager.setCurrentMenu(&menu);
     // end menu
     auto frameDuration = duration_cast<nanoseconds>(seconds(1)) / max_fps;
-    logger.log(Logger::DEB, "Waiting 2"); 
-     sleep(2);
-     g_retro.retro_reset();
-     logger.log(Logger::DEB, "Go"); 
     while (isRunning)
     {
         auto loopStart = high_resolution_clock::now();
@@ -2203,7 +2199,7 @@ int main(int argc, char *argv[])
             elapsed = 0;
         }
     }
-    logger.log(Logger::DEB, "Exiting from render loop..."); 
+    logger.log(Logger::DEB, "Exiting from render loop...");
     logger.log(Logger::INF, "Saving sram into file:%", sramPath);
     SaveSram(sramPath);
     free(sramPath);
