@@ -1870,7 +1870,21 @@ int main(int argc, char *argv[])
     bool redrawInfo = true;
     // we postpone this here because if we do it before some emulators dont like it (Dosbox core)
     g_retro.retro_set_controller_port_device(0, RETRO_DEVICE_JOYPAD);
-
+    if (isFlycast()){
+        // because of this commit:
+        //https://github.com/flyinghead/flycast/commit/070ac717d3b94ffeeeb77ea1f269e42a13ce99a4
+        // we need to use new parameters for VMU (memory card otherwise it doesn't work)
+        // the new parameters are these:
+        //flycast_device_port1_slot1 = VMU
+        //flycast_device_port1_slot2 = Purupuru
+        //flycast_device_port2_slot1 = VMU
+        //flycast_device_port2_slot2 = Purupuru
+        // but this is not enough we also need to set all 4 devices to something
+        // otherwise flkycast doesnt read those new params
+        g_retro.retro_set_controller_port_device(1,0);
+        g_retro.retro_set_controller_port_device(2,0);
+        g_retro.retro_set_controller_port_device(3,0);
+    }
     unsigned long long countNumFps = 0;
     unsigned long long countValFps = 0;
 
@@ -2055,6 +2069,10 @@ int main(int argc, char *argv[])
     menuManager.setCurrentMenu(&menu);
     // end menu
     auto frameDuration = duration_cast<nanoseconds>(seconds(1)) / max_fps;
+    logger.log(Logger::DEB, "Waiting 2"); 
+     sleep(2);
+     g_retro.retro_reset();
+     logger.log(Logger::DEB, "Go"); 
     while (isRunning)
     {
         auto loopStart = high_resolution_clock::now();
@@ -2185,7 +2203,7 @@ int main(int argc, char *argv[])
             elapsed = 0;
         }
     }
-    logger.log(Logger::DEB, "Exiting from render loop...");
+    logger.log(Logger::DEB, "Exiting from render loop..."); 
     logger.log(Logger::INF, "Saving sram into file:%", sramPath);
     SaveSram(sramPath);
     free(sramPath);
