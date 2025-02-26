@@ -1,5 +1,5 @@
 /*
-retrorun-go2 - libretro frontend for the ODROID-GO Advance
+retrorun - libretro frontend for Anbernic Devices
 Copyright (C) 2020  OtherCrashOverride
 Copyright (C) 2021-present  navy1978
 
@@ -35,7 +35,7 @@ static const int DEVICE_NAME_SIZE = 1024;
 static char DEVICE_NAME[DEVICE_NAME_SIZE];
 static bool deviceInitialized = false;
 
-std::string release = "2.5.1";
+std::string release = "2.5.2";
 TateState tateState = DISABLED;
 
 RETRORUN_CORE_TYPE Retrorun_Core = RETRORUN_CORE_UNKNOWN;
@@ -92,6 +92,12 @@ int current_volume = 0;
 bool firstTimeCorrectFrame=true;
 
 MenuManager menuManager = MenuManager();
+
+bool screenshot_requested = false;
+bool pause_requested = false;
+
+
+
 
 const char *getEnv(const char *tag) noexcept
 {
@@ -173,7 +179,7 @@ bool isDuckStation()
 std::string gpu_name;
 void getCpuInfo()
 {
-    logger.log(Logger::INF, "Getting CPU info...");
+    logger.log(Logger::DEB, "Getting CPU info...");
     std::vector<std::string> output = exec("lscpu | egrep 'Model name|Model|Thread|CPU\\(s\\)'");
 
     // Ensure that cpu_info_list is cleared before populating it
@@ -220,7 +226,7 @@ void getCpuInfo()
         gpu_name.erase(std::remove(gpu_name.begin(), gpu_name.end(), '\n'), gpu_name.end());
     }
 
-    logger.log(Logger::INF, "OK CPU info...");
+    logger.log(Logger::DEB, "OK CPU info...");
 }
 
 
@@ -259,7 +265,7 @@ const char *getDeviceName() noexcept
 
             if (access(OS_ARCH_FILE.c_str(), F_OK) == 0)
             {
-                logger.log(Logger::INF, "File %s found! ", OS_ARCH_FILE.c_str());
+                logger.log(Logger::DEB, "File %s found! ", OS_ARCH_FILE.c_str());
                 FILE *pipe = popen(OS_ARCH.c_str(), "r");
                 if (!pipe)
                 {
@@ -277,7 +283,7 @@ const char *getDeviceName() noexcept
                 // Close the pipe
                 pclose(pipe);
 
-                logger.log(Logger::INF, "Device name: %s", DEVICE_NAME);
+                logger.log(Logger::DEB, "Device name: %s", DEVICE_NAME);
                 // get extra info
                 getCpuInfo();
                 deviceInitialized = true;
@@ -292,7 +298,7 @@ const char *getDeviceName() noexcept
                     // Copy the environment variable value to DEVICE_NAME
                     std::strncpy(DEVICE_NAME, envVar, DEVICE_NAME_SIZE - 1);
                     DEVICE_NAME[DEVICE_NAME_SIZE - 1] = '\0'; // Ensure null-termination
-                    logger.log(Logger::INF, "Environment variable value: %s", DEVICE_NAME);
+                    logger.log(Logger::DEB, "Environment variable value: %s", DEVICE_NAME);
                 }
                 else
                 {

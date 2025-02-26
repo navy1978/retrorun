@@ -1,5 +1,5 @@
 /*
-retrorun-go2 - libretro frontend for the ODROID-GO Advance
+retrorun - libretro frontend for Anbernic Devices
 Copyright (C) 2020  OtherCrashOverride
 Copyright (C) 2021-present  navy1978
 
@@ -54,65 +54,53 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "imgs/imgs_pause.h"
 #include "imgs/imgs_screenshot.h"
 #include "imgs/imgs_fast_forwarding.h"
+#include "video-helper.h"
 
 #include <chrono>
 #include <thread>
-#include <sys/sysinfo.h>
 
-#define FBO_DIRECT 1
+
+
 #define ALIGN(val, align) (((val) + (align)-1) & ~((align)-1))
 
 // extern float opt_aspect;
 extern int opt_backlight;
 
-go2_display_t *display;
-go2_surface_t *surface;
-go2_surface_t *status_surface_bottom_right = NULL;
-go2_surface_t *status_surface_bottom_left = NULL;
-go2_surface_t *status_surface_top_right = NULL;
-go2_surface_t *status_surface_top_left = NULL;
-go2_surface_t *status_surface_full = NULL;
+
 
 status *status_obj = new status(); // quit, pause, screenshot,FPS, fastforward
-go2_surface_t *display_surface;
-go2_frame_buffer_t *frame_buffer;
-go2_presenter_t *presenter;
-go2_context_t *context3D;
+
 // float aspect_ratio;
 uint32_t color_format;
 
-bool isOpenGL = false;
+
 int GLContextMajor = 0;
 int GLContextMinor = 0;
-GLuint fbo;
+
 int hasStencil = false;
-bool screenshot_requested = false;
-bool pause_requested = false;
+
+
 int prevBacklight;
 // bool isTate = false;
-int display_width, display_height;
-int base_width, base_height, max_width, max_height;
-int aw, ah;
-go2_surface_t *gles_surface;
+
+
 bool isWideScreen = false;
 extern retro_hw_context_reset_t retro_context_reset;
-auto t_flash_start = std::chrono::high_resolution_clock::now();
-bool flash = false;
-extern go2_battery_state_t batteryState;
+
+
 const char *batteryStateDesc[] = {"UNK", "DSC", "CHG", "FUL"};
 extern go2_brightness_state_t brightnessState;
 bool first_video_refresh = true;
 float real_aspect_ratio = 0.0f;
-unsigned currentWidth = 0;
-unsigned currentHeight = 0;
 
-int rowForText = 0;
+
+
 
 extern float fps;
 extern int retrorunLoopSkip;
 extern int retrorunLoopCounter;
 
-struct timeval valTime2;
+
 
 bool turn = false;
 // screen info
@@ -129,159 +117,15 @@ go2_rotation_t _351Rotation;
 go2_rotation last351Rotation;
 go2_rotation last351BlitRotation;
 bool drawOneFrame;
-bool isGameVertical;
 
-int width_fixed = 640;
-int height_fixed = 480;
 
-int INFO_MENU_WIDTH = 240;  // 288;
-int INFO_MENU_HEIGHT = 160; // 192;
 
-uint32_t format_565 = DRM_FORMAT_RGB565; // DRM_FORMAT_RGB888; // DRM_FORMAT_XRGB8888;//color_format;
 
-go2_rotation getBlitRotation()
-{
-    
-    if (isGameVertical) // portrait
-    {
-        if (!isTate())
-        {
 
-            return (isRG351V() || isRG351MP() || isRG503()) ? GO2_ROTATION_DEGREES_0 : GO2_ROTATION_DEGREES_270;
-        }
-        if (tateState == REVERSED)
-        {
-            return (isRG351V() || isRG351MP() || isRG503()) ? GO2_ROTATION_DEGREES_90 : GO2_ROTATION_DEGREES_0;
-        }
-        else
-        {
-            return (isRG351V() || isRG351MP() || isRG503()) ? GO2_ROTATION_DEGREES_270 : GO2_ROTATION_DEGREES_180;
-        }
-    }
-    else // landscape
-    {
-
-        if (!isTate() && tateState != REVERSED)
-        {
-            return (isRG351V() || isRG351MP() || isRG503()) ? GO2_ROTATION_DEGREES_0 : GO2_ROTATION_DEGREES_270;
-        }
-        if (tateState == REVERSED)
-        {
-            return (isRG351V() || isRG351MP() || isRG503()) ? GO2_ROTATION_DEGREES_90 : GO2_ROTATION_DEGREES_0;
-        }
-        else
-        {
-            return (isRG351V() || isRG351MP() || isRG503()) ? GO2_ROTATION_DEGREES_270 : GO2_ROTATION_DEGREES_180;
-        }
-    }
-}
-
-go2_rotation getRotation()
-{
-
-    if (isGameVertical) // portrait
-    {
-        if (!isTate())
-        {
-            return (isRG351V() || isRG351MP() || isRG503()) ? GO2_ROTATION_DEGREES_270 : GO2_ROTATION_DEGREES_180;
-        }
-        if (tateState == REVERSED)
-        {
-            return (isRG351V() || isRG351MP() || isRG503()) ? GO2_ROTATION_DEGREES_0 : GO2_ROTATION_DEGREES_270;
-        }
-        else
-        {
-            return (isRG351V() || isRG351MP() || isRG503()) ? GO2_ROTATION_DEGREES_180 : GO2_ROTATION_DEGREES_90;
-        }
-    }
-    else
-    { // landscape
-        if (!isTate() && tateState != REVERSED)
-        {
-            return (isRG351V() || isRG351MP() || isRG503()) ? GO2_ROTATION_DEGREES_0 : GO2_ROTATION_DEGREES_270;
-        }
-        if (tateState == REVERSED)
-        {
-            return (isRG351V() || isRG351MP() || isRG503()) ? GO2_ROTATION_DEGREES_90 : GO2_ROTATION_DEGREES_0;
-        }
-        else
-        {
-            return (isRG351V() || isRG351MP() || isRG503()) ? GO2_ROTATION_DEGREES_270 : GO2_ROTATION_DEGREES_180;
-        }
-    }
-}
-
-int getFixedWidth(int alternative)
-{
-    // some games like Resident Evil 2 for Flycast has an ovescan issue in 640x480
-    if (isFlycast() || isFlycast2021())
-    {
-        if (resolution == R_320_240)
-            return 320;
-        else if (resolution == R_640_480 && device == RG_552)
-            return 640;
-        else
-            return alternative;
-    }
-    else if (isMGBA())
-        return 240;
-    else
-    {
-        return alternative;
-    }
-}
-
-int getFixedHeight(int alternative)
-{
-    // some games like Resident Evil 2 for Flycast has an ovescan issue in 640x480
-    if (isFlycast() || isFlycast2021())
-    {
-        if (resolution == R_320_240)
-            return 240;
-        else if (resolution == R_640_480 && device == RG_552)
-            return 480;
-        else
-            return alternative;
-    }
-    else if (isMGBA())
-        return 160;
-    else
-    {
-        return alternative;
-    }
-}
-int getBase_width()
-{
-    return getFixedWidth(base_width);
-}
-
-int getBase_height()
-{
-    return getFixedHeight(base_height);
-}
-int getMax_width()
-{
-    return getFixedWidth(max_width);
-}
-
-int getMax_height()
-{
-    return getFixedHeight(max_height);
-}
-
-int getGeom_max_width(const struct retro_game_geometry *geom)
-{
-    return getFixedWidth(max_width);
-}
-
-int getGeom_max_height(const struct retro_game_geometry *geom)
-{
-    return getFixedHeight(max_height);
-}
 
 void video_configure(struct retro_game_geometry *geom)
 {
-
+    logger.log(Logger::DEB, "Cofiguring video...");
     if (isPPSSPP() && geom->base_height == 0)
     {
         // for PPSSPP is possible to receive geom with 0 values
@@ -312,7 +156,7 @@ void video_configure(struct retro_game_geometry *geom)
     {
         isWideScreen = true;
     }
-    logger.log(Logger::INF, "Are we on wide screen? %s", isWideScreen == true ? "true" : "false");
+    logger.log(Logger::DEB, "Are we on wide screen? %s", isWideScreen == true ? "true" : "false");
 
     if (isDuckStation())
     {
@@ -335,41 +179,41 @@ void video_configure(struct retro_game_geometry *geom)
 
     if (opt_aspect == 0.0f)
     {
-        logger.log(Logger::INF, "Using original game aspect ratio.");
+        logger.log(Logger::DEB, "Using original game aspect ratio.");
         aspect_ratio = geom->aspect_ratio; // dont print the value here because is wrong
         // for PC games (the default apsect ratio should be 4:3)
         if (isDosBox())
         {
-            logger.log(Logger::INF, "Dosbox default apsect ratio 4/3.");
+            logger.log(Logger::DEB, "Dosbox default apsect ratio 4/3.");
             aspect_ratio = 1.333333f;
         }
     }
     else
     {
-        logger.log(Logger::INF, "Forcing aspect ratio to: %f.", opt_aspect);
+        logger.log(Logger::DEB, "Forcing aspect ratio to: %f.", opt_aspect);
         aspect_ratio = opt_aspect;
     }
     game_aspect_ratio = geom->aspect_ratio;
-    logger.log(Logger::INF, "Display info: width=%d, height=%d", display_width, display_height);
+    logger.log(Logger::DEB, "Display info: width=%d, height=%d", display_width, display_height);
     // Display info: width=480, height=320
     if (display_width == 480 && display_height == 320)
     {
-        logger.log(Logger::INF, "Device info: RG351-P / RG351-M");
+        logger.log(Logger::DEB, "Device info: RG351-P / RG351-M");
         device = P_M;
     }
     else if (display_width == 480 && display_height == 640)
     {
-        logger.log(Logger::INF, "Device info: RG351-V / RG351-MP");
+        logger.log(Logger::DEB, "Device info: RG351-V / RG351-MP");
         device = V_MP;
     }
     else if (display_width == 1920 && display_height == 1152)
     {
-        logger.log(Logger::INF, "Device info: RG552");
+        logger.log(Logger::DEB, "Device info: RG552");
         device = RG_552;
     }
     else if (display_width == 544 && display_height == 960)
     {
-        logger.log(Logger::INF, "Device info: RG503");
+        logger.log(Logger::DEB, "Device info: RG503");
         device = RG_503;
     }
 
@@ -398,7 +242,7 @@ void video_configure(struct retro_game_geometry *geom)
         geom->max_width = 640;
     }
 
-    logger.log(Logger::INF, "Game info: base_width=%d, base_height=%d, max_width=%d, max_height=%d", geom->base_width, geom->base_height, geom->max_width, geom->max_height);
+    logger.log(Logger::DEB, "Game info: base_width=%d, base_height=%d, max_width=%d, max_height=%d", geom->base_width, geom->base_height, geom->max_width, geom->max_height);
 
     base_width = geom->base_width;
     base_height = geom->base_height;
@@ -431,14 +275,7 @@ void video_configure(struct retro_game_geometry *geom)
             attr.stencil_bits = 8;
         }
 
-        /* attr.major = 3;
-         attr.minor = 2;
-         attr.red_bits = 8;
-         attr.green_bits = 8;
-         attr.blue_bits = 8;
-         attr.alpha_bits = 8;
-         attr.depth_bits = 16;
-         attr.stencil_bits = 8;*/
+   
 
         context3D = go2_context_create(display, getGeom_max_width(geom), getGeom_max_height(geom), &attr);
         go2_context_make_current(context3D);
@@ -451,8 +288,8 @@ void video_configure(struct retro_game_geometry *geom)
 
         int aw = ALIGN(getGeom_max_width(geom), 32);
         int ah = ALIGN(getGeom_max_height(geom), 32);
-        logger.log(Logger::INF, "video_configure: aw=%d, ah=%d", aw, ah);
-        logger.log(Logger::INF, "video_configure: base_width=%d, base_height=%d", geom->base_width, geom->base_height);
+        logger.log(Logger::DEB, "video_configure: aw=%d, ah=%d", aw, ah);
+        logger.log(Logger::DEB, "video_configure: base_width=%d, base_height=%d", geom->base_width, geom->base_height);
 
         if (color_format == DRM_FORMAT_RGBA5551)
         {
@@ -498,137 +335,7 @@ void video_deinit()
 
 uintptr_t core_video_get_current_framebuffer()
 {
-
-#ifndef FBO_DIRECT
-    return fbo;
-#else
     return 0;
-#endif
-}
-
-inline void showText(int x, int y, const char *text, unsigned short color, go2_surface_t **surface)
-{
-
-    if (*surface == nullptr)
-    {
-
-        *surface = go2_surface_create(display, 200, 20, format_565);
-    }
-
-    uint8_t *dst = (uint8_t *)go2_surface_map(*surface);
-    if (dst == nullptr)
-    {
-        return;
-    }
-    int dst_stride = go2_surface_stride_get(*surface);
-    basic_text_out16_nf_color(dst, dst_stride / 2, x, y, text, color);
-}
-
-inline int getRowForText()
-{
-    rowForText = rowForText + 10;
-    return rowForText;
-}
-
-std::string stripReturnCarriage(std::string input)
-{
-    // Remove newline characters from the input
-    int len = 30;
-    int i, j;
-    for (i = 0, j = 0; i < len; i++)
-    {
-        if (input[i] != '\n')
-        {
-            input[j++] = input[i];
-        }
-        else
-        {
-            break;
-        }
-    }
-    input[j] = '\0';
-    return input;
-}
-
-int stepCredits = 15;
-int posYCredits = INFO_MENU_HEIGHT + 8 * 2;
-int time_credit = 2;
-bool canCreditBeDrawn(int pos)
-{
-    return pos > 0 && pos < INFO_MENU_HEIGHT - 10;
-}
-
-void resetCredisPosition()
-{
-    posYCredits = INFO_MENU_HEIGHT + 8 * 2;
-}
-
-inline void showCenteredText(int y, const char *text, unsigned short color, go2_surface_t **surface)
-{
-    std::string title(text); // The text to scroll
-    int title_length = title.length();
-    showText(INFO_MENU_WIDTH / 2 - title_length * 8 / 2, y, title.c_str(), color, surface);
-    // showText(0, y, title.c_str(), color, surface);
-}
-
-int offset = 0;
-bool direction_forward = true;
-constexpr int PIXELS_PER_FRAME = 1; // Adjust the number of pixels scrolled per frame
-
-inline void showLongCenteredText(int y, const char *text, unsigned short color, go2_surface_t **surface)
-{
-    static int offset = 0;
-    static bool direction_forward = true;
-    
-    std::string title(text); // The text to scroll
-    int title_length = title.length();
-
-    // Calculate the total width of the text
-    int total_text_width = title_length * 8;
-
-    if (total_text_width > INFO_MENU_WIDTH) {
-        // we add some extra spaces to make it more readable
-        title = " " + title + " ";
-        title_length = title.length();
-        total_text_width = title_length * 8;
-
-        // Text exceeds display width, so scroll it
-        if (direction_forward) {
-            offset += PIXELS_PER_FRAME; // Scroll to the left
-            if (offset >= total_text_width - INFO_MENU_WIDTH) {
-                offset = total_text_width - INFO_MENU_WIDTH; // Reverse direction
-                direction_forward = false;
-            }
-        } else {
-            offset -= PIXELS_PER_FRAME; // Scroll to the right
-            if (offset <= 0) {
-                offset = 0; // Reset offset to start from the left
-                direction_forward = true; // Reverse direction
-            }
-        }
-
-        // Calculate the starting index of the truncated text
-        int start_index = offset / 8;
-        if (start_index < 0) {
-            start_index = 0;
-        }
-
-        // Calculate the width of the truncated text
-        int remaining_text_width = total_text_width - offset;
-        int truncated_text_width = std::min(INFO_MENU_WIDTH / 8, remaining_text_width / 8);
-
-        // Truncate the text to fit within the display width
-        std::string truncated_text = title.substr(start_index, truncated_text_width);
-
-        // Calculate the x position dynamically based on the offset
-        int x = -(offset % 8);
-
-        // Show the truncated text at the calculated x position
-        showText(x, y, truncated_text.c_str(), color, surface);
-    } else {
-        // Text fits within display width, so display it centered
-        showText(INFO_MENU_WIDTH / 2 - total_text_width / 2, y, title.c_str(), color, surface);
-    }
 }
 
 
@@ -636,573 +343,6 @@ inline void showLongCenteredText(int y, const char *text, unsigned short color, 
 
 
 
-
-
-
-
-
-
-
-
-inline void drawCreditLine(int y, const char *text, unsigned short color, go2_surface_t **surface)
-{
-
-    int currentY = y;
-    if (canCreditBeDrawn(currentY))
-    {
-        showCenteredText(currentY, text, color, surface);
-    }
-}
-
-int switchColor = 30;
-int step = 1;
-int posRetro = 3;
-bool loop = true;
-std::string tabSpaces = "";
-
-inline void showInfoDevice(int w, go2_surface_t **surface, int posX)
-{
-    std::string hostName(getDeviceName());
-    hostName = stripReturnCarriage(hostName);
-    showCenteredText(getRowForText(), (tabSpaces + "Model: " + hostName).c_str(), DARKGREY, surface);
-
-    struct sysinfo sys_info;
-    std::string tot_ram = "Total RAM: N/A";
-    std::string free_ram = "Free RAM: N/A";
-    // std::string procs = "Number of processes: N/A";
-    if (sysinfo(&sys_info) == 0)
-    {
-        long total_ram_val = sys_info.totalram / (1024 * 1024);
-        long free_ram_val = sys_info.freeram / (1024 * 1024);
-        // long number_procs = sys_info.procs;
-        tot_ram = std::to_string(total_ram_val) + " MB";
-        free_ram = std::to_string(free_ram_val) + " MB";
-        // procs = "# of processes:" + std::to_string(number_procs);
-    }
-
-    for (const auto &cpu_info : cpu_info_list)
-    {
-        showCenteredText(getRowForText(), ("CPU(s): " + cpu_info.number_of_cpu + " " + cpu_info.cpu_name).c_str(), DARKGREY, surface);
-        // showCenteredText(getRowForText(), ("CPU(s) Model:"+cpu_info.cpu_name).c_str(), DARKGREY, surface);
-        // showCenteredText(getRowForText(), ("CPU(s) Thread per Core:"+cpu_info.thread_per_cpu).c_str(), DARKGREY, surface);
-    }
-    // This will print the values of number_of_cpu, cpu_name, thread_per_cpu, and device_name for each element in the cpu_info_list vector.
-
-    // showCenteredText(getRowForText(), (tot_ram).c_str(), DARKGREY, surface);
-
-    showCenteredText(getRowForText(), ("GPU: " + gpu_name).c_str(), DARKGREY, surface);
-    showCenteredText(getRowForText(), ("RAM: " + tot_ram).c_str(), DARKGREY, surface);
-    // showCenteredText(getRowForText(), (procs).c_str(), DARKGREY, surface);
-}
-
-inline void showInfoCore(int w, go2_surface_t **surface, int posX)
-{
-    std::string core = tabSpaces + "Name: ";
-    showCenteredText(getRowForText(), const_cast<char *>(core.append(coreName).c_str()), DARKGREY, surface);
-    std::string version = tabSpaces + "Version: ";
-    showCenteredText(getRowForText(), const_cast<char *>(version.append(coreVersion).c_str()), DARKGREY, surface);
-    std::string canzip = tabSpaces + "Files .zip allowed: ";
-    showCenteredText(getRowForText(), const_cast<char *>(canzip.append(coreReadZippedFiles ? "true" : "false").c_str()), DARKGREY, surface);
-
-    std::string openGl = tabSpaces + "OpenGL: ";
-    showCenteredText(getRowForText(), const_cast<char *>(openGl.append(isOpenGL ? "true" : "false").c_str()), DARKGREY, surface);
-}
-
-inline void showInfoGame(int w, go2_surface_t **surface, int posX)
-{
-    std::string origFps = tabSpaces + "Orignal FPS: ";
-    showCenteredText(getRowForText(), const_cast<char *>(origFps.append(std::to_string((int)originalFps)).c_str()), DARKGREY, surface);
-
-    std::string averageFps = tabSpaces + "Average FPS: ";
-    showCenteredText(getRowForText(), const_cast<char *>(averageFps.append(std::to_string((int)avgFps)).c_str()), DARKGREY, surface);
-
-    std::string res2 = tabSpaces + "Resolution: ";
-    showCenteredText(getRowForText(), const_cast<char *>(res2.append(std::to_string(currentWidth)).append("x").append(std::to_string(currentHeight)).c_str()), DARKGREY, surface);
-    std::string orientation = tabSpaces + "Orientation: ";
-    showCenteredText(getRowForText(), const_cast<char *>(orientation.append(isGameVertical ? "Portrait" : "Landscape").c_str()), DARKGREY, surface);
-}
-
-inline void showCredits(go2_surface_t **surface)
-{
-
-    if (time_credit > 0)
-    {
-        time_credit--;
-    }
-    else
-    {
-        posYCredits--;
-        time_credit = 3;
-    }
-
-    /// DEV
-    int currentY = posYCredits;
-
-    drawCreditLine(currentY, "Retrorun", ORANGE, surface);
-    currentY += stepCredits;
-    drawCreditLine(currentY, "Light libretro front-end", YELLOW, surface);
-
-    currentY += stepCredits * 3;
-    drawCreditLine(currentY, "Developers", DARKGREY, surface);
-    currentY += stepCredits;
-    drawCreditLine(currentY, "OtherCrashOverride", WHITE, surface);
-    currentY += stepCredits;
-    drawCreditLine(currentY, "navy1978", WHITE, surface);
-    currentY += stepCredits * 3;
-    drawCreditLine(currentY, "Thanks to", DARKGREY, surface);
-    currentY += stepCredits;
-    drawCreditLine(currentY, "Cebion", WHITE, surface);
-    currentY += stepCredits;
-    drawCreditLine(currentY, "Christian_Haitian", WHITE, surface);
-    currentY += stepCredits;
-    drawCreditLine(currentY, "dhwz", WHITE, surface);
-    currentY += stepCredits;
-    drawCreditLine(currentY, "madcat1990", WHITE, surface);
-    currentY += stepCredits;
-    drawCreditLine(currentY, "Szalik", WHITE, surface);
-
-    if (currentY < 0)
-    {                                     // they are over
-        std::string title = "Thank you!"; // The text to scroll
-        int title_length = title.length();
-        showText(INFO_MENU_WIDTH / 2 - title_length * 8 / 2, INFO_MENU_HEIGHT / 2 - 8 / 2, title.c_str(), WHITE, surface);
-    }
-}
-
-int size_char = 8;
-inline void showInfo(int w, go2_surface_t **surface)
-{
-
-    rowForText = 0;
-    int posX = 0;
-
-    std::string title = "Retrorun - " + release; // The text to scroll
-    int title_length = title.length();
-    showText(posRetro, 2, title.c_str(), WHITE, surface);
-    if (posRetro == (INFO_MENU_WIDTH - (title_length * size_char)))
-    {
-        step = -1;
-    }
-    else if (posRetro == 0)
-    {
-        step = 1;
-    }
-    posRetro += step;
-
-    showText(posX, getRowForText(), " ", ORANGE, surface);
-    showText(posX, getRowForText(), " ", ORANGE, surface);
-
-    Menu &menu = menuManager.getCurrentMenu();
-    std::string menuTitle = menu.getName();
-    int menuTitle_length = menuTitle.length();
-
-    showText(INFO_MENU_WIDTH / 2 - menuTitle_length * size_char / 2, getRowForText(), (menu.getName()).c_str(), ORANGE, surface);
-    showText(posX, getRowForText(), " ", ORANGE, surface);
-    // showText(posX, getRowForText(), " ", ORANGE, surface);
-    // showText(posX, getRowForText(), " ", ORANGE, surface);
-    for (int i = 0; i < menu.getSize(); i++)
-    {
-
-        MenuItem &mi = menu.getItems()[i];
-        if (mi.get_name() == SHOW_DEVICE)
-        {
-            showInfoDevice(w, surface, posX);
-        }
-        else if (mi.get_name() == SHOW_CORE)
-        {
-            showInfoCore(w, surface, posX);
-        }
-        else if (mi.get_name() == SHOW_GAME)
-        {
-            showInfoGame(w, surface, posX);
-        }
-
-        else if (mi.isQuit()|| mi.isQuestion())
-        {
-            showCenteredText(getRowForText(), (tabSpaces + mi.get_name() + ": < " + mi.getValues()[mi.getValue()] + " >").c_str(), mi.isSelected() ? WHITE : DARKGREY, surface);
-        }
-        else if (mi.getMenu() != NULL)
-        {
-
-            showCenteredText(getRowForText(), (tabSpaces + mi.get_name()).c_str(), mi.isSelected() ? WHITE : DARKGREY, surface);
-        }
-        else if (mi.m_valueCalculator != NULL)
-        {
-            showCenteredText(getRowForText(), (tabSpaces + mi.get_name() + ": < " + mi.getStringValue() + mi.getMisUnit() + " >").c_str(), mi.isSelected() ? WHITE : DARKGREY, surface);
-        }
-        else
-        {
-            showCenteredText(getRowForText(), (tabSpaces + mi.get_name()).c_str(), mi.isSelected() ? WHITE : DARKGREY, surface);
-        }
-    }
-
-    time_t curr_time;
-    tm *curr_tm;
-
-    char time_string[100];
-
-    std::time(&curr_time);
-    curr_tm = localtime(&curr_time);
-
-    strftime(time_string, 50, "%R", curr_tm);
-    std::string timeString(time_string);
-    int timeString_length = timeString.length();
-
-    std::string delimiter = ":";
-
-    std::string arr[2];
-
-    size_t pos = 0;
-    std::string token;
-    int i = 0;
-    while ((pos = timeString.find(delimiter)) != std::string::npos)
-    {
-        token = timeString.substr(0, pos);
-        arr[i] = token.c_str();
-        timeString.erase(0, pos + delimiter.length());
-        i++;
-    }
-    arr[i] = timeString.c_str();
-    posX = INFO_MENU_WIDTH - 1 - timeString_length * size_char;
-
-    showText(posX, INFO_MENU_HEIGHT - 1 - size_char, arr[0].c_str(), WHITE, surface);
-    if (switchColor > 0)
-    {
-        showText(posX + 2 * size_char, INFO_MENU_HEIGHT - 1 - size_char, ":", WHITE, surface);
-    }
-    else
-    {
-        showText(posX + 2 * size_char, INFO_MENU_HEIGHT - 1 - size_char, " ", WHITE, surface);
-        if (switchColor < -30)
-        {
-            switchColor = 30;
-        }
-    }
-    showText(posX + 3 * size_char, INFO_MENU_HEIGHT - 1 - size_char, arr[1].c_str(), WHITE, surface);
-    switchColor--;
-
-    std::string bat = tabSpaces + "Battery:";
-    showText(1, INFO_MENU_HEIGHT - 1 - size_char, const_cast<char *>(bat.append(std::to_string(batteryState.level)).append("%").c_str()), WHITE, surface);
-}
-
-inline std::string getCurrentTimeForFileName()
-{
-    time_t t = time(0); // get time now
-    struct tm *now = localtime(&t);
-    char buffer[80];
-    strftime(buffer, 80, "%y%m%d-%H%M%S", now);
-    std::string str(buffer);
-    return str;
-}
-
-inline void showNumberSprite(int x, int y, int number, int width, int height, const uint8_t *src)
-{
-    int height_sprite = height / 10; // 10 are the total number of sprites present in the image
-    int src_stride = width * sizeof(short);
-    uint8_t *dst = (uint8_t *)go2_surface_map(status_surface_top_right);
-    if (dst == nullptr)
-    {
-        return;
-    }
-    int dst_stride = go2_surface_stride_get(status_surface_top_right);
-    int brightnessIndex = number;
-    src += (brightnessIndex * height_sprite * src_stride); // 18
-    dst += x * sizeof(short) + y * dst_stride;
-    for (int y = 0; y < height_sprite; ++y) // 16
-    {
-        memcpy(dst, src, width * sizeof(short));
-        src += src_stride;
-        dst += dst_stride;
-    }
-}
-
-inline int getDigit(int n, int position)
-{
-    int res = (int)(n / pow(10, (position - 1))) % 10;
-    if (res > 9)
-        res = 9;
-    if (res < 0)
-        res = 0;
-    return res;
-}
-
-inline int getWidthFPS()
-{
-
-    return go2_surface_width_get(status_surface_top_right);
-}
-
-inline void showFPSImage()
-{
-    int x = getWidthFPS() - (numbers.width * 2); // depends on the width of the image
-    int y = 0;
-    int capFps = fps>99 ? 99: fps;
-    showNumberSprite(x, y, getDigit(capFps, 2), numbers.width, numbers.height, numbers.pixel_data);
-    showNumberSprite(x + numbers.width, y, getDigit(capFps, 1), numbers.width, numbers.height, numbers.pixel_data);
-}
-
-inline void showFullImage_888(int x, int y, int width, int height, const uint8_t *src, go2_surface_t **surface)
-{
-    int bytes = 4;
-    // create the different surfaces for the statues
-    if (*surface == nullptr)
-    {
-        *surface = go2_surface_create(display, width, height, DRM_FORMAT_RGBA8888);
-    }
-    int src_stride = width * bytes;
-    uint8_t *dst = (uint8_t *)go2_surface_map(*surface);
-    if (dst == nullptr)
-    {
-        return;
-    }
-    int dst_stride = go2_surface_stride_get(*surface);
-    src += 0;
-    dst += x * bytes + y * dst_stride;
-    for (int y = 0; y < height; ++y)
-    {
-        for (int x = 0; x < width; ++x)
-        {
-            // Get the pixel color and alpha value
-            const uint8_t *src_pixel = src + x * bytes;
-            uint8_t alpha = src_pixel[3];
-
-            // If the alpha value is 0, set the pixel to transparent
-            if (alpha == 0)
-            {
-                dst[x * bytes + 0] = 0;
-                dst[x * bytes + 1] = 0;
-                dst[x * bytes + 2] = 0;
-                dst[x * bytes + 3] = 0;
-            }
-            // Otherwise, set the pixel color and alpha value
-            else
-            {
-                dst[x * bytes + 0] = src_pixel[0];
-                dst[x * bytes + 1] = src_pixel[1];
-                dst[x * bytes + 2] = src_pixel[2];
-                dst[x * bytes + 3] = alpha;
-            }
-        }
-
-        src += src_stride;
-        dst += dst_stride;
-    }
-}
-
-inline void showFullImage(int x, int y, int width, int height, const uint8_t *src, go2_surface_t **surface)
-{
-
-    // create the different surfaces for the statues
-    if (*surface == nullptr)
-    {
-
-        *surface = go2_surface_create(display, width, height, format_565);
-    }
-    int src_stride = width * sizeof(short);
-    uint8_t *dst = (uint8_t *)go2_surface_map(*surface);
-    if (dst == nullptr)
-    {
-        return;
-    }
-    int dst_stride = go2_surface_stride_get(*surface);
-    src += 0;
-    dst += x * sizeof(short) + y * dst_stride;
-    for (int y = 0; y < height; ++y)
-    {
-        memcpy(dst, src, width * sizeof(short));
-        src += src_stride;
-        dst += dst_stride;
-    }
-}
-// refactor
-
-inline void showImage(Image img, go2_surface_t **surface)
-{
-    showFullImage(0, 0, img.width, img.height, img.pixel_data, surface);
-}
-
-inline void takeScreenshot(int w, int h)
-{
-    logger.log(Logger::INF, "Taking a screenshot!");
-    w = isOpenGL ? gles_surface->width : surface->width;
-    h = isOpenGL ? gles_surface->height : surface->height;
-    go2_surface_t *screenshot = go2_surface_create(display, w, h, DRM_FORMAT_RGB888);
-    if (!screenshot)
-    {
-        logger.log(Logger::ERR, "go2_surface_create for screenshot failed.");
-        throw std::exception();
-    }
-
-    go2_surface_blit(isOpenGL ? gles_surface : surface,
-                     0, 0, w, h,
-                     screenshot,
-                     0, 0, w, h,
-                     getBlitRotation());
-
-    // snap in screenshot directory
-    std::string fullPath = screenShotFolder + "/" + romName + "-" + getCurrentTimeForFileName() + ".png";
-    go2_surface_save_as_png(screenshot, fullPath.c_str());
-    logger.log(Logger::INF, "Screenshot saved:'%s'\n", fullPath.c_str());
-    go2_surface_destroy(screenshot);
-    screenshot_requested = false;
-    flash = true;
-    t_flash_start = std::chrono::high_resolution_clock::now();
-}
-
-inline bool cmpf(float A, float B, float epsilon = 0.005f)
-{
-    return (fabs(A - B) < epsilon);
-}
-
-int colorInc = 0;
-
-inline void makeScreenBlackCredits(go2_surface_t *go2_surface, int res_width, int res_height)
-{
-    // bool specialCase = (isJaguar() || isBeetleVB() || isDosBox() || isDosCore() || isMame());
-    //  res_width = specialCase? res_width * 2 : res_width; // just to be sure to cover the full screen (in some emulators is not enough to use res_width)
-    uint8_t *dst = (uint8_t *)go2_surface_map(go2_surface);
-    if (dst == nullptr)
-    {
-        return;
-    }
-
-    /* int lineWidth = 2;
-     int lineSpacing = 14; // spacing between the two lines
-
-     // Calculate the x-coordinates of the lines
-     int lineX1 = res_width - lineWidth - lineSpacing - 20;
-     int lineX2 = res_width - lineWidth - lineSpacing * 2 - 30;
-     int lineX3 = res_width - lineSpacing - 2;*/
-
-    int yy = res_height;
-    while (yy > 0)
-    {
-        for (int x = 0; x < (short)res_width * 2; ++x)
-        {
-            if (false) //(x < 30 || x > res_width * 2 - 30)
-            {
-                int newColor = ((colorInc + x + yy) % 16) + 160; // >255 ;
-                dst[x] = newColor >= 255 ? 0 : newColor;         // 240; // white color for the lines
-            }
-            else
-            {
-                dst[x] = 0x000000; // black color for the rest of the screen
-            }
-        }
-        dst += go2_surface_stride_get(go2_surface);
-        --yy;
-    }
-    colorInc++;
-}
-
-int colSwitch = 145;
-// int col = 42;
-int col_increase = 0;
-int col = 72;
-inline void makeScreenBlack(go2_surface_t *go2_surface, int res_width, int res_height)
-{
-    // res_width = (isJaguar() || isBeetleVB() || isDosBox() || isDosCore() || isMame()) ? res_width * 2 : res_width; // just to be sure to cover the full screen (in some emulators is not enough to use res_width)
-    uint8_t *dst = (uint8_t *)go2_surface_map(go2_surface);
-    if (dst == nullptr)
-    {
-        return;
-    }
-    int yy = res_height;
-
-    /* if (col_increase % colSwitch ==0)
-     col++;*/
-
-    // printf("color:%d\n",col);
-    while (yy > 0)
-    {
-
-        for (int x = 0; x < (short)res_width * 2; ++x)
-        {
-
-            int color = 74; // 162;
-
-            if (yy < 12)
-            {
-                dst[x] = color; // 33; // 42;
-            }
-            else if (yy > res_height - 12)
-            {
-                dst[x] = color; // 33;
-            }
-            else if (x < 2 || x >= (short)res_width * 2 - 2)
-            {
-                dst[x] = color; // 33; // set to any color you want
-            }
-            else
-            {
-
-                dst[x] = 0x000000;
-            }
-        }
-        dst += go2_surface_stride_get(go2_surface);
-        --yy;
-    }
-
-    // col_increase++;
-}
-
-inline void makeScreenTotalBlack(go2_surface_t *go2_surface, int res_width, int res_height)
-{
-    // res_width = (isJaguar() || isBeetleVB() || isDosBox() || isDosCore() || isMame()) ? res_width * 2 : res_width; // just to be sure to cover the full screen (in some emulators is not enough to use res_width)
-    uint8_t *dst = (uint8_t *)go2_surface_map(go2_surface);
-    if (dst == nullptr)
-    {
-        return;
-    }
-    int yy = res_height;
-    while (yy > 0)
-    {
-
-        for (int x = 0; x < (short)res_width * 2; ++x)
-        {
-
-            dst[x] = 0x000000;
-        }
-        dst += go2_surface_stride_get(go2_surface);
-        --yy;
-    }
-}
-
-inline void makeScreenBlack_old(go2_surface_t *go2_surface, int res_width, int res_height)
-{
-    // res_width = (isJaguar() || isBeetleVB() || isDosBox() || isDosCore() || isMame()) ? res_width * 2 : res_width; // just to be sure to cover the full screen (in some emulators is not enough to use res_width)
-    uint8_t *dst = (uint8_t *)go2_surface_map(go2_surface);
-    int my_height = go2_surface_height_get(go2_surface);
-    int my_width = go2_surface_width_get(go2_surface);
-    if (dst == nullptr)
-    {
-        return;
-    }
-    int yy = my_height;
-    while (yy > 0)
-    {
-
-        for (int x = 0; x < (short)my_width * 2; ++x)
-        {
-
-            if (yy < 12)
-            {
-                dst[x] = 33; // 42;
-            }
-            else if (yy > my_height - 12)
-            {
-                dst[x] = 33;
-            }
-            else
-            {
-
-                dst[x] = 0x000000;
-            }
-        }
-        dst += go2_surface_stride_get(go2_surface);
-        --yy;
-    }
-}
 
 void prepareScreen(int width, int height)
 {
@@ -1350,32 +490,6 @@ void prepareScreen(int width, int height)
     }
 }
 
-inline bool continueToShowScreenshotImage()
-{
-    gettimeofday(&valTime2, NULL);
-    double currentTime = valTime2.tv_sec + (valTime2.tv_usec / 1000000.0);
-    double elapsed = currentTime - lastScreenhotrequestTime;
-    if (elapsed < 2)
-    {
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-}
-
-inline void checkPaused()
-{
-    if (input_pause_requested || input_info_requested)
-    {
-        pause_requested = true;
-    }
-    else
-    {
-        pause_requested = false;
-    }
-}
 
 inline void presenter_post(int width, int height)
 {
@@ -1653,19 +767,7 @@ inline void core_video_refresh_OPENGL(const void *data, unsigned width, unsigned
         }
     }
 
-    /*if (!isWideScreen)
-   {  //on V tate games should be rotated on the opposide side
-       _351BlitRotation = GO2_ROTATION_DEGREES_270;
-       _351Rotation = GO2_ROTATION_DEGREES_90;
-
-   }*/
-
-    // Swap
-
-    //  go2_context_swap_buffers(context3D);
-
-    //    gles_surface = go2_context_surface_lock(context3D);
-    // get some util info
+    
     gs_w = go2_surface_width_get(gles_surface);
     gs_h = go2_surface_height_get(gles_surface);
 
@@ -1681,95 +783,16 @@ inline void core_video_refresh_OPENGL(const void *data, unsigned width, unsigned
     }
 }
 
-// bisogna controllare se una di quete ha cambiato stato significa che dobbiamo fare lo schermo nero!
-/*
-bool set_last_input_action_active()
-{
-    bool result = false;
-    if (input_info_requested)
-    {
-        status_obj->last_full = true;
-    }
-    if (input_exit_requested_firstTime)
-    {
-        status_obj->last_bottom_left = true;
-    }
-    if (input_fps_requested)
-    {
-        status_obj->last_top_right = true;
-    }
-    return result;
-}
-
-
-bool check_input_action_active()
-{
-   return status_obj->last_full ||
-
-     status_obj->last_bottom_left  ||
-
-     status_obj->last_bottom_right ||
-
-      status_obj->last_top_left || status_obj->last_top_right;
-
-}
-
-bool showBlackScreen()
-{
-   return ((status_obj->last_full && !input_info_requested ) ||
-
-     (status_obj->last_bottom_left && !input_exit_requested_firstTime) ||
-
-     (status_obj->last_bottom_right && !input_fps_requested));
-
-     //|| status_obj->last_top_left || status_obj->last_top_right;
-
-}
-
-void reset_last_input_action_active(){
-    status_obj->last_full =false;
-    status_obj->last_bottom_left =false;
-     status_obj->last_bottom_right=false;
-     status_obj->last_top_left=false;
-     status_obj->last_top_right=false;
-
-}
-*/
 
 const void *lastData;
 size_t lastPitch;
-/*int cleanNumber = 0;
-int numberOfClear = 3;*/
 void core_video_refresh(const void *data, unsigned width, unsigned height, size_t pitch)
 {
 
-    /* if (showBlackScreen() && width > 0 && cleanNumber < numberOfClear)
-     {
-         printf("we need to clean up the screen\n");
-         cleanUpScreen = true;
-         cleanNumber++;
-     }
-     else
-     {
-         cleanUpScreen = false;
-     }
-
-
-
-
-     if (!check_input_action_active()){
-         if (width > 0 && cleanNumber == numberOfClear - 1)
-         {
-             reset_last_input_action_active();
-             cleanNumber = 0;
-         }
-     }
-
-     set_last_input_action_active();*/
+    
 
     if (input_info_requested)
     {
-
         width = currentWidth;
         height = currentHeight;
         data = lastData;
@@ -1849,7 +872,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
     }
     if (height != currentHeight || width != currentWidth)
     {
-        logger.log(Logger::INF, "Resolution switched to width=%d, height=%d", width, height);
+        logger.log(Logger::DEB, "Resolution switched to width=%d, height=%d", width, height);
         currentWidth = width;
         currentHeight = height;
     }

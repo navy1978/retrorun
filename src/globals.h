@@ -1,5 +1,5 @@
 /*
-retrorun-go2 - libretro frontend for the ODROID-GO Advance
+retrorun - libretro frontend for Anbernic Devices
 Copyright (C) 2020  OtherCrashOverride
 Copyright (C) 2021-present  navy1978
 
@@ -188,4 +188,10 @@ extern MenuManager menuManager;
 extern int current_volume;
 extern std::string retrorun_device_name;
 extern bool firstTimeCorrectFrame;
+extern bool screenshot_requested;
+extern bool pause_requested;
+
+
+
+
 

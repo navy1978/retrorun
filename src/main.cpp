@@ -1,5 +1,5 @@
 /*
-retrorun-go2 - libretro frontend for the ODROID-GO Advance
+retrorun - libretro frontend for Anbernic Devices
 Copyright (C) 2020  OtherCrashOverride
 Copyright (C) 2021-present  navy1978
 
@@ -19,6 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 
 #include "globals.h"
+#include "video-helper.h"
 #include "video.h"
 #include "audio.h"
 #include "input.h"
@@ -214,7 +215,7 @@ void initMapConfig(std::string pathConfFile)
             logger.log(Logger::ERR, "Error reading configuration file, key:%s", key);
         }
     }
-    logger.log(Logger::INF, "Configuration loaded!");
+    logger.log(Logger::DEB, "Configuration loaded!");
 
     // std::cout << "After init ====>mymap.size() is " << conf_map.size() << '\n';
     file_in.close();
@@ -403,11 +404,11 @@ static bool core_environment(unsigned cmd, void *data)
     {
 
         const struct retro_controller_info *arg = (retro_controller_info *)data;
-        logger.log(Logger::INF, "Controllers Available:");
+        logger.log(Logger::DEB, "Controllers Available:");
         for (unsigned x = 0; x < arg->num_types; x++)
         {
             const struct retro_controller_description *type = &arg->types[x];
-            logger.log(Logger::INF, " -\t%s: %u", type->desc, type->id);
+            logger.log(Logger::DEB, " -\t%s: %u", type->desc, type->id);
         }
 
         return true; // Return true to indicate successful handling
@@ -527,7 +528,7 @@ static bool core_environment(unsigned cmd, void *data)
             std::string value = options[i].default_value;
 
             variables[key] = value;
-            logger.log(Logger::INF, "OPTION: key=%s, value=%s", key.c_str(), value.c_str());
+            logger.log(Logger::DEB, "OPTION: key=%s, value=%s", key.c_str(), value.c_str());
             ++i;
         }
 
@@ -629,7 +630,7 @@ static void core_load(const char *sofile)
     */
     g_retro.retro_init();
     g_retro.initialized = true;
-    logger.log(Logger::INF, "Core loaded.");
+    logger.log(Logger::DEB, "Core loaded.");
 
     // we postpone this call later because some emulators dont like it (dosbox-core)
     // g_retro.retro_set_controller_port_device(0, RETRO_DEVICE_JOYPAD);
@@ -831,7 +832,7 @@ static int LoadState(const char *saveName)
     free(ptr);
     if (result)
     {
-        logger.log(Logger::INF, "File '%s': loaded correctly!", saveName);
+        logger.log(Logger::DEB, "File '%s': loaded correctly!", saveName);
     }
     else
     {
@@ -848,7 +849,7 @@ static int LoadSram(const char *saveName)
         FILE *file = fopen(saveName, "rb");
         if (!file)
         {
-            logger.log(Logger::ERR, "Error loading sram: File '%s' not found!", saveName);
+            logger.log(Logger::DEB, "Loading sram: File '%s' not found!", saveName);
             return -1;
         }
 
@@ -881,7 +882,7 @@ static int LoadSram(const char *saveName)
             exit(1);
         }
         fclose(file);
-        logger.log(Logger::INF, "File '%s': loaded correctly!\n", saveName);
+        logger.log(Logger::DEB, "File '%s': loaded correctly!\n", saveName);
     }
     catch (const std::exception &e) // caught by reference to base
     {
@@ -916,7 +917,7 @@ static void SaveState(const char *saveName)
     }
     fclose(file);
     free(ptr);
-    logger.log(Logger::INF, "File '%s': saved correctly!", saveName);
+    logger.log(Logger::DEB, "File '%s': saved correctly!", saveName);
 
     return;
 }
@@ -951,7 +952,7 @@ static void SaveSram(const char *saveName)
     }
 
     fclose(file);
-    logger.log(Logger::INF, "Sram saved!");
+    logger.log(Logger::DEB, "Sram saved!");
 }
 
 std::string getSystemFromRomPath(const char *fullpath)
@@ -961,7 +962,7 @@ std::string getSystemFromRomPath(const char *fullpath)
     std::string dirPath = (slash != std::string::npos) ? arg_rom_string.substr(0, slash) : arg_rom_string;
     size_t slash2 = dirPath.find_last_of("\\/");
     std::string system = (slash2 != std::string::npos) ? dirPath.substr(slash2 + 1, dirPath.length()) : dirPath;
-    logger.log(Logger::INF, "system='%s'", system.c_str());
+    logger.log(Logger::DEB, "system='%s'", system.c_str());
     return system;
 }
 
@@ -1195,11 +1196,11 @@ void initConfig()
     // Check if the local config file exists
     if (fileExists(config_file.c_str()))
     {
-        logger.log(Logger::INF, "Using local configuration file: '%s'", config_file.c_str());
+        logger.log(Logger::DEB, "Using local configuration file: '%s'", config_file.c_str());
     }
     else
     {
-        logger.log(Logger::INF, "Local configuration file not found. Using default configuration file: '%s'", opt_setting_file);
+        logger.log(Logger::DEB, "Local configuration file not found. Using default configuration file: '%s'", opt_setting_file);
         config_file = opt_setting_file; // Use the default config file
     }
     std::ifstream infile(config_file);
@@ -1209,13 +1210,13 @@ void initConfig()
     }
     else
     {
-        logger.log(Logger::INF, "Reading configuration file:'%s'", config_file.c_str());
+        logger.log(Logger::DEB, "Reading configuration file:'%s'", config_file.c_str());
         initMapConfig(config_file.c_str());
         try
         {
             const std::string &ssFolderValue = conf_map.at("retrorun_screenshot_folder");
             screenShotFolder = ssFolderValue;
-            logger.log(Logger::INF, "Screenshot folder:%s", screenShotFolder.c_str());
+            logger.log(Logger::DEB, "Screenshot folder:%s", screenShotFolder.c_str());
         }
         catch (...)
         {
@@ -1227,7 +1228,7 @@ void initConfig()
         {
             const std::string &ssFps_counter = conf_map.at("retrorun_fps_counter");
             input_fps_requested = ssFps_counter == "enabled" ? true : false;
-            logger.log(Logger::INF, "retrorun_fps_counter :%s", input_fps_requested ? "TRUE" : "FALSE");
+            logger.log(Logger::DEB, "retrorun_fps_counter :%s", input_fps_requested ? "TRUE" : "FALSE");
         }
         catch (...)
         {
@@ -1237,7 +1238,7 @@ void initConfig()
 
         if (opt_aspect != 0.0f)
         {
-            logger.log(Logger::INF, "aspect_ratio forced from command line.");
+            logger.log(Logger::DEB, "aspect_ratio forced from command line.");
         }
         else
         {
@@ -1245,7 +1246,7 @@ void initConfig()
             {
                 const std::string &arValue = conf_map.at("retrorun_aspect_ratio");
                 opt_aspect = getAspectRatio(arValue);
-                logger.log(Logger::INF, "retrorun_aspect_ratio :%f", opt_aspect);
+                logger.log(Logger::DEB, "retrorun_aspect_ratio :%f", opt_aspect);
             }
             catch (...)
             {
@@ -1256,7 +1257,7 @@ void initConfig()
         {
             const std::string &asValue = conf_map.at("retrorun_auto_save");
             auto_save = asValue == "true" ? true : false;
-            logger.log(Logger::INF, "retrorun_auto_save: %s.", auto_save ? "true" : "false");
+            logger.log(Logger::DEB, "retrorun_auto_save: %s.", auto_save ? "true" : "false");
             if (isFlycast2021())
             {
                 auto_save = false;
@@ -1272,13 +1273,13 @@ void initConfig()
         {
             const std::string &asValue = conf_map.at("retrorun_auto_load");
             auto_load = asValue == "true" ? true : false;
-            logger.log(Logger::INF, "retrorun_auto_load: %s.", auto_load ? "true" : "false");
+            logger.log(Logger::DEB, "retrorun_auto_load: %s.", auto_load ? "true" : "false");
         }
         catch (...)
         {
-            logger.log(Logger::INF, "By defualt retrorun auto_load will be the same as auto_save.");
+            logger.log(Logger::DEB, "By defualt retrorun auto_load will be the same as auto_save.");
             auto_load = auto_save;
-            logger.log(Logger::WARN, "retrorun_auto_load parameter not found in retrorun.cfg using default value (%s).", auto_load ? "true" : "false");
+            logger.log(Logger::DEB, "retrorun_auto_load parameter not found in retrorun.cfg using default value (%s).", auto_load ? "true" : "false");
         }
 
         try
@@ -1286,7 +1287,7 @@ void initConfig()
             const std::string &lasValue = conf_map.at("retrorun_force_left_analog_stick");
 
             force_left_analog_stick = lasValue == "true" ? true : false;
-            logger.log(Logger::INF, "retrorun_force_left_analog_stick: %s.", force_left_analog_stick ? "true" : "false");
+            logger.log(Logger::DEB, "retrorun_force_left_analog_stick: %s.", force_left_analog_stick ? "true" : "false");
         }
         catch (...)
         {
@@ -1298,7 +1299,7 @@ void initConfig()
             const std::string &tflValue = conf_map.at("retrorun_loop_declared_fps");
 
             runLoopAtDeclaredfps = tflValue == "false" ? false : true;
-            logger.log(Logger::INF, "retrorun_loop_declared_fps: %s.", runLoopAtDeclaredfps ? "true" : "false");
+            logger.log(Logger::DEB, "retrorun_loop_declared_fps: %s.", runLoopAtDeclaredfps ? "true" : "false");
         }
         catch (...)
         {
@@ -1309,7 +1310,7 @@ void initConfig()
         {
             const std::string &asValue = conf_map.at("retrorun_swap_l1r1_with_l2r2");
             swapL1R1WithL2R2 = asValue == "true" ? true : false;
-            logger.log(Logger::INF, "retrorun_swap_l1r1_with_l2r2: %s.", swapL1R1WithL2R2 ? "true" : "false");
+            logger.log(Logger::DEB, "retrorun_swap_l1r1_with_l2r2: %s.", swapL1R1WithL2R2 ? "true" : "false");
         }
         catch (...)
         {
@@ -1319,11 +1320,11 @@ void initConfig()
         {
             const std::string &asValue = conf_map.at("retrorun_swap_sticks");
             swapSticks = asValue == "true" ? true : false;
-            logger.log(Logger::INF, "retrorun_swap_sticks: %s.", swapSticks ? "true" : "false");
+            logger.log(Logger::DEB, "retrorun_swap_sticks: %s.", swapSticks ? "true" : "false");
         }
         catch (...)
         {
-            logger.log(Logger::INF, "retrorun_swap_sticks parameter not found in retrorun.cfg using default value (%s).", swapSticks ? "true" : "false");
+            logger.log(Logger::DEB, "retrorun_swap_sticks parameter not found in retrorun.cfg using default value (%s).", swapSticks ? "true" : "false");
         }
 
         try
@@ -1333,7 +1334,7 @@ void initConfig()
             {
                 retrorun_audio_buffer = stoi(audioBufferValue);
                 new_retrorun_audio_buffer = retrorun_audio_buffer;
-                logger.log(Logger::INF, "retrorun_audio_buffer: %d.", retrorun_audio_buffer);
+                logger.log(Logger::DEB, "retrorun_audio_buffer: %d.", retrorun_audio_buffer);
             }
         }
         catch (...)
@@ -1347,7 +1348,7 @@ void initConfig()
             if (!mouseSpeedValue.empty())
             {
                 retrorun_mouse_speed_factor = stoi(mouseSpeedValue);
-                logger.log(Logger::INF, "retrorun_mouse_speed_factor: %d.", retrorun_mouse_speed_factor);
+                logger.log(Logger::DEB, "retrorun_mouse_speed_factor: %d.", retrorun_mouse_speed_factor);
             }
         }
         catch (...)
@@ -1360,7 +1361,7 @@ void initConfig()
             const std::string &arValue = conf_map.at("retrorun_tate_mode");
             tateState = getTateMode(arValue);
             /** TODO: fix this it should not return the opt_aspect*/
-            logger.log(Logger::INF, "retrorun_tate_mode :%f\n", opt_aspect);
+            logger.log(Logger::DEB, "retrorun_tate_mode :%f\n", opt_aspect);
         }
         catch (...)
         {
@@ -1372,7 +1373,7 @@ void initConfig()
             const std::string &arValue = conf_map.at("retrorun_log_level");
             logger.setLogLevel(getLogLevel(arValue));
 
-            logger.log(Logger::INF, "retrorun_log_level :%s\n", arValue);
+            logger.log(Logger::DEB, "retrorun_log_level :%s\n", arValue);
         }
         catch (...)
         {
@@ -1383,19 +1384,19 @@ void initConfig()
         {
             const std::string &asValue = conf_map.at("retrorun_device_name");
             retrorun_device_name = asValue; 
-            logger.log(Logger::INF, "retrorun_device_name: %s.", retrorun_device_name.c_str());
+            logger.log(Logger::DEB, "retrorun_device_name: %s.", retrorun_device_name.c_str());
             
         }
         catch (...)
         {
-            logger.log(Logger::WARN, "retrorun_device_name parameter not found in retrorun.cfg, device name will be detected in a different way..." );
+            logger.log(Logger::DEB, "retrorun_device_name parameter not found in retrorun.cfg, device name will be detected in a different way..." );
         }
 
 
         processVideoInAnotherThread = (isRG552() /*|| isRG503()*/) ? true : false;
 
         adaptiveFps = false;
-        logger.log(Logger::INF, "Configuration initialized.");
+        logger.log(Logger::DEB, "Configuration initialized.");
     }
 
     infile.close();
@@ -1625,19 +1626,19 @@ auto loadSaveSlot = [](int slotNumber, std::string type) -> std::function<void(i
             {
                 return;
             }*/
-            logger.log(Logger::INF, "Slot number :%d\n", slotNumber);
+            logger.log(Logger::DEB, "Slot number :%d\n", slotNumber);
             char *savePath = createSavePath(arg_rom, opt_savedir);
             std::string savePath1 = savePath;
             savePath1 += slotNumber == 1 ? "" : "" + std::to_string(slotNumber - 1);
 
             if (type == "Load")
             {
-                logger.log(Logger::INF, "loading file :%s\n", savePath1);
+                logger.log(Logger::DEB, "loading file :%s\n", savePath1);
                 LoadState(savePath1.c_str());
             }
             else
             {
-                logger.log(Logger::INF, "saving file :%s\n", savePath1.c_str());
+                logger.log(Logger::DEB, "saving file :%s\n", savePath1.c_str());
                 SaveState(savePath1.c_str());
             }
             free(savePath);
@@ -1675,7 +1676,10 @@ using namespace std::chrono;
 int main(int argc, char *argv[])
 {
     printf("\n");
-    logger.log(Logger::INF, "#### RETRORUN %s ####", release.c_str());
+    printf("########### RETRORUN %s ###########\n", release.c_str());
+    printf("libretro frontend for Anbernic Devices\n");
+    printf("Copyright (C) 2020  OtherCrashOverride\n");
+    printf("Copyright (C) 2021-present  navy1978\n");
     printf("\n");
     initConfig();
     getDeviceName(); // we need this call here (otherwise it doesnt work because the methos is called only later , this need to be refactored)
@@ -1749,7 +1753,7 @@ int main(int argc, char *argv[])
 
     int remaining_args = argc - optind;
     int remaining_index = optind;
-    logger.log(Logger::INF, "remaining_args=%d", remaining_args);
+    logger.log(Logger::DEB, "remaining_args=%d", remaining_args);
 
     if (remaining_args < 2)
     {
@@ -1760,9 +1764,9 @@ int main(int argc, char *argv[])
     // return 0;
     if (optind < argc)
     {
-        logger.log(Logger::INF, "non-option ARGV-elements:");
+        logger.log(Logger::DEB, "non-option ARGV-elements:");
         while (optind < argc)
-            logger.log(Logger::INF, " - %s ", argv[optind++]);
+            logger.log(Logger::DEB, " - %s ", argv[optind++]);
     }
 
     arg_core = argv[remaining_index++];
@@ -1795,8 +1799,8 @@ int main(int argc, char *argv[])
     // Chiamata alla funzione createSavePath
     char *savePath = createSavePath(arg_rom, opt_savedir);
 
-    logger.log(Logger::INF, "savePath='%s'", savePath);
-    logger.log(Logger::INF, "sramPath='%s'", sramPath);
+    logger.log(Logger::DEB, "savePath='%s'", savePath);
+    logger.log(Logger::DEB, "sramPath='%s'", sramPath);
 
     if (opt_restart)
     {
@@ -1814,7 +1818,7 @@ int main(int argc, char *argv[])
         {
             input_message = true;
             status_message = "Loading saved game...";
-            logger.log(Logger::INF, "Loading saved state - File '%s'", savePath);
+            logger.log(Logger::DEB, "Loading saved state - File '%s'", savePath);
 
             if (isParalleln64() || isDosBox())
             {
@@ -1830,7 +1834,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    logger.log(Logger::INF, "Loading sram - File '%s'", sramPath);
+    logger.log(Logger::DEB, "Loading sram - File '%s'", sramPath);
     LoadSram(sramPath);
     logger.log(Logger::DEB, "Entering render loop.");
 
@@ -2200,19 +2204,19 @@ int main(int argc, char *argv[])
         }
     }
     logger.log(Logger::DEB, "Exiting from render loop...");
-    logger.log(Logger::INF, "Saving sram into file:%", sramPath);
+    logger.log(Logger::DEB, "Saving sram into file:%", sramPath);
     SaveSram(sramPath);
     free(sramPath);
     usleep(500000); // wait a little bit
     if (auto_save)
     {
-        logger.log(Logger::INF, "Saving sav into file:%s", savePath);
+        logger.log(Logger::DEB, "Saving sav into file:%s", savePath);
         SaveState(savePath);
         free(savePath);
         sleep(1); // wait a little bit
     }
     // free(saveName);
-    logger.log(Logger::INF, "Unloading core and deinit audio and video...");
+    logger.log(Logger::DEB, "Unloading core and deinit audio and video...");
     video_deinit();
     audio_deinit();
     // atexit(unload);
@@ -2229,7 +2233,7 @@ int main(int argc, char *argv[])
     { // if it hangs we kill the thread and we exit
         pthread_kill(threadId, SIGUSR1);
         pthread_join(threadId, NULL);
-        logger.log(Logger::INF, "Force exiting retrorun.");
+        logger.log(Logger::DEB, "Force exiting retrorun.");
         throw std::runtime_error("Force exiting retrorun.\n");
     }
 

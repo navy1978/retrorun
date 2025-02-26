@@ -1,5 +1,5 @@
 /*
-retrorun-go2 - libretro frontend for the ODROID-GO Advance
+retrorun - libretro frontend for Anbernic Devices
 Copyright (C) 2020  OtherCrashOverride
 Copyright (C) 2021-present  navy1978
 
@@ -208,7 +208,7 @@ size_t core_audio_sample_batch(const int16_t *data, size_t frames)
         audioFrameCount = 0;
         retrorun_audio_buffer = new_retrorun_audio_buffer==-1 ? audioFrameLimit :new_retrorun_audio_buffer;
     }
-
+ 
     size_t size = frames * sizeof(int16_t) * CHANNELS;
     newmemcpy(audioBuffer + (audioFrameCount * CHANNELS), (void *)data, size);
     audioFrameCount += frames;

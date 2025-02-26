@@ -1,7 +1,7 @@
 #pragma once
 
 /*
-retrorun-go2 - libretro frontend for the ODROID-GO Advance
+retrorun - libretro frontend for Anbernic Devices
 Copyright (C) 2020  OtherCrashOverride
 Copyright (C) 2021-present  navy1978
 
@@ -29,10 +29,9 @@ extern bool isOpenGL;
 extern int GLContextMajor;
 extern int GLContextMinor;
 extern int hasStencil;
-extern bool screenshot_requested;
-extern bool pause_requested;
-extern unsigned currentWidth;
-extern unsigned currentHeight;
+
+
+
 
 void video_configure(struct retro_game_geometry* geom);
 void video_deinit();

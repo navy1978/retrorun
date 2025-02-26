@@ -71,6 +71,7 @@ OBJECTS := \
 	$(OBJDIR)/fonts.o \
 	$(OBJDIR)/input.o \
 	$(OBJDIR)/audio.o \
+	$(OBJDIR)/video-helper.o \
 	$(OBJDIR)/video.o \
 	$(OBJDIR)/globals.o \
 	$(OBJDIR)/main.o \
@@ -158,6 +159,9 @@ $(OBJDIR)/input.o: ../../src/input.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/audio.o: ../../src/audio.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/video-helper.o: ../../src/video-helper.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/video.o: ../../src/video.cpp

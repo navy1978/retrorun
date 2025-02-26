@@ -1,5 +1,5 @@
 /*
-retrorun-go2 - libretro frontend for the ODROID-GO Advance
+retrorun - libretro frontend for Anbernic Devices
 Copyright (C) 2020  OtherCrashOverride
 Copyright (C) 2021-present  navy1978
 
@@ -102,7 +102,7 @@ void input_gamepad_read()
 
         if (firstExecution)
         {
-            logger.log(Logger::INF, "GPIO JOYPAD: ENABLED!");
+            logger.log(Logger::DEB, "GPIO JOYPAD: ENABLED!");
             //firstExecution = false;
         }
     }
@@ -124,13 +124,13 @@ void input_gamepad_read()
         if (go2_input_features_get(input) & Go2InputFeatureFlags_Triggers)
         {
             has_triggers = true;
-            logger.log(Logger::INF, "input: Hardware triggers enabled.");
+            logger.log(Logger::DEB, "input: Hardware triggers enabled.");
         }
 
         if (go2_input_features_get(input) & Go2InputFeatureFlags_RightAnalog)
         {
             has_right_analog = true;
-            logger.log(Logger::INF, "input: Right analog enabled.");
+            logger.log(Logger::DEB, "input: Right analog enabled.");
         }
 
         gamepadState = go2_input_state_create();
