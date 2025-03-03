@@ -80,7 +80,7 @@ go2_audio_t *go2_audio_create(int frequency)
     result->context = alcCreateContext(result->device, NULL);
     if (!alcMakeContextCurrent(result->context))
     {
-        printf("alcMakeContextCurrent failed.\n");
+        //printf("alcMakeContextCurrent failed.\n");
         alcCloseDevice(result->device);
         free(result);
         return NULL;
@@ -195,7 +195,7 @@ inline void playAudio(go2_audio_t *audio, const short *data, int frames)
 
     if (!alcMakeContextCurrent(audio->context))
     {
-        printf("alcMakeContextCurrent failed.\n");
+        //printf("alcMakeContextCurrent failed.\n");
         return;
     }
 

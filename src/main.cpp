@@ -53,6 +53,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define EGL_EGLEXT_PROTOTYPES
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
+
 #include <drm/drm_fourcc.h>
 #include <sys/time.h>
 #include <go2/input.h>
@@ -65,6 +68,12 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <cstring>
 #include <chrono>
 #include <thread>
+#include <time.h>
+#include <stdint.h>
+
+#include <stdbool.h>
+
+#define MAX_COUNTERS 16
 
 #define RETRO_DEVICE_ATARI_JOYSTICK RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_JOYPAD, 1)
 #define RETRO_ENVIRONMENT_GET_PREFERRED_HW_RENDER 56
@@ -72,6 +81,12 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define ENABLE_AUDIO 2
 #define USE_FAST_SAVESTATES 4
 #define HARD_DISABLE_AUDIO 8
+
+
+
+static struct retro_perf_counter *perf_counters[MAX_COUNTERS];
+static int perf_counter_count = 0;
+typedef int64_t retro_time_t;
 /* unsigned * --
  *
  * Allows an implementation to ask frontend preferred hardware
@@ -106,6 +121,100 @@ bool auto_load = false;
 const char *ws = " \t\n\r\f\v";
 
 bool isRunning = true;
+pthread_t main_thread_id;
+
+
+
+
+
+retro_time_t cpu_features_get_time_usec(void)
+{
+    struct timespec tv;
+    if (clock_gettime(CLOCK_MONOTONIC, &tv) < 0)
+        return 0;
+    return tv.tv_sec * INT64_C(1000000) + (tv.tv_nsec / 1000);
+}
+
+
+uint64_t cpu_features_get(void)
+{
+    uint64_t cpu = 0;
+
+#if defined(__x86_64__) || defined(__i386__)
+    uint32_t eax, ebx, ecx, edx;
+    __asm__("cpuid"
+        : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx)
+        : "a"(1));  // Chiamata CPUID con EAX=1
+
+    if (edx & (1 << 25)) cpu |= RETRO_SIMD_SSE;
+    if (edx & (1 << 26)) cpu |= RETRO_SIMD_SSE2;
+    if (ecx & (1 << 0))  cpu |= RETRO_SIMD_SSE3;
+    if (ecx & (1 << 9))  cpu |= RETRO_SIMD_SSSE3;
+    if (ecx & (1 << 19)) cpu |= RETRO_SIMD_SSE4;
+    if (ecx & (1 << 28)) cpu |= RETRO_SIMD_AVX;
+
+    __asm__("cpuid"
+        : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx)
+        : "a"(7), "c"(0));  // Chiamata CPUID con EAX=7, ECX=0
+
+    if (ebx & (1 << 5)) cpu |= RETRO_SIMD_AVX2;
+#endif
+
+#if defined(__ARM_NEON__) || defined(__aarch64__)
+    cpu |= RETRO_SIMD_NEON;
+#endif
+
+    return cpu;
+}
+
+
+
+
+
+retro_perf_tick_t cpu_features_get_perf_counter(void)
+{
+    struct timespec tv;
+    if (clock_gettime(CLOCK_MONOTONIC_RAW, &tv) == 0)
+        return (retro_perf_tick_t)tv.tv_sec * 1000000000 + tv.tv_nsec;
+    else if (clock_gettime(CLOCK_MONOTONIC, &tv) == 0)
+        return (retro_perf_tick_t)tv.tv_sec * 1000000000 + tv.tv_nsec;
+    
+    return 0;
+}
+
+
+void runloop_performance_counter_register(struct retro_perf_counter *perf)
+{
+    if (perf->registered || perf_counter_count >= MAX_COUNTERS)
+        return;
+
+    perf_counters[perf_counter_count++] = perf;
+    perf->registered = true;
+}
+void core_performance_counter_start(struct retro_perf_counter *perf)
+{
+    perf->call_cnt++;
+    perf->start = cpu_features_get_perf_counter();
+}
+
+void core_performance_counter_stop(struct retro_perf_counter *perf)
+{
+    perf->total += cpu_features_get_perf_counter() - perf->start;
+}
+
+
+void runloop_perf_log(void)
+{
+    printf("[PERF]: Performance counters:\n");
+    for (int i = 0; i < perf_counter_count; i++)
+    {
+        struct retro_perf_counter *perf = perf_counters[i];
+        printf("%s: calls: %llu, total: %lld ns\n",
+               perf->ident, (unsigned long long)perf->call_cnt, (long long)perf->total);
+    }
+}
+
+
 
 struct option longopts[] = {
     {"savedir", required_argument, NULL, 's'},
@@ -378,10 +487,24 @@ static bool core_environment(unsigned cmd, void *data)
     }
 
     case RETRO_ENVIRONMENT_GET_PERF_INTERFACE:
-    {
-        logger.log(Logger::DEB, "RETRO_ENVIRONMENT_GET_PERF_INTERFACE not implemented");
-        return false;
-    }
+{
+    struct retro_perf_callback *cb = (struct retro_perf_callback*)data;
+
+    logger.log(Logger::DEB, "[Environ]: GET_PERF_INTERFACE.");
+
+    // Funzioni base di supporto alla performance
+    cb->get_time_usec    = cpu_features_get_time_usec;
+    cb->get_cpu_features = cpu_features_get;
+    cb->get_perf_counter = cpu_features_get_perf_counter;
+
+    // Se non hai queste funzioni in Retrorun, potresti doverle implementare
+    cb->perf_register    = runloop_performance_counter_register;
+    cb->perf_start       = core_performance_counter_start;
+    cb->perf_stop        = core_performance_counter_stop;
+    cb->perf_log         = runloop_perf_log;
+
+    return true;
+}
 
     case RETRO_ENVIRONMENT_GET_LANGUAGE:
     {
@@ -797,39 +920,82 @@ inline int getRetroMemory()
     return /*isFlycast() ? RETRO_MEMORY_VIDEO_RAM :*/ RETRO_MEMORY_SAVE_RAM;
 }
 
+
+
+    // Mutex per sincronizzare l'accesso alla memoria
+    pthread_mutex_t stateMutex = PTHREAD_MUTEX_INITIALIZER;
 static int LoadState(const char *saveName)
 {
+    logger.log(Logger::DEB, "TRying to Load state...");
     FILE *file = fopen(saveName, "rb");
     if (!file)
     {
         logger.log(Logger::ERR, "Error loading state: File '%s' not found!", saveName);
         return -1;
     }
+ 
     fseek(file, 0, SEEK_END);
     long size = ftell(file);
     rewind(file);
+
     if (size < 1)
     {
         logger.log(Logger::ERR, "Error loading state, in file '%s': size is wrong!", saveName);
+        fclose(file);
         return -1;
     }
-    void *ptr = malloc(size);
-    if (!ptr)
+
+    // Usa posix_memalign per garantire un allineamento sicuro della memoria
+    void *ptr;
+    if (posix_memalign(&ptr, 16, size) != 0)
     {
-        logger.log(Logger::ERR, "Error loading state, ptr not valid aborting...");
-        exit(1);
+        logger.log(Logger::ERR, "Memory allocation failed!");
+        fclose(file);
+        return -1;
     }
+    for (long i = 0; i < size; i += 4096) {
+        ((char *)ptr)[i] = 0;  // Scrive un byte ogni 4KB per forzare il mapping della memoria
+    }
+
     size_t count = fread(ptr, 1, size, file);
+    fclose(file);  // Chiudiamo il file appena finito di leggere
 
     if ((size_t)size != count)
     {
         logger.log(Logger::ERR, "Error loading state, in file '%s': size mismatch!", saveName);
         free(ptr);
-        exit(1);
+        return -1;
     }
-    fclose(file);
+    logger.log(Logger::DEB, "Calling retro_unserialize: ptr=%p, size=%ld", ptr, size);
+    
+    logger.log(Logger::DEB, "First 16 bytes of state buffer: %02X %02X %02X %02X %02X %02X %02X %02X",
+        ((unsigned char*)ptr)[0], ((unsigned char*)ptr)[1], ((unsigned char*)ptr)[2], ((unsigned char*)ptr)[3],
+        ((unsigned char*)ptr)[4], ((unsigned char*)ptr)[5], ((unsigned char*)ptr)[6], ((unsigned char*)ptr)[7]);
+    
+    // Sincronizza il caricamento dello stato con un mutex
+    if (pthread_self() != main_thread_id) {
+        logger.log(Logger::ERR, "Error: retro_unserialize() non sta girando nel main thread!");
+        return -1;
+    }
+    //printf("DEBUG: Dump dei primi 64 byte di ptr prima di retro_unserialize():\n");
+    for (int i = 0; i < 64; i++) {
+        printf("%02X ", ((unsigned char*)ptr)[i]);
+    }
+    printf("\n");
+    fflush(stdout);
+    //printf("DEBUG: Entrato in LoadState(), thread attuale: %lu, main thread: %lu\n",
+    pthread_self(), main_thread_id);
+    fflush(stdout);
+    pthread_mutex_lock(&stateMutex);
+    glFinish();
+    glFlush();
+    mprotect(ptr, size, PROT_READ);
     bool result = g_retro.retro_unserialize(ptr, size);
+    mprotect(ptr, size, PROT_READ | PROT_WRITE);
+    pthread_mutex_unlock(&stateMutex);
+
     free(ptr);
+
     if (result)
     {
         logger.log(Logger::DEB, "File '%s': loaded correctly!", saveName);
@@ -838,7 +1004,7 @@ static int LoadState(const char *saveName)
     {
         logger.log(Logger::WARN, "File '%s': loaded correctly but with no effects!", saveName);
     }
-    return 0;
+    return result ? 0 : -1;
 }
 
 static int LoadSram(const char *saveName)
@@ -858,6 +1024,11 @@ static int LoadSram(const char *saveName)
         rewind(file);
 
         size_t sramSize = g_retro.retro_get_memory_size(getRetroMemory());
+
+        /*for (unsigned i = 0; i < 4; i++) {
+            size_t sramSize1 = g_retro.retro_get_memory_size(i);
+            printf("Memory size for ID %u: %zu bytes\n", i, sramSize1);
+        }*/
         if (size < 1)
         {
             logger.log(Logger::ERR, "Error loading sram, memory size wrong!");
@@ -925,6 +1096,11 @@ static void SaveState(const char *saveName)
 static void SaveSram(const char *saveName)
 {
     size_t size = g_retro.retro_get_memory_size(getRetroMemory());
+
+    /*for (unsigned i = 0; i < 4; i++) {
+        size_t sramSize = g_retro.retro_get_memory_size(i);
+        printf("Memory size for ID %u: %zu bytes\n", i, sramSize);
+    }*/
     if (size < 1)
     {
         logger.log(Logger::ERR, "nothing to save in srm file!, %zu", size);
@@ -1258,11 +1434,7 @@ void initConfig()
             const std::string &asValue = conf_map.at("retrorun_auto_save");
             auto_save = asValue == "true" ? true : false;
             logger.log(Logger::DEB, "retrorun_auto_save: %s.", auto_save ? "true" : "false");
-            if (isFlycast2021())
-            {
-                auto_save = false;
-                logger.log(Logger::WARN, "retrorun_auto_save disabled on Flycast2021, because it doesnt work!");
-            }
+            
         }
         catch (...)
         {
@@ -1675,6 +1847,8 @@ using namespace std::chrono;
 
 int main(int argc, char *argv[])
 {
+    
+    main_thread_id = pthread_self();
     printf("\n");
     printf("########### RETRORUN %s ###########\n", release.c_str());
     printf("libretro frontend for Anbernic Devices\n");
@@ -1809,18 +1983,14 @@ int main(int argc, char *argv[])
     else
     {
 
-        if (isFlycast2021())
-        {
-            auto_load = false;
-            logger.log(Logger::WARN, "retrorun_auto_load disabled on Flycast2021, because it doesnt work!");
-        }
+        
         if (auto_load)
         {
             input_message = true;
             status_message = "Loading saved game...";
             logger.log(Logger::DEB, "Loading saved state - File '%s'", savePath);
 
-            if (isParalleln64() || isDosBox())
+            if (isParalleln64() || isDosBox() || isFlycast2021())
             {
                 // for parallel n64 we need to wait till the core is fully initialized then we call a retro_run to be sure
                 // for the other cores is also fine but with pcsx rearmed it has problems
@@ -2046,27 +2216,16 @@ int main(int argc, char *argv[])
     // define Main Menu
     Menu menuInfo = Menu("Info", itemsInfo);
     std::vector<MenuItem> items;
-    if (isFlycast2021())
-    {
-        items = {
-            MenuItem("Resume", resume),
-            MenuItem("Info", &menuInfo, fake),
-            MenuItem("Settings", &menuSettings, fake),
-            MenuItem("Credits", showCredit),
-            MenuItem("Quit", &menuInfoQuit, fake),
-        };
-    }
-    else
-    {
-        items = {
-            MenuItem("Resume", resume),
-            MenuItem("Info", &menuInfo, fake),
-            MenuItem("Settings", &menuSettings, fake),
-            MenuItem("Load/Save", &menuState, fake),
-            MenuItem("Credits", showCredit),
-            MenuItem("Quit", &menuInfoQuit, fake),
-        };
-    }
+    
+    items = {
+        MenuItem("Resume", resume),
+        MenuItem("Info", &menuInfo, fake),
+        MenuItem("Settings", &menuSettings, fake),
+        MenuItem("Load/Save", &menuState, fake),
+        MenuItem("Credits", showCredit),
+        MenuItem("Quit", &menuInfoQuit, fake),
+    };
+    
 
     Menu menu = Menu("Main Menu", items);
 

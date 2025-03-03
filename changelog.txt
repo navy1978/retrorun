@@ -1,5 +1,13 @@
 Retrorun
 =======================
+Version 2.5.3 (Feb 26, 2025)
+----------------------------------
+- Fixed SaveState for flycast2021 core 
+
+Version 2.5.2 (Feb 26, 2025)
+----------------------------------
+- Fixed VMU for flycast core 
+- cleanup code
 
 Version 2.5.1 (Apr 12, 2024)
 ----------------------------------
