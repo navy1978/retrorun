@@ -984,7 +984,7 @@ static int LoadState(const char *saveName)
     printf("\n");
     fflush(stdout);
     //printf("DEBUG: Entrato in LoadState(), thread attuale: %lu, main thread: %lu\n",
-    pthread_self(), main_thread_id);
+    main_thread_id = pthread_self();
     fflush(stdout);
     pthread_mutex_lock(&stateMutex);
     glFinish();
