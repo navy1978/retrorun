@@ -53,6 +53,8 @@ This branch of RetroRun includes several features:
 8. Support for GPIO/USB joypad.
 9. On-Screen Display (OSD) with explanatory images.
 10. Info Menu displaying device and game information.
+11. Working SaveState for all supported cores included flycast2021 and flycast
+12. many more...
 
 ## RetroRun Configuration Parameters
 
