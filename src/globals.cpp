@@ -235,10 +235,11 @@ const char *getDeviceName() noexcept
 
     if (!deviceInitialized)
     {
-
+        logger.log(Logger::INF, "Getting device info...");
+            
         if (!retrorun_device_name.empty())
         {
-            logger.log(Logger::ERR, "Getting device info from congiguration...");
+            logger.log(Logger::ERR, "Getting device info from configuration...");
             // get extra info
             getCpuInfo();
             deviceInitialized = true;
@@ -283,7 +284,8 @@ const char *getDeviceName() noexcept
                 // Close the pipe
                 pclose(pipe);
 
-                logger.log(Logger::DEB, "Device name: %s", DEVICE_NAME);
+                logger.log(Logger::INF, "Device found: %s", DEVICE_NAME);
+                
                 // get extra info
                 getCpuInfo();
                 deviceInitialized = true;
@@ -304,6 +306,7 @@ const char *getDeviceName() noexcept
                 {
                     logger.log(Logger::ERR, "Environment variable \"DEVICE_NAME\" not set. Device name undefined!");
                 }
+                logger.log(Logger::INF, "Device found: %s", DEVICE_NAME);
                 // get extra info
                 getCpuInfo();
                 deviceInitialized = true;

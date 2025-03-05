@@ -1369,17 +1369,19 @@ char *createSavePath(const std::string &arg_rom, const std::string &opt_savedir)
 void initConfig()
 {
 
+    logger.log(Logger::INF, "Searching config file... ");
+  
     std::string config_file = "retrorun.cfg";
     
 
     // Check if the local config file exists
     if (fileExists(config_file.c_str()))
     {
-        logger.log(Logger::DEB, "Using local configuration file: '%s'", config_file.c_str());
+        logger.log(Logger::INF, "Using local configuration file: '%s'", config_file.c_str());
     }
     else
     {
-        logger.log(Logger::DEB, "Local configuration file not found. Using default configuration file: '%s'", opt_setting_file);
+        logger.log(Logger::INF, "Local configuration file not found. Using configuration file: '%s'", opt_setting_file);
         config_file = opt_setting_file; // Use the default config file
     }
     std::ifstream infile(config_file);
@@ -1389,7 +1391,7 @@ void initConfig()
     }
     else
     {
-        logger.log(Logger::DEB, "Reading configuration file:'%s'", config_file.c_str());
+        logger.log(Logger::INF, "Configuration found, reading configuration file:'%s'", config_file.c_str());
         initMapConfig(config_file.c_str());
         try
         {
@@ -1547,8 +1549,7 @@ void initConfig()
         {
             const std::string &arValue = conf_map.at("retrorun_log_level");
             logger.setLogLevel(getLogLevel(arValue));
-
-            logger.log(Logger::DEB, "retrorun_log_level :%s\n", arValue);
+            logger.log(Logger::INF, "retrorun_log_level: %s\n", arValue.c_str());
         }
         catch (...)
         {
@@ -1858,8 +1859,6 @@ int main(int argc, char *argv[])
     printf("Copyright (C) 2020  OtherCrashOverride\n");
     printf("Copyright (C) 2021-present  navy1978\n");
     printf("\n");
-    initConfig();
-    getDeviceName(); // we need this call here (otherwise it doesnt work because the methos is called only later , this need to be refactored)
     
 
     int c;
@@ -1917,7 +1916,9 @@ int main(int argc, char *argv[])
             exit(EXIT_FAILURE);
         }
     }
-
+    initConfig();
+    getDeviceName(); // we need this call here (otherwise it doesnt work because the method is called only later , this need to be refactored)
+    
     // gpio_joypad normally is false and should be set to true only for MP and 552
     // but the parameter sesetnd via command line wins so if that is true we leave it true
     if (!gpio_joypad)
