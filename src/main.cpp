@@ -1568,8 +1568,33 @@ void initConfig()
             logger.log(Logger::DEB, "retrorun_device_name parameter not found in retrorun.cfg, device name will be detected in a different way..." );
         }
 
+        //input_info_requested_alternative
+        try
+        {
+            const std::string &asValue = conf_map.at("retrorun_toggle_osd_select_x");
+            input_info_requested_alternative = asValue == "true" ? true : false;
+            logger.log(Logger::DEB, "retrorun_toggle_osd_select_x: %s.", input_info_requested_alternative ? "true" : "false");
+        }
+        catch (...)
+        {
+            logger.log(Logger::DEB, "retrorun_toggle_osd_select_x parameter not found in retrorun.cfg using default value (%s).", input_info_requested_alternative ? "true" : "false");
+        }
+        bool forceMultithread=false;
+        try
+        {
+            const std::string &asValue = conf_map.at("retrorun_force_video_multithread");
+            forceMultithread = asValue == "true" ? true : false;
+            logger.log(Logger::DEB, "retrorun_force_video_multithread: %s.", forceMultithread ? "true" : "false");
+        }
+        catch (...)
+        {
+            logger.log(Logger::DEB, "retrorun_force_video_multithread parameter not found in retrorun.cfg using default value.");
+        }
 
-        processVideoInAnotherThread = (isRG552() /*|| isRG503()*/) ? true : false;
+        
+
+
+        processVideoInAnotherThread = (isRG552()  || forceMultithread /*|| isRG503()*/) ? true : false;
 
         adaptiveFps = false;
         logger.log(Logger::DEB, "Configuration initialized.");

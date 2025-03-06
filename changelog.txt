@@ -1,8 +1,10 @@
 Retrorun
 =======================
-Version 2.5.3 (Mar 03, 2025)
+Version 2.5.3 (Mar 3, 2025)
 ----------------------------------
 - Fixed SaveState for flycast2021 core 
+- added retrorun_force_video_multithread and retrorun_toggle_osd_select_x params
+- Minor fixes
 
 Version 2.5.2 (Feb 26, 2025)
 ----------------------------------

@@ -3,20 +3,41 @@
 RetroRun is a libretro frontend designed specifically for Anbernic devices, including RG351 M/P/V/MP, RG552, and RG503. Enhance your gaming experience with RetroRun.
 
 To use RetroRun you need ro tun first [rg351p-js2box](https://github.com/christianhaitian/RG351P_virtual-gamepad).
-In a way similar to this:
+Better to create a bash file like the folliwong passing 3 parameters: core, rom, platform (this is just an example)
 
 ````
+#!/bin/bash
+
+. /etc/profile
+
+echo 'starting retrorun emulator...'
+
+CORE="$1"
+ROM="${2##*/}"
+PLATFORM="$3"
+
 rm /dev/input/by-path/platform-odroidgo2-joypad-event-joystick || true
 echo 'creating fake joypad'
-/usr/bin/rg351p-js2xbox --silent -t oga_joypad &
-sleep 0.2
+./rg351p-js2xbox --silent -t oga_joypad &
+#sleep 0.2
+echo 'confguring inputs'
+
+
 ln -s /dev/input/event3 /dev/input/by-path/platform-odroidgo2-joypad-event-joystick
 chmod 777 /dev/input/by-path/platform-odroidgo2-joypad-event-joystick
+echo 'using core:' "$1"
+echo 'platform:' "$3"
+echo 'starting game:' "$2"
+
+FPS=''
+GPIO_JOYPAD=''
 sleep 0.2
-retrorun --triggers  -s /storage/roms/"<rom_name>" -d /roms/bios <libretro_core> <system_name>
+echo 'using 64bit'
+./retrorun_64_new --triggers $FPS $GPIO_JOYPAD -s /storage/roms/"$3" -d /roms/bios "$1" "$2"
 sleep 0.5
 rm /dev/input/by-path/platform-odroidgo2-joypad-event-joystick
 kill $(pidof rg351p-js2xbox)
+echo 'end!'
 ````
 
 ## Supported Cores (Tested)
@@ -137,6 +158,14 @@ Default: INFO
 **`retrorun_mouse_speed_factor`** = 
 - Sets the speed factor for the mouse.
 Default: 5
+
+**`retrorun_toggle_osd_select_x`** = 
+- Enable OSD with the combo select+x instead of the default L3+R3.
+Default: false
+
+**`retrorun_force_video_multithread`** = 
+- Force execution of video task in another thread
+Default: false (for RG552 is enabled by default)
 
 ---
 

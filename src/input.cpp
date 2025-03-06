@@ -40,6 +40,7 @@ extern float fps;
 bool input_fps_requested = false;
 double lastFPSrequestTime = -1;
 bool input_info_requested = false;
+bool input_info_requested_alternative = false;
 double lastInforequestTime = -1;
 
 double lastScreenhotrequestTime = -1;
@@ -396,133 +397,98 @@ void core_input_poll(void)
             manageMenu();
        
     }
+// Store button states to avoid multiple function calls
+bool isL3Pressed = go2_input_state_button_get(gamepadState, l3Button) == ButtonState_Pressed;
+bool isR3Pressed = go2_input_state_button_get(gamepadState, r3Button) == ButtonState_Pressed;
+bool isSelectPressed = go2_input_state_button_get(gamepadState, selectButton) == ButtonState_Pressed;
+bool isStartPressed = go2_input_state_button_get(gamepadState, startButton) == ButtonState_Pressed;
+bool isXPressed = go2_input_state_button_get(gamepadState, Go2InputButton_X) == ButtonState_Pressed;
+bool isYPressed = go2_input_state_button_get(gamepadState, Go2InputButton_Y) == ButtonState_Pressed;
+bool isBPressed = go2_input_state_button_get(gamepadState, Go2InputButton_B) == ButtonState_Pressed;
+bool isAPressed = go2_input_state_button_get(gamepadState, Go2InputButton_A) == ButtonState_Pressed;
+bool isF1Pressed = go2_input_state_button_get(gamepadState, Go2InputButton_F1) == ButtonState_Pressed;
+bool isR2Pressed = go2_input_state_button_get(gamepadState, r2Button) == ButtonState_Pressed;
+bool wasR2Released = go2_input_state_button_get(prevGamepadState, r2Button) == ButtonState_Released;
 
-    if (!input_info_requested && go2_input_state_button_get(gamepadState, selectButton) == ButtonState_Pressed &&
-        go2_input_state_button_get(gamepadState, startButton) == ButtonState_Pressed)
-    {
-        if (input_exit_requested_firstTime && elapsed_time_ms > 0.5)
-        {
-            input_exit_requested = true;
-        }
-        else if (!input_exit_requested_firstTime)
-        {
-            gettimeofday(&exitTimeStart, NULL);
-            input_exit_requested_firstTime = true;
-        }
-    }
+// Get current time once
+struct timeval valTime;
+gettimeofday(&valTime, NULL);
+double currentTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
 
-    if (!input_info_requested && go2_input_state_button_get(gamepadState, selectButton) == ButtonState_Pressed &&
-        go2_input_state_button_get(gamepadState, Go2InputButton_Y) == ButtonState_Pressed)
-    {
-
-        gettimeofday(&valTime, NULL);
-        double currentTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
-        bool updateFPSRequest = false;
-        double elapsed = currentTime - lastFPSrequestTime;
-        if (elapsed >= 0.5)
-        {
-            updateFPSRequest = true;
-        }
-        else
-        {
-            updateFPSRequest = false;
-        }
-        if (updateFPSRequest)
-        {
-            input_fps_requested = !input_fps_requested;
-            gettimeofday(&valTime, NULL);
-            lastFPSrequestTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
-        }
-    }
-
-    /*if (go2_input_state_button_get(gamepadState, l3Button) == ButtonState_Pressed)
-    {
-        gettimeofday(&valTime, NULL);
-        double currentTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
-        double elapsed = currentTime - lastL3Pressed;
-        lastL3Pressed = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
-    }
-
-    if (go2_input_state_button_get(gamepadState, l3Button) == ButtonState_Pressed)
-    {
-        gettimeofday(&valTime, NULL);
-        double currentTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
-        double elapsed = currentTime - lastR3Pressed;
-        lastR3Pressed = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
-    }*/
-
-  
-
-    if ( (go2_input_state_button_get(gamepadState, l3Button) == ButtonState_Pressed /*|| (currentTime - lastL3Pressed <=0.2)*/)&&
-        (go2_input_state_button_get(gamepadState, r3Button) == ButtonState_Pressed /*|| (currentTime - lastR3Pressed <=0.2)*/))
-    {
-        gettimeofday(&valTime, NULL);
-        double currentTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
+// Handle input_info_requested_alternative condition
+if (input_info_requested_alternative) {
+    if (isSelectPressed && isXPressed) {
         double elapsed = currentTime - lastInforequestTime;
         logger.log(Logger::DEB, "Input: Info requested");
-        if (elapsed >= 0.5)
-        {
+        if (elapsed >= 0.5) {
             input_info_requested = !input_info_requested;
             pause_requested = input_info_requested;
-            input_credits_requested=false;
-            // printf("pause_requested:%s input_info_requested:%s\n", pause_requested? "true": "false", input_info_requested? "true": "false");
-            lastInforequestTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);    
+            input_credits_requested = false;
+            lastInforequestTime = currentTime;
             logger.log(Logger::DEB, "Input: Info requested OK");
-        }else{
-          //  printf("input: Info requested NOT OK (too quick)\n");
-          
-          
-          /*input_info_requested = false;
-            pause_requested = false;*/
         }
-        
     }
-
-    if (!input_info_requested && go2_input_state_button_get(gamepadState, selectButton) == ButtonState_Pressed &&
-        go2_input_state_button_get(gamepadState, Go2InputButton_B) == ButtonState_Pressed)
-    {
-        screenshot_requested = true;
-        gettimeofday(&valTime, NULL);
-        lastScreenhotrequestTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
-        logger.log(Logger::DEB, "Input: Screenshot requested");
-    }
-
-     if ( (go2_input_state_button_get(gamepadState, selectButton) == ButtonState_Pressed /*|| (currentTime - lastL3Pressed <=0.2)*/)&&
-        (go2_input_state_button_get(gamepadState, Go2InputButton_A) == ButtonState_Pressed /*|| (currentTime - lastR3Pressed <=0.2)*/))
-    {
-        gettimeofday(&valTime, NULL);
-        double currentTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
-        double elapsed = currentTime - pauseRequestTime;
-        
-        if (elapsed >= 0.5)
-        {
-            logger.log(Logger::DEB, "Input: Pause requested");
-            input_pause_requested = !input_pause_requested;
-            if (!input_pause_requested){
-                pause_requested = false;
-            }
-            logger.log(Logger::DEB, "Input: %s", input_pause_requested ? "Paused" : "Un-paused");
-            pauseRequestTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
-        }else{
-           // printf("input: pause requested NOT OK (too quick)\n");
+} else {
+    if (isL3Pressed && isR3Pressed) {
+        double elapsed = currentTime - lastInforequestTime;
+        logger.log(Logger::DEB, "Input: Info requested");
+        if (elapsed >= 0.5) {
+            input_info_requested = !input_info_requested;
+            pause_requested = input_info_requested;
+            input_credits_requested = false;
+            lastInforequestTime = currentTime;
+            logger.log(Logger::DEB, "Input: Info requested OK");
         }
-        
     }
+}
 
+// Handle exit request
+if (!input_info_requested && isSelectPressed && isStartPressed) {
+    if (input_exit_requested_firstTime && elapsed_time_ms > 0.5) {
+        input_exit_requested = true;
+    } else if (!input_exit_requested_firstTime) {
+        gettimeofday(&exitTimeStart, NULL);
+        input_exit_requested_firstTime = true;
+    }
+}
 
+// Handle FPS request
+if (!input_info_requested && isSelectPressed && isYPressed) {
+    double elapsed = currentTime - lastFPSrequestTime;
+    if (elapsed >= 0.5) {
+        input_fps_requested = !input_fps_requested;
+        lastFPSrequestTime = currentTime;
+    }
+}
 
+// Handle screenshot request
+if (!input_info_requested && isSelectPressed && isBPressed) {
+    screenshot_requested = true;
+    lastScreenhotrequestTime = currentTime;
+    logger.log(Logger::DEB, "Input: Screenshot requested");
+}
 
-
-    if (!input_info_requested && go2_input_state_button_get(gamepadState, Go2InputButton_F1) == ButtonState_Pressed)
-    {
-        if (go2_input_state_button_get(gamepadState, r2Button) == ButtonState_Pressed &&
-            go2_input_state_button_get(prevGamepadState, r2Button) == ButtonState_Released)
-       {
-            input_ffwd_requested = !input_ffwd_requested;
-            logger.log(Logger::DEB, "Input: Fast-forward %s", input_ffwd_requested ? "on" : "off");
+// Handle pause request
+if (isSelectPressed && isAPressed) {
+    double elapsed = currentTime - pauseRequestTime;
+    if (elapsed >= 0.5) {
+        logger.log(Logger::DEB, "Input: Pause requested");
+        input_pause_requested = !input_pause_requested;
+        if (!input_pause_requested) {
+            pause_requested = false;
         }
-        
+        logger.log(Logger::DEB, "Input: %s", input_pause_requested ? "Paused" : "Un-paused");
+        pauseRequestTime = currentTime;
     }
+}
+
+// Handle fast-forward request
+if (!input_info_requested && isF1Pressed) {
+    if (isR2Pressed && wasR2Released) {
+        input_ffwd_requested = !input_ffwd_requested;
+        logger.log(Logger::DEB, "Input: Fast-forward %s", input_ffwd_requested ? "on" : "off");
+    }
+}
 }
 
 
