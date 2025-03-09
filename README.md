@@ -272,4 +272,4 @@ swanstation_GPU_Renderer = Software
 # ---- RETRORUN RUNTIME SETTINGS ----
 
 ````
-(*) Pay attention the name of the paeramters follow the name of the core , for exmaple in some distribution flycast core is called reicast, in this case the paramters should start with 'reicast_' for exmaple 'flycast_threaded_rendering' becomes 'reicast_threaded_rendering'
+(*) Pay attention to the parameter names, as they follow the naming convention of the core. For example, in some distributions, the Flycast core is named Reicast. In such cases, parameters should be prefixed accordingly—e.g., 'flycast_threaded_rendering' should be renamed to 'reicast_threaded_rendering'.
