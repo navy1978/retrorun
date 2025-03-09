@@ -363,6 +363,13 @@ bool isRG503()
     return checkDeviceName((char *)"RG503"); // strcmp(DEVICE_NAME, "RG552\n") == 0;
 }
 
+// if getDeviceName was not able to identify the device name we 
+// take this from the retrorun.cfg and then we need to reset the Device name
+void resetDeviceName(){
+    strncpy(DEVICE_NAME, retrorun_device_name.c_str(), DEVICE_NAME_SIZE - 1);
+    DEVICE_NAME[DEVICE_NAME_SIZE - 1] = '\0'; // Ensure null termination
+}
+
 std::vector<std::string> exec(const char *cmd)
 {
     std::vector<std::string> output;

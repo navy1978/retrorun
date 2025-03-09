@@ -40,7 +40,7 @@ bool retrorun_input_set_rumble(unsigned port, enum retro_rumble_effect effect, u
 
     if (disableRumble) return true;
     if (pwm){ // pwm devices
-    logger.log(Logger::DEB, "PWM RUMBLE on:%s",PWM_RUMBLE_PATH.c_str());
+    //logger.log(Logger::DEB, "PWM RUMBLE on:%s",PWM_RUMBLE_PATH.c_str());
         
          FILE *fp;
     
@@ -72,7 +72,7 @@ bool retrorun_input_set_rumble(unsigned port, enum retro_rumble_effect effect, u
     return true;
     }else{ // event devices
 
-    logger.log(Logger::DEB, "EVENT RUMBLE on:%s",DEVICE_PATH.c_str());
+    //logger.log(Logger::DEB, "EVENT RUMBLE on:%s",DEVICE_PATH.c_str());
         struct input_event play;
 
     // Open the device if it's not already open

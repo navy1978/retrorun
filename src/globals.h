@@ -168,6 +168,7 @@ bool isRG351V();
 bool isRG351MP();
 bool isRG552();
 bool isRG503();
+void resetDeviceName();
 bool isTate();
 
 extern bool processVideoInAnotherThread;

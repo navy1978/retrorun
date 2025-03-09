@@ -1446,6 +1446,20 @@ void initConfig()
     {
         logger.log(Logger::INF, "Configuration found, reading configuration file:'%s'", config_file.c_str());
         initMapConfig(config_file.c_str());
+        // first thing to do is to check the device name since it can be null
+        try
+        {
+            const std::string &asValue = conf_map.at("retrorun_device_name");
+            retrorun_device_name = asValue; 
+            resetDeviceName();
+            logger.log(Logger::INF, "retrorun_device_name: %s.", retrorun_device_name.c_str());
+            
+        }
+        catch (...)
+        {
+            logger.log(Logger::DEB, "retrorun_device_name parameter not found in retrorun.cfg, device name will be detected in a different way..." );
+        }
+        
         try
         {
             const std::string &ssFolderValue = conf_map.at("retrorun_screenshot_folder");
@@ -1496,7 +1510,7 @@ void initConfig()
         }
         catch (...)
         {
-            logger.log(Logger::WARN, "retrorun_auto_save parameter not found in retrorun.cfg using default value (%s).", auto_save ? "true" : "false");
+            logger.log(Logger::DEB, "retrorun_auto_save parameter not found in retrorun.cfg using default value (%s).", auto_save ? "true" : "false");
         }
 
         try
@@ -1521,7 +1535,7 @@ void initConfig()
         }
         catch (...)
         {
-            logger.log(Logger::WARN, "etrorun_force_left_analog_stick parameter not found in retrorun.cfg using default value (%s).", force_left_analog_stick ? "true" : "false");
+            logger.log(Logger::DEB, "etrorun_force_left_analog_stick parameter not found in retrorun.cfg using default value (%s).", force_left_analog_stick ? "true" : "false");
         }
 
         try
@@ -1533,7 +1547,7 @@ void initConfig()
         }
         catch (...)
         {
-            logger.log(Logger::WARN, "retrorun_loop_declared_fps parameter not found in retrorun.cfg using default value (%s).", runLoopAtDeclaredfps ? "true" : "false");
+            logger.log(Logger::DEB, "retrorun_loop_declared_fps parameter not found in retrorun.cfg using default value (%s).", runLoopAtDeclaredfps ? "true" : "false");
         }
 
         try
@@ -1544,7 +1558,7 @@ void initConfig()
         }
         catch (...)
         {
-            logger.log(Logger::WARN, "retrorun_swap_l1r1_with_l2r2 parameter not found in retrorun.cfg using default value (%s).", swapL1R1WithL2R2 ? "true" : "false");
+            logger.log(Logger::DEB, "retrorun_swap_l1r1_with_l2r2 parameter not found in retrorun.cfg using default value (%s).", swapL1R1WithL2R2 ? "true" : "false");
         }
         try
         {
@@ -1569,7 +1583,7 @@ void initConfig()
         }
         catch (...)
         {
-            logger.log(Logger::WARN, "retrorun_audio_buffer parameter not found in retrorun.cfg using default value (-1).");
+            logger.log(Logger::DEB, "retrorun_audio_buffer parameter not found in retrorun.cfg using default value (-1).");
         }
 
         try
@@ -1583,7 +1597,7 @@ void initConfig()
         }
         catch (...)
         {
-            logger.log(Logger::WARN, "retrorun_mouse_speed_factor parameter not found in retrorun.cfg using default value (5).");
+            logger.log(Logger::DEB, "retrorun_mouse_speed_factor parameter not found in retrorun.cfg using default value (5).");
         }
 
         try
@@ -1595,7 +1609,7 @@ void initConfig()
         }
         catch (...)
         {
-            logger.log(Logger::WARN, "retrorun_tate_mode parameter not found in retrorun.cfg using default value (DISABLED).\n");
+            logger.log(Logger::DEB, "retrorun_tate_mode parameter not found in retrorun.cfg using default value (DISABLED).\n");
         }
 
         try
@@ -1606,20 +1620,10 @@ void initConfig()
         }
         catch (...)
         {
-            logger.log(Logger::WARN, "retrorun_log_level parameter not found in retrorun.cfg using default value (INFO).\n");
+            logger.log(Logger::DEB, "retrorun_log_level parameter not found in retrorun.cfg using default value (INFO).\n");
         }
 
-        try
-        {
-            const std::string &asValue = conf_map.at("retrorun_device_name");
-            retrorun_device_name = asValue; 
-            logger.log(Logger::DEB, "retrorun_device_name: %s.", retrorun_device_name.c_str());
-            
-        }
-        catch (...)
-        {
-            logger.log(Logger::DEB, "retrorun_device_name parameter not found in retrorun.cfg, device name will be detected in a different way..." );
-        }
+        
 /////
         
         try
@@ -2163,12 +2167,13 @@ int main(int argc, char *argv[])
     }
     getDeviceName(); // we need this call here (otherwise it doesnt work because the methos is called only later , this need to be refactored)    
     initConfig();
+    
 
     // gpio_joypad normally is false and should be set to true only for MP and 552
     // but the parameter sesetnd via command line wins so if that is true we leave it true
     if (!gpio_joypad)
     {
-        if (isRG351MP() || isRG552())
+        if (isRG351MP() || isRG552() )
         {
             gpio_joypad = true;
         }
