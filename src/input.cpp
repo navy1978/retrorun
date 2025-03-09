@@ -1,5 +1,5 @@
 /*
-retrorun - libretro frontend for Anbernic Devices
+retrorun-go2 - libretro frontend for the ODROID-GO Advance
 Copyright (C) 2020  OtherCrashOverride
 Copyright (C) 2021-present  navy1978
 
@@ -124,13 +124,13 @@ void input_gamepad_read()
         if (go2_input_features_get(input) & Go2InputFeatureFlags_Triggers)
         {
             has_triggers = true;
-            logger.log(Logger::DEB, "input: Hardware triggers enabled.");
+            logger.log(Logger::INF, "input: Hardware triggers enabled.");
         }
 
         if (go2_input_features_get(input) & Go2InputFeatureFlags_RightAnalog)
         {
             has_right_analog = true;
-            logger.log(Logger::DEB, "input: Right analog enabled.");
+            logger.log(Logger::INF, "input: Right analog enabled.");
         }
 
         gamepadState = go2_input_state_create();
@@ -620,30 +620,50 @@ go2_button_state_t getInputY(){
 
 
 
-
+bool core_support_analog=false;
 
 int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigned id)
 {
+    //logger.log(Logger::DEB, "core_input_state called: port=%d, device=%d, index=%d, id=%d", port, device, index, id);
 
+    go2_input_button_t realL1 = gpio_joypad ? l1Button : Go2InputButton_TopLeft;
+    go2_input_button_t realR1 = gpio_joypad ? r1Button : Go2InputButton_TopRight;
 
-    go2_input_button_t realL1 =  gpio_joypad ? l1Button : Go2InputButton_TopLeft;
-    go2_input_button_t realR1 = gpio_joypad ? r1Button : Go2InputButton_TopRight ;
-// for set we dont need to take care of tate mode
+    /*bool core_support_analog = (device == RETRO_DEVICE_ANALOG &&
+                                (index == RETRO_DEVICE_INDEX_ANALOG_LEFT || index == RETRO_DEVICE_INDEX_ANALOG_RIGHT));
+*/
+    //logger.log(Logger::DEB, "Core supports analog input: %s", core_support_analog ? "YES" : "NO");
+
+    // Se è selezionato NODE, lasciamo tutto invariato
+    if (analogToDigital != NONE)
     
-    if (force_left_analog_stick)
     {
-        // Map thumbstick to dpad (force to enable the left analog stick mapping to it the DPAD)
         const float TRIM = 0.35f;
-        go2_thumb_t thumb = go2_input_state_thumbstick_get(gamepadState, Go2InputThumbstick_Left);
+        go2_thumb_t thumbL = go2_input_state_thumbstick_get(gamepadState, Go2InputThumbstick_Left);
+        go2_thumb_t thumbR = go2_input_state_thumbstick_get(gamepadState, Go2InputThumbstick_Right);
 
-        if (thumb.y < -TRIM)
-            go2_input_state_button_set(gamepadState, Go2InputButton_DPadUp, ButtonState_Pressed);
-        if (thumb.y > TRIM)
-            go2_input_state_button_set(gamepadState, Go2InputButton_DPadDown, ButtonState_Pressed);
-        if (thumb.x < -TRIM)
-            go2_input_state_button_set(gamepadState, Go2InputButton_DPadLeft, ButtonState_Pressed);
-        if (thumb.x > TRIM)
-            go2_input_state_button_set(gamepadState, Go2InputButton_DPadRight, ButtonState_Pressed);
+        // Mappatura degli analogici in base alla modalità selezionata
+        if (analogToDigital == LEFT_ANALOG || analogToDigital == LEFT_ANALOG_FORCED)
+        {
+            //logger.log(Logger::DEB, "Mapping LEFT Analog to D-pad.");
+            go2_input_state_thumbstick_setNul(gamepadState, Go2InputThumbstick_Right);
+            if (thumbL.y < -TRIM) go2_input_state_button_set(gamepadState, Go2InputButton_DPadUp, ButtonState_Pressed);
+            if (thumbL.y > TRIM) go2_input_state_button_set(gamepadState, Go2InputButton_DPadDown, ButtonState_Pressed);
+            if (thumbL.x < -TRIM) go2_input_state_button_set(gamepadState, Go2InputButton_DPadLeft, ButtonState_Pressed);
+            if (thumbL.x > TRIM) go2_input_state_button_set(gamepadState, Go2InputButton_DPadRight, ButtonState_Pressed);
+        }
+
+        if (analogToDigital == RIGHT_ANALOG || analogToDigital == RIGHT_ANALOG_FORCED)
+        {
+            //logger.log(Logger::DEB, "Mapping RIGHT Analog to D-pad.");
+            go2_input_state_thumbstick_setNul(gamepadState, Go2InputThumbstick_Left);
+            if (thumbR.y < -TRIM) go2_input_state_button_set(gamepadState, Go2InputButton_DPadUp, ButtonState_Pressed);
+            if (thumbR.y > TRIM) go2_input_state_button_set(gamepadState, Go2InputButton_DPadDown, ButtonState_Pressed);
+            if (thumbR.x < -TRIM) go2_input_state_button_set(gamepadState, Go2InputButton_DPadLeft, ButtonState_Pressed);
+            if (thumbR.x > TRIM) go2_input_state_button_set(gamepadState, Go2InputButton_DPadRight, ButtonState_Pressed);
+        }
+
+        
     }
 
 
@@ -677,266 +697,133 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
         thumb.y = 0;    
     }
 
-    /*else if (isTate())
+    // Gestione input digitale (joypad)
+    if (port == 0 )
     {
-        const float TRIM = 0.35f;
-        go2_thumb_t thumb = go2_input_state_thumbstick_get(gamepadState, Go2InputThumbstick_Right);
-
-        if (thumb.y < -TRIM)
-            go2_input_state_button_set(gamepadState, Go2InputButton_DPadRight, ButtonState_Pressed);
-        if (thumb.y > TRIM)
-            go2_input_state_button_set(gamepadState, Go2InputButton_DPadLeft, ButtonState_Pressed);
-        if (thumb.x < -TRIM)
-            go2_input_state_button_set(gamepadState, Go2InputButton_DPadUp, ButtonState_Pressed);
-        if (thumb.x > TRIM)
-            go2_input_state_button_set(gamepadState, Go2InputButton_DPadDown, ButtonState_Pressed);
-
-    }*/
-
-    /*
-#define RETRO_DEVICE_ID_JOYPAD_B        0
-#define RETRO_DEVICE_ID_JOYPAD_Y        1
-#define RETRO_DEVICE_ID_JOYPAD_SELECT   2
-#define RETRO_DEVICE_ID_JOYPAD_START    3
-#define RETRO_DEVICE_ID_JOYPAD_UP       4
-#define RETRO_DEVICE_ID_JOYPAD_DOWN     5
-#define RETRO_DEVICE_ID_JOYPAD_LEFT     6
-#define RETRO_DEVICE_ID_JOYPAD_RIGHT    7
-#define RETRO_DEVICE_ID_JOYPAD_A        8
-#define RETRO_DEVICE_ID_JOYPAD_X        9
-#define RETRO_DEVICE_ID_JOYPAD_L       10
-#define RETRO_DEVICE_ID_JOYPAD_R       11
-#define RETRO_DEVICE_ID_JOYPAD_L2      12
-#define RETRO_DEVICE_ID_JOYPAD_R2      13
-#define RETRO_DEVICE_ID_JOYPAD_L3      14
-#define RETRO_DEVICE_ID_JOYPAD_R3      15
-*/
-
-
-
-    if (port == 0)
-    {
-        
         
         // manage mouse ( for certain cores like dosbox)
         if (device == RETRO_DEVICE_MOUSE)
         {
-         
             go2_thumb_t thumb = go2_input_state_thumbstick_get(gamepadState, Go2InputThumbstick_Right);
-
-          
-
             switch (id)
             {
             case RETRO_DEVICE_ID_ANALOG_X:
                 return thumb.x *retrorun_mouse_speed_factor;
                 break;
-
             case RETRO_DEVICE_ID_JOYPAD_Y:
                 return thumb.y *retrorun_mouse_speed_factor;
                 break;
-
             default:
                 return 0;
                 break;
             }
-
         }
-        
-        
         if (device == RETRO_DEVICE_JOYPAD)
         {
-
-            
-            
-            /*if (isTate)
-            {
-                // remap buttons
-                // ABYX = XABY
-                switch (id)
-                {
-                case RETRO_DEVICE_ID_JOYPAD_A:
-                    id = RETRO_DEVICE_ID_JOYPAD_X;
-                    break;
-
-                case RETRO_DEVICE_ID_JOYPAD_B:
-                    id = RETRO_DEVICE_ID_JOYPAD_A;
-                    break;
-
-                case RETRO_DEVICE_ID_JOYPAD_Y:
-                    id = RETRO_DEVICE_ID_JOYPAD_B;
-                    break;
-
-                case RETRO_DEVICE_ID_JOYPAD_X:
-                    id = RETRO_DEVICE_ID_JOYPAD_Y;
-                    break;
-
-                default:
-                    break;
-                }
-            }*/
-            //printf("ID: %u\n", id);
-            switch (id)
-            {
-                
-            case RETRO_DEVICE_ID_JOYPAD_SELECT:
-                return go2_input_state_button_get(gamepadState, selectButton);
-                break;
-
-            case RETRO_DEVICE_ID_JOYPAD_START:
-                return go2_input_state_button_get(gamepadState, startButton);
-                break;
-
-            case RETRO_DEVICE_ID_JOYPAD_UP:
-                return getInputUp();
-                break;
-
-            case RETRO_DEVICE_ID_JOYPAD_DOWN:
-                return getInputDown();
-                break;
-
-            case RETRO_DEVICE_ID_JOYPAD_LEFT:
-                return getInputLeft();
-                break;
-
-            case RETRO_DEVICE_ID_JOYPAD_RIGHT:
-                return getInputRight();
-                break;
-
-            case RETRO_DEVICE_ID_JOYPAD_A:
-                return getInputA();
-                break;
-            case RETRO_DEVICE_ID_JOYPAD_B:
-                return getInputB();
-                break;    
-
-            case RETRO_DEVICE_ID_JOYPAD_X:
-                return getInputX();
-                break;
-            case RETRO_DEVICE_ID_JOYPAD_Y:
-                return getInputY();
-                break;    
-
-            case RETRO_DEVICE_ID_JOYPAD_L:
-                return go2_input_state_button_get(gamepadState,swapL1R1WithL2R2 ? l2Button: realL1);
-                break;
-            case RETRO_DEVICE_ID_JOYPAD_R:
-                return go2_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? r2Button : realR1);
-                break;
-
-            case RETRO_DEVICE_ID_JOYPAD_L2:
-                return go2_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? realL1 : l2Button);
-                break;
-
-            case RETRO_DEVICE_ID_JOYPAD_R2:
-                return go2_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? realR1: r2Button);
-                break;
-            case RETRO_DEVICE_ID_JOYPAD_L3:
-                return go2_input_state_button_get(gamepadState, l3Button);
-                break;
-
-            case RETRO_DEVICE_ID_JOYPAD_R3:
-                return go2_input_state_button_get(gamepadState, r3Button);
-                break;    
-                
-
-            default:
-                return 0;
-                break;
-            }
-        }
-
-
-
-        else if (!force_left_analog_stick 
-        && device == RETRO_DEVICE_ANALOG 
-        && (index == RETRO_DEVICE_INDEX_ANALOG_LEFT || RETRO_DEVICE_INDEX_ANALOG_RIGHT)) 
+        switch (id)
         {
-
-            if (swapSticks)
-            {
-                if (index == RETRO_DEVICE_INDEX_ANALOG_LEFT)
-                {
-                    index = RETRO_DEVICE_INDEX_ANALOG_RIGHT;
-                }
-                else
-                {
-                    index = RETRO_DEVICE_INDEX_ANALOG_LEFT;
-                }
-            }
-
-            go2_thumb_t thumb;
-            //go2_thumb_t thumb2;
-            if (index == RETRO_DEVICE_INDEX_ANALOG_LEFT ){
-            thumb = go2_input_state_thumbstick_get(gamepadState, Go2InputThumbstick_Left);
-            }else{
-                thumb = go2_input_state_thumbstick_get(gamepadState, Go2InputThumbstick_Right);
-            }
-
-            if (thumb.x > 1.0f)
-                thumb.x = 1.0f;
-            else if (thumb.x < -1.0f)
-                thumb.x = -1.0f;
-
-            if (thumb.y > 1.0f)
-                thumb.y = 1.0f;
-            else if (thumb.y < -1.0f)
-                thumb.y = -1.0f;
-
-    if (!isTate()){
-        // in normal mode we invert the up down of the analog stick 
-        // to align this to retroarch
-        thumb.y = thumb.y * -1.0f; 
-    }
-    if (tateState== REVERSED){
         
         
-        thumb.x = thumb.x * 1.0f;
-        thumb.y = thumb.y * -1.0f;
-    }else{
-        thumb.x = thumb.x * 1.0f;
-        thumb.y = thumb.y * -1.0f;
-    }
-
-// Prevent optimization
-//asm volatile("" ::: "memory");
-
-//printf("thumb.x %f\n", thumb.x);
-//printf("thumb.y %f\n", thumb.y);
-           
-
-            switch (id)
-            {
-            case RETRO_DEVICE_ID_ANALOG_X:
-                if (!isTate()){
-                    return thumb.x * 0x7fff;
-                }
-                if (tateState== REVERSED){ // TODO: review this
-                    return -1 * thumb.y * 0x7fff;
-                }else{
-                    return  thumb.y * 0x7fff;
-                }
-                
-                break;
-
-            case RETRO_DEVICE_ID_ANALOG_Y:
-                
-                if (!isTate()){
-                    return thumb.y * 0x7fff;
-                }
-                if (tateState== REVERSED){ // TODO : review this
-                    return -1 * thumb.x * 0x7fff;
-                }else{
-                    return  thumb.x * 0x7fff;
-                }
-                break;
-
-            default:
-                return 0;
-                break;
-            }
+        case RETRO_DEVICE_ID_JOYPAD_UP:
+            if (analogToDigital == LEFT_ANALOG_FORCED || analogToDigital == RIGHT_ANALOG_FORCED) return 0;
+            return getInputUp();
+        case RETRO_DEVICE_ID_JOYPAD_DOWN:
+        if (analogToDigital == LEFT_ANALOG_FORCED || analogToDigital == RIGHT_ANALOG_FORCED) return 0;    
+            return getInputDown();
+        case RETRO_DEVICE_ID_JOYPAD_LEFT:
+        if (analogToDigital == LEFT_ANALOG_FORCED || analogToDigital == RIGHT_ANALOG_FORCED) return 0;
+                return getInputLeft();
+        case RETRO_DEVICE_ID_JOYPAD_RIGHT:
+        if (analogToDigital == LEFT_ANALOG_FORCED || analogToDigital == RIGHT_ANALOG_FORCED) return 0;
+                return getInputRight();
+        case RETRO_DEVICE_ID_JOYPAD_SELECT:
+            return go2_input_state_button_get(gamepadState, selectButton);
+        case RETRO_DEVICE_ID_JOYPAD_START:
+            return go2_input_state_button_get(gamepadState, startButton);
+        case RETRO_DEVICE_ID_JOYPAD_A:
+            return getInputA();
+        case RETRO_DEVICE_ID_JOYPAD_B:
+            return getInputB();
+        case RETRO_DEVICE_ID_JOYPAD_X:
+            return getInputX();
+        case RETRO_DEVICE_ID_JOYPAD_Y:
+            return getInputY();
+        case RETRO_DEVICE_ID_JOYPAD_L:
+            return go2_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? l2Button : realL1);
+        case RETRO_DEVICE_ID_JOYPAD_R:
+            return go2_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? r2Button : realR1);
+        default:
+            return 0;
         }
     }
+
+
+    
+        /*if (swapSticks)
+        {
+            index = (index == RETRO_DEVICE_INDEX_ANALOG_LEFT) ? RETRO_DEVICE_INDEX_ANALOG_RIGHT : RETRO_DEVICE_INDEX_ANALOG_LEFT;
+        }*/
+
+        /*go2_thumb_t thumb = go2_input_state_thumbstick_get(gamepadState,
+                              index == RETRO_DEVICE_INDEX_ANALOG_LEFT ? Go2InputThumbstick_Left : Go2InputThumbstick_Right);
+        if (analogToDigital == LEFT_ANALOG_FORCED || analogToDigital == RIGHT_ANALOG_FORCED){
+
+            thumb= go2_input_state_thumbstick_get(gamepadState, analogToDigital ==  RIGHT_ANALOG_FORCED ? Go2InputThumbstick_Right : Go2InputThumbstick_Left);
+        
+        }
+        if (!isTate())
+        {
+            thumb.y = -thumb.y;
+        }
+        if (tateState == REVERSED)
+        {
+            thumb.y = -thumb.y;
+        }*/
+        go2_thumb_t thumb;
+
+// Se un analogico è forzato, usiamo quello corrispondente
+if (analogToDigital == LEFT_ANALOG_FORCED)
+{
+    thumb = go2_input_state_thumbstick_get(gamepadState, Go2InputThumbstick_Left);
+    //thumb.y = -thumb.y;
+}
+else if (analogToDigital == RIGHT_ANALOG_FORCED)
+{
+    thumb = go2_input_state_thumbstick_get(gamepadState, Go2InputThumbstick_Right);
+    //thumb.y = -thumb.y;
+}
+else
+{
+    // Se non è forzato, selezioniamo in base all'index
+    thumb = go2_input_state_thumbstick_get(gamepadState,
+                                           index == RETRO_DEVICE_INDEX_ANALOG_LEFT ? Go2InputThumbstick_Left: Go2InputThumbstick_Right);
+       thumb.y = -thumb.y;                                    
+}
+if(isTate()){
+    thumb.y = -thumb.y;
+    thumb.x = -thumb.x;
+}
+// Ora possiamo applicare l'inversione della Y in modo corretto
+/*if (!isTate() || tateState == REVERSED)
+{
+    thumb.y = -thumb.y;
+}*/
+
+        switch (id)
+        {
+        case RETRO_DEVICE_ID_ANALOG_X:
+            return thumb.x * 0x7fff;
+        case RETRO_DEVICE_ID_ANALOG_Y:
+            return thumb.y * 0x7fff;
+        default:
+            return 0;
+        }
+    
+    }// end port ==0
+
+    // Gestione input analogico (se non è forzato)
+    
 
     return 0;
 }
+

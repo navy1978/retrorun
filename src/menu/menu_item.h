@@ -22,6 +22,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <string>
 #include <vector>
 #include <functional>
+#include <map>
 
 class Menu; // forward declaration
 
@@ -58,6 +59,9 @@ public:
     ValueCalculator m_valueCalculator;
     NameCalculator m_nameCalculator;
     std::string getStringValue();
+    void setPossibleValues(std::map<unsigned, std::string> possiblevaluesMap);
+    std::map<unsigned, std::string> valuesMap;
+    std::string getDeviceType(int deviceIndex);
 
 private:
     std::string name_;

@@ -313,72 +313,71 @@ void resetCredisPosition()
     posYCredits = INFO_MENU_HEIGHT + 8 * 2;
 }
 
-void showCenteredText(int y, const char *text, unsigned short color, go2_surface_t **surface)
-{
-    std::string title(text); // The text to scroll
-    int title_length = title.length();
-    showText(INFO_MENU_WIDTH / 2 - title_length * 8 / 2, y, title.c_str(), color, surface);
-    // showText(0, y, title.c_str(), color, surface);
-}
 
 void showLongCenteredText(int y, const char *text, unsigned short color, go2_surface_t **surface)
 {
     static int offset = 0;
     static bool direction_forward = true;
-    
-    std::string title(text); // The text to scroll
-    int title_length = title.length();
+    static int frame_counter = 0;  // Contatore per rallentare lo scorrimento
+    const int FRAME_DELAY = 3;  // Numero di frame da aspettare prima di aggiornare l'offset
 
-    // Calculate the total width of the text
+    std::string title(text);
+    int title_length = title.length();
     int total_text_width = title_length * 8;
 
     if (total_text_width > INFO_MENU_WIDTH) {
-        // we add some extra spaces to make it more readable
-        title = " " + title + " ";
+        // Aggiungiamo spazio per il looping
+        title = "   " + title + "   ";
         title_length = title.length();
         total_text_width = title_length * 8;
 
-        // Text exceeds display width, so scroll it
-        if (direction_forward) {
-            offset += PIXELS_PER_FRAME; // Scroll to the left
-            if (offset >= total_text_width - INFO_MENU_WIDTH) {
-                offset = total_text_width - INFO_MENU_WIDTH; // Reverse direction
-                direction_forward = false;
-            }
-        } else {
-            offset -= PIXELS_PER_FRAME; // Scroll to the right
-            if (offset <= 0) {
-                offset = 0; // Reset offset to start from the left
-                direction_forward = true; // Reverse direction
+        // Rallenta lo scorrimento: aggiorna offset solo ogni FRAME_DELAY chiamate
+        frame_counter++;
+        if (frame_counter >= FRAME_DELAY) {
+            frame_counter = 0; // Reset contatore solo quando raggiungiamo il delay
+
+            if (direction_forward) {
+                offset += 1; // Movimento più lento (prima era PIXELS_PER_FRAME)
+                if (offset >= total_text_width - INFO_MENU_WIDTH) {
+                    offset = total_text_width - INFO_MENU_WIDTH;
+                    direction_forward = false;
+                }
+            } else {
+                offset -= 1;
+                if (offset <= 0) {
+                    offset = 0;
+                    direction_forward = true;
+                }
             }
         }
 
-        // Calculate the starting index of the truncated text
+        // Calcola l'indice iniziale per il testo visibile
         int start_index = offset / 8;
-        if (start_index < 0) {
-            start_index = 0;
-        }
+        if (start_index < 0) start_index = 0;
 
-        // Calculate the width of the truncated text
         int remaining_text_width = total_text_width - offset;
         int truncated_text_width = std::min(INFO_MENU_WIDTH / 8, remaining_text_width / 8);
 
-        // Truncate the text to fit within the display width
         std::string truncated_text = title.substr(start_index, truncated_text_width);
 
-        // Calculate the x position dynamically based on the offset
-        int x = -(offset % 8);
+        int x = -(offset % 8); // Mantiene il movimento fluido
 
-        // Show the truncated text at the calculated x position
         showText(x, y, truncated_text.c_str(), color, surface);
     } else {
-        // Text fits within display width, so display it centered
         showText(INFO_MENU_WIDTH / 2 - total_text_width / 2, y, title.c_str(), color, surface);
     }
 }
 
 
-
+void showCenteredText(int y, const char *text, unsigned short color, go2_surface_t **surface)
+{
+    /*std::string title(text); // The text to scroll
+    int title_length = title.length();
+    showText(INFO_MENU_WIDTH / 2 - title_length * 8 / 2, y, title.c_str(), color, surface);
+    */
+    showLongCenteredText(y,text,color,surface);
+    // showText(0, y, title.c_str(), color, surface);
+}
 
 
 

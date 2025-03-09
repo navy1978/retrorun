@@ -74,6 +74,7 @@ OBJECTS := \
 	$(OBJDIR)/video-helper.o \
 	$(OBJDIR)/video.o \
 	$(OBJDIR)/globals.o \
+	$(OBJDIR)/rumble.o \
 	$(OBJDIR)/main.o \
   	$(OBJDIR)/go2/audio.o \
 	$(OBJDIR)/go2/display.o \
@@ -170,6 +171,9 @@ $(OBJDIR)/video.o: ../../src/video.cpp
 $(OBJDIR)/globals.o: ../../src/globals.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/rumble.o: ../../src/rumble.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"	
 $(OBJDIR)/main.o: ../../src/main.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"

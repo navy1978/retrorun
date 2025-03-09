@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "video.h"
 #include "audio.h"
 #include "input.h"
+#include "rumble.h"
 #include <functional>
 
 #include <unistd.h>   // Per la funzione access()
@@ -125,7 +126,47 @@ pthread_t main_thread_id;
 
 
 
+/*
+#include <stdio.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <stdlib.h>
+*/
+/*#define PWM_RUMBLE_PATH "/sys/class/pwm/pwmchip0/pwm0/duty_cycle"
+#define PWM_RUMBLE_ON "100000\n"
+#define PWM_RUMBLE_OFF "1000000\n"
 
+bool retrorun_input_set_rumble(unsigned port, enum retro_rumble_effect effect, uint16_t strength)
+{
+    FILE *fp;
+    
+    if (strength > 0)
+    {
+        // Attiva la vibrazione scrivendo PWM_RUMBLE_ON
+        fp = fopen(PWM_RUMBLE_PATH, "w");
+        if (!fp)
+        {
+            perror("Errore apertura PWM rumble");
+            return false;
+        }
+        fprintf(fp, PWM_RUMBLE_ON);
+        fclose(fp);
+    }
+    else
+    {
+        // Disattiva la vibrazione scrivendo PWM_RUMBLE_OFF
+        fp = fopen(PWM_RUMBLE_PATH, "w");
+        if (!fp)
+        {
+            perror("Errore apertura PWM rumble");
+            return false;
+        }
+        fprintf(fp, PWM_RUMBLE_OFF);
+        fclose(fp);
+    }
+
+    return true;
+}*/
 
 retro_time_t cpu_features_get_time_usec(void)
 {
@@ -393,7 +434,16 @@ static bool core_environment(unsigned cmd, void *data)
 
         return true;
     }
+    case RETRO_ENVIRONMENT_GET_RUMBLE_INTERFACE:
+    {
+        logger.log(Logger::DEB,"Core supports Rumble.\n");
+        struct retro_rumble_interface *iface =
+        (struct retro_rumble_interface*)data;
 
+        logger.log(Logger::DEB,"[Environ]: GET_RUMBLE_INTERFACE.\n");
+        iface->set_rumble_state = retrorun_input_set_rumble;  // <-- Sostituiamo la funzione
+        break;
+    }
     case RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY:
         *(const char **)data = opt_systemdir;
         return true;
@@ -527,11 +577,13 @@ static bool core_environment(unsigned cmd, void *data)
     {
 
         const struct retro_controller_info *arg = (retro_controller_info *)data;
-        logger.log(Logger::DEB, "Controllers Available:");
+        logger.log(Logger::INF, "Controllers Available:");
         for (unsigned x = 0; x < arg->num_types; x++)
         {
             const struct retro_controller_description *type = &arg->types[x];
-            logger.log(Logger::DEB, " -\t%s: %u", type->desc, type->id);
+            logger.log(Logger::INF, " -\t%s: %u", type->desc, type->id);
+            // Store the ID and description in the map
+            controllerMap[type->id] = type->desc;
         }
 
         return true; // Return true to indicate successful handling
@@ -542,6 +594,7 @@ static bool core_environment(unsigned cmd, void *data)
         logger.log(Logger::DEB, "RETRO_ENVIRONMENT_SET_CORE_OPTIONS_INTL not implemented");
         return false;
     }
+    
 
     case RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY:
     {
@@ -1567,9 +1620,72 @@ void initConfig()
             logger.log(Logger::DEB, "retrorun_device_name parameter not found in retrorun.cfg, device name will be detected in a different way..." );
         }
 
+        
+        try
+        {
+            const std::string &lasValue = conf_map.at("retrorun_disable_rumble");
+
+            disableRumble = lasValue == "true" ? true : false;
+            logger.log(Logger::DEB, "retrorun_disable_rumble: %s.", force_left_analog_stick ? "true" : "false");
+        }
+        catch (...)
+        {
+            logger.log(Logger::DEB, "retrorun_disable_rumble parameter not found in retrorun.cfg using default value (%s).", disableRumble ? "true" : "false");
+        }
+        bool rumble_type_pwm = isRG552() || isRG503() || isRG351MP() ? false: true;
+        try
+        {
+            const std::string &asValue = conf_map.at("retrorun_rumble_type");
+            if (asValue == "pwm" ) {
+                rumble_type_pwm=true;
+                logger.log(Logger::DEB, "retrorun_rumble_type: %s.", asValue.c_str());
+            
+            }else if(asValue == "event") {
+                rumble_type_pwm=false;
+                logger.log(Logger::DEB, "retrorun_rumble_type: %s.", asValue.c_str());
+            
+            }else{
+                 logger.log(Logger::DEB, "retrorun_rumble_type parameter not recognized (possible values are: 'PWM', 'EVENT' ) in retrorun.cfg using default value PWM.");
+            }
+            
+        }
+        catch (...)
+        {
+            logger.log(Logger::DEB, "retrorun_rumble_type parameter not found in retrorun.cfg using default value PWM.");
+        
+        }
+
+        try
+        {
+            const std::string &ssFolderValue = conf_map.at("retrorun_rumble_pwm_file");
+            PWM_RUMBLE_PATH = ssFolderValue;
+            logger.log(Logger::DEB, "retrorun_rumble_pwm_file set to:%s", PWM_RUMBLE_PATH.c_str());
+        }
+        catch (...)
+        {
+            logger.log(Logger::DEB, "retrorun_rumble_pwm_file parameter not found in retrorun.cfg using default value (%s).",PWM_RUMBLE_PATH.c_str());
+            
+        }
+        DEVICE_PATH = isRG351MP()? "/dev/input/event2" : DEVICE_PATH;
+        logger.log(Logger::DEB, "is MP ? (%s).",isRG351MP()? "true" : "false");
+         logger.log(Logger::DEB, "DEVICE_PATH----| (%s).",DEVICE_PATH.c_str());
+        try
+        {
+            const std::string &ssFolderValue = conf_map.at("retrorun_rumble_event");
+            DEVICE_PATH = ssFolderValue;
+            logger.log(Logger::DEB, "retrorun_rumble_event set to:%s", DEVICE_PATH.c_str());
+        }
+        catch (...)
+        {
+            logger.log(Logger::DEB, "retrorun_rumble_event parameter not found in retrorun.cfg using default value (%s).",DEVICE_PATH.c_str());
+            
+        }
+
+        
+
 
         processVideoInAnotherThread = (isRG552() /*|| isRG503()*/) ? true : false;
-
+        pwm = rumble_type_pwm;
         adaptiveFps = false;
         logger.log(Logger::DEB, "Configuration initialized.");
     }
@@ -1656,6 +1772,22 @@ auto setAudioDisabled = [](int button) -> std::function<void(int)>
     }
     return std::function<void(int)>();
 };
+
+
+int getRumbleDisabled()
+{
+    return disableRumble ? 1 : 0;
+}
+
+auto setRumbleDisabled = [](int button) -> std::function<void(int)>
+{
+    if (button == LEFT || button == RIGHT)
+    {
+        disableRumble = !disableRumble;
+    }
+    return std::function<void(int)>();
+};
+
 
 int audio_buffer_array[] = {
     -1,
@@ -1761,6 +1893,63 @@ auto setAudioValue = [](int button) -> std::function<void(int)>
     return std::function<void(int)>();
 };
 
+
+int getDeviceType()
+{
+    return deviceTypeSelected;
+}
+
+auto setDeviceType = [](int button) -> std::function<void(int)>
+{
+    auto it = controllerMap.find(deviceTypeSelected);
+    if (it != controllerMap.end())
+    {
+        if (button == LEFT)
+        {
+            if (it == controllerMap.begin()) // Se siamo già al primo elemento, torna all'ultimo
+            {
+                it = controllerMap.end();
+            }
+            deviceTypeSelected = (--it)->first;
+        }
+        else if (button == RIGHT)
+        {
+            if (++it == controllerMap.end()) // Se siamo già all'ultimo elemento, torna al primo
+            {
+                it = controllerMap.begin();
+            }
+            deviceTypeSelected = it->first;
+        }
+    }
+    g_retro.retro_set_controller_port_device(0, deviceTypeSelected);
+    //return setDeviceType; // Ritorna se stesso per poter essere riutilizzato
+    return std::function<void(int)>();
+};
+
+int getAnalogToDigital()
+{
+    return analogToDigital;
+}
+
+auto setAnalogToDigital = [](int button) -> std::function<void(int)>
+{
+    if (button == LEFT)
+        {
+            if (analogToDigital == NONE)
+                analogToDigital = RIGHT_ANALOG_FORCED;
+            else
+                analogToDigital = static_cast<AnalogToDigital>(static_cast<int>(analogToDigital) - 1);
+        }
+        else if (button == RIGHT)
+        {
+            if (analogToDigital == RIGHT_ANALOG_FORCED)
+                analogToDigital = NONE;
+            else
+                analogToDigital = static_cast<AnalogToDigital>(static_cast<int>(analogToDigital) + 1);
+        }
+    return std::function<void(int)>();
+};
+
 void resume(int button)
 {
     if (button == A_BUTTON)
@@ -1827,6 +2016,7 @@ static void loadSaveSlotWrapper(int button, int slotNumber, std::string type)
 {
     auto slotFunction = loadSaveSlot(slotNumber, type);
     slotFunction(button);
+    input_info_requested = false;
 }
 
 void showCredit(int button)
@@ -1841,6 +2031,38 @@ void showCredit(int button)
         resetCredisPosition();
         input_credits_requested = false;
     }
+}
+
+
+// Global variable to track the last rumble activation time
+std::chrono::steady_clock::time_point last_rumble_time;
+int testRumble(int i)
+{
+    auto now = std::chrono::steady_clock::now();
+    
+    // Check if 1 second has passed since the last rumble
+    if (std::chrono::duration_cast<std::chrono::seconds>(now - last_rumble_time).count() < 1)
+    {
+        std::cout << "Rumble call ignored to prevent overlap.\n";
+        return 0;
+    }
+
+    // Update last rumble time
+    last_rumble_time = now;
+
+    // Call retrorun_input_set_rumble to start rumbling
+    if (!retrorun_input_set_rumble(0, RETRO_RUMBLE_STRONG, 0xFFFF))
+    {
+        std::cerr << "Failed to start rumble\n";
+        return 0;
+    }
+
+    // Keep rumbling for 1 second
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    // Stop rumbling
+    retrorun_input_set_rumble(0, RETRO_RUMBLE_STRONG, 0);
+    return 1;
 }
 
 #include <chrono> // Add this include for chrono functionalities
@@ -1858,8 +2080,6 @@ int main(int argc, char *argv[])
     printf("Copyright (C) 2020  OtherCrashOverride\n");
     printf("Copyright (C) 2021-present  navy1978\n");
     printf("\n");
-    initConfig();
-    getDeviceName(); // we need this call here (otherwise it doesnt work because the methos is called only later , this need to be refactored)
     
 
     int c;
@@ -1917,7 +2137,9 @@ int main(int argc, char *argv[])
             exit(EXIT_FAILURE);
         }
     }
-
+    getDeviceName(); // we need this call here (otherwise it doesnt work because the methos is called only later , this need to be refactored)    
+    initConfig();
+    
     // gpio_joypad normally is false and should be set to true only for MP and 552
     // but the parameter sesetnd via command line wins so if that is true we leave it true
     if (!gpio_joypad)
@@ -2158,16 +2380,24 @@ int main(int argc, char *argv[])
 
     Menu menuSystem = Menu("System", itemsSystem);
 
+    MenuItem deviceType("Device type", getDeviceType, setDeviceType, "device-type");
+    deviceType.setPossibleValues(controllerMap);
+
     std::vector<MenuItem> itemsControl = {
+        deviceType,
+        MenuItem("Analog to Digital Type", getAnalogToDigital, setAnalogToDigital, "analog-to-digital"),
         MenuItem("Swap triggers", getSwapTriggers, setSwapTriggers, "bool"),
-        MenuItem("Swap analog sticks", getSwapSticks, setSwapSticks, "bool"),
+        //MenuItem("Swap analog sticks", getSwapSticks, setSwapSticks, "bool"),
+        MenuItem("Rumble test", []() { return 0; }, [](int val) { testRumble(val); }, "test-rumble"),
+        MenuItem("Rumble disabled", getRumbleDisabled, setRumbleDisabled, "bool"),
+    
     };
 
     Menu menuControl = Menu("Control", itemsControl);
 
     std::vector<MenuItem> itemsAudio = {
-        MenuItem("Audio Buffer", getAudioBuffer, setAudioBuffer, ""),
-        MenuItem("Audio Disabled", getAudioDisabled, setAudioDisabled, "bool"),
+        MenuItem("Audio buffer", getAudioBuffer, setAudioBuffer, ""),
+        MenuItem("Audio disabled", getAudioDisabled, setAudioDisabled, "bool"),
     };
 
     Menu menuAudio = Menu("Audio", itemsAudio);

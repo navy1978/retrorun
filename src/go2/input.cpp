@@ -664,3 +664,8 @@ go2_thumb_t go2_input_state_thumbstick_get(go2_input_state_t *state, go2_input_t
 {
     return state->thumbs[thumbstick];
 }
+
+void go2_input_state_thumbstick_setNul(go2_input_state_t *state, go2_input_thumbstick_t thumbstick)
+{
+    state->thumbs[thumbstick]={0};
+}

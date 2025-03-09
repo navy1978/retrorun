@@ -35,7 +35,7 @@ static const int DEVICE_NAME_SIZE = 1024;
 static char DEVICE_NAME[DEVICE_NAME_SIZE];
 static bool deviceInitialized = false;
 
-std::string release = "2.5.3";
+std::string release = "2.6.0";
 TateState tateState = DISABLED;
 
 RETRORUN_CORE_TYPE Retrorun_Core = RETRORUN_CORE_UNKNOWN;
@@ -95,6 +95,10 @@ MenuManager menuManager = MenuManager();
 
 bool screenshot_requested = false;
 bool pause_requested = false;
+
+int deviceTypeSelected=1;
+std::map<unsigned, std::string> controllerMap;
+AnalogToDigital analogToDigital = LEFT_ANALOG;
 
 
 
@@ -307,6 +311,8 @@ const char *getDeviceName() noexcept
                 // get extra info
                 getCpuInfo();
                 deviceInitialized = true;
+                logger.log(Logger::DEB, "Device name: %s", DEVICE_NAME);
+                
                 return DEVICE_NAME;
             }
         }

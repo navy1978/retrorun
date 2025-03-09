@@ -187,7 +187,13 @@ Menu *MenuItem::getMenu()
 std::string MenuItem::getMisUnit()
 {
 
-    if (mis_unit_ == "bool" || mis_unit_ == "rotation" || mis_unit_ == "aspect-ratio")
+    if (mis_unit_ == "bool" 
+    || mis_unit_ == "rotation" 
+    || mis_unit_ == "aspect-ratio"
+    || mis_unit_ == "device-type"
+    || mis_unit_ == "analog-to-digital"
+    || mis_unit_ == "test-rumble"
+    )
     {
         return "";
     }
@@ -196,15 +202,23 @@ std::string MenuItem::getMisUnit()
         return mis_unit_;
     }
 }
-/*bool MenuItem::isMenu(){
-    return is_menu_;
-}*/
+
+void MenuItem::setPossibleValues(std::map<unsigned, std::string> possiblevaluesMap){
+    valuesMap=possiblevaluesMap;
+}
 
 const char *rotation_names[] = {
     "DISABLED",
     "ENABLED",
     "REVERSED",
     "AUTO"};
+
+const char *analog_to_digital_names[] = {
+    "NONE",
+  "LEFT",
+  "RIGHT",
+  "LEFT FORCED",
+  "RIGHT FORCED"};  
 
 const char *aspect_ratio_names[] = {
     "2:1",
@@ -215,6 +229,21 @@ const char *aspect_ratio_names[] = {
     "1:1",
     "3:2",
     "auto"};
+
+
+    std::string MenuItem::getDeviceType(int deviceIndex)
+{
+    auto it = valuesMap.find(deviceIndex);
+    if (it != valuesMap.end())
+    {
+        return it->second; // Return description if ID is found
+    }
+    else
+    {
+        return "ID not found"; // Return error message if ID is not found
+    }
+}
+
 
 std::string MenuItem::getStringValue()
 {
@@ -229,6 +258,17 @@ std::string MenuItem::getStringValue()
     else if (mis_unit_ == "aspect-ratio")
     {
         return aspect_ratio_names[getValue()];
+    }
+    else if (mis_unit_ == "device-type")
+    {
+        return getDeviceType(getValue());
+    }
+    else if (mis_unit_ == "analog-to-digital")
+    {
+        return analog_to_digital_names[getValue()];
+    }else if (mis_unit_ == "test-rumble")
+    {
+        return "Press button";
     }
     else
     {
