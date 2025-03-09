@@ -1,8 +1,9 @@
 #pragma once
 
 /*
-retrorun-go2 - libretro frontend for the ODROID-GO Advance
+retrorun - libretro frontend for Anbernic Devices
 Copyright (C) 2020  OtherCrashOverride
+Copyright (C) 2021-present  navy1978
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -25,3 +26,5 @@ void audio_init(int freq);
 void audio_deinit();
 void core_audio_sample(int16_t left, int16_t right);
 size_t core_audio_sample_batch(const int16_t * data, size_t frames);
+void setVolume(int value);
+int getVolume();

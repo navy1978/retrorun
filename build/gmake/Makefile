@@ -24,11 +24,11 @@ ifeq ($(config),debug)
   TARGETDIR  = ../..
   TARGET     = $(TARGETDIR)/retrorun
   DEFINES   += -DDEBUG
-  INCLUDES  += -I../../src -I../..
+  INCLUDES  += -I../../src -I../.. -I../../src/go2 -I../../src/menu
   CPPFLAGS  += -MMD -MP $(DEFINES) $(INCLUDES)
-  CFLAGS    += $(CPPFLAGS) $(ARCH) -g -std=c++11 -Wall -D__GBM__
-  CXXFLAGS  += $(CFLAGS) 
-  LDFLAGS   += -Wl,-rpath=. -L../../. -lgo2 -ldl -lEGL -lGLESv2 -lrga
+  CFLAGS    += $(CPPFLAGS) $(ARCH) -g -Wall -D__GBM__
+  CXXFLAGS  += $(CFLAGS) -std=c++2a
+  LDFLAGS   += -Wl,-rpath=. -L../../. -ldl -lEGL -lGLESv2 -lrga -pthread -ffast-math -levdev -lgbm -ldrm -lpng -lasound -lopenal
   LIBS      += 
   RESFLAGS  += $(DEFINES) $(INCLUDES) 
   LDDEPS    += 
@@ -46,11 +46,11 @@ ifeq ($(config),release)
   TARGETDIR  = ../..
   TARGET     = $(TARGETDIR)/retrorun
   DEFINES   += -DNDEBUG
-  INCLUDES  += -I../../src -I../..
+  INCLUDES  += -I../../src -I../.. -I../../src/go2 -I../../src/menu
   CPPFLAGS  += -MMD -MP $(DEFINES) $(INCLUDES)
-  CFLAGS    += $(CPPFLAGS) $(ARCH) -O2 -std=c++11 -Wall -D__GBM__
-  CXXFLAGS  += $(CFLAGS) 
-  LDFLAGS   += -s -Wl,-rpath=. -L../../. -lgo2 -ldl -lEGL -lGLESv2 -lrga
+  CFLAGS    += $(CPPFLAGS) $(ARCH) -Ofast -Wall -D__GBM__
+  CXXFLAGS  += $(CFLAGS) -std=c++2a
+  LDFLAGS   += -s -Wl,-rpath=. -L../../. -ldl -lEGL -lGLESv2 -lrga -pthread -ffast-math -levdev -lgbm -ldrm -lpng -lasound -lopenal
   LIBS      += 
   RESFLAGS  += $(DEFINES) $(INCLUDES) 
   LDDEPS    += 
@@ -64,11 +64,22 @@ ifeq ($(config),release)
 endif
 
 OBJECTS := \
+	$(OBJDIR)/logger.o \
+	$(OBJDIR)/menu/menu_item.o \
+	$(OBJDIR)/menu/menu.o \
+	$(OBJDIR)/menu/menu_manager.o \
+	$(OBJDIR)/fonts.o \
 	$(OBJDIR)/input.o \
 	$(OBJDIR)/audio.o \
+	$(OBJDIR)/video-helper.o \
 	$(OBJDIR)/video.o \
 	$(OBJDIR)/globals.o \
+	$(OBJDIR)/rumble.o \
 	$(OBJDIR)/main.o \
+  	$(OBJDIR)/go2/audio.o \
+	$(OBJDIR)/go2/display.o \
+	$(OBJDIR)/go2/input.o \
+	$(OBJDIR)/go2/queue.o
 
 RESOURCES := \
 
@@ -102,6 +113,8 @@ $(OBJDIR):
 	@echo Creating $(OBJDIR)
 ifeq (posix,$(SHELLTYPE))
 	$(SILENT) mkdir -p $(OBJDIR)
+	$(SILENT) mkdir -p $(OBJDIR)/go2
+	$(SILENT) mkdir -p $(OBJDIR)/menu
 else
 	$(SILENT) mkdir $(subst /,\\,$(OBJDIR))
 endif
@@ -128,11 +141,28 @@ $(GCH): $(PCH)
 	-$(SILENT) cp $< $(OBJDIR)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 endif
-
+$(OBJDIR)/logger.o: ../../src/logger.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"	
+$(OBJDIR)/menu/menu_item.o: ../../src/menu/menu_item.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"	
+$(OBJDIR)/menu/menu.o: ../../src/menu/menu.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/menu/menu_manager.o: ../../src/menu/menu_manager.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"	
+$(OBJDIR)/fonts.o: ../../src/fonts.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/input.o: ../../src/input.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/audio.o: ../../src/audio.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/video-helper.o: ../../src/video-helper.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/video.o: ../../src/video.cpp
@@ -141,8 +171,24 @@ $(OBJDIR)/video.o: ../../src/video.cpp
 $(OBJDIR)/globals.o: ../../src/globals.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/rumble.o: ../../src/rumble.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"	
 $(OBJDIR)/main.o: ../../src/main.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/go2/audio.o: ../../src/go2/audio.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/go2/display.o: ../../src/go2/display.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/go2/input.o: ../../src/go2/input.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/go2/queue.o: ../../src/go2/queue.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
+
 
 -include $(OBJECTS:%.o=%.d)

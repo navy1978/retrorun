@@ -1,6 +1,7 @@
 /*
-retrorun-go2 - libretro frontend for the ODROID-GO Advance
+retrorun - libretro frontend for Anbernic Devices
 Copyright (C) 2020  OtherCrashOverride
+Copyright (C) 2021-present  navy1978
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -17,17 +18,24 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 
+#include "globals.h"
 #include "video.h"
 
 #include "input.h"
 #include "libretro.h"
 
+#include <ctime>
 #include <stdlib.h>
 #include <stdio.h>
 #include <exception>
 #include <string.h>
+#include <string>
+#include <sys/time.h>
 
-#include <go2/display.h>
+#include <cmath>
+
+#include "go2/display.h"
+#include "go2/struct.h"
 
 #define EGL_EGLEXT_PROTOTYPES
 #define GL_GLEXT_PROTOTYPES
@@ -36,44 +44,128 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 #include <drm/drm_fourcc.h>
+#include <map>
+#include "fonts.h"
 
-#define FBO_DIRECT 1
-#define ALIGN(val, align)	(((val) + (align) - 1) & ~((align) - 1))
+#include <chrono>
 
-extern float opt_aspect;
+#include "imgs/imgs_press.h"
+#include "imgs/imgs_numbers.h"
+#include "imgs/imgs_pause.h"
+#include "imgs/imgs_screenshot.h"
+#include "imgs/imgs_fast_forwarding.h"
+#include "video-helper.h"
+
+#include <chrono>
+#include <thread>
+
+
+
+#define ALIGN(val, align) (((val) + (align)-1) & ~((align)-1))
+
+// extern float opt_aspect;
 extern int opt_backlight;
 
-go2_display_t* display;
-go2_surface_t* surface;
-go2_surface_t* display_surface;
-go2_frame_buffer_t* frame_buffer;
-go2_presenter_t* presenter;
-go2_context_t* context3D;
-float aspect_ratio;
+
+
+status *status_obj = new status(); // quit, pause, screenshot,FPS, fastforward
+
+// float aspect_ratio;
 uint32_t color_format;
 
-bool isOpenGL = false;
+
 int GLContextMajor = 0;
 int GLContextMinor = 0;
-GLuint fbo;
-int hasStencil = false;
-bool screenshot_requested = false;
-int prevBacklight;
 
+int hasStencil = false;
+
+
+int prevBacklight;
+// bool isTate = false;
+
+
+bool isWideScreen = false;
 extern retro_hw_context_reset_t retro_context_reset;
 
 
-void video_configure(const struct retro_game_geometry* geom)
+const char *batteryStateDesc[] = {"UNK", "DSC", "CHG", "FUL"};
+extern go2_brightness_state_t brightnessState;
+bool first_video_refresh = true;
+float real_aspect_ratio = 0.0f;
+
+
+
+
+extern float fps;
+extern int retrorunLoopSkip;
+extern int retrorunLoopCounter;
+
+
+
+bool turn = false;
+// screen info
+int gs_w;
+int gs_h;
+
+int x;
+int y;
+int w;
+int h;
+float screen_aspect_ratio;
+go2_rotation_t _351BlitRotation;
+go2_rotation_t _351Rotation;
+go2_rotation last351Rotation;
+go2_rotation last351BlitRotation;
+bool drawOneFrame;
+
+
+
+
+
+
+void video_configure(struct retro_game_geometry *geom)
 {
-	printf("video_configure: base_width=%d, base_height=%d, max_width=%d, max_height=%d, aspect_ratio=%f\n",
-        geom->base_width, geom->base_height,
-        geom->max_width, geom->max_height,
-        geom->aspect_ratio);
+    logger.log(Logger::DEB, "Cofiguring video...");
+    if (isPPSSPP() && geom->base_height == 0)
+    {
+        // for PPSSPP is possible to receive geom with 0 values
+        // in this case we need to set the resolution manually
+        geom->base_height = 272;
+        geom->base_width = 480;
+        geom->max_height = 272;
+        geom->max_width = 480;
+    }
 
-    
-    display = go2_display_create();
-    presenter = go2_presenter_create(display, DRM_FORMAT_RGB565, 0xff080808);  // ABGR
+    if (isRG503())
+    {
+        /*geom->base_height = 544;
+        geom->base_width = 960;
+        geom->max_height = 544;
+        geom->max_width = 960;*/
+        display = go2_display_create();
+        display_width = go2_display_width_get(display);
+        display_height = go2_display_height_get(display);
+    }else {
+        display = go2_display_create();
+        display_width = go2_display_height_get(display);
+        display_height = go2_display_width_get(display);
+    }
 
+    float aspect_ratio_display = (float)display_width / (float)display_height;
+    if (aspect_ratio_display > 1)
+    {
+        isWideScreen = true;
+    }
+    logger.log(Logger::DEB, "Are we on wide screen? %s", isWideScreen == true ? "true" : "false");
+
+    if (isDuckStation())
+    {
+        // for DuckStation we need to invert the width and the height
+        geom->max_width = display_height;
+        geom->max_height = display_width;
+    }
+
+    presenter = go2_presenter_create(display, DRM_FORMAT_RGB888, 0xff080808); // ABGR
 
     if (opt_backlight > -1)
     {
@@ -83,108 +175,125 @@ void video_configure(const struct retro_game_geometry* geom)
     {
         opt_backlight = go2_display_backlight_get(display);
     }
-    prevBacklight = opt_backlight;    
+    prevBacklight = opt_backlight;
 
+    if (opt_aspect == 0.0f)
+    {
+        logger.log(Logger::DEB, "Using original game aspect ratio.");
+        aspect_ratio = geom->aspect_ratio; // dont print the value here because is wrong
+        // for PC games (the default apsect ratio should be 4:3)
+        if (isDosBox())
+        {
+            logger.log(Logger::DEB, "Dosbox default apsect ratio 4/3.");
+            aspect_ratio = 1.333333f;
+        }
+    }
+    else
+    {
+        logger.log(Logger::DEB, "Forcing aspect ratio to: %f.", opt_aspect);
+        aspect_ratio = opt_aspect;
+    }
+    game_aspect_ratio = geom->aspect_ratio;
+    logger.log(Logger::DEB, "Display info: width=%d, height=%d", display_width, display_height);
+    // Display info: width=480, height=320
+    if (display_width == 480 && display_height == 320)
+    {
+        logger.log(Logger::DEB, "Device info: RG351-P / RG351-M");
+        device = P_M;
+    }
+    else if (display_width == 480 && display_height == 640)
+    {
+        logger.log(Logger::DEB, "Device info: RG351-V / RG351-MP");
+        device = V_MP;
+    }
+    else if (display_width == 1920 && display_height == 1152)
+    {
+        logger.log(Logger::DEB, "Device info: RG552");
+        device = RG_552;
+    }
+    else if (display_width == 544 && display_height == 960)
+    {
+        logger.log(Logger::DEB, "Device info: RG503");
+        device = RG_503;
+    }
 
-    aspect_ratio = opt_aspect == 0.0f ? geom->aspect_ratio : opt_aspect;
+    // width=544, height=960
+    else
+    {
+        logger.log(Logger::WARN, "Device info: unknown! display_width:%d, display_height:%d\n", display_width, display_height);
+
+        device = UNKNOWN;
+    }
+    // some games like Resident Evil 2 for Flycast has an ovescan issue in 640x480
+    bool skipGeomSet = ((isFlycast() || isFlycast2021()) && device == RG_552);
+
+    if (resolution == R_320_240)
+    {
+        geom->base_height = 240;
+        geom->base_width = 320;
+        geom->max_height = 240;
+        geom->max_width = 320;
+    }
+    else if (resolution == R_640_480 && !skipGeomSet)
+    {
+        geom->base_height = 480;
+        geom->base_width = 640;
+        geom->max_height = 480;
+        geom->max_width = 640;
+    }
+
+    logger.log(Logger::DEB, "Game info: base_width=%d, base_height=%d, max_width=%d, max_height=%d", geom->base_width, geom->base_height, geom->max_width, geom->max_height);
+
+    base_width = geom->base_width;
+    base_height = geom->base_height;
+    max_width = geom->max_width;
+    max_height = geom->max_height;
 
     if (isOpenGL)
-    {        
+    {
         go2_context_attributes_t attr;
-        attr.major = 3;
-        attr.minor = 2;
-        attr.red_bits = 5;
-        attr.green_bits = 6;
-        attr.blue_bits = 5;
-        attr.alpha_bits = 0;
-        attr.depth_bits = 24;
-        attr.stencil_bits = 8;
+        if (color_format == DRM_FORMAT_XRGB8888 && !isRG503()) // should be always true
+        {
+            attr.major = 3;
+            attr.minor = 2;
+            attr.red_bits = 8;
+            attr.green_bits = 8;
+            attr.blue_bits = 8;
+            attr.alpha_bits = 8;
+            attr.depth_bits = 24;
+            attr.stencil_bits = 8;
+        }
+        else
+        {
+            attr.major = 3;
+            attr.minor = 2;
+            attr.red_bits = 5;
+            attr.green_bits = 6;
+            attr.blue_bits = 5;
+            attr.alpha_bits = 0;
+            attr.depth_bits = 24;
+            attr.stencil_bits = 8;
+        }
 
-        //context3D = go2_context_create(display, geom->base_width, geom->base_height, &attr);
-        context3D = go2_context_create(display, geom->max_width, geom->max_height, &attr);
+   
+
+        context3D = go2_context_create(display, getGeom_max_width(geom), getGeom_max_height(geom), &attr);
         go2_context_make_current(context3D);
-
-#ifndef FBO_DIRECT
-#if 0
-        GLuint colorBuffer;
-        glGenRenderbuffers(1, &colorBuffer);
-        glBindRenderbuffer(GL_RENDERBUFFER, colorBuffer);
-        glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8_OES, geom->max_width, geom->max_height);
-#else
-        surface = go2_surface_create(display, geom->base_width, geom->base_height, DRM_FORMAT_RGB565);
-        if (!surface)
-        {
-            printf("go2_surface_create failed.\n");
-            throw std::exception();
-        }
-
-        int drmfd = go2_surface_prime_fd(surface);
-        printf("drmfd=%d\n", drmfd);
-
-        EGLint img_attrs[] = {
-            EGL_WIDTH, geom->base_width,
-            EGL_HEIGHT, geom->base_height,
-            EGL_LINUX_DRM_FOURCC_EXT, DRM_FORMAT_RGB565,
-            EGL_DMA_BUF_PLANE0_FD_EXT, drmfd,
-            EGL_DMA_BUF_PLANE0_OFFSET_EXT, 0,
-            EGL_DMA_BUF_PLANE0_PITCH_EXT, go2_surface_stride_get(surface),
-            EGL_NONE
-        };
-
-        PFNEGLCREATEIMAGEKHRPROC p_eglCreateImageKHR = (PFNEGLCREATEIMAGEKHRPROC)eglGetProcAddress("eglCreateImageKHR");
-        if (!p_eglCreateImageKHR) abort();
-
-        EGLImageKHR image = p_eglCreateImageKHR((EGLDisplay)go2_context_egldisplay_get(context3D), EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, 0, img_attrs);
-        fprintf(stderr, "EGLImageKHR = %p\n", image);
-
-        GLuint texture2D;
-        glGenTextures(1, &texture2D);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, texture2D);
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-        PFNGLEGLIMAGETARGETTEXTURE2DOESPROC p_glEGLImageTargetTexture2DOES = (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)eglGetProcAddress("glEGLImageTargetTexture2DOES");
-        if (!p_glEGLImageTargetTexture2DOES) abort();
-
-        p_glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, image);   
-#endif
-
-        GLuint depthBuffer;
-        glGenRenderbuffers(1, &depthBuffer);
-        glBindRenderbuffer(GL_RENDERBUFFER, depthBuffer);
-        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24_OES, geom->max_width, geom->max_height);
-
-        glGenFramebuffers(1, &fbo);
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-#if 0
-        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, colorBuffer);
-#else
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,	texture2D, 0);
-#endif
-        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthBuffer);
-
-        GLenum fboStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-        if (fboStatus != GL_FRAMEBUFFER_COMPLETE)
-        {
-            printf("FBO: Not Complete.\n");
-            throw std::exception();
-        }
-#endif
-
         retro_context_reset();
     }
     else
     {
-        if (surface) abort();
+        if (surface)
+            exit(1);
 
-        int aw = ALIGN(geom->max_width, 32);
-        int ah = ALIGN(geom->max_height, 32);
-        printf ("video_configure: aw=%d, ah=%d\n", aw, ah);
+        int aw = ALIGN(getGeom_max_width(geom), 32);
+        int ah = ALIGN(getGeom_max_height(geom), 32);
+        logger.log(Logger::DEB, "video_configure: aw=%d, ah=%d", aw, ah);
+        logger.log(Logger::DEB, "video_configure: base_width=%d, base_height=%d", geom->base_width, geom->base_height);
 
         if (color_format == DRM_FORMAT_RGBA5551)
         {
-            surface = go2_surface_create(display, aw, ah, DRM_FORMAT_RGB565);
+            surface = go2_surface_create(display, aw, ah, format_565);
         }
         else
         {
@@ -193,189 +302,612 @@ void video_configure(const struct retro_game_geometry* geom)
 
         if (!surface)
         {
-            printf("go2_surface_create failed.\n");
+            logger.log(Logger::ERR, "go2_surface_create failed.\n");
             throw std::exception();
         }
-        
 
-        
-        //printf("video_configure: rect=%d, %d, %d, %d\n", y, x, h, w);
+        // printf("video_configure: rect=%d, %d, %d, %d\n", y, x, h, w);
     }
 }
 
 void video_deinit()
 {
 
+    if (status_surface_bottom_right != NULL)
+        go2_surface_destroy(status_surface_bottom_right);
+    if (status_surface_bottom_left != NULL)
+        go2_surface_destroy(status_surface_bottom_left);
+    if (status_surface_top_right != NULL)
+        go2_surface_destroy(status_surface_top_right);
+    if (status_surface_top_left != NULL)
+        go2_surface_destroy(status_surface_top_left);
+    if (status_surface_full != NULL)
+        go2_surface_destroy(status_surface_full);
+    if (surface != NULL)
+        go2_surface_destroy(surface);
+    if (context3D != NULL)
+        go2_context_destroy(context3D);
+    if (presenter != NULL)
+        go2_presenter_destroy(presenter);
+    if (display != NULL)
+        go2_display_destroy(display);
 }
-
 
 uintptr_t core_video_get_current_framebuffer()
 {
-    //printf("core_video_get_current_framebuffer\n");
-
-#ifndef FBO_DIRECT
-    return fbo;
-#else
     return 0;
-#endif
 }
 
-//static int frame_count = 0;
 
-void core_video_refresh(const void * data, unsigned width, unsigned height, size_t pitch)
+
+
+
+
+
+void prepareScreen(int width, int height)
 {
-    //printf("core_video_refresh: data=%p, width=%d, height=%d, pitch=%d\n", data, width, height, pitch);
 
-    /*frame_count++;
-    if (input_ffwd_requested && (frame_count % 4) != 0)
+    bool wideScreenNotRotated= isRG503();
+    screen_aspect_ratio = (float)go2_display_height_get(display) / (float)go2_display_width_get(display);
+    if (isDuckStation())
     {
-        return;
-    }*/
-
-    if (opt_backlight != prevBacklight)
-    {
-        go2_display_backlight_set(display, (uint32_t)opt_backlight);
-        prevBacklight = opt_backlight;
-
-        //printf("Backlight = %d\n", opt_backlight);
-    }
-
-
-    int x;
-    int y;
-    int w;
-    int h;
-    if (aspect_ratio >= 1.0f)
-    {
-        h = go2_display_width_get(display);
-        
-        w = h * aspect_ratio;
-        w = (w > go2_display_height_get(display)) ? go2_display_height_get(display) : w;
-
-        x = (go2_display_height_get(display) / 2) - (w / 2);
-        y = 0;
-
-        //printf("x=%d, y=%d, w=%d, h=%d\n", x, y, w, h);
-    }
-    else
-    {
+        // for DuckStation we need to invert the width and the height
         x = 0;
         y = 0;
-        w = go2_display_height_get(display);
-        h = go2_display_width_get(display);
-    }
-
-
-    if (isOpenGL)
-    {
-        if (data != RETRO_HW_FRAME_BUFFER_VALID) return;
-        
-#if 0
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-        
-        glClearColor(1, 0, 0, 1);
-        glClear(GL_COLOR_BUFFER_BIT);
-
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-#endif
-
-
-#ifdef FBO_DIRECT
-        // Swap
-        go2_context_swap_buffers(context3D);
-
-        go2_surface_t* gles_surface = go2_context_surface_lock(context3D);
-
-        int ss_w = go2_surface_width_get(gles_surface);
-        int ss_h = go2_surface_height_get(gles_surface);
-
-        go2_presenter_post(presenter,
-                    gles_surface,
-                    0, ss_h - height, width, height,
-                    y, x, h, w,
-                    GO2_ROTATION_DEGREES_270);
-
-        go2_context_surface_unlock(context3D, gles_surface);
- #else
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-        go2_presenter_post(presenter,
-                    surface,
-                    0, 0, width, height,
-                    y, x, h, w,
-                    GO2_ROTATION_DEGREES_90);
-#endif
-        //glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-    }
-    else
-    {
-        if (!data) return;
-
-        uint8_t* src = (uint8_t*)data;
-        uint8_t* dst = (uint8_t*)go2_surface_map(surface);
-        int bpp = go2_drm_format_get_bpp(go2_surface_format_get(surface)) / 8;
-
-        int yy = height;
-        while(yy > 0)
+        w = display_height;
+        h = display_width;
+        if (isWideScreen)
         {
-            if (color_format == DRM_FORMAT_RGBA5551)
+            int temp = h;
+            h = w * 4 / 3;
+            y = (temp - h) / 2;
+            x = 0;
+        }
+        return;
+    }
+
+    if (game_aspect_ratio >= 1.0f)
+    {
+        logger.log(Logger::DEB, "game is landscape");
+        isGameVertical = false;
+        if (isWideScreen)
+        {
+            logger.log(Logger::DEB, "device is widescreen");
+
+            if (isTate())
             {
-                // uint16_t* src2 = (uint16_t*)src;
-                // uint16_t* dst2 = (uint16_t*)dst;
-
-                uint32_t* src2 = (uint32_t*)src;
-                uint32_t* dst2 = (uint32_t*)dst;
-
-                for (int x = 0; x < width / 2; ++x)
-                {
-                    // uint16_t pixel = src2[x];
-                    // pixel = (pixel << 1) & (~0x1f) | pixel & 0x1f;
-                    // dst2[x] = pixel;
-
-                    uint32_t pixel = src2[x];
-                    pixel = ((pixel << 1) & (~0x3f003f)) | (pixel & 0x1f001f);
-                    dst2[x] = pixel;
-                }
+                logger.log(Logger::DEB, "Tate mode active");
+                x = 0;
+                y = 0;
+                h = go2_display_height_get(display);
+                w = go2_display_width_get(display);
             }
             else
             {
-                memcpy(dst, src, width * bpp);
+                logger.log(Logger::DEB, "Tate mode not active");
+                if (cmpf(aspect_ratio, screen_aspect_ratio))
+                {
+                    logger.log(Logger::DEB, "aspect_ratio = screen_aspect_ratio");
+                    h = go2_display_height_get(display);
+                    w = go2_display_width_get(display);
+                    x = 0;
+                    y = 0;
+                }
+                else if (aspect_ratio < screen_aspect_ratio)
+                {
+                    logger.log(Logger::DEB, "aspect_ratio < screen_aspect_ratio");
+                    w = go2_display_width_get(display);
+                    h = w * aspect_ratio;
+                    h = (h > go2_display_height_get(display)) ? go2_display_height_get(display) : h;
+                    y = (go2_display_height_get(display) / 2) - (h / 2);
+                    x = 0;
+                }
+                else if (aspect_ratio > screen_aspect_ratio)
+                {
+                    logger.log(Logger::DEB, "aspect_ratio > screen_aspect_ratio");
+                    h = go2_display_height_get(display);
+                    if (wideScreenNotRotated){
+                        w = h * aspect_ratio;
+                    }else{
+                        w = h / aspect_ratio;
+                    }
+                    w = (w > go2_display_width_get(display)) ? go2_display_width_get(display) : w;
+                    x = (go2_display_width_get(display) / 2) - (w / 2);
+                    y = 0;
+                    
+                }
             }
-            
-            src += pitch;
-            dst += go2_surface_stride_get(surface);
-            
-            --yy;
         }
-
-        if (screenshot_requested)
+        else
         {
-            printf("Screenshot.\n");
+            logger.log(Logger::DEB, "screen is NOT widescreen");
+            
+            screen_aspect_ratio = 1 / screen_aspect_ratio; // screen is rotated
 
-            int ss_w = go2_surface_width_get(surface);
-            int ss_h = go2_surface_height_get(surface);
-            go2_surface_t* screenshot = go2_surface_create(display, ss_w, ss_h, DRM_FORMAT_RGB888);
-            if (!screenshot)
+            if (cmpf(aspect_ratio, screen_aspect_ratio))
             {
-                printf("go2_surface_create failed.\n");
-                throw std::exception();
+                logger.log(Logger::DEB, "aspect_ratio = screen_aspect_ratio");
+                h = go2_display_height_get(display);
+                w = go2_display_width_get(display);
+                x = 0;
+                y = 0;
             }
+            else if (aspect_ratio < screen_aspect_ratio)
+            {
+                logger.log(Logger::DEB, "aspect_ratio < screen_aspect_ratio");
+                h = go2_display_height_get(display);
+                w = h / aspect_ratio;
+                w = (w > go2_display_width_get(display)) ? go2_display_width_get(display) : w;
+                x = (go2_display_width_get(display) / 2) - (w / 2);
+                y = 0;
+            }
+            else if (aspect_ratio > screen_aspect_ratio)
+            {
+                logger.log(Logger::DEB, "aspect_ratio > screen_aspect_ratio");
+                w = go2_display_width_get(display);
+                h = w / aspect_ratio;
+                h = (h > go2_display_height_get(display)) ? go2_display_height_get(display) : h;
+                y = (go2_display_height_get(display) / 2) - (h / 2);
+                x = 0;
+            }
+        }
+    }
+    else
+    {
+        // the game is vertical
+        isGameVertical = true;
+        logger.log(Logger::DEB, "game is portrait (vertical)");
+        if (isTate())
+        {
+            logger.log(Logger::DEB, "Tate mode is active");
+            x = 0;
+            y = 0;
+            h = go2_display_height_get(display);
+            w = go2_display_width_get(display);
+        }
+        else
+        {
+            logger.log(Logger::DEB, "Tate mode is NOT active");
+            if (aspect_ratio < screen_aspect_ratio)
+            {
+                logger.log(Logger::DEB, "aspect_ratio < screen_aspect_ratio");
+                w = go2_display_width_get(display);
+                h = w / aspect_ratio;
+                h = (h > go2_display_height_get(display)) ? go2_display_height_get(display) : h;
+                y = (go2_display_height_get(display) / 2) - (h / 2);
+                x = 0;
+            }
+            else if (aspect_ratio > screen_aspect_ratio)
+            {
+                logger.log(Logger::DEB, "aspect_ratio > screen_aspect_ratio");
+                h = go2_display_height_get(display);
+                w = h / aspect_ratio;
+                w = (w > go2_display_width_get(display)) ? go2_display_width_get(display) : w;
+                x = (go2_display_width_get(display) / 2) - (w / 2);
+                y = 0;
+            }
+        }
+    }
+}
 
-            go2_surface_blit(surface, 0, 0, ss_w, ss_h,
-                             screenshot, 0, 0, ss_w, ss_h,
-                             GO2_ROTATION_DEGREES_0);
 
-            go2_surface_save_as_png(screenshot, "ScreenShot.png");
+inline void presenter_post(int width, int height)
+{
+    go2_presenter_post(presenter,
+                       gles_surface,
+                       0, (gs_h - height), width, height,
+                       x, y, w, h,
+                       getRotation());
+}
 
-            go2_surface_destroy(screenshot);
+void drawNonOpenGL(const void *data, unsigned width, unsigned height, size_t pitch)
+{
 
-            screenshot_requested = false;
+    uint8_t *src = (uint8_t *)data;
+    uint8_t *dst = (uint8_t *)go2_surface_map(surface);
+    if (dst == nullptr)
+    {
+        return;
+    }
+    int bpp = go2_drm_format_get_bpp(go2_surface_format_get(surface)) / 8;
+
+    int yy = height;
+    while (yy > 0)
+    {
+        if (color_format == DRM_FORMAT_RGBA5551)
+        {
+            uint32_t *src2 = (uint32_t *)src;
+            uint32_t *dst2 = (uint32_t *)dst;
+
+            for (int x = 0; x < (short)width / 2; ++x)
+            {
+                uint32_t pixel = src2[x];
+                pixel = ((pixel << 1) & (~0x3f003f)) | (pixel & 0x1f001f);
+                dst2[x] = pixel;
+            }
+        }
+        else
+        {
+            memcpy(dst, src, width * bpp);
         }
 
+        src += pitch;
+        dst += go2_surface_stride_get(surface);
+        --yy;
+    }
+}
+/*
+bool lastWasInfo = false;
+bool cleanUpScreen = false;
+*/
+bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
+{
+
+    bool showStatus = false;
+    int res_width = width;
+    int res_height = height;
+    if (input_info_requested || input_credits_requested /*|| cleanUpScreen*/)
+    {
+
+        // printf("cleanUpScreen:%s\n", cleanUpScreen ? "true" : "false");
+        res_width = INFO_MENU_WIDTH;
+        res_height = INFO_MENU_HEIGHT;
+
+        if (status_surface_full == nullptr)
+        {
+            status_surface_full = go2_surface_create(display, res_width, res_height, format_565);
+        }
+
+        if (input_credits_requested)
+        {
+
+            makeScreenBlackCredits(status_surface_full, res_width, res_height);
+            showCredits(&status_surface_full);
+        }
+        else
+        {
+
+            // if (!cleanUpScreen)
+            // {
+            makeScreenBlack(status_surface_full, res_width, res_height);
+            showInfo(gs_w, &status_surface_full);
+
+            /*}
+            else
+            {
+                printf("Devo fare tutto neor!!!!\n");
+
+
+               makeScreenTotalBlack(status_surface_full, res_width, res_height);
+            }*/
+        }
+        showStatus = true;
+        status_obj->show_full = true;
+    }
+    else
+    {
+        status_obj->show_full = false;
+        if (!isOpenGL)
+        {
+            drawNonOpenGL(data, width, height, pitch);
+        }
+    }
+    if (input_fps_requested && !input_info_requested && !input_credits_requested)
+    {
+        if (status_surface_top_right == nullptr)
+        {
+            status_surface_top_right = go2_surface_create(display, numbers.width * 2, (numbers.height / 10), format_565);
+        }
+
+        showFPSImage();
+
+        showStatus = true;
+        status_obj->show_top_right = true;
+    }
+    else
+    {
+        status_obj->show_top_right = false;
+    }
+    if (screenshot_requested && !input_info_requested && !input_credits_requested)
+    {
+        takeScreenshot(res_width, res_height);
+    }
+    if (continueToShowScreenshotImage())
+    {
+        showImage(screenshot, &status_surface_bottom_right);
+        showStatus = true;
+        status_obj->show_bottom_right = true;
+    }
+    else
+    {
+        status_obj->show_bottom_right = false;
+    }
+    if (input_ffwd_requested || input_message)
+    {
+        if (input_message)
+        {
+            showText(10, 10, status_message.c_str(), 0xffff, &status_surface_top_left);
+            showStatus = true;
+            status_obj->show_top_left = true;
+        }
+        else
+        {
+            showImage(fast, &status_surface_top_left);
+
+            showStatus = true;
+            status_obj->show_top_left = true;
+        }
+    }
+
+    else
+    {
+        status_obj->show_top_left = false;
+    }
+    if (input_exit_requested_firstTime && !input_info_requested && !input_credits_requested)
+    {
+        showImage(quit, &status_surface_bottom_left);
+        showStatus = true;
+        status_obj->show_bottom_left = true;
+    }
+    if (input_pause_requested && !input_info_requested)
+    {
+        showImage(pause_img, &status_surface_bottom_left);
+
+        showStatus = true;
+        status_obj->show_bottom_left = true;
+    }
+    if (!input_exit_requested_firstTime && !input_pause_requested && !input_credits_requested)
+    {
+        status_obj->show_bottom_left = false;
+    }
+    checkPaused();
+
+    if (showStatus)
+    {
+
+        if (status_surface_bottom_left != nullptr)
+        {
+            status_obj->bottom_left = status_surface_bottom_left;
+        }
+        if (status_surface_bottom_right != nullptr)
+        {
+            status_obj->bottom_right = status_surface_bottom_right;
+        }
+        if (status_surface_top_right != nullptr)
+        {
+            status_obj->top_right = status_surface_top_right;
+        }
+        if (status_surface_top_left != nullptr)
+        {
+            status_obj->top_left = status_surface_top_left;
+        }
+        if (status_surface_full != nullptr)
+        {
+            status_obj->full = status_surface_full;
+        }
+        if (isOpenGL)
+        {
+
+            // blit_surface_status(presenter,status_obj->full, dstSurface, dstWidth, dstHeight,rotation, FULL);
+            /* if (cleanUpScreen){
+
+                  go2_presenter_black(presenter,
+                            x, y, width, height,
+                            _351Rotation);
+             }else{*/
+            go2_presenter_post_multiple(presenter,
+                                        gles_surface, status_obj,
+                                        0, (gs_h - height), width, height,
+                                        x, y, w, h,
+                                        getRotation(), getBlitRotation(), isWideScreen);
+
+            //}
+        }
+        else
+        {
+
+            go2_presenter_post_multiple(presenter,
+                                        surface, status_obj,
+                                        0, 0, res_width, res_height,
+                                        x, y, w, h,
+                                        getRotation(), getBlitRotation(), isWideScreen);
+        }
+    }
+    return showStatus;
+}
+
+inline void core_video_refresh_NON_OPENGL(const void *data, unsigned width, unsigned height, size_t pitch)
+{
+
+    if (!data)
+    {
+        if (!input_info_requested)
+        {
+            logger.log(Logger::DEB, "DATA NOT VALID - skipping frame.");
+            core_input_poll();
+            return;
+        }
+    }else{
+        if (firstTimeCorrectFrame){
+            logger.log(Logger::DEB, "Loading finished!");
+            firstTimeCorrectFrame=false;
+        }
+    }
+    gs_w = go2_surface_width_get(surface);
+    gs_h = go2_surface_height_get(surface);
+
+    bool showStatus = osdDrawing(data, width, height, pitch);
+    // printf("showStatus %s\n:", showStatus ? "true" : "false");
+    if (!showStatus)
+    {
         go2_presenter_post(presenter,
                            surface,
                            0, 0, width, height,
-                           y, x, h, w,
-                           GO2_ROTATION_DEGREES_270);
+                           x, y, w, h,
+                           getRotation());
+    }
+}
+
+inline void core_video_refresh_OPENGL(const void *data, unsigned width, unsigned height, size_t pitch)
+{
+
+    // eglSwapInterval(display, 0);
+    if (data != RETRO_HW_FRAME_BUFFER_VALID)
+    {
+        if (!input_info_requested)
+        {
+            logger.log(Logger::DEB, "RETRO HW FRAME BUFFER NOT VALID - skipping frame.");
+            core_input_poll();
+            return;
+        }
+    }else{
+        if (firstTimeCorrectFrame){
+            logger.log(Logger::DEB, "Loading finished!");
+            firstTimeCorrectFrame=false;
+        }
+    }
+
+    
+    gs_w = go2_surface_width_get(gles_surface);
+    gs_h = go2_surface_height_get(gles_surface);
+
+    bool showStatus = osdDrawing(data, width, height, pitch);
+
+    if (!showStatus)
+    {
+        go2_presenter_post(presenter,
+                           gles_surface,
+                           0, (gs_h - height), width, height,
+                           x, y, w, h,
+                           getRotation());
+    }
+}
+
+
+const void *lastData;
+size_t lastPitch;
+void core_video_refresh(const void *data, unsigned width, unsigned height, size_t pitch)
+{
+
+    
+
+    if (input_info_requested)
+    {
+        width = currentWidth;
+        height = currentHeight;
+        data = lastData;
+        pitch = lastPitch;
+        processVideoInAnotherThread = false;
+    }
+    else if (input_message)
+    {
+        width = INFO_MENU_WIDTH;
+        height = INFO_MENU_HEIGHT;
+        processVideoInAnotherThread = false;
+    }
+    else
+    {
+
+        lastData = data;
+        lastPitch = pitch;
+        processVideoInAnotherThread = (isRG552() /*|| isRG503()*/) ? true : false;
+
+        if (isPPSSPP() && width < 1)
+        {
+            // for PPSSPP is possible to receive  with with 0 values
+            // in this case we need to set the resolution manually
+            width = 480;
+            height = 272;
+        }
+    }
+
+    frameCounter++;
+    // the following is for Fast Forwarding
+    if (frameCounter == frameCounterSkip)
+    {
+        frameCounter = 0;
+    }
+    else
+    {
+        if (input_ffwd_requested)
+        {
+            return;
+        }
+    }
+
+    if (first_video_refresh)
+    {
+
+        prepareScreen(width, height);
+
+        logger.log(Logger::DEB, "Real aspect_ratio=%f", aspect_ratio);
+        logger.log(Logger::DEB, "Screen aspect_ratio=%f\n", screen_aspect_ratio);
+        logger.log(Logger::DEB, "Drawing info: w=%d, h=%d, x=%d, y=%d\n", w, h, x, y);
+        logger.log(Logger::DEB, "OpenGL=%s", isOpenGL ? "true" : "false");
+        logger.log(Logger::DEB, "isTate=%s", isTate() ? "true" : "false");
+
+        if (color_format == DRM_FORMAT_RGBA5551)
+        {
+            logger.log(Logger::DEB, "Color format:DRM_FORMAT_RGBA5551");
+        }
+        else if (color_format == DRM_FORMAT_RGB888)
+        {
+            logger.log(Logger::DEB, "Color format:DRM_FORMAT_RGB888");
+        }
+        else if (color_format == DRM_FORMAT_XRGB8888)
+        {
+            logger.log(Logger::DEB, "Color format:DRM_FORMAT_XRGB8888");
+        }
+        else
+        {
+            logger.log(Logger::WARN, "Color format:Unknown");
+        }
+
+        real_aspect_ratio = aspect_ratio;
+        _351BlitRotation = getBlitRotation();
+        _351Rotation = getRotation();
+        last351Rotation = _351Rotation;
+        last351BlitRotation = _351BlitRotation;
+        first_video_refresh = false;
+    }
+    if (height != currentHeight || width != currentWidth)
+    {
+        logger.log(Logger::DEB, "Resolution switched to width=%d, height=%d", width, height);
+        currentWidth = width;
+        currentHeight = height;
+    }
+
+    if (isOpenGL)
+    {
+
+        go2_context_swap_buffers(context3D);
+
+        gles_surface = go2_context_surface_lock(context3D);
+        if (processVideoInAnotherThread)
+        {
+            std::thread th(core_video_refresh_OPENGL, data, width, height, pitch);
+            th.detach();
+        }
+        else
+        {
+            core_video_refresh_OPENGL(data, width, height, pitch);
+        }
+
+        go2_context_surface_unlock(context3D, gles_surface);
+    }
+    else
+    {
+
+        // non-OpenGL
+
+        if (processVideoInAnotherThread)
+        {
+            std::thread th(core_video_refresh_NON_OPENGL, data, width, height, pitch);
+            th.detach();
+        }
+        else
+        {
+            core_video_refresh_NON_OPENGL(data, width, height, pitch);
+        }
     }
 }
