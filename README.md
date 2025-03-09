@@ -160,7 +160,7 @@ Default: INFO
 Default: 5
 
 **`retrorun_toggle_osd_select_x`** = 
-- Enable OSD with the combo select+x instead of the default L3+R3.
+- Enable OSD with the combo select+x instead of the default L3+R3. Also enables F2 (minus key) as hotkey for RGB10/V10 units.
 Default: false
 
 **`retrorun_force_video_multithread`** = 

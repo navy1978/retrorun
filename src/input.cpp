@@ -407,6 +407,7 @@ bool isYPressed = go2_input_state_button_get(gamepadState, Go2InputButton_Y) == 
 bool isBPressed = go2_input_state_button_get(gamepadState, Go2InputButton_B) == ButtonState_Pressed;
 bool isAPressed = go2_input_state_button_get(gamepadState, Go2InputButton_A) == ButtonState_Pressed;
 bool isF1Pressed = go2_input_state_button_get(gamepadState, Go2InputButton_F1) == ButtonState_Pressed;
+bool isF2Pressed = go2_input_state_button_get(gamepadState, Go2InputButton_F2) == ButtonState_Pressed;
 bool isR2Pressed = go2_input_state_button_get(gamepadState, r2Button) == ButtonState_Pressed;
 bool wasR2Released = go2_input_state_button_get(prevGamepadState, r2Button) == ButtonState_Released;
 
@@ -417,7 +418,7 @@ double currentTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
 
 // Handle input_info_requested_alternative condition
 if (input_info_requested_alternative) {
-    if (isSelectPressed && isXPressed) {
+    if ((isSelectPressed && isXPressed) || (isF2Pressed && isXPressed)) {
         double elapsed = currentTime - lastInforequestTime;
         logger.log(Logger::DEB, "Input: Info requested");
         if (elapsed >= 0.5) {
@@ -443,42 +444,86 @@ if (input_info_requested_alternative) {
 }
 
 // Handle exit request
-if (!input_info_requested && isSelectPressed && isStartPressed) {
-    if (input_exit_requested_firstTime && elapsed_time_ms > 0.5) {
-        input_exit_requested = true;
-    } else if (!input_exit_requested_firstTime) {
-        gettimeofday(&exitTimeStart, NULL);
-        input_exit_requested_firstTime = true;
+if (input_info_requested_alternative) {
+    if (!input_info_requested && isF2Pressed && isStartPressed) {
+        if (input_exit_requested_firstTime && elapsed_time_ms > 0.5) {
+            input_exit_requested = true;
+        } else if (!input_exit_requested_firstTime) {
+            gettimeofday(&exitTimeStart, NULL);
+            input_exit_requested_firstTime = true;
+        }
+    }
+} else {
+    if (!input_info_requested && isSelectPressed && isStartPressed) {
+        if (input_exit_requested_firstTime && elapsed_time_ms > 0.5) {
+            input_exit_requested = true;
+        } else if (!input_exit_requested_firstTime) {
+            gettimeofday(&exitTimeStart, NULL);
+            input_exit_requested_firstTime = true;
+        }
     }
 }
 
 // Handle FPS request
-if (!input_info_requested && isSelectPressed && isYPressed) {
-    double elapsed = currentTime - lastFPSrequestTime;
-    if (elapsed >= 0.5) {
-        input_fps_requested = !input_fps_requested;
-        lastFPSrequestTime = currentTime;
+if (input_info_requested_alternative) {
+    if (!input_info_requested && isF2Pressed && isYPressed) {
+        double elapsed = currentTime - lastFPSrequestTime;
+        if (elapsed >= 0.5) {
+            input_fps_requested = !input_fps_requested;
+            lastFPSrequestTime = currentTime;
+        }
+    }
+} else {
+    if (!input_info_requested && isSelectPressed && isYPressed) {
+        double elapsed = currentTime - lastFPSrequestTime;
+        if (elapsed >= 0.5) {
+            input_fps_requested = !input_fps_requested;
+            lastFPSrequestTime = currentTime;
+        }
     }
 }
 
 // Handle screenshot request
-if (!input_info_requested && isSelectPressed && isBPressed) {
-    screenshot_requested = true;
-    lastScreenhotrequestTime = currentTime;
-    logger.log(Logger::DEB, "Input: Screenshot requested");
+if (input_info_requested_alternative) {
+    if (!input_info_requested && isF2Pressed && isBPressed) {
+        screenshot_requested = true;
+        lastScreenhotrequestTime = currentTime;
+        logger.log(Logger::DEB, "Input: Screenshot requested");
+    }
+} else {
+    if (!input_info_requested && isSelectPressed && isBPressed) {
+        screenshot_requested = true;
+        lastScreenhotrequestTime = currentTime;
+        logger.log(Logger::DEB, "Input: Screenshot requested");
+    }
 }
 
 // Handle pause request
-if (isSelectPressed && isAPressed) {
-    double elapsed = currentTime - pauseRequestTime;
-    if (elapsed >= 0.5) {
-        logger.log(Logger::DEB, "Input: Pause requested");
-        input_pause_requested = !input_pause_requested;
-        if (!input_pause_requested) {
-            pause_requested = false;
+if (input_info_requested_alternative) {
+    if (isF2Pressed && isAPressed) {
+        double elapsed = currentTime - pauseRequestTime;
+        if (elapsed >= 0.5) {
+            logger.log(Logger::DEB, "Input: Pause requested");
+            input_pause_requested = !input_pause_requested;
+            if (!input_pause_requested) {
+                pause_requested = false;
+            }
+            logger.log(Logger::DEB, "Input: %s", input_pause_requested ? "Paused" : "Un-paused");
+            pauseRequestTime = currentTime;
         }
-        logger.log(Logger::DEB, "Input: %s", input_pause_requested ? "Paused" : "Un-paused");
-        pauseRequestTime = currentTime;
+    }
+} else {
+    if (isSelectPressed && isAPressed) {
+        double elapsed = currentTime - pauseRequestTime;
+        if (elapsed >= 0.5) {
+            logger.log(Logger::DEB, "Input: Pause requested");
+            input_pause_requested = !input_pause_requested;
+            if (!input_pause_requested) {
+                pause_requested = false;
+            }
+            logger.log(Logger::DEB, "Input: %s", input_pause_requested ? "Paused" : "Un-paused");
+            pauseRequestTime = currentTime;
+        }
     }
 }
 
