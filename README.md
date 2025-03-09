@@ -3,20 +3,41 @@
 RetroRun is a libretro frontend designed specifically for Anbernic devices, including RG351 M/P/V/MP, RG552, and RG503. Enhance your gaming experience with RetroRun.
 
 To use RetroRun you need ro tun first [rg351p-js2box](https://github.com/christianhaitian/RG351P_virtual-gamepad).
-In a way similar to this:
+Better to create a bash file like the folliwong passing 3 parameters: core, rom, platform (this is just an example)
 
 ````
+#!/bin/bash
+
+. /etc/profile
+
+echo 'starting retrorun emulator...'
+
+CORE="$1"
+ROM="${2##*/}"
+PLATFORM="$3"
+
 rm /dev/input/by-path/platform-odroidgo2-joypad-event-joystick || true
 echo 'creating fake joypad'
-/usr/bin/rg351p-js2xbox --silent -t oga_joypad &
-sleep 0.2
+./rg351p-js2xbox --silent -t oga_joypad &
+#sleep 0.2
+echo 'confguring inputs'
+
+
 ln -s /dev/input/event3 /dev/input/by-path/platform-odroidgo2-joypad-event-joystick
 chmod 777 /dev/input/by-path/platform-odroidgo2-joypad-event-joystick
+echo 'using core:' "$1"
+echo 'platform:' "$3"
+echo 'starting game:' "$2"
+
+FPS=''
+GPIO_JOYPAD=''
 sleep 0.2
-retrorun --triggers  -s /storage/roms/"<rom_name>" -d /roms/bios <libretro_core> <system_name>
+echo 'using 64bit'
+./retrorun_64_new --triggers $FPS $GPIO_JOYPAD -s /storage/roms/"$3" -d /roms/bios "$1" "$2"
 sleep 0.5
 rm /dev/input/by-path/platform-odroidgo2-joypad-event-joystick
 kill $(pidof rg351p-js2xbox)
+echo 'end!'
 ````
 
 ## Supported Cores (Tested)
@@ -138,6 +159,27 @@ Default: INFO
 - Sets the speed factor for the mouse.
 Default: 5
 
+**`retrorun_toggle_osd_select_x`** = 
+- Enable OSD with the combo select+x instead of the default L3+R3.
+Default: false
+
+**`retrorun_force_video_multithread`** = 
+- Force execution of video task in another thread
+Default: false (for RG552 is enabled by default)
+
+**`retrorun_rumble_type`** = 
+- Settign the rumple type pwm or event
+Default: pwm is the default except for RG552, RG503 and RG351MP for which the default event. The defult values for pwnm is '/sys/class/pwm/pwmchip0/pwm0/duty_cycle' and for device is '/dev/input/event3' for all event devices except for RG351MP for which is '/dev/input/event2'
+
+**`retrorun_rumble_event`** = 
+- With this option is possible to override the default value '/dev/input/event3' with another one 
+
+**`retrorun_rumble_pwm_file`** = 
+- With this option is possible to ovferride the default value '/sys/class/pwm/pwmchip0/pwm0/duty_cycle' with another one
+
+
+
+
 ---
 
 ## Build
@@ -230,3 +272,4 @@ swanstation_GPU_Renderer = Software
 # ---- RETRORUN RUNTIME SETTINGS ----
 
 ````
+(*) Pay attention the name of the paeramters follow the name of the core , for exmaple in some distribution flycast core is called reicast, in this case the paramters should start with 'reicast_' for exmaple 'flycast_threaded_rendering' becomes 'reicast_threaded_rendering'

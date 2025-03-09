@@ -1422,17 +1422,19 @@ char *createSavePath(const std::string &arg_rom, const std::string &opt_savedir)
 void initConfig()
 {
 
+    logger.log(Logger::INF, "Searching config file... ");
+  
     std::string config_file = "retrorun.cfg";
     
 
     // Check if the local config file exists
     if (fileExists(config_file.c_str()))
     {
-        logger.log(Logger::DEB, "Using local configuration file: '%s'", config_file.c_str());
+        logger.log(Logger::INF, "Using local configuration file: '%s'", config_file.c_str());
     }
     else
     {
-        logger.log(Logger::DEB, "Local configuration file not found. Using default configuration file: '%s'", opt_setting_file);
+        logger.log(Logger::INF, "Local configuration file not found. Using configuration file: '%s'", opt_setting_file);
         config_file = opt_setting_file; // Use the default config file
     }
     std::ifstream infile(config_file);
@@ -1442,7 +1444,7 @@ void initConfig()
     }
     else
     {
-        logger.log(Logger::DEB, "Reading configuration file:'%s'", config_file.c_str());
+        logger.log(Logger::INF, "Configuration found, reading configuration file:'%s'", config_file.c_str());
         initMapConfig(config_file.c_str());
         try
         {
@@ -1600,8 +1602,7 @@ void initConfig()
         {
             const std::string &arValue = conf_map.at("retrorun_log_level");
             logger.setLogLevel(getLogLevel(arValue));
-
-            logger.log(Logger::DEB, "retrorun_log_level :%s\n", arValue);
+            logger.log(Logger::INF, "retrorun_log_level: %s\n", arValue.c_str());
         }
         catch (...)
         {
@@ -1619,7 +1620,7 @@ void initConfig()
         {
             logger.log(Logger::DEB, "retrorun_device_name parameter not found in retrorun.cfg, device name will be detected in a different way..." );
         }
-
+/////
         
         try
         {
@@ -1681,11 +1682,34 @@ void initConfig()
             
         }
 
-        
+        try
+        {
+            const std::string &asValue = conf_map.at("retrorun_toggle_osd_select_x");
+            input_info_requested_alternative = asValue == "true" ? true : false;
+            logger.log(Logger::DEB, "retrorun_toggle_osd_select_x: %s.", input_info_requested_alternative ? "true" : "false");
+        }
+        catch (...)
+        {
+            logger.log(Logger::DEB, "retrorun_toggle_osd_select_x parameter not found in retrorun.cfg using default value (%s).", input_info_requested_alternative ? "true" : "false");
+        }
+        bool forceMultithread=false;
+        try
+        {
+            const std::string &asValue = conf_map.at("retrorun_force_video_multithread");
+            forceMultithread = asValue == "true" ? true : false;
+            logger.log(Logger::DEB, "retrorun_force_video_multithread: %s.", forceMultithread ? "true" : "false");
+        }
+        catch (...)
+        {
+            logger.log(Logger::DEB, "retrorun_force_video_multithread parameter not found in retrorun.cfg using default value.");
+        }
 
 
-        processVideoInAnotherThread = (isRG552() /*|| isRG503()*/) ? true : false;
+
+
+        processVideoInAnotherThread = (isRG552()  || forceMultithread /*|| isRG503()*/) ? true : false;
         pwm = rumble_type_pwm;
+
         adaptiveFps = false;
         logger.log(Logger::DEB, "Configuration initialized.");
     }
@@ -2139,7 +2163,7 @@ int main(int argc, char *argv[])
     }
     getDeviceName(); // we need this call here (otherwise it doesnt work because the methos is called only later , this need to be refactored)    
     initConfig();
-    
+
     // gpio_joypad normally is false and should be set to true only for MP and 552
     // but the parameter sesetnd via command line wins so if that is true we leave it true
     if (!gpio_joypad)
