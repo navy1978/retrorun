@@ -1535,7 +1535,7 @@ void initConfig()
         }
         catch (...)
         {
-            logger.log(Logger::DEB, "etrorun_force_left_analog_stick parameter not found in retrorun.cfg using default value (%s).", force_left_analog_stick ? "true" : "false");
+            logger.log(Logger::WARN, "retrorun_force_left_analog_stick parameter not found in retrorun.cfg using default value (%s).", force_left_analog_stick ? "true" : "false");
         }
 
         try
