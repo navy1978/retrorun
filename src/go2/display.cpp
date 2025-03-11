@@ -1106,7 +1106,7 @@ void blit_surface_status(go2_presenter_t *presenter, go2_surface_t *source_surfa
 
     // int dest2HeightScaled = dest2Height * scaleFactor * 0.75; // scale height by 0.75 to maintain 4:3 aspect ratio
 
-    if (isRG351V() || isRG351MP()|| isRG503())
+    if (hasDeviceRotatedScreen())
     {
         // Scale the surface dimensions based on the display resolution
         if (rotation== GO2_ROTATION_DEGREES_0 || rotation== GO2_ROTATION_DEGREES_180){
@@ -1152,7 +1152,7 @@ void blit_surface_status(go2_presenter_t *presenter, go2_surface_t *source_surfa
             dest_height_scaled = max_height;
         }
     }
-    else if (isRG351P() || isRG351M() || isRG552() )
+    else 
     {
         // Scale the surface dimensions based on the display resolution and rotation
         if (rotation== GO2_ROTATION_DEGREES_270 || rotation== GO2_ROTATION_DEGREES_90){
@@ -1217,7 +1217,7 @@ void blit_surface_status2(go2_presenter_t *presenter, go2_surface_t *surface, go
     int max_width = presenter->display->width;
     int max_height = presenter->display->height;
 
-    if (isRG351V() || isRG351MP()|| isRG503())
+    if (hasDeviceRotatedScreen())
     { // rotation == GO2_ROTATION_DEGREES_0){
 
         dest2Width = surface->width * (max_width / 480);
@@ -1327,7 +1327,10 @@ void go2_presenter_post_multiple(go2_presenter_t *presenter, go2_surface_t *surf
     //printf("Name of rotation: %s\n", rotation_names[rotation]);
     //printf("Name of blitRotation: %s\n", rotation_names[blitRotation]);
 
-
+    if (!presenter) {
+        logger.log(Logger::ERR, "ERROR: presenter is NULL! Skipping presenter_post.");
+        return;
+    }
     sem_wait(&presenter->freeSem);
 
     pthread_mutex_lock(&presenter->queueMutex);

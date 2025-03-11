@@ -43,14 +43,7 @@ enum TateState {
     AUTO
 };
 
-enum Device
-{
-  P_M,
-  V_MP,
-  RG_503,
-  RG_552,
-  UNKNOWN
-};
+
 
 enum Resolution
 {
@@ -69,7 +62,7 @@ enum AnalogToDigital
 
 };
 
-extern Device device;
+
 extern Resolution resolution;
 
 extern AnalogToDigital analogToDigital;
@@ -168,6 +161,9 @@ bool isRG351V();
 bool isRG351MP();
 bool isRG552();
 bool isRG503();
+bool isRG353V();
+bool isRG353M();
+bool hasDeviceRotatedScreen();
 void resetDeviceName();
 bool isTate();
 

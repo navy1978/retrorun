@@ -1637,7 +1637,7 @@ void initConfig()
         {
             logger.log(Logger::DEB, "retrorun_disable_rumble parameter not found in retrorun.cfg using default value (%s).", disableRumble ? "true" : "false");
         }
-        bool rumble_type_pwm = isRG552() || isRG503() || isRG351MP() ? false: true;
+        bool rumble_type_pwm = isRG552() || isRG503() || isRG351MP() || isRG353V() || isRG353M()? false: true;
         try
         {
             const std::string &asValue = conf_map.at("retrorun_rumble_type");
@@ -1671,9 +1671,9 @@ void initConfig()
             logger.log(Logger::DEB, "retrorun_rumble_pwm_file parameter not found in retrorun.cfg using default value (%s).",PWM_RUMBLE_PATH.c_str());
             
         }
-        DEVICE_PATH = isRG351MP()? "/dev/input/event2" : DEVICE_PATH;
-        logger.log(Logger::DEB, "is MP ? (%s).",isRG351MP()? "true" : "false");
-         logger.log(Logger::DEB, "DEVICE_PATH----| (%s).",DEVICE_PATH.c_str());
+        DEVICE_PATH = isRG351MP()? "/dev/input/event2" : isRG353V()|| isRG353M()? "/dev/input/event4" :DEVICE_PATH;
+        
+        logger.log(Logger::DEB, "DEVICE_PATH: (%s).",DEVICE_PATH.c_str());
         try
         {
             const std::string &ssFolderValue = conf_map.at("retrorun_rumble_event");
@@ -1708,6 +1708,16 @@ void initConfig()
             logger.log(Logger::DEB, "retrorun_force_video_multithread parameter not found in retrorun.cfg using default value.");
         }
 
+        try
+        {
+            const std::string &asValue = conf_map.at("retrorun_elable_key_log");
+            elable_key_log = asValue == "true" ? true : false;
+            logger.log(Logger::DEB, "retrorun_elable_key_log: %s.", elable_key_log ? "true" : "false");
+        }
+        catch (...)
+        {
+            logger.log(Logger::DEB, "retrorun_elable_key_log parameter not found in retrorun.cfg using default value (%s)",elable_key_log ? "true" : "false");
+        }
 
 
 

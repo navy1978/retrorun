@@ -1,6 +1,6 @@
-# RetroRun for Anbernic Devices (RG351 M/P/V/MP, RG552, and RG503)
+# RetroRun for Anbernic Devices (RG351 M/P/V/MP, RG552, RG503, RG353M and RG353V)
 
-RetroRun is a libretro frontend designed specifically for Anbernic devices, including RG351 M/P/V/MP, RG552, and RG503. Enhance your gaming experience with RetroRun.
+RetroRun is a libretro frontend designed specifically for Anbernic devices, including RG351 M/P/V/MP, RG552, RG503, RG353M and RG353V. Enhance your gaming experience with RetroRun.
 
 To use RetroRun you need ro tun first [rg351p-js2box](https://github.com/christianhaitian/RG351P_virtual-gamepad).
 Better to create a bash file like the folliwong passing 3 parameters: core, rom, platform (this is just an example)
@@ -75,7 +75,8 @@ This branch of RetroRun includes several features:
 9. On-Screen Display (OSD) with explanatory images.
 10. Info Menu displaying device and game information.
 11. Working SaveState for all supported cores included flycast2021 and flycast
-12. many more...
+12. Rumble support for all cores/devices
+13. many more...
 
 ## RetroRun Configuration Parameters
 

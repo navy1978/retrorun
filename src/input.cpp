@@ -40,6 +40,7 @@ extern float fps;
 bool input_fps_requested = false;
 double lastFPSrequestTime = -1;
 bool input_info_requested = false;
+bool input_clean_screen = false;
 bool input_info_requested_alternative = false;
 double lastInforequestTime = -1;
 
@@ -108,7 +109,7 @@ void input_gamepad_read()
         }
     }
 
-    if (isRG503()){
+    if (isRG503()||isRG353V() || isRG353M()  ){
         selectButton = Go2InputButton_SELECT; // check if this is ok!
         startButton = Go2InputButton_START;
         l3Button = Go2InputButton_THUMBL;
@@ -125,13 +126,17 @@ void input_gamepad_read()
         if (go2_input_features_get(input) & Go2InputFeatureFlags_Triggers)
         {
             has_triggers = true;
-            logger.log(Logger::INF, "input: Hardware triggers enabled.");
+            logger.log(Logger::DEB, "input: Hardware triggers enabled.");
+        }else{
+            logger.log(Logger::DEB, "input: Hardware triggers disabled.");
         }
 
         if (go2_input_features_get(input) & Go2InputFeatureFlags_RightAnalog)
         {
             has_right_analog = true;
-            logger.log(Logger::INF, "input: Right analog enabled.");
+            logger.log(Logger::DEB, "input: Right analog enabled.");
+        }else{
+            logger.log(Logger::DEB, "input: Right analog disabled.");
         }
 
         gamepadState = go2_input_state_create();

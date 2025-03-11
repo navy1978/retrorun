@@ -59,8 +59,8 @@ void audio_init(int freq)
     init_freq = freq;
     audio = go2_audio_create(freq);
     audioFrameCount = 0;
-
-    soundCardName = isRG552() ? "DAC" : isRG503() ? "Master"
+    bool is503AudioDeviceLike = isRG503() || isRG353M() || isRG353V();
+    soundCardName = isRG552() ? "DAC" : is503AudioDeviceLike ? "Master"
                                                   : "Playback";
 
     if (opt_volume > -1)

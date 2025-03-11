@@ -120,15 +120,15 @@ go2_rotation getBlitRotation()
         if (!isTate())
         {
 
-            return (isRG351V() || isRG351MP() || isRG503()) ? GO2_ROTATION_DEGREES_0 : GO2_ROTATION_DEGREES_270;
+            return (hasDeviceRotatedScreen()) ? GO2_ROTATION_DEGREES_0 : GO2_ROTATION_DEGREES_270;
         }
         if (tateState == REVERSED)
         {
-            return (isRG351V() || isRG351MP() || isRG503()) ? GO2_ROTATION_DEGREES_90 : GO2_ROTATION_DEGREES_0;
+            return (hasDeviceRotatedScreen()) ? GO2_ROTATION_DEGREES_90 : GO2_ROTATION_DEGREES_0;
         }
         else
         {
-            return (isRG351V() || isRG351MP() || isRG503()) ? GO2_ROTATION_DEGREES_270 : GO2_ROTATION_DEGREES_180;
+            return (hasDeviceRotatedScreen()) ? GO2_ROTATION_DEGREES_270 : GO2_ROTATION_DEGREES_180;
         }
     }
     else // landscape
@@ -136,15 +136,15 @@ go2_rotation getBlitRotation()
 
         if (!isTate() && tateState != REVERSED)
         {
-            return (isRG351V() || isRG351MP() || isRG503()) ? GO2_ROTATION_DEGREES_0 : GO2_ROTATION_DEGREES_270;
+            return (hasDeviceRotatedScreen()) ? GO2_ROTATION_DEGREES_0 : GO2_ROTATION_DEGREES_270;
         }
         if (tateState == REVERSED)
         {
-            return (isRG351V() || isRG351MP() || isRG503()) ? GO2_ROTATION_DEGREES_90 : GO2_ROTATION_DEGREES_0;
+            return (hasDeviceRotatedScreen()) ? GO2_ROTATION_DEGREES_90 : GO2_ROTATION_DEGREES_0;
         }
         else
         {
-            return (isRG351V() || isRG351MP() || isRG503()) ? GO2_ROTATION_DEGREES_270 : GO2_ROTATION_DEGREES_180;
+            return (hasDeviceRotatedScreen()) ? GO2_ROTATION_DEGREES_270 : GO2_ROTATION_DEGREES_180;
         }
     }
 }
@@ -156,30 +156,30 @@ go2_rotation getRotation()
     {
         if (!isTate())
         {
-            return (isRG351V() || isRG351MP() || isRG503()) ? GO2_ROTATION_DEGREES_270 : GO2_ROTATION_DEGREES_180;
+            return (hasDeviceRotatedScreen()) ? GO2_ROTATION_DEGREES_270 : GO2_ROTATION_DEGREES_180;
         }
         if (tateState == REVERSED)
         {
-            return (isRG351V() || isRG351MP() || isRG503()) ? GO2_ROTATION_DEGREES_0 : GO2_ROTATION_DEGREES_270;
+            return (hasDeviceRotatedScreen()) ? GO2_ROTATION_DEGREES_0 : GO2_ROTATION_DEGREES_270;
         }
         else
         {
-            return (isRG351V() || isRG351MP() || isRG503()) ? GO2_ROTATION_DEGREES_180 : GO2_ROTATION_DEGREES_90;
+            return (hasDeviceRotatedScreen()) ? GO2_ROTATION_DEGREES_180 : GO2_ROTATION_DEGREES_90;
         }
     }
     else
     { // landscape
         if (!isTate() && tateState != REVERSED)
         {
-            return (isRG351V() || isRG351MP() || isRG503()) ? GO2_ROTATION_DEGREES_0 : GO2_ROTATION_DEGREES_270;
+            return (hasDeviceRotatedScreen()) ? GO2_ROTATION_DEGREES_0 : GO2_ROTATION_DEGREES_270;
         }
         if (tateState == REVERSED)
         {
-            return (isRG351V() || isRG351MP() || isRG503()) ? GO2_ROTATION_DEGREES_90 : GO2_ROTATION_DEGREES_0;
+            return (hasDeviceRotatedScreen()) ? GO2_ROTATION_DEGREES_90 : GO2_ROTATION_DEGREES_0;
         }
         else
         {
-            return (isRG351V() || isRG351MP() || isRG503()) ? GO2_ROTATION_DEGREES_270 : GO2_ROTATION_DEGREES_180;
+            return (hasDeviceRotatedScreen()) ? GO2_ROTATION_DEGREES_270 : GO2_ROTATION_DEGREES_180;
         }
     }
 }
@@ -191,7 +191,7 @@ int getFixedWidth(int alternative)
     {
         if (resolution == R_320_240)
             return 320;
-        else if (resolution == R_640_480 && device == RG_552)
+        else if (resolution == R_640_480 && isRG552())
             return 640;
         else
             return alternative;
@@ -211,7 +211,7 @@ int getFixedHeight(int alternative)
     {
         if (resolution == R_320_240)
             return 240;
-        else if (resolution == R_640_480 && device == RG_552)
+        else if (resolution == R_640_480 && isRG552())
             return 480;
         else
             return alternative;

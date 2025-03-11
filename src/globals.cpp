@@ -35,11 +35,11 @@ static const int DEVICE_NAME_SIZE = 1024;
 static char DEVICE_NAME[DEVICE_NAME_SIZE];
 static bool deviceInitialized = false;
 
-std::string release = "2.6.0";
+std::string release = "2.6.1";
 TateState tateState = DISABLED;
 
 RETRORUN_CORE_TYPE Retrorun_Core = RETRORUN_CORE_UNKNOWN;
-Device device = UNKNOWN;
+//Device device = UNKNOWN;
 Resolution resolution = R_UNKNOWN;
 bool force_left_analog_stick = true;
 
@@ -344,24 +344,36 @@ bool isRG351M()
 }
 bool isRG351P()
 {
-    return checkDeviceName((char *)"RG351P"); // strcmp(DEVICE_NAME, "RG351P\n") == 0;
+    return checkDeviceName((char *)"RG351P");
 }
 bool isRG351V()
 {
-    return checkDeviceName((char *)"RG351V"); // strcmp(DEVICE_NAME, "RG351V\n") == 0;
+    return checkDeviceName((char *)"RG351V"); 
 }
 bool isRG351MP()
 {
-    return checkDeviceName((char *)"RG351MP"); // strcmp(DEVICE_NAME, "RG351MP\n") == 0;
+    return checkDeviceName((char *)"RG351MP"); 
 }
 bool isRG552()
 {
-    return checkDeviceName((char *)"RG552"); // strcmp(DEVICE_NAME, "RG552\n") == 0;
+    return checkDeviceName((char *)"RG552"); 
 }
 bool isRG503()
 {
-    return checkDeviceName((char *)"RG503"); // strcmp(DEVICE_NAME, "RG552\n") == 0;
+    return checkDeviceName((char *)"RG503"); 
 }
+bool isRG353V()
+{
+    return checkDeviceName((char *)"RG353V"); 
+}
+bool isRG353M()
+{
+    return checkDeviceName((char *)"RG353M"); 
+}
+bool hasDeviceRotatedScreen(){
+   return  isRG351V() || isRG351MP() || isRG503() || isRG353V() || isRG353M();
+}
+
 
 // if getDeviceName was not able to identify the device name we 
 // take this from the retrorun.cfg and then we need to reset the Device name

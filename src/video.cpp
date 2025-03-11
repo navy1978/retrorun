@@ -136,7 +136,7 @@ void video_configure(struct retro_game_geometry *geom)
         geom->max_width = 480;
     }
 
-    if (isRG503())
+    if (isRG503())// || isRG353V() || isRG353M())
     {
         /*geom->base_height = 544;
         geom->base_width = 960;
@@ -196,36 +196,40 @@ void video_configure(struct retro_game_geometry *geom)
     game_aspect_ratio = geom->aspect_ratio;
     logger.log(Logger::DEB, "Display info: width=%d, height=%d", display_width, display_height);
     // Display info: width=480, height=320
-    if (display_width == 480 && display_height == 320)
+    /*if (display_width == 480 && display_height == 320)
     {
-        logger.log(Logger::DEB, "Device info: RG351-P / RG351-M");
-        device = P_M;
+        logger.log(Logger::DEB, "Display info: RG351-P / RG351-M");
+        
     }
     else if (display_width == 480 && display_height == 640)
     {
-        logger.log(Logger::DEB, "Device info: RG351-V / RG351-MP");
-        device = V_MP;
+        logger.log(Logger::DEB, "Display info: RG351-V / RG351-MP");
+        
     }
     else if (display_width == 1920 && display_height == 1152)
     {
-        logger.log(Logger::DEB, "Device info: RG552");
-        device = RG_552;
+        logger.log(Logger::DEB, "Display info: RG552");
+        
     }
     else if (display_width == 544 && display_height == 960)
     {
-        logger.log(Logger::DEB, "Device info: RG503");
-        device = RG_503;
+        logger.log(Logger::DEB, "Display info: RG503");
+        
+    } else if (display_width == 960 && display_height == 544)
+    {
+        logger.log(Logger::DEB, "Display info: RG353-V / RG353-M");
+        
     }
 
     // width=544, height=960
     else
     {
-        logger.log(Logger::WARN, "Device info: unknown! display_width:%d, display_height:%d\n", display_width, display_height);
+        logger.log(Logger::WARN, "Display info: unknown! display_width:%d, display_height:%d\n", display_width, display_height);
 
-        device = UNKNOWN;
-    }
+        
+    }*/
     // some games like Resident Evil 2 for Flycast has an ovescan issue in 640x480
-    bool skipGeomSet = ((isFlycast() || isFlycast2021()) && device == RG_552);
+    bool skipGeomSet = ((isFlycast() || isFlycast2021()) && isRG552());
 
     if (resolution == R_320_240)
     {
@@ -252,7 +256,7 @@ void video_configure(struct retro_game_geometry *geom)
     if (isOpenGL)
     {
         go2_context_attributes_t attr;
-        if (color_format == DRM_FORMAT_XRGB8888 && !isRG503()) // should be always true
+        if (color_format == DRM_FORMAT_XRGB8888 && !(isRG503()||isRG353V() ||isRG353M())) // should be always true
         {
             attr.major = 3;
             attr.minor = 2;
@@ -540,15 +544,18 @@ void drawNonOpenGL(const void *data, unsigned width, unsigned height, size_t pit
 bool lastWasInfo = false;
 bool cleanUpScreen = false;
 */
+bool last_input_info_requested=false;
+int maxFrameBlack= 15;
+int clearScreenDelay =maxFrameBlack;
 bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
 {
 
     bool showStatus = false;
     int res_width = width;
     int res_height = height;
-    if (input_info_requested || input_credits_requested /*|| cleanUpScreen*/)
+    if (input_info_requested || input_credits_requested || last_input_info_requested)
     {
-
+        
         // printf("cleanUpScreen:%s\n", cleanUpScreen ? "true" : "false");
         res_width = INFO_MENU_WIDTH;
         res_height = INFO_MENU_HEIGHT;
@@ -558,11 +565,19 @@ bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
             status_surface_full = go2_surface_create(display, res_width, res_height, format_565);
         }
 
-        if (input_credits_requested)
+        if (input_credits_requested )
         {
-
+            
             makeScreenBlackCredits(status_surface_full, res_width, res_height);
             showCredits(&status_surface_full);
+        }if (last_input_info_requested && !input_info_requested && clearScreenDelay>0) // Se il menu si chiude
+        {
+            logger.log(Logger::DEB, "Ensuring full screen clear before resuming game...");
+            makeScreenBlackCredits(status_surface_full, res_width, res_height);
+            clearScreenDelay--;
+            if (clearScreenDelay==0){
+                clearScreenDelay=maxFrameBlack;
+            }
         }
         else
         {
@@ -713,6 +728,8 @@ bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
                                         getRotation(), getBlitRotation(), isWideScreen);
         }
     }
+     // Update status for the ext frame
+     last_input_info_requested = input_info_requested ? true : clearScreenDelay==maxFrameBlack ? false : true;
     return showStatus;
 }
 
@@ -721,7 +738,7 @@ inline void core_video_refresh_NON_OPENGL(const void *data, unsigned width, unsi
 
     if (!data)
     {
-        if (!input_info_requested)
+        if (!input_info_requested )
         {
             logger.log(Logger::DEB, "DATA NOT VALID - skipping frame.");
             core_input_poll();

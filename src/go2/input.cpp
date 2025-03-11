@@ -444,17 +444,24 @@ go2_input_t *go2_input_create(const char *device)
     result->device = device;
 
     result->fd = open(EVDEV_NAME, O_RDONLY);
+    
     if (result->fd < 0)
     {
-        if (isRG503()){
+        if (isRG503() || isRG353M()){
+            printf("Try to use Descriptor file EVDEV_NAME3 for controller..\n");
             result->fd = open(EVDEV_NAME_3, O_RDONLY);
         }else{
+            printf("Try to use Descriptor file EVDEV_NAME2 for controller..\n");
             result->fd = open(EVDEV_NAME_2, O_RDONLY);
         }
         if (result->fd < 0)
         {
             printf("Joystick: No gamepad found.\n");
+        }else{
+            printf("Descriptor file for controller found..\n");
         }
+    }else{
+        printf("Descriptor file (EVDEV_NAME) for controller found..\n");
     }
 
     if (result->fd > -1)

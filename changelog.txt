@@ -1,4 +1,11 @@
 Retrorun
+
+=======================
+Version 2.6.1 (Mar 11, 2025)
+----------------------------------
+- Added support to RG353M ad RG353V
+- OSD Screen Clear Fix: Ensure Proper Cleanup After Closing
+
 =======================
 Version 2.6.0 (Mar 9, 2025)
 ----------------------------------

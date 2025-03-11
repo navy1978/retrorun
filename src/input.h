@@ -30,11 +30,13 @@ extern bool input_exit_requested_firstTime;
 extern bool input_fps_requested;
 extern bool input_info_requested; // L3+R3
 extern bool input_info_requested_alternative; // SELECT +X
+extern bool input_clean_screen;
 extern bool input_reset_requested;
 extern bool input_ffwd_requested;
 extern bool input_pause_requested;
 extern bool input_credits_requested;
 extern bool input_message;
+extern bool elable_key_log;
 
 extern double lastScreenhotrequestTime;
 
