@@ -44,6 +44,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 static const char *EVDEV_NAME = "/dev/input/by-path/platform-odroidgo2-joypad-event-joystick";
 static const char *EVDEV_NAME_2 = "/dev/input/by-path/platform-odroidgo3-joypad-event-joystick";
 static const char* EVDEV_NAME_3 = "/dev/input/by-path/platform-singleadc-joypad-event-joystick";
+
 // battery
 static const char *BATTERY_STATUS_NAME = "/sys/class/power_supply/battery/status";
 static const char *BATTERY_CAPACITY_NAME = "/sys/class/power_supply/battery/capacity";
@@ -442,18 +443,18 @@ go2_input_t *go2_input_create(const char *device)
     memset(result, 0, sizeof(*result));
 
     result->device = device;
-
-    result->fd = open(EVDEV_NAME, O_RDONLY);
-    
+    if (isRG503() || isRG353M()|| isRG353V()){
+        printf("Try to use Descriptor file EVDEV_NAME3 for controller..\n");
+        result->fd = open(EVDEV_NAME_3, O_RDONLY);
+    }else{
+        result->fd = open(EVDEV_NAME, O_RDONLY);
+    }
     if (result->fd < 0)
     {
-        if (isRG503() || isRG353M()){
-            printf("Try to use Descriptor file EVDEV_NAME3 for controller..\n");
-            result->fd = open(EVDEV_NAME_3, O_RDONLY);
-        }else{
-            printf("Try to use Descriptor file EVDEV_NAME2 for controller..\n");
-            result->fd = open(EVDEV_NAME_2, O_RDONLY);
-        }
+        
+        printf("Try to use Descriptor file EVDEV_NAME2 for controller..\n");
+        result->fd = open(EVDEV_NAME_2, O_RDONLY);
+        
         if (result->fd < 0)
         {
             printf("Joystick: No gamepad found.\n");
