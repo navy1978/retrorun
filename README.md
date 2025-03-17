@@ -31,21 +31,21 @@ To run the script:
 ## Supported Cores (Tested)
 
 RetroRun has been tested and supports the following cores:<br>
-	•	Dreamcast: Flycast, Flycast 2021<br>
-	•	Nintendo 64: ParaLLEl N64<br>
-	•	PlayStation: SwanStation, DuckStation, PCSX-ReARMed  <br>
-	•	Game Boy Advance: mGBA, VBA-M  <br>
-	•	Atari Jaguar: Virtual Jaguar  <br>
-	•	DOS Emulation: DOSBox-pure, DOSBox-core <br> 
-	•	Atari 2600: Stella, Stella 2014  <br>
-	•	Sega Consoles: Genesis Plus GX, PicoDrive  <br>
-	•	Super Nintendo: Snes9x, Snes9x 2002, Snes9x 2005 Plus, Snes9x 2010  <br>
-	•	Sony PSP: PPSSPP  <br>
-	•	Others: Beetle VB, Yaba Sanshiro <br> 
+	•	<u>Dreamcast<\u>: Flycast, Flycast 2021<br>
+	•	<u>Nintendo 64<\u>: ParaLLEl N64<br>
+	•	<u>PlayStation<\u>: SwanStation, DuckStation, PCSX-ReARMed  <br>
+	•	<u>Game Boy Advance<\u>: mGBA, VBA-M  <br>
+	•	<u>Atari Jaguar<\u>: Virtual Jaguar  <br>
+	•	<u>DOS Emulation<\u>: DOSBox-pure, DOSBox-core <br> 
+	•	<u>Atari 2600<\u>: Stella, Stella 2014  <br>
+	•	<u>Sega Consoles<\u>: Genesis Plus GX, PicoDrive  <br>
+	•	<u>Super Nintendo<\u>: Snes9x, Snes9x 2002, Snes9x 2005 Plus, Snes9x 2010  <br>
+	•	<u>Sony PSP<\u>: PPSSPP  <br>
+	•	<u>Others<\u>: Beetle VB, Yaba Sanshiro <br> 
 
 ## Key Features
 
-This branch of RetroRun includes several enhancements:  <br>
+This project adds many improvements and new features to the retrorun-go2 project (https://github.com/OtherCrashOverride/retrorun-go2):  <br>
 	1.	Integrated libgo2 library (https://github.com/OtherCrashOverride/libgo2)  <br>
     1.	Integrated rg351p-js2box library (https://github.com/lualiliu/RG351P_virtual-gamepad)  <br>
 	2.	Tate Mode Support (useful for Naomi and Atomiswave vertical games)  <br>
