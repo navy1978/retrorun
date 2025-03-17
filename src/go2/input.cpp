@@ -276,8 +276,8 @@ static void *input_task(void *arg)
         int rc = libevdev_next_event(input->dev, LIBEVDEV_READ_FLAG_BLOCKING, &ev);
         if (rc == 0)
         {
-#if 0
-			printf("Gamepad Event: %s-%s(%d)=%d\n",
+#if 0 
+                   printf("Gamepad Event: %s-%s(%d)=%d\n",
 			       libevdev_event_type_get_name(ev.type),
 			       libevdev_event_code_get_name(ev.type, ev.code), ev.code,
 			       ev.value);
