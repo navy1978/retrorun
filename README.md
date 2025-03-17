@@ -31,8 +31,8 @@ To run the script:
 ## Supported Cores (Tested)
 
 RetroRun has been tested and supports the following cores:<br>
-	•	Dreamcast: Flycast, Flycast 2021<br>  
-	•	Nintendo 64: ParaLLEl N64<br>  
+	•	Dreamcast: Flycast, Flycast 2021<br>
+	•	Nintendo 64: ParaLLEl N64<br>
 	•	PlayStation: SwanStation, DuckStation, PCSX-ReARMed  <br>
 	•	Game Boy Advance: mGBA, VBA-M  <br>
 	•	Atari Jaguar: Virtual Jaguar  <br>
@@ -71,33 +71,33 @@ This branch of RetroRun includes several enhancements:  <br>
 These parameters can be set in the `retrorun.cfg` file:  
 
 General Settings  
-	•	**`retrorun_screenshot_folder**` = /storage/roms/screenshots (Default screenshot save folder)  <br>
-	•	**`retrorun_fps_counter**` = true | false (Display FPS counter, default: false)  <br>
-	•	**`retrorun_aspect_ratio**` = 2:1 | 4:3 | 5:4 | 16:9 | 16:10 | 1:1 | 3:2 | auto (Aspect ratio, default: core-defined)  <br>
-	•	retrorun_log_level**` = INFO | DEBUG | WARNING | ERROR (Log level, default: INFO)  <br>
+	•	**retrorun_screenshot_folder** = /storage/roms/screenshots (Default screenshot save folder)  <br>
+	•	**retrorun_fps_counter** = true | false (Display FPS counter, default: false)  <br>
+	•	**retrorun_aspect_ratio** = 2:1 | 4:3 | 5:4 | 16:9 | 16:10 | 1:1 | 3:2 | auto (Aspect ratio, default: core-defined)  <br>
+	•	**retrorun_log_level** = INFO | DEBUG | WARNING | ERROR (Log level, default: INFO)  <br>
 
 Input Settings  
-	•	**`retrorun_force_left_analog_stick**` = true | false (Map left analog stick to D-pad, default: false)  <br>
-	•	**`retrorun_swap_l1r1_with_l2r2**` = true | false (Swap L1/L2 with R1/R2, default: false)  <br>
-	•	**`retrorun_swap_sticks**` = true | false (Swap left and right analog sticks, default: false)  <br>
-	•	**`retrorun_toggle_osd_select_x**` = true | false (Enable OSD toggle with SELECT+X instead of L3+R3, default: false)  <br>
+	•	**retrorun_force_left_analog_stick** = true | false (Map left analog stick to D-pad, default: false)  <br>
+	•	**retrorun_swap_l1r1_with_l2r2** = true | false (Swap L1/L2 with R1/R2, default: false)  <br>
+	•	**retrorun_swap_sticks** = true | false (Swap left and right analog sticks, default: false)  <br>
+	•	**retrorun_toggle_osd_select_x** = true | false (Enable OSD toggle with SELECT+X instead of L3+R3, default: false)  <br>
 
 Save/Load Features  
-	•	**`retrorun_auto_save**` = true | false (Enable auto-save, default: false)  <br>
-	•	**`retrorun_auto_load**` = true | false (Enable auto-load, default: same as auto-save)  <br>
+	•	**retrorun_auto_save** = true | false (Enable auto-save, default: false)  <br>
+	•	**retrorun_auto_load** = true | false (Enable auto-load, default: same as auto-save)  <br>
 
 Performance Settings  
-	•	**`retrorun_loop_60_fps**` = true | false (Restrict loop to 60 FPS, default: true)  <br>
-	•	**`retrorun_audio_buffer**` = -1, 1, 256, 512, 1024, ... (Audio buffer size, default: -1)  <br>
-	•	**`retrorun_force_video_multithread**` = true | false (Run video tasks in a separate thread, default: varies by device)  <br>
+	•	**retrorun_loop_60_fps** = true | false (Restrict loop to 60 FPS, default: true)  <br>
+	•	**retrorun_audio_buffer** = -1, 1, 256, 512, 1024, ... (Audio buffer size, default: -1)  <br>
+	•	**retrorun_force_video_multithread** = true | false (Run video tasks in a separate thread, default: varies by device)  <br>
 
 Tate Mode Settings  
-	•	**`retrorun_tate_mode**` = auto | enabled | disabled | reverted (Enable vertical display mode, default: disabled)<br>
+	•	**retrorun_tate_mode** = auto | enabled | disabled | reverted (Enable vertical display mode, default: disabled)<br>
 
 Rumble Settings  
 	•	**`retrorun_rumble_type**` = pwm | event (Rumble type, default varies by device)  <br>
-	•	**`retrorun_rumble_event**` = /dev/input/eventX (Override default rumble event file)  <br>
-	•	**`retrorun_rumble_pwm_file**` = /sys/class/pwm/pwmchip0/pwm0/duty_cycle (Override default PWM file)  <br>
+	•	**retrorun_rumble_event** = /dev/input/eventX (Override default rumble event file)  <br>
+	•	**retrorun_rumble_pwm_file** = /sys/class/pwm/pwmchip0/pwm0/duty_cycle (Override default PWM file)  <br>
 
 ## Build
 
