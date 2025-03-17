@@ -23,7 +23,7 @@ echo 'front-end ended!'
 ````
 
 To run the script:
-````
+```shell
 ./retrorun.sh /path/to/core /path/to/game name_of_platform
 ````
 
