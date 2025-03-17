@@ -31,17 +31,18 @@ To run the script:
 ## Supported Cores (Tested)
 
 RetroRun has been tested and supports the following cores:<br>
-	•	<u>Dreamcast<\u>: Flycast, Flycast 2021<br>
-	•	<u>Nintendo 64<\u>: ParaLLEl N64<br>
-	•	<u>PlayStation<\u>: SwanStation, DuckStation, PCSX-ReARMed  <br>
-	•	<u>Game Boy Advance<\u>: mGBA, VBA-M  <br>
-	•	<u>Atari Jaguar<\u>: Virtual Jaguar  <br>
-	•	<u>DOS Emulation<\u>: DOSBox-pure, DOSBox-core <br> 
-	•	<u>Atari 2600<\u>: Stella, Stella 2014  <br>
-	•	<u>Sega Consoles<\u>: Genesis Plus GX, PicoDrive  <br>
-	•	<u>Super Nintendo<\u>: Snes9x, Snes9x 2002, Snes9x 2005 Plus, Snes9x 2010  <br>
-	•	<u>Sony PSP<\u>: PPSSPP  <br>
-	•	<u>Others<\u>: Beetle VB, Yaba Sanshiro <br> 
+
+- **Dreamcast**: Flycast, Flycast 2021  <br>
+- **Nintendo 64**: ParaLLEl N64  <br>
+- **PlayStation**: SwanStation, DuckStation, PCSX-ReARMed  <br>
+- **Game Boy Advance**: mGBA, VBA-M  <br>
+- **Atari Jaguar**: Virtual Jaguar  <br>
+- **DOS Emulation**: DOSBox-pure, DOSBox-core  <br>
+- **Atari 2600**: Stella, Stella 2014  <br>
+- **Sega Consoles**: Genesis Plus GX, PicoDrive  <br>
+- **Super Nintendo**: Snes9x, Snes9x 2002, Snes9x 2005 Plus, Snes9x 2010  <br>
+- **Sony PSP**: PPSSPP  <br>
+- **Others**: Beetle VB, Yaba Sanshiro <br> 
 
 ## Key Features
 
