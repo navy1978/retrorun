@@ -30,39 +30,39 @@ To run the script:
 
 ## Supported Cores (Tested)
 
-RetroRun has been tested and supports the following cores:
-	•	Dreamcast: Flycast, Flycast 2021  
-	•	Nintendo 64: ParaLLEl N64  
-	•	PlayStation: SwanStation, DuckStation, PCSX-ReARMed  
-	•	Game Boy Advance: mGBA, VBA-M  
-	•	Atari Jaguar: Virtual Jaguar  
-	•	DOS Emulation: DOSBox-pure, DOSBox-core  
-	•	Atari 2600: Stella, Stella 2014  
-	•	Sega Consoles: Genesis Plus GX, PicoDrive  
-	•	Super Nintendo: Snes9x, Snes9x 2002, Snes9x 2005 Plus, Snes9x 2010  
-	•	Sony PSP: PPSSPP  
-	•	Others: Beetle VB, Yaba Sanshiro  
+RetroRun has been tested and supports the following cores:<br>
+	•	Dreamcast: Flycast, Flycast 2021<br>  
+	•	Nintendo 64: ParaLLEl N64<br>  
+	•	PlayStation: SwanStation, DuckStation, PCSX-ReARMed  <br>
+	•	Game Boy Advance: mGBA, VBA-M  <br>
+	•	Atari Jaguar: Virtual Jaguar  <br>
+	•	DOS Emulation: DOSBox-pure, DOSBox-core <br> 
+	•	Atari 2600: Stella, Stella 2014  <br>
+	•	Sega Consoles: Genesis Plus GX, PicoDrive  <br>
+	•	Super Nintendo: Snes9x, Snes9x 2002, Snes9x 2005 Plus, Snes9x 2010  <br>
+	•	Sony PSP: PPSSPP  <br>
+	•	Others: Beetle VB, Yaba Sanshiro <br> 
 
 ## Key Features
 
-This branch of RetroRun includes several enhancements:  
-	1.	Integrated libgo2 library (https://github.com/OtherCrashOverride/libgo2)  
-    1.	Integrated rg351p-js2box library (https://github.com/lualiliu/RG351P_virtual-gamepad)  
-	2.	Tate Mode Support (useful for Naomi and Atomiswave vertical games)  
-	3.	Right Analog Support for ParaLLEl N64, including C-buttons management  
-	4.	FPS Display Options:  
-	•	Log FPS using the -f flag  
-	•	Display FPS on-screen with SELECT + Y  
-	5.	Core Configuration via File  
-	•	Default: /storage/.config/distribution/configs/retrorun.cfg  
-	•	Customizable with the -c parameter  
-	6.	Aspect Ratio Management  
-	7.	Support for GPIO/USB Joypads  
-	8.	On-Screen Display (OSD) with explanatory images  
-	9.	Info Menu displaying device and game information  
-	10.	Working SaveState support for all cores, including   Flycast2021 and Flycast  
-	11.	Rumble support for all cores and devices  
-	12.	Many additional enhancements  
+This branch of RetroRun includes several enhancements:  <br>
+	1.	Integrated libgo2 library (https://github.com/OtherCrashOverride/libgo2)  <br>
+    1.	Integrated rg351p-js2box library (https://github.com/lualiliu/RG351P_virtual-gamepad)  <br>
+	2.	Tate Mode Support (useful for Naomi and Atomiswave vertical games)  <br>
+	3.	Right Analog Support for ParaLLEl N64, including C-buttons management  <br>
+	4.	FPS Display Options:  <br>
+	•	Log FPS using the -f flag  <br>
+	•	Display FPS on-screen with SELECT + Y  <br>
+	5.	Core Configuration via File  <br>
+	•	Default: /storage/.config/distribution/configs/retrorun.cfg  <br>
+	•	Customizable with the -c parameter  <br>
+	6.	Aspect Ratio Management  <br>
+	7.	Support for GPIO/USB Joypads  <br>
+	8.	On-Screen Display (OSD) with explanatory images  <br>
+	9.	Info Menu displaying device and game information  <br>
+	10.	Working SaveState support for all cores, including   Flycast2021 and Flycast  <br>
+	11.	Rumble support for all cores and devices  <br>
+	12.	Many additional enhancements  <br>
 
 ⸻
 
@@ -71,33 +71,33 @@ This branch of RetroRun includes several enhancements:
 These parameters can be set in the `retrorun.cfg` file:  
 
 General Settings  
-	•	**`retrorun_screenshot_folder**` = /storage/roms/screenshots (Default screenshot save folder)  
-	•	**`retrorun_fps_counter**` = true | false (Display FPS counter, default: false)  
-	•	**`retrorun_aspect_ratio**` = 2:1 | 4:3 | 5:4 | 16:9 | 16:10 | 1:1 | 3:2 | auto (Aspect ratio, default: core-defined)  
-	•	retrorun_log_level**` = INFO | DEBUG | WARNING | ERROR (Log level, default: INFO)  
+	•	**`retrorun_screenshot_folder**` = /storage/roms/screenshots (Default screenshot save folder)  <br>
+	•	**`retrorun_fps_counter**` = true | false (Display FPS counter, default: false)  <br>
+	•	**`retrorun_aspect_ratio**` = 2:1 | 4:3 | 5:4 | 16:9 | 16:10 | 1:1 | 3:2 | auto (Aspect ratio, default: core-defined)  <br>
+	•	retrorun_log_level**` = INFO | DEBUG | WARNING | ERROR (Log level, default: INFO)  <br>
 
 Input Settings  
-	•	**`retrorun_force_left_analog_stick**` = true | false (Map left analog stick to D-pad, default: false)  
-	•	**`retrorun_swap_l1r1_with_l2r2**` = true | false (Swap L1/L2 with R1/R2, default: false)  
-	•	**`retrorun_swap_sticks**` = true | false (Swap left and right analog sticks, default: false)  
-	•	**`retrorun_toggle_osd_select_x**` = true | false (Enable OSD toggle with SELECT+X instead of L3+R3, default: false)  
+	•	**`retrorun_force_left_analog_stick**` = true | false (Map left analog stick to D-pad, default: false)  <br>
+	•	**`retrorun_swap_l1r1_with_l2r2**` = true | false (Swap L1/L2 with R1/R2, default: false)  <br>
+	•	**`retrorun_swap_sticks**` = true | false (Swap left and right analog sticks, default: false)  <br>
+	•	**`retrorun_toggle_osd_select_x**` = true | false (Enable OSD toggle with SELECT+X instead of L3+R3, default: false)  <br>
 
 Save/Load Features  
-	•	**`retrorun_auto_save**` = true | false (Enable auto-save, default: false)  
-	•	**`retrorun_auto_load**` = true | false (Enable auto-load, default: same as auto-save)  
+	•	**`retrorun_auto_save**` = true | false (Enable auto-save, default: false)  <br>
+	•	**`retrorun_auto_load**` = true | false (Enable auto-load, default: same as auto-save)  <br>
 
 Performance Settings  
-	•	**`retrorun_loop_60_fps**` = true | false (Restrict loop to 60 FPS, default: true)  
-	•	**`retrorun_audio_buffer**` = -1, 1, 256, 512, 1024, ... (Audio buffer size, default: -1)  
-	•	**`retrorun_force_video_multithread**` = true | false (Run video tasks in a separate thread, default: varies by device)  
+	•	**`retrorun_loop_60_fps**` = true | false (Restrict loop to 60 FPS, default: true)  <br>
+	•	**`retrorun_audio_buffer**` = -1, 1, 256, 512, 1024, ... (Audio buffer size, default: -1)  <br>
+	•	**`retrorun_force_video_multithread**` = true | false (Run video tasks in a separate thread, default: varies by device)  <br>
 
 Tate Mode Settings  
-	•	**`retrorun_tate_mode**` = auto | enabled | disabled | reverted (Enable vertical display mode, default: disabled)
+	•	**`retrorun_tate_mode**` = auto | enabled | disabled | reverted (Enable vertical display mode, default: disabled)<br>
 
 Rumble Settings  
-	•	**`retrorun_rumble_type**` = pwm | event (Rumble type, default varies by device)  
-	•	**`retrorun_rumble_event**` = /dev/input/eventX (Override default rumble event file)  
-	•	**`retrorun_rumble_pwm_file**` = /sys/class/pwm/pwmchip0/pwm0/duty_cycle (Override default PWM file)  
+	•	**`retrorun_rumble_type**` = pwm | event (Rumble type, default varies by device)  <br>
+	•	**`retrorun_rumble_event**` = /dev/input/eventX (Override default rumble event file)  <br>
+	•	**`retrorun_rumble_pwm_file**` = /sys/class/pwm/pwmchip0/pwm0/duty_cycle (Override default PWM file)  <br>
 
 ## Build
 
@@ -112,7 +112,7 @@ strip retrorun
 
 ## Configuration file
 
-The configuration file (retrorun.cfg) contains settings for different cores. Example:
+The configuration file (retrorun.cfg) contains settings for different cores. Example:<br>
 ````
 # ---- RETRORUN INTERNAL SETTINGS ----
 retrorun_screenshot_folder = /storage/roms/screenshots
@@ -190,18 +190,18 @@ swanstation_CPU_Overclock = 100
 swanstation_GPU_Renderer = Software
 
 ````
-(*) Pay attention to the parameter names, as they follow the naming convention of the core. For example, in some distributions, the Flycast core is named Reicast. In such cases, parameters should be prefixed accordingly—e.g., 'flycast_threaded_rendering' should be renamed to 'reicast_threaded_rendering'.
+(*) Pay attention to the parameter names, as they follow the naming convention of the core. For example, in some distributions, the Flycast core is named Reicast. In such cases, parameters should be prefixed accordingly—e.g., 'flycast_threaded_rendering' should be renamed to 'reicast_threaded_rendering'.<br>
 
 
 ## Conclusion
 
-RetroRun delivers a streamlined and optimized gaming experience for Anbernic devices, offering enhanced performance, simplified configuration, and broad core compatibility.  
+RetroRun delivers a streamlined and optimized gaming experience for Anbernic devices, offering enhanced performance, simplified configuration, and broad core compatibility.  <br>
 
-For more details or to contribute, visit the [GitHub repository](https://github.com/navy1978/retrorun).  
+For more details or to contribute, visit the [GitHub repository](https://github.com/navy1978/retrorun).  <br>
 
 ### Development History  
-RetroRun was initially developed by **OtherCrashOverride** until 2020. Since 2021, development has been continued and maintained by **navy1978**.  
+RetroRun was initially developed by **OtherCrashOverride** until 2020. Since 2021, development has been continued and maintained by **navy1978**.  <br>
 
 ### Special Thanks  
-A heartfelt thanks to:  
-**Cebion, Christian_Haitian, dhwz, madcat1990, and Szalik** for their contributions and support.  
+A heartfelt thanks to:  <br>
+**Cebion, Christian_Haitian, dhwz, madcat1990, and Szalik** for their contributions and support.  <br>
