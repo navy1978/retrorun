@@ -62,6 +62,35 @@ enum AnalogToDigital
 
 };
 
+#define TRIBOOL_NULL -1
+#define TRIBOOL_FALSE 0
+#define TRIBOOL_TRUE 1
+
+struct joypad {
+  std::string event;
+  std::string rumble;
+  bool pwm;
+
+  // Default constructor
+  joypad() = default;
+
+  // Parameterized constructor
+  joypad(const std::string& ev, const std::string& ru, bool p) : event(ev), rumble(ru),pwm(p) {}
+
+  // Method to set values later
+  void setValues(const std::string& ev, const std::string& ru, bool p) {
+      event = ev;
+      rumble = ru;
+      pwm = p;
+  }
+
+  // Utility to check if joypad is valid
+  bool isValid() const {
+      return !event.empty();
+  }
+};
+
+extern joypad joy;
 
 extern Resolution resolution;
 

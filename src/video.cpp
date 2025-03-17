@@ -570,7 +570,7 @@ bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
             
             makeScreenBlackCredits(status_surface_full, res_width, res_height);
             showCredits(&status_surface_full);
-        }if (last_input_info_requested && !input_info_requested && clearScreenDelay>0) // Se il menu si chiude
+        }else if (last_input_info_requested && !input_info_requested && clearScreenDelay>0) // Se il menu si chiude
         {
             logger.log(Logger::DEB, "Ensuring full screen clear before resuming game...");
             makeScreenBlackCredits(status_surface_full, res_width, res_height);

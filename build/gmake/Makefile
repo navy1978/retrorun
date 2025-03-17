@@ -79,7 +79,11 @@ OBJECTS := \
   	$(OBJDIR)/go2/audio.o \
 	$(OBJDIR)/go2/display.o \
 	$(OBJDIR)/go2/input.o \
-	$(OBJDIR)/go2/queue.o
+	$(OBJDIR)/go2/queue.o \
+	$(OBJDIR)/js2xbox/events.o \
+	$(OBJDIR)/js2xbox/joypads.o \
+	$(OBJDIR)/js2xbox/js2xbox.o \
+	$(OBJDIR)/js2xbox/uinput.o
 
 RESOURCES := \
 
@@ -115,6 +119,7 @@ ifeq (posix,$(SHELLTYPE))
 	$(SILENT) mkdir -p $(OBJDIR)
 	$(SILENT) mkdir -p $(OBJDIR)/go2
 	$(SILENT) mkdir -p $(OBJDIR)/menu
+	$(SILENT) mkdir -p $(OBJDIR)/js2xbox
 else
 	$(SILENT) mkdir $(subst /,\\,$(OBJDIR))
 endif
@@ -189,6 +194,18 @@ $(OBJDIR)/go2/input.o: ../../src/go2/input.cpp
 $(OBJDIR)/go2/queue.o: ../../src/go2/queue.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/js2xbox/events.o: ../../src/js2xbox/events.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/js2xbox/joypads.o: ../../src/js2xbox/joypads.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/js2xbox/js2xbox.o: ../../src/js2xbox/js2xbox.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"	
+$(OBJDIR)/js2xbox/uinput.o: ../../src/js2xbox/uinput.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"					
 
 
 -include $(OBJECTS:%.o=%.d)

@@ -100,6 +100,7 @@ int deviceTypeSelected=1;
 std::map<unsigned, std::string> controllerMap;
 AnalogToDigital analogToDigital = LEFT_ANALOG;
 
+joypad joy= joypad();
 
 
 

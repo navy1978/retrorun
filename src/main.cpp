@@ -1637,16 +1637,16 @@ void initConfig()
         {
             logger.log(Logger::DEB, "retrorun_disable_rumble parameter not found in retrorun.cfg using default value (%s).", disableRumble ? "true" : "false");
         }
-        bool rumble_type_pwm = isRG552() || isRG503() || isRG351MP() || isRG353V() || isRG353M()? false: true;
+        int rumble_type_pwm =  TRIBOOL_NULL;
         try
         {
             const std::string &asValue = conf_map.at("retrorun_rumble_type");
             if (asValue == "pwm" ) {
-                rumble_type_pwm=true;
+                rumble_type_pwm=TRIBOOL_TRUE;
                 logger.log(Logger::DEB, "retrorun_rumble_type: %s.", asValue.c_str());
             
             }else if(asValue == "event") {
-                rumble_type_pwm=false;
+                rumble_type_pwm=TRIBOOL_FALSE;
                 logger.log(Logger::DEB, "retrorun_rumble_type: %s.", asValue.c_str());
             
             }else{
@@ -1671,7 +1671,6 @@ void initConfig()
             logger.log(Logger::DEB, "retrorun_rumble_pwm_file parameter not found in retrorun.cfg using default value (%s).",PWM_RUMBLE_PATH.c_str());
             
         }
-        DEVICE_PATH = isRG351MP()? "/dev/input/event2" : isRG353V()|| isRG353M()? "/dev/input/event4" :DEVICE_PATH;
         
         logger.log(Logger::DEB, "DEVICE_PATH: (%s).",DEVICE_PATH.c_str());
         try
@@ -2403,7 +2402,7 @@ int main(int argc, char *argv[])
 
     };
 
-    Menu menuSaveState = Menu("Load State", itemsLoadStateSave);
+    Menu menuSaveState = Menu("Save State", itemsLoadStateSave);
 
     std::vector<MenuItem> itemsState = {
         MenuItem("Load state", &menuLoadState, fake),
@@ -2424,9 +2423,9 @@ int main(int argc, char *argv[])
 
     std::vector<MenuItem> itemsControl = {
         deviceType,
-        MenuItem("Analog to Digital Type", getAnalogToDigital, setAnalogToDigital, "analog-to-digital"),
+        //MenuItem("Analog to Digital Type", getAnalogToDigital, setAnalogToDigital, "analog-to-digital"),
         MenuItem("Swap triggers", getSwapTriggers, setSwapTriggers, "bool"),
-        //MenuItem("Swap analog sticks", getSwapSticks, setSwapSticks, "bool"),
+        MenuItem("Swap analog sticks", getSwapSticks, setSwapSticks, "bool"),
         MenuItem("Rumble test", []() { return 0; }, [](int val) { testRumble(val); }, "test-rumble"),
         MenuItem("Rumble disabled", getRumbleDisabled, setRumbleDisabled, "bool"),
     

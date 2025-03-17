@@ -489,12 +489,35 @@ void showCredits(go2_surface_t **surface)
     drawCreditLine(currentY, "OtherCrashOverride", WHITE, surface);
     currentY += stepCredits;
     drawCreditLine(currentY, "navy1978", WHITE, surface);
+
+    currentY += stepCredits * 3;
+    drawCreditLine(currentY, "js2xbox developers", DARKGREY, surface);
+    currentY += stepCredits;
+    drawCreditLine(currentY, "Emanem", WHITE, surface);
+    currentY += stepCredits;
+    drawCreditLine(currentY, "lualiliu", WHITE, surface);
+
+    currentY += stepCredits * 3;
+    drawCreditLine(currentY, "js2xbox developers", DARKGREY, surface);
+    currentY += stepCredits;
+    drawCreditLine(currentY, "Emanem", WHITE, surface);
+    currentY += stepCredits;
+    drawCreditLine(currentY, "lualiliu", WHITE, surface);
+    currentY += stepCredits;
+    drawCreditLine(currentY, "christianhaitian", WHITE, surface);
+
+    currentY += stepCredits * 3;
+    drawCreditLine(currentY, "libgo2 developers", DARKGREY, surface);
+    currentY += stepCredits;
+    drawCreditLine(currentY, "OtherCrashOverride", WHITE, surface);
+
+
     currentY += stepCredits * 3;
     drawCreditLine(currentY, "Thanks to", DARKGREY, surface);
     currentY += stepCredits;
     drawCreditLine(currentY, "Cebion", WHITE, surface);
     currentY += stepCredits;
-    drawCreditLine(currentY, "Christian_Haitian", WHITE, surface);
+    drawCreditLine(currentY, "christianhaitian", WHITE, surface);
     currentY += stepCredits;
     drawCreditLine(currentY, "dhwz", WHITE, surface);
     currentY += stepCredits;

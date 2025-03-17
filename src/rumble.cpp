@@ -20,18 +20,21 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "rumble.h"
 #include "globals.h"
 
-bool pwm= true; // by default we use pwm events
+
+
+
+int pwm= TRIBOOL_NULL;
 bool disableRumble= false; // by default rumble is enabled (if supported by the core)
 
 
 // for event rumble
-std::string DEVICE_PATH = "/dev/input/event3";
+std::string DEVICE_PATH = "";
 static int rumble_fd = -1;
 static struct ff_effect rumble_effect;
 static int rumble_id = -1;
 
 // for pwm rumble
-std::string  PWM_RUMBLE_PATH = "/sys/class/pwm/pwmchip0/pwm0/duty_cycle";
+std::string  PWM_RUMBLE_PATH = "";
 
 
 
@@ -39,7 +42,10 @@ bool retrorun_input_set_rumble(unsigned port, enum retro_rumble_effect effect, u
 {
 
     if (disableRumble) return true;
-    if (pwm){ // pwm devices
+
+    bool pwmDevices = pwm!= TRIBOOL_NULL ? pwm : joy.pwm;
+
+    if (pwmDevices){ // pwm devices
     //logger.log(Logger::DEB, "PWM RUMBLE on:%s",PWM_RUMBLE_PATH.c_str());
         
          FILE *fp;
@@ -47,7 +53,11 @@ bool retrorun_input_set_rumble(unsigned port, enum retro_rumble_effect effect, u
     if (strength > 0)
     {
         // Attiva la vibrazione scrivendo PWM_RUMBLE_ON
-        fp = fopen(PWM_RUMBLE_PATH.c_str(), "w");
+        if (!PWM_RUMBLE_PATH.empty()) {
+            fp = fopen(PWM_RUMBLE_PATH.c_str(), "w");
+        }else{
+            fp = fopen(joy.rumble.c_str(), "w");
+        }
         if (!fp)
         {
             perror("Error opening PWM rumble");
@@ -59,7 +69,11 @@ bool retrorun_input_set_rumble(unsigned port, enum retro_rumble_effect effect, u
     else
     {
         // Disattiva la vibrazione scrivendo PWM_RUMBLE_OFF
-        fp = fopen(PWM_RUMBLE_PATH.c_str(), "w");
+        if (!PWM_RUMBLE_PATH.empty()) {
+            fp = fopen(PWM_RUMBLE_PATH.c_str(), "w");
+        }else{
+            fp = fopen(joy.rumble.c_str(), "w");
+        }
         if (!fp)
         {
             perror("Error opening PWM rumble");
@@ -78,7 +92,11 @@ bool retrorun_input_set_rumble(unsigned port, enum retro_rumble_effect effect, u
     // Open the device if it's not already open
     if (rumble_fd < 0)
     {
-        rumble_fd = open(DEVICE_PATH.c_str(), O_RDWR);
+        if (!DEVICE_PATH.empty()) {
+            rumble_fd = open(DEVICE_PATH.c_str(), O_RDWR);
+        }else{
+            rumble_fd = open(joy.event.c_str(), O_RDWR);
+        }
         if (rumble_fd < 0)
         {
             perror("Error opening rumble device");

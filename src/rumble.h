@@ -39,7 +39,7 @@ extern std::string PWM_RUMBLE_PATH;
 #define PWM_RUMBLE_ON "100000\n"
 #define PWM_RUMBLE_OFF "1000000\n"
 
-extern bool pwm; // pwm or event
+extern int pwm; // pwm or event (or null)
 extern bool disableRumble; // to disable rumble
 
 

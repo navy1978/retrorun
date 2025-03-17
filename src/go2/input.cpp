@@ -21,6 +21,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include "input.h"
 #include "hardware.h"
 #include "../globals.h"
+#include <../js2xbox/js2xbox.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -40,10 +41,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 #define BATTERY_BUFFER_SIZE (128)
 #define BRIGHTNESS_BUFFER_SIZE (128)
-// joypad
-static const char *EVDEV_NAME = "/dev/input/by-path/platform-odroidgo2-joypad-event-joystick";
-static const char *EVDEV_NAME_2 = "/dev/input/by-path/platform-odroidgo3-joypad-event-joystick";
-static const char* EVDEV_NAME_3 = "/dev/input/by-path/platform-singleadc-joypad-event-joystick";
+
+
 // battery
 static const char *BATTERY_STATUS_NAME = "/sys/class/power_supply/battery/status";
 static const char *BATTERY_CAPACITY_NAME = "/sys/class/power_supply/battery/capacity";
@@ -210,16 +209,16 @@ static void *input_task(void *arg)
 {
     go2_input_t *input = (go2_input_t *)arg;
 
-    if (!input->dev)
+    if (!input->dev){
         return NULL;
-
+    }
     const int abs_x_max = libevdev_get_abs_maximum(input->dev, ABS_X);
     const int abs_y_max = libevdev_get_abs_maximum(input->dev, ABS_Y);
 
     const int abs_rx_max = libevdev_get_abs_maximum(input->dev, ABS_RX);
     const int abs_ry_max = libevdev_get_abs_maximum(input->dev, ABS_RY);
 
-    // printf("abs: x_max=%d, y_max=%d\n", abs_x_max, abs_y_max);
+     //printf("abs: x_max=%d, y_max=%d\n", abs_x_max, abs_y_max);
 
     // Get current state
     input->current_state.buttons[Go2InputButton_DPadUp] = libevdev_get_event_value(input->dev, EV_KEY, BTN_DPAD_UP) ? ButtonState_Pressed : ButtonState_Released;
@@ -429,13 +428,19 @@ static void *input_task(void *arg)
 
 go2_input_t *go2_input_create(const char *device)
 {
+    
+    joypad jp1=initJs2xbox(); 
+    static std::string evdevNameStr = jp1.event; 
+    static const char *EVDEV_NAME = evdevNameStr.c_str();
 
+    logger.log(Logger::INF, "EVDEV_NAME set to: %s", EVDEV_NAME);
+    
     int rc = 1;
 
     go2_input_t *result = (go2_input_t *)malloc(sizeof(*result));
     if (!result)
     {
-        printf("malloc failed.\n");
+        logger.log(Logger::ERR,"malloc failed.\n");
         return NULL;
     }
 
@@ -447,21 +452,10 @@ go2_input_t *go2_input_create(const char *device)
     
     if (result->fd < 0)
     {
-        if (isRG503() || isRG353M()){
-            printf("Try to use Descriptor file EVDEV_NAME3 for controller..\n");
-            result->fd = open(EVDEV_NAME_3, O_RDONLY);
-        }else{
-            printf("Try to use Descriptor file EVDEV_NAME2 for controller..\n");
-            result->fd = open(EVDEV_NAME_2, O_RDONLY);
-        }
-        if (result->fd < 0)
-        {
-            printf("Joystick: No gamepad found.\n");
-        }else{
-            printf("Descriptor file for controller found..\n");
-        }
+        logger.log(Logger::ERR,"Joystick: No gamepad found.\n");
+        
     }else{
-        printf("Descriptor file (EVDEV_NAME) for controller found..\n");
+        logger.log(Logger::INF,"Descriptor file (EVDEV_NAME=%s) for controller found..\n",EVDEV_NAME);
     }
 
     if (result->fd > -1)
@@ -469,7 +463,7 @@ go2_input_t *go2_input_create(const char *device)
         rc = libevdev_new_from_fd(result->fd, &result->dev);
         if (rc < 0)
         {
-            printf("Joystick: Failed to init libevdev (%s)\n", strerror(-rc));
+            logger.log(Logger::ERR,"Joystick: Failed to init libevdev (%s)\n", strerror(-rc));
             close(result->fd);
             free(result);
             return NULL;
@@ -486,7 +480,7 @@ go2_input_t *go2_input_create(const char *device)
 
         if (pthread_create(&result->thread_id, NULL, input_task, (void *)result) < 0)
         {
-            printf("could not create input_task thread\n");
+            logger.log(Logger::ERR,"could not create input_task thread\n");
             libevdev_free(result->dev);
             close(result->fd);
             free(result);
@@ -495,12 +489,12 @@ go2_input_t *go2_input_create(const char *device)
 
         if (pthread_create(&result->battery_thread, NULL, battery_task, (void *)result) < 0)
         {
-            printf("could not create battery_task thread\n");
+            logger.log(Logger::ERR,"could not create battery_task thread\n");
         }
 
         if (pthread_create(&result->brightness_thread, NULL, brightness_task, (void *)result) < 0)
         {
-            printf("could not create brightness_task thread\n");
+            logger.log(Logger::ERR,"could not create brightness_task thread\n");
         }
     }
 
@@ -593,7 +587,7 @@ void go2_input_brightness_write(int value)
         return;
     }
 
-    printf("Brightness set to %d\n", value);
+    logger.log(Logger::DEB,"Brightness set to %d\n", value);
 
     return;
 }
