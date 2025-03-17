@@ -1,6 +1,13 @@
 Retrorun
 
 =======================
+Version 2.7.0 (Mar 17, 2025)
+----------------------------------
+- Integrated js2xobx project inside retrorun
+- Reverted "Align the existing feature titled 'Force left Analog to D-pad' to RetroArch"
+- Minor fixes
+
+=======================
 Version 2.6.1 (Mar 11, 2025)
 ----------------------------------
 - Added support to RG353M ad RG353V
