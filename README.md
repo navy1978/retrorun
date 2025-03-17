@@ -11,7 +11,7 @@ To launch a game using RetroRun, it is recommended to create a bash script (retr
 #!/bin/bash
 
 . /etc/profile
-echo 'Starting RetroRun emulator...'
+echo 'Starting RetroRun front-end...'
 CORE="$1"
 ROM="${2##*/}"
 PLATFORM="$3" # Optional
@@ -19,7 +19,7 @@ PLATFORM="$3" # Optional
 FPS='-f' # Optional
 GPIO_JOYPAD='-g' # Optional
 ./retrorun_64_new --triggers $FPS $GPIO_JOYPAD -s /storage/roms/"$3" -d /roms/bios "$1" "$2"
-echo 'Emulation ended!'
+echo 'front-end ended!'
 ````
 
 To run the script:
