@@ -26,6 +26,7 @@ To run the script:
 ```shell
 ./retrorun.sh /path/to/core /path/to/game name_of_platform
 ````
+![WhatsApp Image 2025-03-17 at 14 24 34](https://github.com/user-attachments/assets/22063641-19a5-47c1-a440-9a7b188003df)
 
 
 ## Supported Cores (Tested)
