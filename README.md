@@ -1,4 +1,4 @@
-RetroRun for Anbernic Devices (RG351 M/P/V/MP, RG552, RG503, RG353M, and RG353V)
+# RetroRun for Anbernic Devices (RG351 M/P/V/MP, RG552, RG503, RG353M, and RG353V)
 
 RetroRun is a libretro frontend specifically designed for Anbernic devices, including the RG351 M/P/V/MP, RG552, RG503, RG353M, and RG353V. It enhances your gaming experience with improved performance and simplified configuration.
 
@@ -7,7 +7,7 @@ This version of RetroRun differs significantly from retrorun-go2, as it encapsul
 Launching a Game with RetroRun
 
 To launch a game using RetroRun, it is recommended to create a bash script (retrorun.sh) that accepts three parameters: core, rom, and platform (optional). Below is an example script:
-
+````
 #!/bin/bash
 
 . /etc/profile
@@ -20,16 +20,15 @@ FPS='-f' # Optional
 GPIO_JOYPAD='-g' # Optional
 ./retrorun_64_new --triggers $FPS $GPIO_JOYPAD -s /storage/roms/"$3" -d /roms/bios "$1" "$2"
 echo 'Emulation ended!'
+````
 
 To run the script:
-
+````
 ./retrorun.sh /path/to/core /path/to/game name_of_platform
+````
 
 
-
-⸻
-
-Supported Cores (Tested)
+## Supported Cores (Tested)
 
 RetroRun has been tested and supports the following cores:
 	•	Dreamcast: Flycast, Flycast 2021
@@ -44,9 +43,7 @@ RetroRun has been tested and supports the following cores:
 	•	Sony PSP: PPSSPP
 	•	Others: Beetle VB, Yaba Sanshiro
 
-⸻
-
-Key Features
+## Key Features
 
 This branch of RetroRun includes several enhancements:
 	1.	Integrated libgo2 library (https://github.com/OtherCrashOverride/libgo2)
@@ -69,82 +66,132 @@ This branch of RetroRun includes several enhancements:
 
 ⸻
 
-RetroRun Configuration Parameters
+## RetroRun Configuration Parameters
 
-These parameters can be set in the retrorun.cfg file:
+These parameters can be set in the `retrorun.cfg` file:
 
 General Settings
-	•	retrorun_screenshot_folder = /storage/roms/screenshots (Default screenshot save folder)
-	•	retrorun_fps_counter = true | false (Display FPS counter, default: false)
-	•	retrorun_aspect_ratio = 2:1 | 4:3 | 5:4 | 16:9 | 16:10 | 1:1 | 3:2 | auto (Aspect ratio, default: core-defined)
-	•	retrorun_log_level = INFO | DEBUG | WARNING | ERROR (Log level, default: INFO)
+	•	**`retrorun_screenshot_folder**` = /storage/roms/screenshots (Default screenshot save folder)
+	•	**`retrorun_fps_counter**` = true | false (Display FPS counter, default: false)
+	•	**`retrorun_aspect_ratio**` = 2:1 | 4:3 | 5:4 | 16:9 | 16:10 | 1:1 | 3:2 | auto (Aspect ratio, default: core-defined)
+	•	retrorun_log_level**` = INFO | DEBUG | WARNING | ERROR (Log level, default: INFO)
 
 Input Settings
-	•	retrorun_force_left_analog_stick = true | false (Map left analog stick to D-pad, default: false)
-	•	retrorun_swap_l1r1_with_l2r2 = true | false (Swap L1/L2 with R1/R2, default: false)
-	•	retrorun_swap_sticks = true | false (Swap left and right analog sticks, default: false)
-	•	retrorun_toggle_osd_select_x = true | false (Enable OSD toggle with SELECT+X instead of L3+R3, default: false)
+	•	**`retrorun_force_left_analog_stick**` = true | false (Map left analog stick to D-pad, default: false)
+	•	**`retrorun_swap_l1r1_with_l2r2**` = true | false (Swap L1/L2 with R1/R2, default: false)
+	•	**`retrorun_swap_sticks**` = true | false (Swap left and right analog sticks, default: false)
+	•	**`retrorun_toggle_osd_select_x**` = true | false (Enable OSD toggle with SELECT+X instead of L3+R3, default: false)
 
 Save/Load Features
-	•	retrorun_auto_save = true | false (Enable auto-save, default: false)
-	•	retrorun_auto_load = true | false (Enable auto-load, default: same as auto-save)
+	•	**`retrorun_auto_save**` = true | false (Enable auto-save, default: false)
+	•	**`retrorun_auto_load**` = true | false (Enable auto-load, default: same as auto-save)
 
 Performance Settings
-	•	retrorun_loop_60_fps = true | false (Restrict loop to 60 FPS, default: true)
-	•	retrorun_audio_buffer = -1, 1, 256, 512, 1024, ... (Audio buffer size, default: -1)
-	•	retrorun_force_video_multithread = true | false (Run video tasks in a separate thread, default: varies by device)
+	•	**`retrorun_loop_60_fps**` = true | false (Restrict loop to 60 FPS, default: true)
+	•	**`retrorun_audio_buffer**` = -1, 1, 256, 512, 1024, ... (Audio buffer size, default: -1)
+	•	**`retrorun_force_video_multithread**` = true | false (Run video tasks in a separate thread, default: varies by device)
 
 Tate Mode Settings
-	•	retrorun_tate_mode = auto | enabled | disabled | reverted (Enable vertical display mode, default: disabled)
+	•	**`retrorun_tate_mode**` = auto | enabled | disabled | reverted (Enable vertical display mode, default: disabled)
 
 Rumble Settings
-	•	retrorun_rumble_type = pwm | event (Rumble type, default varies by device)
-	•	retrorun_rumble_event = /dev/input/eventX (Override default rumble event file)
-	•	retrorun_rumble_pwm_file = /sys/class/pwm/pwmchip0/pwm0/duty_cycle (Override default PWM file)
+	•	**`retrorun_rumble_type**` = pwm | event (Rumble type, default varies by device)
+	•	**`retrorun_rumble_event**` = /dev/input/eventX (Override default rumble event file)
+	•	**`retrorun_rumble_pwm_file**` = /sys/class/pwm/pwmchip0/pwm0/duty_cycle (Override default PWM file)
 
-⸻
-
-Building RetroRun
+## Build
 
 Clone the repository and compile RetroRun using:
-
+```shell
 git clone https://github.com/navy1978/retrorun
 cd retrorun
 make
 strip retrorun
+```
 
 
-
-⸻
-
-Configuration File Structure
+## Configuration file
 
 The configuration file (retrorun.cfg) contains settings for different cores. Example:
-
+````
 # ---- RETRORUN INTERNAL SETTINGS ----
 retrorun_screenshot_folder = /storage/roms/screenshots
-
-# ---- FLYCAST SETTINGS ----
+# ---- FLYCAST ----
 flycast_threaded_rendering = enabled
 flycast_internal_resolution = 640x480
 flycast_anisotropic_filtering = off
 flycast_enable_dsp = disabled
+flycast_synchronous_rendering = disabled
+flycast_enable_rtt = disabled
+flycast_enable_rttb = disabled
+flycast_delay_frame_swapping = disabled
+# Alpha sorting should be set to per strip
+flycast_alpha_sorting = per-strip (fast, least accurate)
+flycast_div_matching = auto
+# Texupscale should be off
+flycast_texupscale = off
+# Vibration support should be on
 flycast_enable_purupuru = enabled
+flycast_auto_skip_frame = disabled
+flycast_gdrom_fast_loading = enabled
+flycast_volume_modifier_enable = disabled
 flycast_framerate = fullspeed
-
-# ---- PPSSPP SETTINGS ----
+flycast_anisotropic_filtering = disabled
+# ---- FLYCAST2021 ----
+flycast2021_threaded_rendering = enabled
+flycast2021_internal_resolution = 640x480
+flycast2021_anisotropic_filtering = off
+flycast2021_enable_dsp = disabled
+flycast2021_synchronous_rendering = disabled
+flycast2021_enable_rtt = disabled
+flycast2021_enable_rttb = disabled
+flycast2021_delay_frame_swapping = disabled
+# Alpha sorting should be set to per strip
+flycast2021_alpha_sorting = per-strip (fast, least accurate)
+flycast2021_div_matching = auto
+# Texupscale should be off
+flycast2021_texupscale = off
+# Vibration support should be on
+flycast2021_enable_purupuru = enabled
+flycast2021_gdrom_fast_loading = enabled
+flycast2021_volume_modifier_enable = disabled
+flycast2021_framerate = fullspeed
+flycast2021_anisotropic_filtering = disabled
+# ---- PARALLEL N64 ----
+parallel-n64-framerate = fullspeed
+parallel-n64-filtering = nearest
+parallel-n64-audio-buffer-size = 1024
+parallel-n64-gfxplugin-accuracy = medium
+parallel-n64-screensize = 640x480
+parallel-n64-gfxplugin = rice
+parallel-n64-pak1 = rumble
+parallel-n64-pak2 = memory
+parallel-n64-pak3 = none
+parallel-n64-pak4 = none
+# ---- JAGUAR ----
+virtualjaguar_doom_res_hack = enabled
+virtualjaguar_pal = disabled
+virtualjaguar_usefastblitter = enabled
+virtualjaguar_bios = enabled
+# ---- PPSSPP ----
 ppsspp_cpu_core = JIT
-ppsspp_internal_resolution = 480x272
+#ppsspp_detect_vsync_swap_interval = disabled
+ppsspp_fast_memory = enabled
 ppsspp_frameskip = 0
-ppsspp_rendering_mode = buffered
-
-# ---- DUCKSTATION SETTINGS ----
+ppsspp_frameskiptype = Number of frames
+ppsspp_ignore_bad_memory_access = enabled
+ppsspp_internal_resolution = 480x272
+ppsspp_rendering_mode=buffered
+# ---- DUCKSTATION ----
 duckstation_CPU.Overclock = 100
-duckstation_Controller1.Type = AnalogController
+duckstation_Controller1.Type=AnalogController
+# ---- SWANSTATION ----
+swanstation_CPU_Overclock = 100
+swanstation_GPU_Renderer = Software
 
-Note: Parameter names follow the core’s naming convention. In some distributions, the Flycast core may be named “Reicast,” requiring parameters to be prefixed accordingly (e.g., flycast_threaded_rendering → reicast_threaded_rendering).
+````
+(*) Pay attention to the parameter names, as they follow the naming convention of the core. For example, in some distributions, the Flycast core is named Reicast. In such cases, parameters should be prefixed accordingly—e.g., 'flycast_threaded_rendering' should be renamed to 'reicast_threaded_rendering'.
 
-⸻
 
 ## Conclusion
 
