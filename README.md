@@ -48,22 +48,22 @@ RetroRun has been tested and supports the following cores:<br>
 
 This project adds many improvements and new features to the retrorun-go2 project (https://github.com/OtherCrashOverride/retrorun-go2):  <br>
 	1.	Integrated libgo2 library (https://github.com/OtherCrashOverride/libgo2)  <br>
-    1.	Integrated rg351p-js2box library (https://github.com/lualiliu/RG351P_virtual-gamepad)  <br>
-	2.	Tate Mode Support (useful for Naomi and Atomiswave vertical games)  <br>
-	3.	Right Analog Support for ParaLLEl N64, including C-buttons management  <br>
-	4.	FPS Display Options:  <br>
+    2.	Integrated rg351p-js2box library (https://github.com/lualiliu/RG351P_virtual-gamepad)  <br>
+	3.	Tate Mode Support (useful for Naomi and Atomiswave vertical games)  <br>
+	4.	Right Analog Support for ParaLLEl N64, including C-buttons management  <br>
+	5.	FPS Display Options:  <br>
 	•	Log FPS using the -f flag  <br>
 	•	Display FPS on-screen with SELECT + Y  <br>
-	5.	Core Configuration via File  <br>
+	6.	Core Configuration via File  <br>
 	•	Default: /storage/.config/distribution/configs/retrorun.cfg  <br>
 	•	Customizable with the -c parameter  <br>
-	6.	Aspect Ratio Management  <br>
-	7.	Support for GPIO/USB Joypads  <br>
-	8.	On-Screen Display (OSD) with explanatory images  <br>
-	9.	Info Menu displaying device and game information  <br>
-	10.	Working SaveState support for all cores, including   Flycast2021 and Flycast  <br>
-	11.	Rumble support for all cores and devices  <br>
-	12.	Many additional enhancements  <br>
+	7.	Aspect Ratio Management  <br>
+	8.	Support for GPIO/USB Joypads  <br>
+	9.	On-Screen Display (OSD) with explanatory images  <br>
+	10.	Info Menu displaying device and game information  <br>
+	11.	Working SaveState support for all cores, including   Flycast2021 and Flycast  <br>
+	12.	Rumble support for all cores and devices  <br>
+	13.	Many additional enhancements  <br>
 
 ⸻
 
