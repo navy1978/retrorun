@@ -18,7 +18,7 @@ PLATFORM="$3" # Optional
 
 FPS='-f' # Optional
 GPIO_JOYPAD='-g' # Optional
-./retrorun_64_new --triggers $FPS $GPIO_JOYPAD -s /storage/roms/"$3" -d /roms/bios "$1" "$2"
+./retrorun --triggers $FPS $GPIO_JOYPAD -s /storage/roms/"$3" -d /roms/bios "$1" "$2"
 echo 'front-end ended!'
 ````
 
