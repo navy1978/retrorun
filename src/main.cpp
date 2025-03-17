@@ -1687,13 +1687,13 @@ void initConfig()
 
         try
         {
-            const std::string &asValue = conf_map.at("retrorun_toggle_osd_select_x");
+            const std::string &asValue = conf_map.at("retrorun_alternative_input_mode");
             input_info_requested_alternative = asValue == "true" ? true : false;
-            logger.log(Logger::DEB, "retrorun_toggle_osd_select_x: %s.", input_info_requested_alternative ? "true" : "false");
+            logger.log(Logger::DEB, "retrorun_alternative_input_mode: %s.", retrorun_alternative_input_mode ? "true" : "false");
         }
         catch (...)
         {
-            logger.log(Logger::DEB, "retrorun_toggle_osd_select_x parameter not found in retrorun.cfg using default value (%s).", input_info_requested_alternative ? "true" : "false");
+            logger.log(Logger::DEB, "retrorun_alternative_input_mode parameter not found in retrorun.cfg using default value (%s).", input_info_requested_alternative ? "true" : "false");
         }
         bool forceMultithread=false;
         try

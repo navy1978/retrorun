@@ -347,7 +347,8 @@ gettimeofday(&valTime, NULL);
 double currentTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
 
 // Handle input_info_requested_alternative condition
-if (input_info_requested_alternative) {
+if (input_info_requested_alternative) { // this are the alternative combinations used by ArkOs
+    // Handle emntering in Menu request
     if ((isSelectPressed && isXPressed) || (isF2Pressed && isXPressed)) {
         double elapsed = currentTime - lastInforequestTime;
         logger.log(Logger::DEB, "Input: Info requested");
@@ -359,7 +360,50 @@ if (input_info_requested_alternative) {
             logger.log(Logger::DEB, "Input: Info requested OK");
         }
     }
-} else {
+    
+    if (!input_info_requested){ // we are not in the menu...
+        // Handle exit request
+        if ((isF2Pressed && isStartPressed) || (isSelectPressed && isStartPressed)) {
+            if (input_exit_requested_firstTime && elapsed_time_ms > 0.5) {
+                input_exit_requested = true;
+            } else if (!input_exit_requested_firstTime) {
+                gettimeofday(&exitTimeStart, NULL);
+                input_exit_requested_firstTime = true;
+            }
+        }
+        // Handle FPS request
+        if ( (isF2Pressed && isYPressed) || (isSelectPressed && isYPressed) ) {
+            double elapsed = currentTime - lastFPSrequestTime;
+            if (elapsed >= 0.5) {
+                input_fps_requested = !input_fps_requested;
+                lastFPSrequestTime = currentTime;
+            }
+        }
+        // Handle screenshot request
+        if ((isF2Pressed && isBPressed)|| (isSelectPressed && isBPressed)) {
+            screenshot_requested = true;
+            lastScreenhotrequestTime = currentTime;
+            logger.log(Logger::DEB, "Input: Screenshot requested");
+        }
+
+        // Handle pause request
+        if ((isF2Pressed && isAPressed) || (isSelectPressed && isAPressed)) {
+            double elapsed = currentTime - pauseRequestTime;
+            if (elapsed >= 0.5) {
+                logger.log(Logger::DEB, "Input: Pause requested");
+                input_pause_requested = !input_pause_requested;
+                if (!input_pause_requested) {
+                    pause_requested = false;
+                }
+                logger.log(Logger::DEB, "Input: %s", input_pause_requested ? "Paused" : "Un-paused");
+                pauseRequestTime = currentTime;
+            }
+        }
+}
+
+} else { // this is the oermal behaviour used in AmberElec
+
+    // Handle emntering in Menu request
     if (isL3Pressed && isR3Pressed) {
         double elapsed = currentTime - lastInforequestTime;
         logger.log(Logger::DEB, "Input: Info requested");
@@ -371,99 +415,51 @@ if (input_info_requested_alternative) {
             logger.log(Logger::DEB, "Input: Info requested OK");
         }
     }
-}
-
-// Handle exit request
-if (input_info_requested_alternative) {
-    if (!input_info_requested && isF2Pressed && isStartPressed) {
-        if (input_exit_requested_firstTime && elapsed_time_ms > 0.5) {
-            input_exit_requested = true;
-        } else if (!input_exit_requested_firstTime) {
-            gettimeofday(&exitTimeStart, NULL);
-            input_exit_requested_firstTime = true;
+    if (!input_info_requested){ // we aqre not in the menu
+        // Handle exit request
+        if ( isSelectPressed && isStartPressed) {
+            if (input_exit_requested_firstTime && elapsed_time_ms > 0.5) {
+                input_exit_requested = true;
+            } else if (!input_exit_requested_firstTime) {
+                gettimeofday(&exitTimeStart, NULL);
+                input_exit_requested_firstTime = true;
+         }
         }
-    }
-} else {
-    if (!input_info_requested && isSelectPressed && isStartPressed) {
-        if (input_exit_requested_firstTime && elapsed_time_ms > 0.5) {
-            input_exit_requested = true;
-        } else if (!input_exit_requested_firstTime) {
-            gettimeofday(&exitTimeStart, NULL);
-            input_exit_requested_firstTime = true;
-        }
-    }
-}
-
-// Handle FPS request
-if (input_info_requested_alternative) {
-    if (!input_info_requested && isF2Pressed && isYPressed) {
-        double elapsed = currentTime - lastFPSrequestTime;
-        if (elapsed >= 0.5) {
-            input_fps_requested = !input_fps_requested;
-            lastFPSrequestTime = currentTime;
-        }
-    }
-} else {
-    if (!input_info_requested && isSelectPressed && isYPressed) {
-        double elapsed = currentTime - lastFPSrequestTime;
-        if (elapsed >= 0.5) {
-            input_fps_requested = !input_fps_requested;
-            lastFPSrequestTime = currentTime;
-        }
-    }
-}
-
-// Handle screenshot request
-if (input_info_requested_alternative) {
-    if (!input_info_requested && isF2Pressed && isBPressed) {
-        screenshot_requested = true;
-        lastScreenhotrequestTime = currentTime;
-        logger.log(Logger::DEB, "Input: Screenshot requested");
-    }
-} else {
-    if (!input_info_requested && isSelectPressed && isBPressed) {
-        screenshot_requested = true;
-        lastScreenhotrequestTime = currentTime;
-        logger.log(Logger::DEB, "Input: Screenshot requested");
-    }
-}
-
-// Handle pause request
-if (input_info_requested_alternative) {
-    if (isF2Pressed && isAPressed) {
-        double elapsed = currentTime - pauseRequestTime;
-        if (elapsed >= 0.5) {
-            logger.log(Logger::DEB, "Input: Pause requested");
-            input_pause_requested = !input_pause_requested;
-            if (!input_pause_requested) {
-                pause_requested = false;
+        // Handle FPS request
+        if (isSelectPressed && isYPressed) {
+            double elapsed = currentTime - lastFPSrequestTime;
+            if (elapsed >= 0.5) {
+                input_fps_requested = !input_fps_requested;
+                lastFPSrequestTime = currentTime;
             }
-            logger.log(Logger::DEB, "Input: %s", input_pause_requested ? "Paused" : "Un-paused");
-            pauseRequestTime = currentTime;
         }
-    }
-} else {
-    if (isSelectPressed && isAPressed) {
-        double elapsed = currentTime - pauseRequestTime;
-        if (elapsed >= 0.5) {
-            logger.log(Logger::DEB, "Input: Pause requested");
-            input_pause_requested = !input_pause_requested;
-            if (!input_pause_requested) {
-                pause_requested = false;
+        // Handle screenshot request
+        if (isSelectPressed && isBPressed) {
+            screenshot_requested = true;
+            lastScreenhotrequestTime = currentTime;
+            logger.log(Logger::DEB, "Input: Screenshot requested");
+        }
+        // Handle pause request
+        if (isSelectPressed && isAPressed) {
+            double elapsed = currentTime - pauseRequestTime;
+            if (elapsed >= 0.5) {
+                logger.log(Logger::DEB, "Input: Pause requested");
+                input_pause_requested = !input_pause_requested;
+                if (!input_pause_requested) {
+                    pause_requested = false;
+                }
+                logger.log(Logger::DEB, "Input: %s", input_pause_requested ? "Paused" : "Un-paused");
+                pauseRequestTime = currentTime;
             }
-            logger.log(Logger::DEB, "Input: %s", input_pause_requested ? "Paused" : "Un-paused");
-            pauseRequestTime = currentTime;
+        }
+        // Handle fast-forward request
+        if (isF1Pressed && isR2Pressed && wasR2Released) {
+            input_ffwd_requested = !input_ffwd_requested;
+            logger.log(Logger::DEB, "Input: Fast-forward %s", input_ffwd_requested ? "on" : "off");
         }
     }
 }
 
-// Handle fast-forward request
-if (!input_info_requested && isF1Pressed) {
-    if (isR2Pressed && wasR2Released) {
-        input_ffwd_requested = !input_ffwd_requested;
-        logger.log(Logger::DEB, "Input: Fast-forward %s", input_ffwd_requested ? "on" : "off");
-    }
-}
 }
 
 

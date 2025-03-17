@@ -81,7 +81,7 @@ Input Settings
 	•	**retrorun_force_left_analog_stick** = true | false (Map left analog stick to D-pad, default: false)  <br>
 	•	**retrorun_swap_l1r1_with_l2r2** = true | false (Swap L1/L2 with R1/R2, default: false)  <br>
 	•	**retrorun_swap_sticks** = true | false (Swap left and right analog sticks, default: false)  <br>
-	•	**retrorun_toggle_osd_select_x** = true | false (Enable OSD toggle with SELECT+X instead of L3+R3, default: false)  <br>
+	•	**retrorun_alternative_input_mode** = true | false (Enable OSD toggle with SELECT+X instead of L3+R3, and some alternatives combination to show FPS, take ascreenshot and so on)  <br>
 
 Save/Load Features  
 	•	**retrorun_auto_save** = true | false (Enable auto-save, default: false)  <br>
