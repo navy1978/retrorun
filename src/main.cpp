@@ -1689,7 +1689,7 @@ void initConfig()
         {
             const std::string &asValue = conf_map.at("retrorun_alternative_input_mode");
             input_info_requested_alternative = asValue == "true" ? true : false;
-            logger.log(Logger::DEB, "retrorun_alternative_input_mode: %s.", retrorun_alternative_input_mode ? "true" : "false");
+            logger.log(Logger::DEB, "retrorun_alternative_input_mode: %s.", input_info_requested_alternative ? "true" : "false");
         }
         catch (...)
         {
