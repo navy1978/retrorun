@@ -479,7 +479,7 @@ void showCredits(go2_surface_t **surface)
     /// DEV
     int currentY = posYCredits;
 
-    drawCreditLine(currentY, "Retrorun", ORANGE, surface);
+    drawCreditLine(currentY, "RetroRun", ORANGE, surface);
     currentY += stepCredits;
     drawCreditLine(currentY, "Light libretro front-end", YELLOW, surface);
 
@@ -535,7 +535,7 @@ void showInfo(int w, go2_surface_t **surface)
     rowForText = 0;
     int posX = 0;
 
-    std::string title = "Retrorun - " + release; // The text to scroll
+    std::string title = "RetroRun - " + release; // The text to scroll
     int title_length = title.length();
     showText(posRetro, 2, title.c_str(), WHITE, surface);
     if (posRetro == (INFO_MENU_WIDTH - (title_length * size_char)))

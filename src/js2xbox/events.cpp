@@ -38,6 +38,7 @@ const char* find_existing_evdev() {
         "/dev/input/by-path/platform-odroidgo2-joypad-event-joystick",
         "/dev/input/by-path/platform-odroidgo3-joypad-event-joystick",
         "/dev/input/by-path/platform-singleadc-joypad-event-joystick"
+		
     };
 
     for (const char* dev : EVDEV_NAMES) {
@@ -95,7 +96,9 @@ joypad events::find_event_js(const js_desc** js, js_desc const **out) {
 									id.bustype == 0x19 &&
 									id.vendor == 0x484b &&
 									id.product == 0x1101 &&
-									id.version == 0x100) || strcmp(name, "GO-Super Gamepad") == 0 ;
+									id.version == 0x100) 
+									|| strcmp(name, "GO-Super Gamepad") == 0 
+									||strcmp(name, "GO-Advance Gamepad (rev 1.1)") == 0 ; // RGB10
 
 			bool isOSHController = (strcmp(name, "OpenSimHardware OSH PB Controller") == 0 &&
 									id.bustype == (*p)->bus &&

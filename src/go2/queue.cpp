@@ -19,7 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 #include "queue.h"
-
+#include "../globals.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -39,7 +39,7 @@ go2_queue_t* go2_queue_create(int capacity)
     go2_queue_t* result = (go2_queue_t*)malloc(sizeof(*result));
     if (!result)
     {
-        printf("malloc failed.\n");
+        logger.log(Logger::ERR,"malloc failed.\n");
         return NULL;
     }
 
@@ -50,7 +50,7 @@ go2_queue_t* go2_queue_create(int capacity)
     result->data = (void**) malloc(capacity * sizeof(void*));
     if (!result)
     {
-        printf("data malloc failed.\n");
+        logger.log(Logger::ERR,"data malloc failed.\n");
         free(result);
         return NULL;
     }
@@ -87,7 +87,7 @@ int go2_queue_push(go2_queue_t* queue, void* value)
     }
     else
     {
-        printf("queue is full.\n");
+        logger.log(Logger::ERR,"queue is full.\n");
         return -1;
     }    
 }
@@ -110,7 +110,7 @@ void* go2_queue_pop(go2_queue_t* queue)
     }
     else
     {
-        printf("queue is empty.\n");
+        logger.log(Logger::ERR,"queue is empty.\n");
         result = NULL;
     }
     

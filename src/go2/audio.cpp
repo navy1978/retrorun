@@ -60,7 +60,7 @@ go2_audio_t *go2_audio_create(int frequency)
     go2_audio_t *result = (go2_audio_t *)malloc(sizeof(*result));
     if (!result)
     {
-        printf("malloc failed.\n");
+        logger.log(Logger::ERR,"malloc failed.\n");
         free(result);
         return NULL;
     }
@@ -72,7 +72,7 @@ go2_audio_t *go2_audio_create(int frequency)
     result->device = alcOpenDevice(NULL);
     if (!result->device)
     {
-        printf("alcOpenDevice failed.\n");
+        logger.log(Logger::ERR,"alcOpenDevice failed.\n");
         free(result);
         return NULL;
     }
@@ -150,7 +150,7 @@ void *audio_thread(void *arg)
             tv.tv_sec = 0;
             tv.tv_usec = 700;
             select(0, NULL, NULL, NULL, &tv);
-            printf("Audio waiting.\n");
+            logger.log(Logger::ERR,"Audio waiting.\n");
         }
         /*
                    fd_set read_fds;
@@ -173,7 +173,7 @@ void *audio_thread(void *arg)
             }
                    // return;
                 }*/
-        printf("Play.\n");
+       // printf("Play.\n");
     }
     // Signal that the buffers have been processed
     pthread_mutex_lock(&mutex);

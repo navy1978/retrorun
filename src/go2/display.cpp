@@ -62,7 +62,7 @@ go2_display_t *go2_display_create()
     go2_display_t *result = (go2_display_t *)malloc(sizeof(*result));
     if (!result)
     {
-        printf("malloc failed.\n");
+        logger.log(Logger::ERR,"malloc failed.\n");
         return NULL;
     }
 
@@ -72,7 +72,7 @@ go2_display_t *go2_display_create()
     result->fd = open("/dev/dri/card0", O_RDWR);
     if (result->fd < 0)
     {
-        printf("open /dev/dri/card0 failed.\n");
+        logger.log(Logger::ERR,"open /dev/dri/card0 failed.\n");
         free(result);
         return NULL;
     }
@@ -80,7 +80,7 @@ go2_display_t *go2_display_create()
     drmModeRes *resources = drmModeGetResources(result->fd);
     if (!resources)
     {
-        printf("drmModeGetResources failed: %s\n", strerror(errno));
+        logger.log(Logger::ERR,"drmModeGetResources failed: %s\n", strerror(errno));
         close(result->fd);
         free(result);
         return NULL;
@@ -102,7 +102,7 @@ go2_display_t *go2_display_create()
 
     if (!connector)
     {
-        printf("DRM_MODE_CONNECTED not found.\n");
+        logger.log(Logger::ERR,"DRM_MODE_CONNECTED not found.\n");
         drmModeFreeResources(resources);
         close(result->fd);
         free(result);
@@ -127,7 +127,7 @@ go2_display_t *go2_display_create()
 
     if (!mode)
     {
-        printf("DRM_MODE_TYPE_PREFERRED not found.\n");
+        logger.log(Logger::ERR,"DRM_MODE_TYPE_PREFERRED not found.\n");
         drmModeFreeConnector(connector);
         drmModeFreeResources(resources);
         close(result->fd);
@@ -156,7 +156,7 @@ go2_display_t *go2_display_create()
     if (!encoder)
     {
 
-        printf("could not find encoder!\n");
+        logger.log(Logger::ERR,"could not find encoder!\n");
         drmModeFreeConnector(connector);
         drmModeFreeResources(resources);
         close(result->fd);
@@ -218,7 +218,7 @@ void go2_display_present(go2_display_t *display, go2_frame_buffer_t *frame_buffe
     int ret = drmModeSetCrtc(display->fd, display->crtc_id, frame_buffer->fb_id, 0, 0, &display->connector_id, 1, &display->mode);
     if (ret)
     {
-        printf("drmModeSetCrtc failed.\n");
+        logger.log(Logger::ERR,"drmModeSetCrtc failed.\n");
     }
 }
 
@@ -305,14 +305,14 @@ void go2_display_backlight_set(go2_display_t *display, uint32_t value)
         ssize_t count = write(fd, buffer, strlen(buffer));
         if (count < 0)
         {
-            printf("go2_display_backlight_set write failed.\n");
+            logger.log(Logger::ERR,"go2_display_backlight_set write failed.\n");
         }
 
         close(fd);
     }
     else
     {
-        printf("go2_display_backlight_set open failed.\n");
+        logger.log(Logger::ERR,"go2_display_backlight_set open failed.\n");
     }
 }
 
@@ -375,7 +375,7 @@ int go2_drm_format_get_bpp(uint32_t format)
         break;
 
     default:
-        printf("unhandled DRM FORMAT.\n");
+        logger.log(Logger::ERR,"unhandled DRM FORMAT.\n");
         result = 0;
     }
 
@@ -387,7 +387,7 @@ go2_surface_t *go2_surface_create(go2_display_t *display, int width, int height,
     go2_surface_t *result = (go2_surface_t *)malloc(sizeof(*result));
     if (!result)
     {
-        printf("malloc failed.\n");
+        logger.log(Logger::ERR,"malloc failed.\n");
         free(result);
         return NULL;
     }
@@ -403,7 +403,7 @@ go2_surface_t *go2_surface_create(go2_display_t *display, int width, int height,
     int io = drmIoctl(display->fd, DRM_IOCTL_MODE_CREATE_DUMB, &args);
     if (io < 0)
     {
-        printf("DRM_IOCTL_MODE_CREATE_DUMB failed.\n");
+        logger.log(Logger::ERR,"DRM_IOCTL_MODE_CREATE_DUMB failed.\n");
         free(result);
         return NULL;
     }
@@ -431,7 +431,7 @@ void go2_surface_destroy(go2_surface_t *surface)
     int io = drmIoctl(surface->display->fd, DRM_IOCTL_MODE_DESTROY_DUMB, &args);
     if (io < 0)
     {
-        printf("DRM_IOCTL_MODE_DESTROY_DUMB failed.\n");
+        logger.log(Logger::ERR,"DRM_IOCTL_MODE_DESTROY_DUMB failed.\n");
     }
 
     free(surface);
@@ -469,7 +469,7 @@ int go2_surface_prime_fd(go2_surface_t *surface)
         int io = drmPrimeHandleToFD(surface->display->fd, surface->gem_handle, DRM_RDWR | DRM_CLOEXEC, &surface->prime_fd);
         if (io < 0)
         {
-            printf("drmPrimeHandleToFD failed.\n");
+            logger.log(Logger::ERR,"drmPrimeHandleToFD failed.\n");
             surface->prime_fd = 0;
             return 0;
         }
@@ -488,7 +488,7 @@ void *go2_surface_map(go2_surface_t *surface)
     surface->map = (uint8_t *)mmap(NULL, surface->size, PROT_READ | PROT_WRITE, MAP_SHARED, prime_fd, 0);
     if (surface->map == MAP_FAILED)
     {
-        printf("mmap failed.\n");
+        logger.log(Logger::ERR,"mmap failed.\n");
         return NULL;
     }
 
@@ -512,28 +512,37 @@ static uint32_t go2_rkformat_get(uint32_t drm_fourcc)
     switch (drm_fourcc)
     {
     case DRM_FORMAT_RGBA8888:
+        //logger.log(Logger::DEB,"1.go2_rkformat: RK_FORMAT_RGBA_8888");
         return RK_FORMAT_RGBA_8888;
 
     case DRM_FORMAT_RGBX8888:
+        //logger.log(Logger::DEB,"2.go2_rkformat: RK_FORMAT_RGBX_8888");
         return RK_FORMAT_RGBX_8888;
 
     case DRM_FORMAT_RGB888:
+        //logger.log(Logger::DEB,"3.go2_rkformat: RK_FORMAT_RGB_888");
         return RK_FORMAT_RGB_888;
 
     case DRM_FORMAT_ARGB8888:
     case DRM_FORMAT_XRGB8888:
+        //logger.log(Logger::DEB,"4.go2_rkformat: RK_FORMAT_RGBX_8888");
         return RK_FORMAT_BGRA_8888;
+        //return RK_FORMAT_RGBX_8888; ? is this better here?
 
     case DRM_FORMAT_RGB565:
+        //logger.log(Logger::DEB,"5.go2_rkformat: RK_FORMAT_RGB_565");
         return RK_FORMAT_RGB_565;
 
     case DRM_FORMAT_RGBA5551:
+        //logger.log(Logger::DEB,"6.go2_rkformat: RK_FORMAT_RGBA_5551");
         return RK_FORMAT_RGBA_5551;
 
     case DRM_FORMAT_RGBA4444:
+        //logger.log(Logger::DEB,"7.go2_rkformat: RK_FORMAT_RGBA_4444");
         return RK_FORMAT_RGBA_4444;
 
     case DRM_FORMAT_BGR888:
+        //logger.log(Logger::DEB,"8.go2_rkformat: RK_FORMAT_BGR_888");
         return RK_FORMAT_BGR_888;
 
     default:
@@ -562,8 +571,6 @@ void go2_surface_blit(go2_surface_t *srcSurface, int srcX, int srcY, int srcWidt
     src.fd = go2_surface_prime_fd(srcSurface);
     src.mmuFlag = 1;
 
-    // ont MP and V we dont need to rotate
-    //rotation = (isRG351V() || isRG351MP()) ? GO2_ROTATION_DEGREES_0 : rotation;
 
     switch (rotation)
     {
@@ -593,7 +600,7 @@ void go2_surface_blit(go2_surface_t *srcSurface, int srcX, int srcY, int srcWidt
 
 
     default:
-        printf("rotation not supported.\n");
+        logger.log(Logger::ERR,"rotation not supported.\n");
         return;
     }
 
@@ -619,7 +626,7 @@ void go2_surface_blit(go2_surface_t *srcSurface, int srcX, int srcY, int srcWidt
     int ret = c_RkRgaBlit(&src, &dst, NULL);
     if (ret)
     {
-        printf("c_RkRgaBlit failed.\n");
+        logger.log(Logger::ERR,"c_RkRgaBlit failed.\n");
     }
 }
 
@@ -652,7 +659,7 @@ int go2_surface_save_as_png(go2_surface_t *surface, const char *filename)
     case DRM_FORMAT_BGR888:
 
     default:
-        printf("The image format is not supported.\n");
+        logger.log(Logger::ERR,"The image format is not supported.\n");
         return -2;
     }
 
@@ -662,7 +669,7 @@ int go2_surface_save_as_png(go2_surface_t *surface, const char *filename)
     FILE *fp = fopen(filename, "wb");
     if (!fp)
     {
-        printf("fopen failed. filename='%s'\n", filename);
+        logger.log(Logger::ERR,"fopen failed. filename='%s'\n", filename);
         return -1;
     }
 
@@ -671,7 +678,7 @@ int go2_surface_save_as_png(go2_surface_t *surface, const char *filename)
 
     if (!png_ptr)
     {
-        printf("png_create_write_struct failed.\n");
+        logger.log(Logger::ERR,"png_create_write_struct failed.\n");
         fclose(fp);
         return -1;
     }
@@ -679,14 +686,14 @@ int go2_surface_save_as_png(go2_surface_t *surface, const char *filename)
     info_ptr = png_create_info_struct(png_ptr);
     if (!info_ptr)
     {
-        printf("png_create_info_struct failed.\n");
+        logger.log(Logger::ERR,"png_create_info_struct failed.\n");
         fclose(fp);
         return -1;
     }
 
     if (setjmp(png_jmpbuf(png_ptr)))
     {
-        printf("init_io failed.\n");
+        logger.log(Logger::ERR,"init_io failed.\n");
         if (info_ptr)
             png_destroy_info_struct(png_ptr, &info_ptr);
 
@@ -707,7 +714,7 @@ int go2_surface_save_as_png(go2_surface_t *surface, const char *filename)
     /* write header */
     if (setjmp(png_jmpbuf(png_ptr)))
     {
-        printf("write header failed.\n");
+        logger.log(Logger::ERR,"write header failed.\n");
         if (info_ptr)
             png_destroy_info_struct(png_ptr, &info_ptr);
 
@@ -739,7 +746,7 @@ int go2_surface_save_as_png(go2_surface_t *surface, const char *filename)
 
     if (setjmp(png_jmpbuf(png_ptr)))
     {
-        printf("writing bytes failed.\n");
+        logger.log(Logger::ERR,"writing bytes failed.\n");
         if (info_ptr)
             png_destroy_info_struct(png_ptr, &info_ptr);
 
@@ -760,7 +767,7 @@ int go2_surface_save_as_png(go2_surface_t *surface, const char *filename)
     /* end write */
     if (setjmp(png_jmpbuf(png_ptr)))
     {
-        printf("end of write failed.\n");
+        logger.log(Logger::ERR,"end of write failed.\n");
         if (info_ptr)
             png_destroy_info_struct(png_ptr, &info_ptr);
 
@@ -790,7 +797,7 @@ go2_frame_buffer_t *go2_frame_buffer_create(go2_surface_t *surface)
     go2_frame_buffer_t *result = (go2_frame_buffer_t *)malloc(sizeof(*result));
     if (!result)
     {
-        printf("malloc failed.\n");
+        logger.log(Logger::ERR,"malloc failed.\n");
         return NULL;
     }
 
@@ -813,7 +820,7 @@ go2_frame_buffer_t *go2_frame_buffer_create(go2_surface_t *surface)
                             0);
     if (ret)
     {
-        printf("drmModeAddFB2 failed.\n");
+        logger.log(Logger::ERR,"drmModeAddFB2 failed.\n");
         free(result);
         return NULL;
     }
@@ -826,7 +833,7 @@ void go2_frame_buffer_destroy(go2_frame_buffer_t *frame_buffer)
     int ret = drmModeRmFB(frame_buffer->surface->display->fd, frame_buffer->fb_id);
     if (ret)
     {
-        printf("drmModeRmFB failed.\n");
+        logger.log(Logger::ERR,"drmModeRmFB failed.\n");
     }
 
     free(frame_buffer);
@@ -871,7 +878,7 @@ static void *go2_presenter_renderloop(void *arg)
 
         if (go2_queue_count_get(presenter->usedFrameBuffers) < 1)
         {
-            printf("no framebuffer available.\n");
+            logger.log(Logger::ERR,"no framebuffer available.\n");
             exit(1);
         }
 
@@ -901,7 +908,7 @@ go2_presenter_t *go2_presenter_create(go2_display_t *display, uint32_t format, u
     go2_presenter_t *result = (go2_presenter_t *)malloc(sizeof(*result));
     if (!result)
     {
-        printf("malloc failed.\n");
+        logger.log(Logger::ERR,"malloc failed.\n");
         return NULL;
     }
 
@@ -1006,7 +1013,7 @@ void go2_presenter_post(go2_presenter_t *presenter, go2_surface_t *surface, int 
     int push_result = go2_queue_push(presenter->usedFrameBuffers, dstFrameBuffer);
     if (push_result != 0)
     {
-        printf("queue push failed.\n");
+        logger.log(Logger::ERR,"queue push failed.\n");
         exit(1);
     }
 
@@ -1049,7 +1056,7 @@ void go2_presenter_black(go2_presenter_t *presenter, int dstX, int dstY, int dst
     int push_result = go2_queue_push(presenter->usedFrameBuffers, dstFrameBuffer);
     if (push_result != 0)
     {
-        printf("queue push failed.\n");
+        logger.log(Logger::ERR,"queue push failed.\n");
         exit(1);
     }
 
@@ -1467,7 +1474,7 @@ static EGLConfig FindConfig(EGLDisplay eglDisplay, int redBits, int greenBits, i
     EGLBoolean success = eglChooseConfig(eglDisplay, configAttributes, NULL, 0, &num_configs);
     if (success != EGL_TRUE)
     {
-        printf("eglChooseConfig failed.\n");
+        logger.log(Logger::ERR,"eglChooseConfig failed.\n");
         exit(1);
     }
 
@@ -1476,7 +1483,7 @@ static EGLConfig FindConfig(EGLDisplay eglDisplay, int redBits, int greenBits, i
     success = eglChooseConfig(eglDisplay, configAttributes, configs, num_configs, &num_configs);
     if (success != EGL_TRUE)
     {
-        printf("eglChooseConfig failed.\n");
+        logger.log(Logger::ERR,"eglChooseConfig failed.\n");
         exit(1);
     }
 
@@ -1522,7 +1529,7 @@ go2_context_t *go2_context_create(go2_display_t *display, int width, int height,
     go2_context_t *result = (go2_context_t *)malloc(sizeof(*result));
     if (!result)
     {
-        printf("malloc failed.\n");
+        logger.log(Logger::ERR,"malloc failed.\n");
         return NULL;
     }
 
@@ -1536,7 +1543,7 @@ go2_context_t *go2_context_create(go2_display_t *display, int width, int height,
     result->gbmDevice = gbm_create_device(display->fd);
     if (!result->gbmDevice)
     {
-        printf("gbm_create_device failed.\n");
+        logger.log(Logger::ERR,"gbm_create_device failed.\n");
         free(result);
         return NULL;
     }
@@ -1545,7 +1552,7 @@ go2_context_t *go2_context_create(go2_display_t *display, int width, int height,
     get_platform_display = (PFNEGLGETPLATFORMDISPLAYEXTPROC)eglGetProcAddress("eglGetPlatformDisplayEXT");
     if (get_platform_display == NULL)
     {
-        printf("eglGetProcAddress failed.\n");
+        logger.log(Logger::ERR,"eglGetProcAddress failed.\n");
         gbm_device_destroy(result->gbmDevice);
         free(result);
         return NULL;
@@ -1554,7 +1561,7 @@ go2_context_t *go2_context_create(go2_display_t *display, int width, int height,
     result->eglDisplay = get_platform_display(EGL_PLATFORM_GBM_KHR, result->gbmDevice, NULL);
     if (result->eglDisplay == EGL_NO_DISPLAY)
     {
-        printf("eglGetPlatformDisplayEXT failed.\n");
+        logger.log(Logger::ERR,"eglGetPlatformDisplayEXT failed.\n");
         gbm_device_destroy(result->gbmDevice);
         free(result);
         return NULL;
@@ -1566,7 +1573,7 @@ go2_context_t *go2_context_create(go2_display_t *display, int width, int height,
     success = eglInitialize(result->eglDisplay, &major, &minor);
     if (success != EGL_TRUE)
     {
-        printf("eglInitialize failed.\n");
+        logger.log(Logger::ERR,"eglInitialize failed.\n");
         gbm_device_destroy(result->gbmDevice);
         free(result);
         return NULL;
@@ -1594,14 +1601,14 @@ go2_context_t *go2_context_create(go2_display_t *display, int width, int height,
                                             GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
     if (!result->gbmSurface)
     {
-        printf("gbm_surface_create failed.\n");
+        logger.log(Logger::ERR,"gbm_surface_create failed.\n");
         exit(1);
     }
 
     result->eglSurface = eglCreateWindowSurface(result->eglDisplay, eglConfig, (EGLNativeWindowType)result->gbmSurface, NULL);
     if (result->eglSurface == EGL_NO_SURFACE)
     {
-        printf("eglCreateWindowSurface failed\n");
+        logger.log(Logger::ERR,"eglCreateWindowSurface failed\n");
         exit(1);
     }
 
@@ -1615,14 +1622,14 @@ go2_context_t *go2_context_create(go2_display_t *display, int width, int height,
     result->eglContext = eglCreateContext(result->eglDisplay, eglConfig, EGL_NO_CONTEXT, contextAttributes);
     if (result->eglContext == EGL_NO_CONTEXT)
     {
-        printf("eglCreateContext failed\n");
+        logger.log(Logger::ERR,"eglCreateContext failed\n");
         exit(1);
     }
 
     success = eglMakeCurrent(result->eglDisplay, result->eglSurface, result->eglSurface, result->eglContext);
     if (success != EGL_TRUE)
     {
-        printf("eglMakeCurrent failed\n");
+        logger.log(Logger::ERR,"eglMakeCurrent failed\n");
         exit(1);
     }
 
@@ -1663,7 +1670,7 @@ void go2_context_make_current(go2_context_t *context)
     EGLBoolean success = eglMakeCurrent(context->eglDisplay, context->eglSurface, context->eglSurface, context->eglContext);
     if (success != EGL_TRUE)
     {
-        printf("eglMakeCurrent failed\n");
+        logger.log(Logger::ERR,"eglMakeCurrent failed\n");
         exit(1);
     }
 }
@@ -1673,7 +1680,7 @@ void go2_context_swap_buffers(go2_context_t *context)
     EGLBoolean ret = eglSwapBuffers(context->eglDisplay, context->eglSurface);
     if (ret == EGL_FALSE)
     {
-        printf("eglSwapBuffers failed\n");
+        logger.log(Logger::ERR,"eglSwapBuffers failed\n");
         // exit(1);
     }
 }
@@ -1683,7 +1690,7 @@ go2_surface_t *go2_context_surface_lock(go2_context_t *context)
     struct gbm_bo *bo = gbm_surface_lock_front_buffer(context->gbmSurface);
     if (!bo)
     {
-        printf("gbm_surface_lock_front_buffer failed.\n");
+        logger.log(Logger::ERR,"gbm_surface_lock_front_buffer failed.\n");
         exit(1);
     }
 
@@ -1702,14 +1709,14 @@ go2_surface_t *go2_context_surface_lock(go2_context_t *context)
     {
         if (context->bufferCount >= BUFFER_MAX)
         {
-            printf("swap buffers count exceeded.\n");
+            logger.log(Logger::ERR,"swap buffers count exceeded.\n");
             exit(1);
         }
 
         surface = (go2_surface_t *)malloc(sizeof(*surface));
         if (!surface)
         {
-            printf("malloc failed.\n");
+            logger.log(Logger::ERR,"malloc failed.\n");
             exit(1);
         }
 

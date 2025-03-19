@@ -1,6 +1,13 @@
 Retrorun
 
 =======================
+Version 2.7.1 (Mar 17ì9, 2025)
+---------------------------------
+- Added support for RGB10 joypad
+- Removed all 'printf' where possible
+- Minor fixes
+
+=======================
 Version 2.7.0 (Mar 17, 2025)
 ----------------------------------
 - Integrated js2xobx project inside retrorun
