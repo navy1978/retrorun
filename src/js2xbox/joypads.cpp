@@ -19,6 +19,7 @@
 
 #include "joypads.h"
 #include <linux/uinput.h>
+#include <linux/input.h>
 
 // supported joypads
 const events::js_desc	joypads::j_ps3_bt =	{ "ps3_bt", BUS_BLUETOOTH, 0x054c, 0x0268, 0x0110 },

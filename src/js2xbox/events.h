@@ -22,6 +22,7 @@
 
 #include <string>
 #include <dirent.h>
+#include <cstdint>
 
 // Forward declare the joypad struct
 struct joypad;
