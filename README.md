@@ -97,7 +97,7 @@ Tate Mode Settings
 	•	**retrorun_tate_mode** = auto | enabled | disabled | reverted (Enable vertical display mode, default: disabled)<br>
 
 Rumble Settings  
-	•	**`retrorun_rumble_type**` = pwm | event (Rumble type, default varies by device)  <br>
+	•	**retrorun_rumble_type** = pwm | event (Rumble type, default varies by device)  <br>
 	•	**retrorun_rumble_event** = /dev/input/eventX (Override default rumble event file)  <br>
 	•	**retrorun_rumble_pwm_file** = /sys/class/pwm/pwmchip0/pwm0/duty_cycle (Override default PWM file)  <br>
 
