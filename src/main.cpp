@@ -20,6 +20,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include "globals.h"
 #include "video-helper.h"
+#include "./js2xbox/events.h"
 #include "video.h"
 #include "audio.h"
 #include "input.h"
@@ -88,16 +89,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 static struct retro_perf_counter *perf_counters[MAX_COUNTERS];
 static int perf_counter_count = 0;
 typedef int64_t retro_time_t;
-/* unsigned * --
- *
- * Allows an implementation to ask frontend preferred hardware
- * context to use. Core should use this information to deal
- * with what specific context to request with SET_HW_RENDER.
- *
- * 'data' points to an unsigned variable
- */
-
-// extern go2_battery_state_t batteryState;
 extern go2_brightness_state_t brightnessState;
 
 retro_hw_context_reset_t retro_context_reset;
@@ -126,47 +117,6 @@ pthread_t main_thread_id;
 
 
 
-/*
-#include <stdio.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <stdlib.h>
-*/
-/*#define PWM_RUMBLE_PATH "/sys/class/pwm/pwmchip0/pwm0/duty_cycle"
-#define PWM_RUMBLE_ON "100000\n"
-#define PWM_RUMBLE_OFF "1000000\n"
-
-bool retrorun_input_set_rumble(unsigned port, enum retro_rumble_effect effect, uint16_t strength)
-{
-    FILE *fp;
-    
-    if (strength > 0)
-    {
-        // Attiva la vibrazione scrivendo PWM_RUMBLE_ON
-        fp = fopen(PWM_RUMBLE_PATH, "w");
-        if (!fp)
-        {
-            perror("Errore apertura PWM rumble");
-            return false;
-        }
-        fprintf(fp, PWM_RUMBLE_ON);
-        fclose(fp);
-    }
-    else
-    {
-        // Disattiva la vibrazione scrivendo PWM_RUMBLE_OFF
-        fp = fopen(PWM_RUMBLE_PATH, "w");
-        if (!fp)
-        {
-            perror("Errore apertura PWM rumble");
-            return false;
-        }
-        fprintf(fp, PWM_RUMBLE_OFF);
-        fclose(fp);
-    }
-
-    return true;
-}*/
 
 retro_time_t cpu_features_get_time_usec(void)
 {
@@ -612,23 +562,7 @@ static bool core_environment(unsigned cmd, void *data)
     case RETRO_ENVIRONMENT_GET_VARIABLE:
     {
         retro_variable *var = (retro_variable *)data;
-        // printf("GET_VAR: %s\n", var->key);
-        // std::cout << "2 ====>mymap.size() is " << conf_map.size() << '\n';
-        bool found = false;
-
-        /*for (const auto &kv : conf_map)
-        {
-
-            // printf("Try to find this : %s  with: %s\n", var->key, kv.second.c_str());
-            if (strcmp(var->key, kv.first.c_str()) == 0)
-            {
-                printf("key found: %s  value: %s\n", kv.first.c_str(), kv.second.c_str());
-                var->value = kv.second.c_str();
-                found = true;
-                return true;
-            }
-        }*/
-
+         bool found = false;
         std::map<std::string, std::string>::iterator it = conf_map.find(var->key);
         if (it != conf_map.end())
         {
@@ -666,27 +600,7 @@ static bool core_environment(unsigned cmd, void *data)
         return false;
     }
 
-        /*case RETRO_ENVIRONMENT_GET_AUDIO_VIDEO_ENABLE: {
-            int audioVideoEnable = 0; // Inizializziamo il flag
-
-            // Impostiamo l'abilitazione del video (bit 0)
-            audioVideoEnable |= ENABLE_VIDEO;
-
-            // Impostiamo l'abilitazione/diabilitazione dell'audio (bit 1)
-            if (!audio_disabled) {
-                audioVideoEnable |= ENABLE_AUDIO;
-            }
-
-            // Impostiamo l'abilitazione del fast savestates (bit 2)
-            audioVideoEnable |= USE_FAST_SAVESTATES;
-
-            // Impostiamo la disabilitazione dell'audio (bit 3)
-            if (audio_disabled) {
-                audioVideoEnable |= HARD_DISABLE_AUDIO;
-            }
-                    *(int*)data = audioVideoEnable;
-                }
-        */
+      
     case RETRO_ENVIRONMENT_GET_CORE_OPTIONS_VERSION:
     {
         unsigned int *options_version = (unsigned int *)data;
@@ -770,40 +684,7 @@ static void core_load(const char *sofile)
     set_audio_sample(core_audio_sample);
     set_audio_sample_batch(core_audio_sample_batch);
 
-    /*
-    retro_hw_render_callback hw_render_callback;
-
-    // Set fields of retro_hw_render_callback
-    hw_render_callback.context_type = RETRO_HW_CONTEXT_OPENGLES2; // Set the context type
-    hw_render_callback.version_major = 0; // Set the major version
-    hw_render_callback.version_minor = 0; // Set the minor version
-
-    // Other fields can be set similarly
-
-    // Example of setting a callback function
-    hw_render_callback.get_current_framebuffer = core_video_get_current_framebuffer;
-    hw_render_callback.get_proc_address = (retro_hw_get_proc_address_t)get_proc_address;
-
-
-
-    // You can print the values to verify they are set correctly
-    printf("context_type: %d, version_major: %d, version_minor: %d\n", hw_render_callback.context_type, hw_render_callback.version_major, hw_render_callback.version_minor);
-
-    // Pass the modified hw_render_callback object to Libretro
-    // This could be done during initialization or when setting up hardware rendering
-    // For example:
-
-    if (set_environment != NULL) {
-        // Chiamata alla funzione retro_set_environment tramite il puntatore a funzione
-       set_environment( (retro_environment_t)&hw_render_callback);
-    } else {
-        // Caricamento fallito, gestire l'errore di conseguenza
-        printf("Errore: impossibile caricare la funzione retro_set_environment\n");
-    }
-           isOpenGL = true;
-            GLContextMajor =  0;
-            GLContextMinor = 0;
-    */
+    
     g_retro.retro_init();
     g_retro.initialized = true;
     logger.log(Logger::DEB, "Core loaded.");
@@ -909,23 +790,7 @@ void *unload(void *arg)
     }
     throw std::runtime_error("Force exiting retrorun.\n");
 }
-/*
-void unload(void)
-{
 
-    if (g_retro.initialized)
-    {
-        g_retro.retro_deinit();
-    }
-
-    if (g_retro.handle)
-    {
-        dlclose(g_retro.handle);
-        exitFlag = 0;
-    }
-    throw std::runtime_error("Force exiting retrorun.\n");
-}
-*/
 static const char *FileNameFromPath(const char *fullpath)
 {
     // Find last slash
@@ -942,35 +807,11 @@ static const char *FileNameFromPath(const char *fullpath)
     return ptr;
 }
 
-/*static char *PathCombine(const char *path, const char *filename)
-{
-    int len = strlen(path);
-    int total_len = len + strlen(filename);
-
-    char *result = NULL;
-
-    if (path[len - 1] != '/')
-    {
-        ++total_len;
-        result = (char *)calloc(total_len + 1, 1);
-        strcpy(result, path);
-        strcat(result, "/");
-        strcat(result, filename);
-    }
-    else
-    {
-        result = (char *)calloc(total_len + 1, 1);
-        strcpy(result, path);
-        strcat(result, filename);
-    }
-
-    return result;
-}*/
 
 inline int getRetroMemory()
 {
 
-    return /*isFlycast() ? RETRO_MEMORY_VIDEO_RAM :*/ RETRO_MEMORY_SAVE_RAM;
+    return RETRO_MEMORY_SAVE_RAM;
 }
 
 
@@ -1078,10 +919,7 @@ static int LoadSram(const char *saveName)
 
         size_t sramSize = g_retro.retro_get_memory_size(getRetroMemory());
 
-        /*for (unsigned i = 0; i < 4; i++) {
-            size_t sramSize1 = g_retro.retro_get_memory_size(i);
-            printf("Memory size for ID %u: %zu bytes\n", i, sramSize1);
-        }*/
+        
         if (size < 1)
         {
             logger.log(Logger::ERR, "Error loading sram, memory size wrong!");
@@ -1150,10 +988,7 @@ static void SaveSram(const char *saveName)
 {
     size_t size = g_retro.retro_get_memory_size(getRetroMemory());
 
-    /*for (unsigned i = 0; i < 4; i++) {
-        size_t sramSize = g_retro.retro_get_memory_size(i);
-        printf("Memory size for ID %u: %zu bytes\n", i, sramSize);
-    }*/
+    
     if (size < 1)
     {
         logger.log(Logger::ERR, "nothing to save in srm file!, %zu", size);
@@ -1624,8 +1459,6 @@ void initConfig()
         }
 
         
-/////
-        
         try
         {
             const std::string &lasValue = conf_map.at("retrorun_disable_rumble");
@@ -1718,6 +1551,43 @@ void initConfig()
             logger.log(Logger::DEB, "retrorun_elable_key_log parameter not found in retrorun.cfg using default value (%s)",elable_key_log ? "true" : "false");
         }
 
+
+        try
+        {
+            const std::string &ssFolderValue = conf_map.at("retrorun_extra_retrogame_name");
+            events::extra_retrogame_name= ssFolderValue;
+            logger.log(Logger::DEB, "retrorun_extra_retrogame_name set to:%s", events::extra_retrogame_name);
+        }
+        catch (...)
+        {
+            logger.log(Logger::DEB, "retrorun_extra_retrogame_name parameter not found in retrorun.cfg using default values.");
+            
+        }
+
+        try
+        {
+            const std::string &ssFolderValue = conf_map.at("retrorun_extra_osh_name");
+            events::extra_osh_name= ssFolderValue;
+            logger.log(Logger::DEB, "retrorun_extra_osh_name set to:%s", events::extra_osh_name);
+        }
+        catch (...)
+        {
+            logger.log(Logger::DEB, "retrorun_extra_osh_name parameter not found in retrorun.cfg using default values.");
+            
+        }
+
+
+        try
+        {
+            const std::string &ssFolderValue = conf_map.at("retrorun_extra_evdev_name");
+            events::extra_osh_name= ssFolderValue;
+            logger.log(Logger::DEB, "retrorun_extra_evdev_name set to:%s", events::extra_evdev_name);
+        }
+        catch (...)
+        {
+            logger.log(Logger::DEB, "retrorun_extra_evdev_name parameter not found in retrorun.cfg using default values.");
+            
+        }
 
 
         processVideoInAnotherThread = (isRG552()  || forceMultithread /*|| isRG503()*/) ? true : false;
@@ -2023,10 +1893,7 @@ auto loadSaveSlot = [](int slotNumber, std::string type) -> std::function<void(i
     {
         if (button == A_BUTTON)
         {
-            /*if (getSlotName(slotNumber, type).find("empty") != std::string::npos)
-            {
-                return;
-            }*/
+            
             logger.log(Logger::DEB, "Slot number :%d\n", slotNumber);
             char *savePath = createSavePath(arg_rom, opt_savedir);
             std::string savePath1 = savePath;

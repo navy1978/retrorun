@@ -990,24 +990,7 @@ void go2_presenter_post(go2_presenter_t *presenter, go2_surface_t *surface, int 
 
     go2_surface_t *dstSurface = go2_frame_buffer_surface_get(dstFrameBuffer);
 
-   /* rga_info_t dst = {0};
-    dst.fd = go2_surface_prime_fd(dstSurface);
-    dst.mmuFlag = 0;
-    dst.rect.xoffset = 0;
-    dst.rect.yoffset = 0;
-    dst.rect.width = go2_surface_width_get(dstSurface);
-    dst.rect.height = go2_surface_height_get(dstSurface);
-    dst.rect.wstride = go2_surface_stride_get(dstSurface) / (go2_drm_format_get_bpp(go2_surface_format_get(dstSurface)) / 8);
-    dst.rect.hstride = go2_surface_height_get(dstSurface);
-    dst.rect.format = go2_rkformat_get(go2_surface_format_get(dstSurface));
-    dst.color = presenter->background_color;
-
-    int ret = c_RkRgaColorFill(&dst);
-    if (ret)
-    {
-        printf("c_RkRgaColorFill failed.\n");
-    }*/
-
+   
     go2_surface_blit(surface, srcX, srcY, srcWidth, srcHeight, dstSurface, dstX, dstY, dstWidth, dstHeight, rotation);
 
     int push_result = go2_queue_push(presenter->usedFrameBuffers, dstFrameBuffer);
@@ -1033,25 +1016,7 @@ void go2_presenter_black(go2_presenter_t *presenter, int dstX, int dstY, int dst
         }
     }
 
-    //go2_surface_t *dstSurface = go2_frame_buffer_surface_get(dstFrameBuffer);
-
-    /*rga_info_t dst = {0};
-    dst.fd = go2_surface_prime_fd(dstSurface);
-    dst.mmuFlag = 0;
-    dst.rect.xoffset = 0;
-    dst.rect.yoffset = 0;
-    dst.rect.width = go2_surface_width_get(dstSurface);
-    dst.rect.height = go2_surface_height_get(dstSurface);
-    dst.rect.wstride = go2_surface_stride_get(dstSurface) / (go2_drm_format_get_bpp(go2_surface_format_get(dstSurface)) / 8);
-    dst.rect.hstride = go2_surface_height_get(dstSurface);
-    dst.rect.format = go2_rkformat_get(go2_surface_format_get(dstSurface));
-    dst.color = presenter->background_color;
-
-    int ret = c_RkRgaColorFill(&dst);
-    if (ret)
-    {
-        printf("c_RkRgaColorFill failed.\n");
-    }*/
+    
 
     int push_result = go2_queue_push(presenter->usedFrameBuffers, dstFrameBuffer);
     if (push_result != 0)
@@ -1353,25 +1318,7 @@ void go2_presenter_post_multiple(go2_presenter_t *presenter, go2_surface_t *surf
     pthread_mutex_unlock(&presenter->queueMutex);
 
     go2_surface_t *dstSurface = go2_frame_buffer_surface_get(dstFrameBuffer);
-    /*
-        rga_info_t dst = { 0 };
-        dst.fd = go2_surface_prime_fd(dstSurface);
-        dst.mmuFlag = 1;
-        dst.rect.xoffset = 0;
-        dst.rect.yoffset = 0;
-        dst.rect.width = go2_surface_width_get(dstSurface);
-        dst.rect.height = go2_surface_height_get(dstSurface);
-        dst.rect.wstride = go2_surface_stride_get(dstSurface) / (go2_drm_format_get_bpp(go2_surface_format_get(dstSurface)) / 8);
-        dst.rect.hstride = go2_surface_height_get(dstSurface);
-        dst.rect.format = go2_rkformat_get(go2_surface_format_get(dstSurface));
-        dst.color = presenter->background_color;
-
-        int ret = c_RkRgaColorFill(&dst);
-        if (ret)
-        {
-            printf("c_RkRgaColorFill failed.\n");
-        }
-    */
+    
 
     go2_surface_blit(surface1, srcX, srcY, srcWidth, srcHeight, dstSurface, dstX, dstY, dstWidth, dstHeight, rotation);
 
@@ -1578,15 +1525,15 @@ go2_context_t *go2_context_create(go2_display_t *display, int width, int height,
         free(result);
         return NULL;
     }
-/* UCOMENT THIS TO GET MORE INFO ABOUT EGL
-    printf("EGL: major=%d, minor=%d\n", major, minor);
-    printf("EGL: Vendor=%s\n", eglQueryString(result->eglDisplay, EGL_VENDOR));
-    printf("EGL: Version=%s\n", eglQueryString(result->eglDisplay, EGL_VERSION));
-    printf("EGL: ClientAPIs=%s\n", eglQueryString(result->eglDisplay, EGL_CLIENT_APIS));
-    printf("EGL: Extensions=%s\n", eglQueryString(result->eglDisplay, EGL_EXTENSIONS));
-    printf("EGL: ClientExtensions=%s\n", eglQueryString(EGL_NO_DISPLAY, EGL_EXTENSIONS));
-    //printf("\n");
-*/
+
+    logger.log(Logger::DEB,"EGL: major=%d, minor=%d\n", major, minor);
+    logger.log(Logger::DEB,"EGL: Vendor=%s\n", eglQueryString(result->eglDisplay, EGL_VENDOR));
+    logger.log(Logger::DEB,"EGL: Version=%s\n", eglQueryString(result->eglDisplay, EGL_VERSION));
+    logger.log(Logger::DEB,"EGL: ClientAPIs=%s\n", eglQueryString(result->eglDisplay, EGL_CLIENT_APIS));
+    logger.log(Logger::DEB,"EGL: Extensions=%s\n", eglQueryString(result->eglDisplay, EGL_EXTENSIONS));
+    logger.log(Logger::DEB,"EGL: ClientExtensions=%s\n", eglQueryString(EGL_NO_DISPLAY, EGL_EXTENSIONS));
+    
+
     EGLConfig eglConfig = FindConfig(result->eglDisplay, attributes->red_bits, attributes->green_bits,
                                      attributes->blue_bits, attributes->alpha_bits, attributes->depth_bits, attributes->stencil_bits);
 
@@ -1635,13 +1582,7 @@ go2_context_t *go2_context_create(go2_display_t *display, int width, int height,
 
     return result;
 
-    /*
-    err_01:
-        gbm_device_destroy(result->gbmDevice);
-
-    err_00:
-        free(result);
-        return NULL;*/
+    
 }
 
 void go2_context_destroy(go2_context_t *context)

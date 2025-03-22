@@ -27,6 +27,13 @@ namespace {
 			close(fd);
 		}
 	};
+
+}
+
+namespace events {
+	std::string extra_retrogame_name;
+	std::string extra_osh_name;
+	std::string extra_evdev_name;
 }
 
 int events::is_event_device(const struct dirent *dir) {
@@ -42,10 +49,13 @@ const char* find_existing_evdev() {
     };
 
     for (const char* dev : EVDEV_NAMES) {
-        if (access(dev, F_OK) == 0) {
-            return dev;
-        }
-    }
+		if (access(dev, F_OK) == 0) {
+			return dev;
+		}
+	}
+	if (!events::extra_evdev_name.empty() && access(events::extra_evdev_name.c_str(), F_OK) == 0) {
+		return events::extra_evdev_name.c_str();
+	}
 
     return nullptr;
 }
@@ -92,18 +102,23 @@ joypad events::find_event_js(const js_desc** js, js_desc const **out) {
 				id.bustype, id.vendor, id.product, id.version, 
 				(*p)->bus, (*p)->vendor, (*p)->product);
 
-			bool isRetrogameJoypad = (strcmp(name, "retrogame_joypad") == 0 &&
-									id.bustype == 0x19 &&
-									id.vendor == 0x484b &&
-									id.product == 0x1101 &&
-									id.version == 0x100) 
-									|| strcmp(name, "GO-Super Gamepad") == 0 
-									||strcmp(name, "GO-Advance Gamepad (rev 1.1)") == 0 ; // RGB10
+				bool isRetrogameJoypad = 
+				(strcmp(name, "retrogame_joypad") == 0 &&
+				 id.bustype == 0x19 &&
+				 id.vendor == 0x484b &&
+				 id.product == 0x1101 &&
+				 id.version == 0x100) ||
+				strcmp(name, "GO-Super Gamepad") == 0 ||
+				strcmp(name, "GO-Advance Gamepad") == 0 ||
+				strcmp(name, "GO-Advance Gamepad (rev 1.1)") == 0 ||
+				(!events::extra_retrogame_name.empty() && strcmp(name, events::extra_retrogame_name.c_str()) == 0);
 
-			bool isOSHController = (strcmp(name, "OpenSimHardware OSH PB Controller") == 0 &&
-									id.bustype == (*p)->bus &&
-									id.vendor == (*p)->vendor &&
-									id.product == (*p)->product);
+				bool isOSHController = 
+				(strcmp(name, "OpenSimHardware OSH PB Controller") == 0 ||
+				 (!events::extra_osh_name.empty() && strcmp(name, events::extra_osh_name.c_str()) == 0)) &&
+				 id.bustype == (*p)->bus &&
+				 id.vendor == (*p)->vendor &&
+				 id.product == (*p)->product;
 
 			if (isRetrogameJoypad || isOSHController) {
 				if (isRetrogameJoypad) {

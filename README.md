@@ -84,6 +84,14 @@ Input Settings
 	•	**retrorun_swap_sticks** = true | false (Swap left and right analog sticks, default: false)  <br>
 	•	**retrorun_alternative_input_mode** = true | false (Enable OSD toggle with SELECT+X instead of L3+R3, and some alternatives combination to show FPS, take ascreenshot and so on)  <br>
 
+Device Matching Overrides  <br>
+These parameters allow you to dynamically extend the list of recognized joypad devices:  <br>
+ 	• **retrorun_extra_retrogame_name** = string (Adds a joypad name to the list of recognized Retrogame devices)  <br>
+ 	• **retrorun_extra_osh_name** = string (Adds a joypad name to the list of recognized OpenSimHardware devices)  <br>
+ 	• **retrorun_extra_evdev_name** = /dev/input/by-path/… (Specifies an alternative evdev file for Retrogame devices)  <br>
+
+These values are optional: if not defined, they are ignored. They are useful for supporting custom devices or unofficial hardware revisions.	<br>
+
 Save/Load Features  
 	•	**retrorun_auto_save** = true | false (Enable auto-save, default: false)  <br>
 	•	**retrorun_auto_load** = true | false (Enable auto-load, default: same as auto-save)  <br>

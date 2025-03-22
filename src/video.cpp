@@ -195,39 +195,7 @@ void video_configure(struct retro_game_geometry *geom)
     }
     game_aspect_ratio = geom->aspect_ratio;
     logger.log(Logger::DEB, "Display info: width=%d, height=%d", display_width, display_height);
-    // Display info: width=480, height=320
-    /*if (display_width == 480 && display_height == 320)
-    {
-        logger.log(Logger::DEB, "Display info: RG351-P / RG351-M");
-        
-    }
-    else if (display_width == 480 && display_height == 640)
-    {
-        logger.log(Logger::DEB, "Display info: RG351-V / RG351-MP");
-        
-    }
-    else if (display_width == 1920 && display_height == 1152)
-    {
-        logger.log(Logger::DEB, "Display info: RG552");
-        
-    }
-    else if (display_width == 544 && display_height == 960)
-    {
-        logger.log(Logger::DEB, "Display info: RG503");
-        
-    } else if (display_width == 960 && display_height == 544)
-    {
-        logger.log(Logger::DEB, "Display info: RG353-V / RG353-M");
-        
-    }
-
-    // width=544, height=960
-    else
-    {
-        logger.log(Logger::WARN, "Display info: unknown! display_width:%d, display_height:%d\n", display_width, display_height);
-
-        
-    }*/
+    
     // some games like Resident Evil 2 for Flycast has an ovescan issue in 640x480
     bool skipGeomSet = ((isFlycast() || isFlycast2021()) && isRG552());
 

@@ -33,6 +33,10 @@ namespace events {
 
 	extern int is_event_device(const struct dirent *dir);
 
+	extern std::string extra_retrogame_name;
+	extern std::string extra_osh_name;
+	extern std::string extra_evdev_name;
+
 	struct js_desc {
 		const char*	i_name; // internal js2xbox name
 		uint16_t	bus,

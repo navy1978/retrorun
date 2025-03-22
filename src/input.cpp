@@ -818,41 +818,6 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
         thumb.y = 0;    
     }
 
-    /*else if (isTate())
-    {
-        const float TRIM = 0.35f;
-        go2_thumb_t thumb = go2_input_state_thumbstick_get(gamepadState, Go2InputThumbstick_Right);
-
-        if (thumb.y < -TRIM)
-            go2_input_state_button_set(gamepadState, Go2InputButton_DPadRight, ButtonState_Pressed);
-        if (thumb.y > TRIM)
-            go2_input_state_button_set(gamepadState, Go2InputButton_DPadLeft, ButtonState_Pressed);
-        if (thumb.x < -TRIM)
-            go2_input_state_button_set(gamepadState, Go2InputButton_DPadUp, ButtonState_Pressed);
-        if (thumb.x > TRIM)
-            go2_input_state_button_set(gamepadState, Go2InputButton_DPadDown, ButtonState_Pressed);
-
-    }*/
-
-    /*
-#define RETRO_DEVICE_ID_JOYPAD_B        0
-#define RETRO_DEVICE_ID_JOYPAD_Y        1
-#define RETRO_DEVICE_ID_JOYPAD_SELECT   2
-#define RETRO_DEVICE_ID_JOYPAD_START    3
-#define RETRO_DEVICE_ID_JOYPAD_UP       4
-#define RETRO_DEVICE_ID_JOYPAD_DOWN     5
-#define RETRO_DEVICE_ID_JOYPAD_LEFT     6
-#define RETRO_DEVICE_ID_JOYPAD_RIGHT    7
-#define RETRO_DEVICE_ID_JOYPAD_A        8
-#define RETRO_DEVICE_ID_JOYPAD_X        9
-#define RETRO_DEVICE_ID_JOYPAD_L       10
-#define RETRO_DEVICE_ID_JOYPAD_R       11
-#define RETRO_DEVICE_ID_JOYPAD_L2      12
-#define RETRO_DEVICE_ID_JOYPAD_R2      13
-#define RETRO_DEVICE_ID_JOYPAD_L3      14
-#define RETRO_DEVICE_ID_JOYPAD_R3      15
-*/
-
 
 
     if (port == 0)
@@ -888,35 +853,6 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
         if (device == RETRO_DEVICE_JOYPAD)
         {
 
-            
-            
-            /*if (isTate)
-            {
-                // remap buttons
-                // ABYX = XABY
-                switch (id)
-                {
-                case RETRO_DEVICE_ID_JOYPAD_A:
-                    id = RETRO_DEVICE_ID_JOYPAD_X;
-                    break;
-
-                case RETRO_DEVICE_ID_JOYPAD_B:
-                    id = RETRO_DEVICE_ID_JOYPAD_A;
-                    break;
-
-                case RETRO_DEVICE_ID_JOYPAD_Y:
-                    id = RETRO_DEVICE_ID_JOYPAD_B;
-                    break;
-
-                case RETRO_DEVICE_ID_JOYPAD_X:
-                    id = RETRO_DEVICE_ID_JOYPAD_Y;
-                    break;
-
-                default:
-                    break;
-                }
-            }*/
-            //printf("ID: %u\n", id);
             switch (id)
             {
                 

@@ -109,10 +109,7 @@ go2_audio_t *go2_audio_create(int frequency)
 
     result->isAudioInitialized = true;
 
-    // testing
-    // uint32_t vol = go2_audio_volume_get(result);
-    // printf("audio: vol=%d\n", vol);
-    // go2_audio_path_get(result);
+    
 
     return result;
 }
@@ -129,13 +126,10 @@ void go2_audio_destroy(go2_audio_t *audio)
 void *audio_thread(void *arg)
 {
     // play audio here
-    // ...
+    
     go2_audio_t *audio = (go2_audio_t *)arg;
     ALint processedA = 0;
-    /*  struct timeval tv1;
-             tv1.tv_sec =0;
-             tv1.tv_usec=6607000;
-             select(0,NULL,NULL,NULL,&tv1);*/
+    
     while (!processedA)
     {
         alGetSourceiv(audio->source, AL_BUFFERS_PROCESSED, &processedA);
@@ -152,28 +146,7 @@ void *audio_thread(void *arg)
             select(0, NULL, NULL, NULL, &tv);
             logger.log(Logger::ERR,"Audio waiting.\n");
         }
-        /*
-                   fd_set read_fds;
-            FD_ZERO(&read_fds);
-            FD_SET(0, &read_fds);
-
-            int ret = select(1, &read_fds, NULL, NULL, &tv);
-            if (ret == -1)
-            {
-                perror("select");
-                exit(EXIT_FAILURE);
-            }
-            else if (ret == 0)
-            {
-                printf("Audio waiting.\n");
-            }
-            else
-            {
-                printf("Unexpected select return value: %d\n", ret);
-            }
-                   // return;
-                }*/
-       // printf("Play.\n");
+        
     }
     // Signal that the buffers have been processed
     pthread_mutex_lock(&mutex);
@@ -199,18 +172,7 @@ inline void playAudio(go2_audio_t *audio, const short *data, int frames)
         return;
     }
 
-    /*
-    pthread_t thread;
-        pthread_create(&thread, NULL, audio_thread, (void* )audio);
-
-        // Wait for the buffers to be processed
-        pthread_mutex_lock(&mutex);
-        while (!processed) {
-            printf("real waiting.\n");
-            pthread_cond_wait(&cond, &mutex);
-        }
-        pthread_mutex_unlock(&mutex);
-    */
+    
 
     ALint processedA = 0;
     while (!processedA)
@@ -273,8 +235,6 @@ void go2_audio_submit(go2_audio_t *audio, const short *data, int frames)
     prevClock = nextClock;
     totClock = std::chrono::high_resolution_clock::now();
 
-    /*std::thread th(playAudio, std::ref(audio), std::ref(data), std::ref(frames));
-                    th.detach();*/
     myMutex.unlock(); // Release the lock after accessing shared resources
 }
 
