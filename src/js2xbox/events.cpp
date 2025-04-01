@@ -129,7 +129,7 @@ joypad events::find_event_js(const js_desc** js, js_desc const **out) {
 
 				if (out) *out = *p;
 
-				logger.log(Logger::INF, "Found matching device: [%s] (id: 0x%04x,0x%04x,0x%04x,0x%04x) on '%s'", 
+				logger.log(Logger::DEB, "Found matching device: [%s] (id: 0x%04x,0x%04x,0x%04x,0x%04x) on '%s'", 
 							name, id.bustype, id.vendor, id.product, id.version, fname.c_str());
 
 				// Free remaining memory before returning
@@ -166,23 +166,23 @@ void events::print_info_js(const std::string& fname) {
 	char	buf[128];
 	snprintf(buf, 128, "%d.%d.%d", version >> 16, (version >> 8) & 0xff, version & 0xff);
 	
-	logger.log(Logger::INF, "Device [%s] on '%s' version: %s", name, fname.c_str(), buf);
+	logger.log(Logger::DEB, "Device [%s] on '%s' version: %s", name, fname.c_str(), buf);
 
 	struct input_id id = {0};
 	if(ioctl(f.fd, EVIOCGID, &id))
 		throw std::runtime_error("Can't get EVIOCGID");
 
 	snprintf(buf, 128, "Bus 0x%04x, Vendor 0x%04x, Product 0x%04x, Version 0x%04x", id.bustype, id.vendor, id.product, id.version);
-	logger.log(Logger::INF, "Device id info: %s", buf);
+	logger.log(Logger::DEB, "Device id info: %s", buf);
 
 	memset(bit, 0, sizeof(bit));
 	ioctl(f.fd, EVIOCGBIT(0, EV_MAX), bit[0]);
 
-	logger.log(Logger::INF, "Supported events:");
+	logger.log(Logger::DEB, "Supported events:");
 
 	for (int i = 0; i < EV_MAX; i++) {
 		if (test_bit(i, bit[0])) {
-			logger.log(Logger::INF, "\tEvent type %d", i);
+			logger.log(Logger::DEB, "\tEvent type %d", i);
 			if (!i) continue;
 
 			ioctl(f.fd, EVIOCGBIT(i, KEY_MAX), bit[i]);

@@ -1,4 +1,13 @@
-Retrorun
+RetroRun
+
+=======================
+Version 2.7.3 (Apr 1, 2025)
+---------------------------------
+- Added hotkeys for Load/Save State
+- Added "Core Reset" funcitonality in RetroRun Menu
+- Fixed RG503 / RG353V / RG353M triggers buttons
+- Fixed position of FPS and screenshot image in RG503
+- Minor fixes
 
 =======================
 Version 2.7.2 (Mar 22, 2025)

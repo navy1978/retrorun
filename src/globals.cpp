@@ -35,7 +35,7 @@ static const int DEVICE_NAME_SIZE = 1024;
 static char DEVICE_NAME[DEVICE_NAME_SIZE];
 static bool deviceInitialized = false;
 
-std::string release = "2.7.2";
+std::string release = "2.7.3";
 TateState tateState = DISABLED;
 
 RETRORUN_CORE_TYPE Retrorun_Core = RETRORUN_CORE_UNKNOWN;
@@ -84,6 +84,9 @@ int new_retrorun_audio_buffer = -1;
 int retrorun_mouse_speed_factor = 5;
 std::string retrorun_device_name;
 std::vector<CpuInfo> cpu_info_list;
+
+int numberOfStateSlots = 3;
+int currentSlot = 1;
 
 float avgFps = 0;
 
@@ -373,6 +376,9 @@ bool isRG353M()
 }
 bool hasDeviceRotatedScreen(){
    return  isRG351V() || isRG351MP() || isRG503() || isRG353V() || isRG353M();
+}
+bool wideScreenNotRotated(){
+    return  isRG503();
 }
 
 

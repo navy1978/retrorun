@@ -37,8 +37,17 @@ extern bool input_pause_requested;
 extern bool input_credits_requested;
 extern bool input_message;
 extern bool elable_key_log;
+extern bool input_slot_memory_plus_requested;
+extern bool input_slot_memory_minus_requested;
+extern bool input_slot_memory_load_requested;
+extern bool input_slot_memory_save_requested;
+extern bool input_slot_memory_load_done;
+extern bool input_slot_memory_save_done;
+extern bool input_slot_memory_reset_done;
 
 extern double lastScreenhotrequestTime;
+extern double lastLoadSaveStateRequestTime;
+extern double lastLoadSaveStateDoneTime;
 
 void input_gamepad_read();
 go2_input_state_t* input_gampad_current_get();

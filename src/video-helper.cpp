@@ -89,6 +89,7 @@ extern go2_battery_state_t batteryState;
 go2_display_t *display= NULL;
 go2_surface_t *surface= NULL;
 go2_surface_t *status_surface_bottom_right= NULL;
+go2_surface_t *status_surface_bottom_center= NULL;
 go2_surface_t *status_surface_bottom_left= NULL;
 go2_surface_t *status_surface_top_right= NULL;
 go2_surface_t *status_surface_top_left= NULL;
@@ -275,6 +276,26 @@ void showText(int x, int y, const char *text, unsigned short color, go2_surface_
     int dst_stride = go2_surface_stride_get(*surface);
     basic_text_out16_nf_color(dst, dst_stride / 2, x, y, text, color);
 }
+
+void showTextBigger(int x, int y, const char *text, unsigned short color, go2_surface_t **surface)
+{
+
+    if (*surface == nullptr)
+    {
+
+        *surface = go2_surface_create(display, 150, 20, format_565);
+    }
+
+    uint8_t *dst = (uint8_t *)go2_surface_map(*surface);
+    if (dst == nullptr)
+    {
+        return;
+    }
+    int dst_stride = go2_surface_stride_get(*surface);
+    basic_text_out16_nf_color(dst, dst_stride / 2, x, y, text, color);
+    //basic_text_out16x16_nf_color_scaled_from_8x8(dst, dst_stride / 2, x, y, text, color);
+}
+
 
 int getRowForText()
 {
@@ -498,14 +519,18 @@ void showCredits(go2_surface_t **surface)
     drawCreditLine(currentY, "lualiliu", WHITE, surface);
     currentY += stepCredits;
     drawCreditLine(currentY, "christianhaitian", WHITE, surface);
-
+    currentY += stepCredits;
+    drawCreditLine(currentY, "navy1978", WHITE, surface);
+    
     currentY += stepCredits * 3;
     drawCreditLine(currentY, "libgo2 developers", DARKGREY, surface);
     currentY += stepCredits;
     drawCreditLine(currentY, "OtherCrashOverride", WHITE, surface);
-
+    currentY += stepCredits;
+    drawCreditLine(currentY, "navy1978", WHITE, surface);
 
     currentY += stepCredits * 3;
+    
     drawCreditLine(currentY, "Thanks to", DARKGREY, surface);
     currentY += stepCredits;
     drawCreditLine(currentY, "Cebion", WHITE, surface);
@@ -515,6 +540,8 @@ void showCredits(go2_surface_t **surface)
     drawCreditLine(currentY, "dhwz", WHITE, surface);
     currentY += stepCredits;
     drawCreditLine(currentY, "madcat1990", WHITE, surface);
+    currentY += stepCredits;
+    drawCreditLine(currentY, "pkegg", WHITE, surface);
     currentY += stepCredits;
     drawCreditLine(currentY, "Szalik", WHITE, surface);
 
@@ -851,11 +878,9 @@ void makeScreenBlackCredits(go2_surface_t *go2_surface, int res_width, int res_h
     colorInc++;
 }
 
-
-
-void makeScreenBlack(go2_surface_t *go2_surface, int res_width, int res_height)
+void drawMenuInfoBackgroud(go2_surface_t *go2_surface, int res_width, int res_height)
 {
-    // res_width = (isJaguar() || isBeetleVB() || isDosBox() || isDosCore() || isMame()) ? res_width * 2 : res_width; // just to be sure to cover the full screen (in some emulators is not enough to use res_width)
+    // this was intended to make the screen black but it contained an error, but I resued because it draws the menu context well
     uint8_t *dst = (uint8_t *)go2_surface_map(go2_surface);
     if (dst == nullptr)
     {
@@ -900,6 +925,24 @@ void makeScreenBlack(go2_surface_t *go2_surface, int res_width, int res_height)
     // col_increase++;
 }
 
+void makeScreenBlack(go2_surface_t *go2_surface, int res_width, int res_height)
+{
+    uint16_t *dst = (uint16_t *)go2_surface_map(go2_surface);
+    if (dst == nullptr)
+        return;
+
+    int stride = go2_surface_stride_get(go2_surface) / sizeof(uint16_t);
+
+    for (int y = 0; y < res_height; ++y)
+    {
+        for (int x = 0; x < res_width; ++x)
+        {
+            dst[y * stride + x] = 0x0000; // Nero in RGB565
+        }
+    }
+}
+
+
 void makeScreenTotalBlack(go2_surface_t *go2_surface, int res_width, int res_height)
 {
     // res_width = (isJaguar() || isBeetleVB() || isDosBox() || isDosCore() || isMame()) ? res_width * 2 : res_width; // just to be sure to cover the full screen (in some emulators is not enough to use res_width)
@@ -934,6 +977,38 @@ bool continueToShowScreenshotImage()
     }
     else
     {
+        return false;
+    }
+}
+
+bool continueToShowSaveLoadStateImage(){
+    gettimeofday(&valTime2, NULL);
+    double currentTime = valTime2.tv_sec + (valTime2.tv_usec / 1000000.0);
+    double elapsed = currentTime - lastLoadSaveStateRequestTime;
+    if (elapsed < 2)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+
+bool continueToShowSaveLoadStateDoneImage(){
+    gettimeofday(&valTime2, NULL);
+    double currentTime = valTime2.tv_sec + (valTime2.tv_usec / 1000000.0);
+    double elapsed = currentTime - lastLoadSaveStateDoneTime;
+    if (elapsed < 6)
+    {
+        return true;
+    }
+    else
+    {
+        input_slot_memory_load_done =false;
+        input_slot_memory_save_done =false;
+        input_slot_memory_reset_done =false;
         return false;
     }
 }

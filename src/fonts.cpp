@@ -369,3 +369,48 @@ void basic_text_out16_color(void *fb, int w, int x, int y, unsigned short color,
 	basic_text_out16_nf_color(fb, w, x, y, buffer, color);
 }
 
+
+void basic_text_out16x16_nf_color_scaled_from_8x8(void *fb, int w, int x, int y, const char *text, unsigned short color)
+{
+    int i, l;
+    unsigned short *screen = (unsigned short *)fb + x + y * w;
+
+    for (i = 0; text[i]; i++, screen += 16) // avanzamento orizzontale di 16 pixel
+    {
+        unsigned char c = text[i];
+        if (c == ' ')
+            continue;
+
+        for (l = 0; l < 8; l++) // 8 righe originali diventano 16 (duplicando)
+        {
+            unsigned char fd = fontdata8x8[c * 8 + l];
+
+            unsigned short *s1 = screen + (l * 2) * w;     // prima riga del blocco
+            unsigned short *s2 = s1 + w;                   // seconda riga del blocco
+
+            for (int bit = 0; bit < 8; bit++)
+            {
+                if (fd & (0x80 >> bit))
+                {
+                    int pos = bit * 2;
+                    s1[pos] = color;
+                    s1[pos + 1] = color;
+                    s2[pos] = color;
+                    s2[pos + 1] = color;
+                }
+            }
+        }
+    }
+}
+
+void basic_text_out16x16_color_scaled_from_8x8(void *fb, int w, int x, int y, unsigned short color, const char *texto, ...)
+{
+    va_list args;
+    char buffer[256];
+
+    va_start(args, texto);
+    vsnprintf(buffer, sizeof(buffer), texto, args);
+    va_end(args);
+
+    basic_text_out16x16_nf_color_scaled_from_8x8(fb, w, x, y, buffer, color);
+}

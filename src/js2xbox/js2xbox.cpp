@@ -34,7 +34,7 @@ joypad initJs2xbox() {
             const char* target_pad_name = "oga_joypad";
             events::js_desc const* j_target = nullptr;
 
-            logger.log(Logger::INF, "Checking joypad: %s", target_pad_name);
+            logger.log(Logger::DEB, "Checking joypad: %s", target_pad_name);
 
             // Find the specified target joypad
             for (const events::js_desc** p = joypads::out; *p; ++p) {
@@ -48,7 +48,7 @@ joypad initJs2xbox() {
                 throw std::runtime_error(std::string("Target Joypad '") + target_pad_name + "' is not valid.");
             }
 
-            logger.log(Logger::INF, "Using target virtual Joypad as %s", j_target->i_name);
+            logger.log(Logger::DEB, "Using target virtual Joypad as %s", j_target->i_name);
 
             // Register the Ctrl-C callback
             if (signal(SIGINT, sigint) == SIG_ERR)
@@ -84,7 +84,7 @@ joypad initJs2xbox() {
 
             device_promise.set_value(joy); // Send updated joypad object
 
-            logger.log(Logger::INF, "Virtual device created at '%s'", dev_path);
+            logger.log(Logger::DEB, "Virtual device created at '%s'", dev_path);
 
             // Keep running in background
             while (run) {

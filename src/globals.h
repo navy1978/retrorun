@@ -117,6 +117,9 @@ struct CpuInfo
 
 extern std::string gpu_name;
 
+
+extern int numberOfStateSlots;
+extern int currentSlot;
 /*struct rrImg
 {
   bigImg big;
@@ -193,6 +196,7 @@ bool isRG503();
 bool isRG353V();
 bool isRG353M();
 bool hasDeviceRotatedScreen();
+bool wideScreenNotRotated();
 void resetDeviceName();
 bool isTate();
 

@@ -45,6 +45,8 @@ bool input_info_requested_alternative = false;
 double lastInforequestTime = -1;
 
 double lastScreenhotrequestTime = -1;
+double lastLoadSaveStateRequestTime = -1;
+double lastLoadSaveStateDoneTime = -1;
 
 
 double pauseRequestTime = -1;
@@ -84,6 +86,20 @@ static go2_input_button_t r3Button = Go2InputButton_F5;
 bool firstExecution = true;
 bool elable_key_log = false;
 
+
+bool input_slot_memory_plus_requested = false;
+double lastSlotPlusTime = -1;
+bool input_slot_memory_minus_requested = false;
+double lastSlotMinusTime = -1;
+bool input_slot_memory_load_requested = false;
+double lastSlotLoadTime = -1;
+bool input_slot_memory_save_requested = false;
+double lastSlotSaveTime = -1;
+
+bool input_slot_memory_load_done=false;
+bool input_slot_memory_save_done=false;
+bool input_slot_memory_reset_done=false;
+
 void input_gamepad_read()
 {
 
@@ -109,12 +125,24 @@ void input_gamepad_read()
         }
     }
 
+
+    if ( isRG503()||isRG353V() || isRG353M() )
+    {
+        l1Button = Go2InputButton_TopLeft;
+        r1Button = Go2InputButton_TopRight;
+        l2Button = Go2InputButton_TriggerLeft;
+        r2Button = Go2InputButton_TriggerRight;
+    }
     if (isRG503()||isRG353V() || isRG353M()  ){
         selectButton = Go2InputButton_SELECT; // check if this is ok!
         startButton = Go2InputButton_START;
         l3Button = Go2InputButton_THUMBL;
-        r3Button = Go2InputButton_THUMBR;
-        
+        r3Button = Go2InputButton_THUMBR;   
+    }
+
+    if (isRG351M() ||isRG351P() || isRG351V()){
+        l1Button = Go2InputButton_TopLeft;
+        r1Button = Go2InputButton_TopRight;
     }
 
     if (!input)
@@ -345,7 +373,6 @@ bool wasR2Released = go2_input_state_button_get(prevGamepadState, r2Button) == B
 struct timeval valTime;
 gettimeofday(&valTime, NULL);
 double currentTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
-
 // Handle input_info_requested_alternative condition
 if (input_info_requested_alternative) { // this are the alternative combinations used by ArkOs
     // Handle emntering in Menu request
@@ -458,6 +485,76 @@ if (input_info_requested_alternative) { // this are the alternative combinations
             logger.log(Logger::DEB, "Input: Fast-forward %s", input_ffwd_requested ? "on" : "off");
         }
     }
+
+
+
+
+}
+
+
+// new
+if ((go2_input_state_button_get(gamepadState, selectButton) == ButtonState_Pressed) &&
+(go2_input_state_button_get(gamepadState, r1Button) == ButtonState_Pressed))
+{
+gettimeofday(&valTime, NULL);
+double currentTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
+lastLoadSaveStateRequestTime= currentTime;
+double elapsed = currentTime - lastSlotSaveTime;
+if (elapsed >= 0.5)
+{
+    input_slot_memory_save_requested = true;
+    lastSlotSaveTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
+    logger.log(Logger::DEB, "Input: We need to save the state");
+}  
+}
+
+if ((go2_input_state_button_get(gamepadState, selectButton) == ButtonState_Pressed) &&
+(go2_input_state_button_get(gamepadState, Go2InputButton_DPadUp) == ButtonState_Pressed))
+{
+gettimeofday(&valTime, NULL);
+double currentTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
+lastLoadSaveStateRequestTime= currentTime;
+double elapsed = currentTime - lastSlotPlusTime;
+if (elapsed >= 0.5)
+{
+    currentSlot = (currentSlot % numberOfStateSlots) + 1;
+    input_slot_memory_plus_requested = true;
+    lastSlotPlusTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
+    logger.log(Logger::DEB, "Input: We need to switch the slot to +1");
+    
+}  
+
+}
+
+if ((go2_input_state_button_get(gamepadState, selectButton) == ButtonState_Pressed) &&
+(go2_input_state_button_get(gamepadState, Go2InputButton_DPadDown) == ButtonState_Pressed))
+{
+gettimeofday(&valTime, NULL);
+double currentTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
+lastLoadSaveStateRequestTime= currentTime;
+double elapsed = currentTime - lastSlotMinusTime;
+if (elapsed >= 0.5)
+{
+    currentSlot = (currentSlot + numberOfStateSlots - 2) % numberOfStateSlots + 1;
+    input_slot_memory_minus_requested = true;
+    lastSlotMinusTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
+    logger.log(Logger::DEB, "Input: We need to switch the slot to -1");
+} 
+}
+
+if ((go2_input_state_button_get(gamepadState, selectButton) == ButtonState_Pressed) &&
+(go2_input_state_button_get(gamepadState, l1Button) == ButtonState_Pressed))
+{
+gettimeofday(&valTime, NULL);
+double currentTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
+lastLoadSaveStateRequestTime= currentTime;
+double elapsed = currentTime - lastSlotLoadTime;
+if (elapsed >= 0.5)
+{
+    input_slot_memory_load_requested = true;
+    lastSlotLoadTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
+    logger.log(Logger::DEB, "Input: We need to load the state");
+} 
 }
 
 }
@@ -859,66 +956,51 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
             case RETRO_DEVICE_ID_JOYPAD_SELECT:
                 return go2_input_state_button_get(gamepadState, selectButton);
                 break;
-
             case RETRO_DEVICE_ID_JOYPAD_START:
                 return go2_input_state_button_get(gamepadState, startButton);
                 break;
-
             case RETRO_DEVICE_ID_JOYPAD_UP:
                 return getInputUp();
                 break;
-
             case RETRO_DEVICE_ID_JOYPAD_DOWN:
                 return getInputDown();
                 break;
-
             case RETRO_DEVICE_ID_JOYPAD_LEFT:
                 return getInputLeft();
                 break;
-
             case RETRO_DEVICE_ID_JOYPAD_RIGHT:
                 return getInputRight();
                 break;
-
             case RETRO_DEVICE_ID_JOYPAD_A:
                 return getInputA();
                 break;
             case RETRO_DEVICE_ID_JOYPAD_B:
                 return getInputB();
                 break;    
-
             case RETRO_DEVICE_ID_JOYPAD_X:
                 return getInputX();
                 break;
             case RETRO_DEVICE_ID_JOYPAD_Y:
                 return getInputY();
                 break;    
-
             case RETRO_DEVICE_ID_JOYPAD_L:
                 return go2_input_state_button_get(gamepadState,swapL1R1WithL2R2 ? l2Button: realL1);
                 break;
             case RETRO_DEVICE_ID_JOYPAD_R:
                 return go2_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? r2Button : realR1);
                 break;
-
-                case RETRO_DEVICE_ID_JOYPAD_L2:
-                if (isRG503()||isRG353V() || isRG353M()){
-                    return go2_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? l2Button : realL1);
-                }else{
-                    return go2_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? realL1 : l2Button);
-                }
-                case RETRO_DEVICE_ID_JOYPAD_R2:
-                if (isRG503()||isRG353V() || isRG353M()){
-                    return go2_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? r2Button : realR1);
-                }else{
-                    return go2_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? realR1 : r2Button);
-                }
-                case RETRO_DEVICE_ID_JOYPAD_L3:
-                    return go2_input_state_button_get(gamepadState, l3Button);
-                case RETRO_DEVICE_ID_JOYPAD_R3:
-                    return go2_input_state_button_get(gamepadState, r3Button);
-                
-
+            case RETRO_DEVICE_ID_JOYPAD_L2:
+                return go2_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? realL1 : l2Button);
+                break;
+            case RETRO_DEVICE_ID_JOYPAD_R2:
+                return go2_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? realR1 : r2Button);
+                break;
+            case RETRO_DEVICE_ID_JOYPAD_L3:
+                return go2_input_state_button_get(gamepadState, l3Button);
+                break;
+            case RETRO_DEVICE_ID_JOYPAD_R3:
+                return go2_input_state_button_get(gamepadState, r3Button);
+                break;
             default:
                 return 0;
                 break;

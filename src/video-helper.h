@@ -54,6 +54,7 @@ extern go2_display_t *display;
 extern go2_surface_t *surface;
 extern go2_surface_t *status_surface_bottom_right;
 extern go2_surface_t *status_surface_bottom_left;
+extern go2_surface_t *status_surface_bottom_center;
 extern go2_surface_t *status_surface_top_right;
 extern go2_surface_t *status_surface_top_left;
 extern go2_surface_t *status_surface_full;
@@ -83,6 +84,7 @@ int getGeom_max_height(const struct retro_game_geometry *geom);
 
 //
 void showText(int x, int y, const char *text, unsigned short color, go2_surface_t **surface);
+void showTextBigger(int x, int y, const char *text, unsigned short color, go2_surface_t **surface);
 int getRowForText();
 std::string stripReturnCarriage(std::string input);
 bool canCreditBeDrawn(int pos);
@@ -108,7 +110,10 @@ void takeScreenshot(int w, int h);
 void makeScreenBlackCredits(go2_surface_t *go2_surface, int res_width, int res_height);
 void makeScreenTotalBlack(go2_surface_t *go2_surface, int res_width, int res_height);
 void makeScreenBlack(go2_surface_t *go2_surface, int res_width, int res_height);
+void drawMenuInfoBackgroud(go2_surface_t *go2_surface, int res_width, int res_height);
 bool continueToShowScreenshotImage();
+bool continueToShowSaveLoadStateImage();
+bool continueToShowSaveLoadStateDoneImage();
 void checkPaused();
 
 

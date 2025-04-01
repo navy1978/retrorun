@@ -289,6 +289,8 @@ void video_deinit()
         go2_surface_destroy(status_surface_bottom_right);
     if (status_surface_bottom_left != NULL)
         go2_surface_destroy(status_surface_bottom_left);
+    if (status_surface_bottom_center != NULL)
+        go2_surface_destroy(status_surface_bottom_center);
     if (status_surface_top_right != NULL)
         go2_surface_destroy(status_surface_top_right);
     if (status_surface_top_left != NULL)
@@ -319,9 +321,9 @@ uintptr_t core_video_get_current_framebuffer()
 void prepareScreen(int width, int height)
 {
 
-    bool wideScreenNotRotated= isRG503();
+    
     screen_aspect_ratio = (float)go2_display_height_get(display) / (float)go2_display_width_get(display);
-    if (isDuckStation())
+    if (isDuckStation() && !wideScreenNotRotated())
     {
         // for DuckStation we need to invert the width and the height
         x = 0;
@@ -335,6 +337,7 @@ void prepareScreen(int width, int height)
             y = (temp - h) / 2;
             x = 0;
         }
+        
         return;
     }
 
@@ -378,7 +381,7 @@ void prepareScreen(int width, int height)
                 {
                     logger.log(Logger::DEB, "aspect_ratio > screen_aspect_ratio");
                     h = go2_display_height_get(display);
-                    if (wideScreenNotRotated){
+                    if (wideScreenNotRotated()){
                         w = h * aspect_ratio;
                     }else{
                         w = h / aspect_ratio;
@@ -552,7 +555,7 @@ bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
 
             // if (!cleanUpScreen)
             // {
-            makeScreenBlack(status_surface_full, res_width, res_height);
+            drawMenuInfoBackgroud(status_surface_full, res_width, res_height);
             showInfo(gs_w, &status_surface_full);
 
             /*}
@@ -645,8 +648,87 @@ bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
     }
     checkPaused();
 
+
+    bool show_bottom_center=false;
+    if ( continueToShowSaveLoadStateDoneImage() || input_slot_memory_load_done ||
+        input_slot_memory_save_done  || input_slot_memory_reset_done 
+    ) // the order here it's ompirtrant because the method continueToShowSaveLoadStateDoneImage is going to put agan to fales the value of these two variables
+    {
+
+        if (status_surface_bottom_center == nullptr)
+        {
+            status_surface_bottom_center = go2_surface_create(display, 150, 20, format_565);
+        }
+        makeScreenBlack(status_surface_bottom_center, 150, 20);
+        showStatus = true;
+        show_bottom_center= true;
+
+        if (input_slot_memory_load_done)
+        {
+            std::string label = " SLOT:" + std::to_string(currentSlot) + " LOADED."; 
+            showTextBigger(0, 5, label.c_str(), WHITE, &status_surface_bottom_center);   
+        }
+        else if (input_slot_memory_save_done)
+        {
+            std::string label = " SLOT:" + std::to_string(currentSlot) + " SAVED."; 
+            showTextBigger(0, 5 ,label.c_str(), WHITE, &status_surface_bottom_center);
+        }else if (input_slot_memory_reset_done)
+        {
+            std::string label = " CORE RESET DONE."; 
+            showTextBigger(0,5 ,label.c_str(), WHITE, &status_surface_bottom_center);
+        }
+       
+    }
+
+    if (input_slot_memory_load_requested ||
+        input_slot_memory_save_requested ||
+        input_slot_memory_plus_requested ||
+        input_slot_memory_minus_requested || continueToShowSaveLoadStateImage())
+    {
+
+        if (status_surface_bottom_center == nullptr)
+        {
+            status_surface_bottom_center = go2_surface_create(display, 150, 20, format_565);
+        }
+        makeScreenBlack(status_surface_bottom_center, 150, 20);
+        showStatus = true;
+        show_bottom_center =true;
+        
+
+        if (input_slot_memory_load_requested)
+        {
+            std::string label = " LOADING SLOT:" + std::to_string(currentSlot)+" ...";
+            showTextBigger(0, 5, label.c_str(), ORANGE, &status_surface_bottom_center);   
+        }
+        else if (input_slot_memory_save_requested)
+        {
+            std::string label = " SAVING SLOT:"  + std::to_string(currentSlot)+" ...";
+            showTextBigger(0, 5 ,label.c_str(), ORANGE, &status_surface_bottom_center);
+        }
+        else if (input_slot_memory_plus_requested)
+        {
+            std::string label = " SLOT:"  + std::to_string(currentSlot)+" SELECTED.";
+            showTextBigger(0, 5 ,label.c_str(), WHITE, &status_surface_bottom_center);
+        }
+        else if (input_slot_memory_minus_requested)
+        {
+            std::string label = " SLOT:"  + std::to_string(currentSlot)+" SELECTED.";
+            showTextBigger(0, 5 ,label.c_str(), WHITE, &status_surface_bottom_center);
+        }
+    }
+    
+    if (show_bottom_center){
+        status_obj->show_bottom_center = true;
+    }else{
+        status_obj->show_bottom_center = false;
+    }
+
     if (showStatus)
     {
+        if (status_surface_bottom_center != nullptr)
+        {
+            status_obj->bottom_center = status_surface_bottom_center;
+        }
 
         if (status_surface_bottom_left != nullptr)
         {
@@ -774,7 +856,7 @@ size_t lastPitch;
 void core_video_refresh(const void *data, unsigned width, unsigned height, size_t pitch)
 {
 
-    
+
 
     if (input_info_requested)
     {

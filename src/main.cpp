@@ -527,11 +527,11 @@ static bool core_environment(unsigned cmd, void *data)
     {
 
         const struct retro_controller_info *arg = (retro_controller_info *)data;
-        logger.log(Logger::INF, "Controllers Available:");
+        logger.log(Logger::DEB, "Controllers Available:");
         for (unsigned x = 0; x < arg->num_types; x++)
         {
             const struct retro_controller_description *type = &arg->types[x];
-            logger.log(Logger::INF, " -\t%s: %u", type->desc, type->id);
+            logger.log(Logger::DEB, " -\t%s: %u", type->desc, type->id);
             // Store the ID and description in the map
             controllerMap[type->id] = type->desc;
         }
@@ -820,7 +820,20 @@ inline int getRetroMemory()
     pthread_mutex_t stateMutex = PTHREAD_MUTEX_INITIALIZER;
 static int LoadState(const char *saveName)
 {
-    logger.log(Logger::DEB, "TRying to Load state...");
+   
+    static time_t lastLoadTime = 0;
+    time_t currentTime = time(NULL);
+
+    if (difftime(currentTime, lastLoadTime) < 1.0)
+    {
+        logger.log(Logger::WARN, "LoadState called too quickly; skipping execution.");
+        return -1;
+    }
+
+    lastLoadTime = currentTime;
+   
+   
+    logger.log(Logger::DEB, "Trying to Load state...");
     FILE *file = fopen(saveName, "rb");
     if (!file)
     {
@@ -868,14 +881,14 @@ static int LoadState(const char *saveName)
     
     // Sincronizza il caricamento dello stato con un mutex
     if (pthread_self() != main_thread_id) {
-        logger.log(Logger::ERR, "Error: retro_unserialize() non sta girando nel main thread!");
+        logger.log(Logger::ERR, "Error: retro_unserialize() doesn't run in the main thread!");
         return -1;
     }
     //printf("DEBUG: Dump dei primi 64 byte di ptr prima di retro_unserialize():\n");
-    for (int i = 0; i < 64; i++) {
+    /*for (int i = 0; i < 64; i++) {
         printf("%02X ", ((unsigned char*)ptr)[i]);
     }
-    printf("\n");
+    printf("\n");*/
     fflush(stdout);
     //printf("DEBUG: Entrato in LoadState(), thread attuale: %lu, main thread: %lu\n",
     main_thread_id = pthread_self();
@@ -893,6 +906,8 @@ static int LoadState(const char *saveName)
     if (result)
     {
         logger.log(Logger::DEB, "File '%s': loaded correctly!", saveName);
+        input_slot_memory_load_done=true;
+        lastLoadSaveStateDoneTime =  (double)time(NULL);
     }
     else
     {
@@ -955,6 +970,18 @@ static int LoadSram(const char *saveName)
 
 static void SaveState(const char *saveName)
 {
+    
+    static time_t lastSaveTime = 0;
+    time_t currentTime = time(NULL);
+
+    if (difftime(currentTime, lastSaveTime) < 1.0)
+    {
+        logger.log(Logger::WARN, "SaveState called too quickly; skipping execution.");
+        return;
+    }
+
+    lastSaveTime = currentTime;
+    
     size_t size = g_retro.retro_serialize_size();
     void *ptr = malloc(size);
     if (!ptr)
@@ -980,6 +1007,8 @@ static void SaveState(const char *saveName)
     fclose(file);
     free(ptr);
     logger.log(Logger::DEB, "File '%s': saved correctly!", saveName);
+    input_slot_memory_save_done=true;
+    lastLoadSaveStateDoneTime =  (double)time(NULL);
 
     return;
 }
@@ -1303,7 +1332,7 @@ void initConfig()
         }
         catch (...)
         {
-            logger.log(Logger::WARN, "retrorun_screenshot_folder parameter not found in retrorun.cfg using default folder (/storage/roms/screenshots).");
+            logger.log(Logger::DEB, "retrorun_screenshot_folder parameter not found in retrorun.cfg using default folder (/storage/roms/screenshots).");
             screenShotFolder = "/storage/roms/screenshots";
         }
 
@@ -1315,7 +1344,7 @@ void initConfig()
         }
         catch (...)
         {
-            logger.log(Logger::WARN, "retrorun_fps_counter parameter not found in retrorun.cfg using defaulf value (disabled).");
+            logger.log(Logger::DEB, "retrorun_fps_counter parameter not found in retrorun.cfg using defaulf value (disabled).");
             input_fps_requested = false;
         }
 
@@ -1333,7 +1362,7 @@ void initConfig()
             }
             catch (...)
             {
-                logger.log(Logger::WARN, "retrorun_aspect_ratio parameter not found in retrorun.cfg using default value (core provided).");
+                logger.log(Logger::DEB, "retrorun_aspect_ratio parameter not found in retrorun.cfg using default value (core provided).");
             }
         }
         try
@@ -1370,7 +1399,7 @@ void initConfig()
         }
         catch (...)
         {
-            logger.log(Logger::WARN, "retrorun_force_left_analog_stick parameter not found in retrorun.cfg using default value (%s).", force_left_analog_stick ? "true" : "false");
+            logger.log(Logger::DEB, "retrorun_force_left_analog_stick parameter not found in retrorun.cfg using default value (%s).", force_left_analog_stick ? "true" : "false");
         }
 
         try
@@ -1918,9 +1947,41 @@ auto loadSaveSlot = [](int slotNumber, std::string type) -> std::function<void(i
 // Definisci una funzione statica che chiama la tua lambda function con i parametri richiesti
 static void loadSaveSlotWrapper(int button, int slotNumber, std::string type)
 {
+    
+    static time_t lastSlotWrapperTime = 0;
+    time_t currentTime = time(NULL);
+
+    if (difftime(currentTime, lastSlotWrapperTime) < 1.0)
+    {
+        logger.log(Logger::WARN, "loadSaveSlotWrapper called too quickly; skipping execution.");
+        return;
+    }
+
+    lastSlotWrapperTime = currentTime;
     auto slotFunction = loadSaveSlot(slotNumber, type);
     slotFunction(button);
     input_info_requested = false;
+    //menuManager.resetMenu();
+}
+
+
+static void restartCore(int button)
+{
+    if (button == A_BUTTON)
+        {
+            /*retro_unload_game();
+	        retro_deinit();
+	        retro_init();
+            retro_load_game();*/
+            lastLoadSaveStateDoneTime =  (double)time(NULL);
+            input_info_requested = false;
+            input_slot_memory_reset_done=true;
+            menuManager.resetMenu();
+            
+            g_retro.retro_reset();
+        }
+    
+    
 }
 
 void showCredit(int button)
@@ -2174,6 +2235,8 @@ int main(int argc, char *argv[])
     bool redrawInfo = true;
     // we postpone this here because if we do it before some emulators dont like it (Dosbox core)
     g_retro.retro_set_controller_port_device(0, RETRO_DEVICE_JOYPAD);
+    //g_retro.retro_set_controller_port_device(0, 517);
+    
     if (isFlycast()){
         // because of this commit:
         //https://github.com/flyinghead/flycast/commit/070ac717d3b94ffeeeb77ea1f269e42a13ce99a4
@@ -2270,7 +2333,7 @@ int main(int argc, char *argv[])
     };
 
     Menu menuSaveState = Menu("Save State", itemsLoadStateSave);
-
+    
     std::vector<MenuItem> itemsState = {
         MenuItem("Load state", &menuLoadState, fake),
         MenuItem("Save state", &menuSaveState, fake),
@@ -2313,6 +2376,17 @@ int main(int argc, char *argv[])
         MenuItem("Tate mode", getTateMode, setTateMode, "rotation"),
     };
 
+
+    MenuItem menuItem_restart_core = MenuItem("Are you sure?", [](int arg)
+    { restartCore(arg); });
+    menuItem_restart_core.setQuestionItem();
+    std::vector<MenuItem> restartCore_sure = {menuItem_restart_core};
+
+    Menu menuResetCore = Menu("Reset Core", restartCore_sure);
+
+    
+    
+
     Menu menuVideo = Menu("Video", itemsVideo);
 
     std::vector<MenuItem> itemsSettings = {
@@ -2320,6 +2394,8 @@ int main(int argc, char *argv[])
         MenuItem("Control", &menuControl, fake),
         MenuItem("Video", &menuVideo, fake),
         MenuItem("Audio", &menuAudio, fake),
+        MenuItem("Reset Core",&menuResetCore, fake),
+       
     };
 
     Menu menuSettings = Menu("Settings", itemsSettings);
@@ -2423,7 +2499,20 @@ int main(int argc, char *argv[])
             input_reset_requested = false;
             g_retro.retro_reset();
         }
-
+        else if (input_slot_memory_load_requested && !continueToShowSaveLoadStateImage()){
+            loadSaveSlotWrapper(A_BUTTON, currentSlot,"Load");
+        
+        }else if (input_slot_memory_save_requested && !continueToShowSaveLoadStateImage()){
+            loadSaveSlotWrapper(A_BUTTON, currentSlot,"Save");
+        }
+    
+        if (!continueToShowSaveLoadStateImage()){
+            input_slot_memory_load_requested = false;
+            input_slot_memory_save_requested=false;
+            input_slot_memory_plus_requested=false;
+            input_slot_memory_minus_requested=false;
+        
+        }
         auto loopEnd = high_resolution_clock::now();
         auto loopDuration = duration_cast<nanoseconds>(loopEnd - loopStart);
 

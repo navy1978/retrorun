@@ -245,3 +245,10 @@ void MenuManager::setCurrentMenu(Menu *menu)
     std::lock_guard<std::mutex> lock(current_menu_mutex_);
     currentMenu_ = menu;
 }
+
+void MenuManager::resetMenu(){
+    Menu *prevMenu = queueMenus.top();
+    queueMenus.pop();
+    currentMenu_ = prevMenu;
+    currentMenu_->resetSelected();
+}

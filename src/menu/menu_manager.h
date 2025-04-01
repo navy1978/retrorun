@@ -40,6 +40,7 @@ public:
     void setCurrentMenu(Menu* menu);
     Menu& getPreviousMenu();
     void setPreviousMenu(Menu* menu);
+    void resetMenu();
     //void verify();
 
 private:

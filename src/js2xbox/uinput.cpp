@@ -1073,7 +1073,7 @@ uinput::pad* uinput::get_pad(const events::js_desc *in_type, const events::js_de
 		}
 		// for the moment we dont manage this because this type of devices
 		// they have already a good event file
-		printf("They have alreadfy a good file event\n");
+		logger.log(Logger::DEB, "They have alreadfy a good file event");
 		return nullptr;
 	}
 

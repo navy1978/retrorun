@@ -433,7 +433,7 @@ go2_input_t *go2_input_create(const char *device)
     static std::string evdevNameStr = jp1.event; 
     static const char *EVDEV_NAME = evdevNameStr.c_str();
 
-    logger.log(Logger::INF, "EVDEV_NAME set to: %s", EVDEV_NAME);
+    logger.log(Logger::DEB, "EVDEV_NAME set to: %s", EVDEV_NAME);
     
     int rc = 1;
 
@@ -455,7 +455,7 @@ go2_input_t *go2_input_create(const char *device)
         logger.log(Logger::ERR,"Joystick: No gamepad found.\n");
         
     }else{
-        logger.log(Logger::INF,"Descriptor file (EVDEV_NAME=%s) for controller found..\n",EVDEV_NAME);
+        logger.log(Logger::DEB,"Descriptor file (EVDEV_NAME=%s) for controller found..\n",EVDEV_NAME);
     }
 
     if (result->fd > -1)
