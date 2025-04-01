@@ -7,7 +7,7 @@ Version 2.7.3 (Apr 1, 2025)
 - Added "Core Reset" functionality in RetroRun Menu
 - Fixed RG503 / RG353V / RG353M triggers buttons
 - Fixed position of FPS and screenshot image in RG503
-- Fixed documentation (thans to christian_haitian)
+- Fixed documentation (thanks to christian_haitian)
 - Minor fixes
 
 =======================
