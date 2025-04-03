@@ -48,6 +48,7 @@ extern bool input_slot_memory_reset_done;
 extern double lastScreenhotrequestTime;
 extern double lastLoadSaveStateRequestTime;
 extern double lastLoadSaveStateDoneTime;
+extern bool lastLoadSaveStateDoneOk;
 
 void input_gamepad_read();
 go2_input_state_t* input_gampad_current_get();

@@ -99,6 +99,7 @@ double lastSlotSaveTime = -1;
 bool input_slot_memory_load_done=false;
 bool input_slot_memory_save_done=false;
 bool input_slot_memory_reset_done=false;
+bool lastLoadSaveStateDoneOk =true;
 
 void input_gamepad_read()
 {

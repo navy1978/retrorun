@@ -906,8 +906,8 @@ static int LoadState(const char *saveName)
     if (result)
     {
         logger.log(Logger::DEB, "File '%s': loaded correctly!", saveName);
-        input_slot_memory_load_done=true;
-        lastLoadSaveStateDoneTime =  (double)time(NULL);
+        
+        
     }
     else
     {
@@ -1931,7 +1931,14 @@ auto loadSaveSlot = [](int slotNumber, std::string type) -> std::function<void(i
             if (type == "Load")
             {
                 logger.log(Logger::DEB, "loading file :%s\n", savePath1);
-                LoadState(savePath1.c_str());
+                int loaded=LoadState(savePath1.c_str());
+                if (loaded<0){
+                    lastLoadSaveStateDoneOk =false;
+                }else{
+                    lastLoadSaveStateDoneOk =true;
+                }
+                input_slot_memory_load_done=true;
+                lastLoadSaveStateDoneTime =  (double)time(NULL);
             }
             else
             {
