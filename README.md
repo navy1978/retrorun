@@ -33,7 +33,7 @@ To run the script:
 
 RetroRun has been tested and supports the following cores:<br>
 
-- **Dreamcast**: [Flycast] (https://github.com/flyinghead/flycast), [Flycast 2021] (https://github.com/libretro/flycast)  <br>
+- **Dreamcast**: [Flycast](https://github.com/flyinghead/flycast), [Flycast 2021](https://github.com/libretro/flycast)  <br>
 - **Nintendo 64**: ParaLLEl N64  <br>
 - **PlayStation**: SwanStation, DuckStation, PCSX-ReARMed  <br>
 - **Game Boy Advance**: mGBA, VBA-M  <br>
