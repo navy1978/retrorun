@@ -47,9 +47,9 @@ RetroRun has been tested and supports the following cores:<br>
 
 ## Key Features
 
-This project adds many improvements and new features to the retrorun-go2 project (https://github.com/OtherCrashOverride/retrorun-go2):  <br>
-	1.	Integrated libgo2 library (https://github.com/OtherCrashOverride/libgo2)  <br>
-    2.	Integrated rg351p-js2box library (https://github.com/lualiliu/RG351P_virtual-gamepad)  <br>
+This project adds many improvements and new features to the [retrorun-go2 project](https://github.com/OtherCrashOverride/retrorun-go2):  <br>
+	1.	Integrated [libgo2 library](https://github.com/OtherCrashOverride/libgo2)  <br>
+    2.	Integrated [rg351p-js2box library](https://github.com/lualiliu/RG351P_virtual-gamepad)  <br>
 	3.	Tate Mode Support (useful for Naomi and Atomiswave vertical games)  <br>
 	4.	Right Analog Support for ParaLLEl N64, including C-buttons management  <br>
 	5.	FPS Display Options:  <br>
