@@ -4,7 +4,7 @@ RetroRun
 Version 2.7.4 (Apr 8, 2025)
 ---------------------------------
 - Added "Pixel Perfect" functionality (can be enabled with "retrorun_pixel_perfect = true")
-- Added button configuration from config file
+- Added buttons configuration from config file
 - Added Loading screen (can be disabled with "retrorun_show_loading_screen = false")
 - New Images for OSD
 - Removed some unused code in js2xbox
