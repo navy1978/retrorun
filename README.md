@@ -33,7 +33,7 @@ To run the script:
 
 RetroRun has been tested and supports the following cores:<br>
 
-- **Dreamcast**: Flycast, Flycast 2021  <br>
+- **Dreamcast**: [Flycast] (https://github.com/flyinghead/flycast), [Flycast 2021] (https://github.com/libretro/flycast)  <br>
 - **Nintendo 64**: ParaLLEl N64  <br>
 - **PlayStation**: SwanStation, DuckStation, PCSX-ReARMed  <br>
 - **Game Boy Advance**: mGBA, VBA-M  <br>
@@ -64,6 +64,7 @@ This project adds many improvements and new features to the retrorun-go2 project
 	10.	Info Menu displaying device and game information  <br>
 	11.	Working SaveState support for all cores, including   Flycast2021 and Flycast  <br>
 	12.	Rumble support for all cores and devices  <br>
+	13. Hotkeas for SaveState
 	13.	Many additional enhancements  <br>
 
 ⸻
@@ -74,8 +75,6 @@ These parameters can be set in the `retrorun.cfg` file:
 
 General Settings  
 	•	**retrorun_screenshot_folder** = /storage/roms/screenshots (Default screenshot save folder)  <br>
-	•	**retrorun_fps_counter** = true | false (Display FPS counter, default: false)  <br>
-	•	**retrorun_aspect_ratio** = 2:1 | 4:3 | 5:4 | 16:9 | 16:10 | 1:1 | 3:2 | auto (Aspect ratio, default: core-defined)  <br>
 	•	**retrorun_log_level** = INFO | DEBUG | WARNING | ERROR (Log level, default: INFO)  <br>
 
 Input Settings  
@@ -100,9 +99,13 @@ Performance Settings
 	•	**retrorun_audio_buffer** = -1, 1, 256, 512, 1024, ... (Audio buffer size, default: -1)  <br>
 	•	**retrorun_force_video_multithread** = true | false (Run video tasks in a separate thread, default: varies by device)  <br>
 
-Tate Mode Settings  
+Video Settings  
 	•	**retrorun_tate_mode** = auto | enabled | disabled | reverted (Enable vertical display mode, default: disabled)<br>
-
+	•	**retrorun_pixel_perfect** = true | false (Enable pixel perfect display, default: disabled)<br>
+	•	**retrorun_fps_counter** = true | false (Display FPS counter, default: false)  <br>
+	•	**retrorun_aspect_ratio** = 2:1 | 4:3 | 5:4 | 16:9 | 16:10 | 1:1 | 3:2 | auto (Aspect ratio, default: core-defined)  <br>
+	•	**retrorun_show_loading_screen** = true| false (Show the Loadig screen during the game loading, default: true)  <br>
+	
 Rumble Settings  
 	•	**retrorun_rumble_type** = pwm | event (Rumble type, default varies by device)  <br>
 	•	**retrorun_rumble_event** = /dev/input/eventX (Override default rumble event file)  <br>

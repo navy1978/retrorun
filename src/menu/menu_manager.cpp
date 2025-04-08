@@ -100,7 +100,7 @@ void MenuManager::handle_input(int buttonPressed)
 
         if (currentMenu_ == nullptr)
         {
-            printf("Nothing to do: current menu is null!\n");
+            logger.log(Logger::DEB, "Nothing to do: current menu is null!\n");
             return;
         }
 

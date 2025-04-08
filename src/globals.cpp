@@ -25,17 +25,21 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <iostream>
 #include <unistd.h>
 
-Logger logger(Logger::INF);
+
+std::string release = "2.7.4";
+
+
+
+Logger logger(Logger::ERR);
 
 // #include <cstring>
-const std::string OS_ARCH_FILE = "/storage/.config/.OS_ARCH";
+const std::string OS_ARCH_FILE = "/storage/.config/.OS_ARCH"; // AmberElec has this file that contains info about the device
 std::string OS_ARCH = "cat " + OS_ARCH_FILE;
 
 static const int DEVICE_NAME_SIZE = 1024;
 static char DEVICE_NAME[DEVICE_NAME_SIZE];
 static bool deviceInitialized = false;
 
-std::string release = "2.7.3";
 TateState tateState = DISABLED;
 
 RETRORUN_CORE_TYPE Retrorun_Core = RETRORUN_CORE_UNKNOWN;
@@ -92,7 +96,8 @@ float avgFps = 0;
 
 int current_volume = 0;
 
-bool firstTimeCorrectFrame=true;
+bool twiceTimeCorrectFrame=true;
+bool showLoading=true;
 
 MenuManager menuManager = MenuManager();
 
@@ -105,6 +110,8 @@ AnalogToDigital analogToDigital = LEFT_ANALOG;
 
 joypad joy= joypad();
 
+std::map<std::string, std::string> conf_map;
+bool pixel_perfect =false;
 
 
 const char *getEnv(const char *tag) noexcept

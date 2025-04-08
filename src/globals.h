@@ -232,9 +232,15 @@ extern float avgFps;
 extern MenuManager menuManager;
 extern int current_volume;
 extern std::string retrorun_device_name;
-extern bool firstTimeCorrectFrame;
+extern bool twiceTimeCorrectFrame;
 extern bool screenshot_requested;
 extern bool pause_requested;
+extern bool  showLoading;
+extern std::map<std::string, std::string> conf_map;
+extern bool pixel_perfect;
+
+
+
 
 
 

@@ -105,8 +105,8 @@ const char *arg_rom = "";
 typedef std::map<std::string, std::string> varmap_t;
 varmap_t variables;
 int exitFlag = -1;
-const char *opt_setting_file = "/storage/.config/distribution/configs/retrorun.cfg";
-std::map<std::string, std::string> conf_map;
+const char *opt_setting_file = "/storage/.config/distribution/configs/retrorun.cfg"; // In AmberElec retrorun.cfg is in this folder
+
 bool opt_show_fps = false;
 bool auto_save = false;
 bool auto_load = false;
@@ -196,11 +196,11 @@ void core_performance_counter_stop(struct retro_perf_counter *perf)
 
 void runloop_perf_log(void)
 {
-    printf("[PERF]: Performance counters:\n");
+    logger.log(Logger::DEB,"[PERF]: Performance counters:\n");
     for (int i = 0; i < perf_counter_count; i++)
     {
         struct retro_perf_counter *perf = perf_counters[i];
-        printf("%s: calls: %llu, total: %lld ns\n",
+        logger.log(Logger::DEB,"%s: calls: %llu, total: %lld ns\n",
                perf->ident, (unsigned long long)perf->call_cnt, (long long)perf->total);
     }
 }
@@ -250,7 +250,7 @@ static struct
     {                                                                          \
         if (!((*(void **)&V) = dlsym(g_retro.handle, #S)))                     \
         {                                                                      \
-            printf("[noarch] Failed to load symbol '" #S "'': %s", dlerror()); \
+            logger.log(Logger::ERR,"[noarch] Failed to load symbol '" #S "'': %s", dlerror()); \
             exit(1);                                                           \
         }                                                                      \
     } while (0)
@@ -307,7 +307,6 @@ void initMapConfig(std::string pathConfFile)
             }
             key = trim(key);
             value = trim(value);
-            // printf("Map values: key:%s ==> value:%s\n", key.c_str(), value.c_str());
             conf_map.insert(std::pair<std::string, std::string>(key, value));
         }
         catch (...)
@@ -548,8 +547,7 @@ static bool core_environment(unsigned cmd, void *data)
 
     case RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY:
     {
-        // we comment this logs otherwise we cannot read the logs, there are too many
-        // printf("--LIBRETRO-- RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY not implemented \n");
+        logger.log(Logger::DEB, "RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY not implemented");
         return false;
     }
 
@@ -879,18 +877,13 @@ static int LoadState(const char *saveName)
         ((unsigned char*)ptr)[0], ((unsigned char*)ptr)[1], ((unsigned char*)ptr)[2], ((unsigned char*)ptr)[3],
         ((unsigned char*)ptr)[4], ((unsigned char*)ptr)[5], ((unsigned char*)ptr)[6], ((unsigned char*)ptr)[7]);
     
-    // Sincronizza il caricamento dello stato con un mutex
+   
     if (pthread_self() != main_thread_id) {
         logger.log(Logger::ERR, "Error: retro_unserialize() doesn't run in the main thread!");
         return -1;
     }
-    //printf("DEBUG: Dump dei primi 64 byte di ptr prima di retro_unserialize():\n");
-    /*for (int i = 0; i < 64; i++) {
-        printf("%02X ", ((unsigned char*)ptr)[i]);
-    }
-    printf("\n");*/
+    
     fflush(stdout);
-    //printf("DEBUG: Entrato in LoadState(), thread attuale: %lu, main thread: %lu\n",
     main_thread_id = pthread_self();
     fflush(stdout);
     pthread_mutex_lock(&stateMutex);
@@ -1302,6 +1295,7 @@ void initConfig()
         config_file = opt_setting_file; // Use the default config file
     }
     std::ifstream infile(config_file);
+
     if (!infile.good())
     {
         logger.log(Logger::ERR, "Configuration file:'%s' doesn't exist default core settings will be used", opt_setting_file);
@@ -1311,6 +1305,20 @@ void initConfig()
         logger.log(Logger::INF, "Configuration found, reading configuration file:'%s'", config_file.c_str());
         initMapConfig(config_file.c_str());
         // first thing to do is to check the device name since it can be null
+        //applyButtonRemapping();
+
+        try
+        {
+            const std::string &arValue = conf_map.at("retrorun_log_level");
+            logger.setLogLevel(getLogLevel(arValue));
+            logger.log(Logger::INF, "retrorun_log_level: %s\n", arValue.c_str());
+        }
+        catch (...)
+        {
+            logger.log(Logger::DEB, "retrorun_log_level parameter not found in retrorun.cfg using default value (INFO).\n");
+        }
+
+
         try
         {
             const std::string &asValue = conf_map.at("retrorun_device_name");
@@ -1475,18 +1483,6 @@ void initConfig()
         {
             logger.log(Logger::DEB, "retrorun_tate_mode parameter not found in retrorun.cfg using default value (DISABLED).\n");
         }
-
-        try
-        {
-            const std::string &arValue = conf_map.at("retrorun_log_level");
-            logger.setLogLevel(getLogLevel(arValue));
-            logger.log(Logger::INF, "retrorun_log_level: %s\n", arValue.c_str());
-        }
-        catch (...)
-        {
-            logger.log(Logger::DEB, "retrorun_log_level parameter not found in retrorun.cfg using default value (INFO).\n");
-        }
-
         
         try
         {
@@ -1618,6 +1614,28 @@ void initConfig()
             
         }
 
+        try
+        {
+            const std::string &asValue = conf_map.at("retrorun_show_loading_screen");
+            showLoading = asValue == "true" ? true : false;
+            logger.log(Logger::DEB, "retrorun_show_loading_screen: %s.", showLoading ? "true" : "false");
+        }
+        catch (...)
+        {
+            logger.log(Logger::DEB, "retrorun_show_loading_screen parameter not found in retrorun.cfg using default value (%s)",showLoading ? "true" : "false");
+        }
+
+        try
+        {
+            const std::string &asValue = conf_map.at("retrorun_pixel_perfect");
+            pixel_perfect = asValue == "true" ? true : false;
+            logger.log(Logger::DEB, "retrorun_pixel_perfect: %s.", pixel_perfect ? "true" : "false");
+        }
+        catch (...)
+        {
+            logger.log(Logger::DEB, "retrorun_pixel_perfect parameter not found in retrorun.cfg using default value (%s)",pixel_perfect ? "true" : "false");
+        }
+        
 
         processVideoInAnotherThread = (isRG552()  || forceMultithread /*|| isRG503()*/) ? true : false;
         pwm = rumble_type_pwm;
@@ -1694,6 +1712,22 @@ auto setLockDeclaredFPS = [](int button) -> std::function<void(int)>
     }
     return std::function<void(int)>();
 };
+
+
+/*
+int getPixelPerfect()
+{
+    return pixel_perfect ? 1 : 0;
+}
+
+auto setPixelPerfect = [](int button) -> std::function<void(int)>
+{
+    if (button == LEFT || button == RIGHT)
+    {
+        pixel_perfect = !pixel_perfect;
+    }
+    return std::function<void(int)>();
+};*/
 
 int getAudioDisabled()
 {
@@ -2374,6 +2408,7 @@ int main(int argc, char *argv[])
         MenuItem("Aspect ratio", getAspectRatioSettings, setAspectRatioSettings, "aspect-ratio"),
         MenuItem("Lock FPS", getLockDeclaredFPS, setLockDeclaredFPS, "bool"),
         MenuItem("Tate mode", getTateMode, setTateMode, "rotation"),
+       // MenuItem("Pixel Perfet", getPixelPerfect, setPixelPerfect, "bool"),
     };
 
 

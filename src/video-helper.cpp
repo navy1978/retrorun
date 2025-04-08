@@ -539,6 +539,8 @@ void showCredits(go2_surface_t **surface)
     currentY += stepCredits;
     drawCreditLine(currentY, "dhwz", WHITE, surface);
     currentY += stepCredits;
+    drawCreditLine(currentY, "flyinghead", WHITE, surface);
+    currentY += stepCredits;
     drawCreditLine(currentY, "madcat1990", WHITE, surface);
     currentY += stepCredits;
     drawCreditLine(currentY, "pkegg", WHITE, surface);
@@ -888,10 +890,9 @@ void drawMenuInfoBackgroud(go2_surface_t *go2_surface, int res_width, int res_he
     }
     int yy = res_height;
 
-    /* if (col_increase % colSwitch ==0)
-     col++;*/
+   
 
-    // printf("color:%d\n",col);
+   
     while (yy > 0)
     {
 

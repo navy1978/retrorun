@@ -1,11 +1,4 @@
 TODO:
 
-- Address parallel_n64 compatibility issues specific to RG503.
-- Initiate investigation into load/save state functionality for flycast2021.
-- Implement loading messages for game startup process.
-- Integrate text-based messages using fonts alongside image-based messages.
-- Conduct refactoring to optimize and modularize excessively large classes.
-- Implement button configurability via file settings.
-- Enable functionality to switch CDs for multi-disc games.
-- Change the way we identify flycast2021
-- Add hotkeys for slot selection for save state
+
+

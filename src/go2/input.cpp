@@ -102,7 +102,7 @@ static void *battery_task(void *arg)
             ssize_t count = read(fd, buffer, BATTERY_BUFFER_SIZE);
             if (count > 0)
             {
-                // printf("BATT: buffer='%s'\n", buffer);
+                //logger.log(Logger::DEB, "BATT: buffer='%s'\n", buffer);
 
                 if (buffer[0] == 'D')
                 {
@@ -148,7 +148,7 @@ static void *battery_task(void *arg)
 
         pthread_mutex_unlock(&input->batteryMutex);
 
-        // printf("BATT: status=%d, level=%d\n", input->current_battery.status, input->current_battery.level);
+        logger.log(Logger::DEB, "BATT: status=%d, level=%d\n", input->current_battery.status, input->current_battery.level);
 
         sleep(1);
     }

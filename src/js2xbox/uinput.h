@@ -1,5 +1,6 @@
 /*
 *	js2xbox (C) 2017 E. Oriani, ema <AT> fastwebnet <DOT> it
+*   Copyright (C) 2025-present  navy1978
 *
 *	This file is part of js2xbox.
 *

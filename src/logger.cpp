@@ -3,9 +3,10 @@
 #include "logger.h"
 #include "libretro.h"
 #include <iostream>
+#include <cstring>
 
 static std::string coreName_;
-static Logger::LogLevel globalLogLevel = Logger::INF;  // Default to INFO
+static Logger::LogLevel globalLogLevel = Logger::ERR;  // Default to INFO
 
 Logger::Logger(LogLevel level) : logLevel_(level) {}
 
@@ -30,7 +31,11 @@ void Logger::log(LogLevel level, const char* format, ...) {
         va_start(args, format);
         vprintf(format, args);
         va_end(args);
-        printf("\n");
+        size_t len = strlen(format);
+        if (len == 0 || format[len - 1] != '\n') {
+            printf("\n");
+        }
+        
     }
 }
 

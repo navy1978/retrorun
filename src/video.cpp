@@ -278,7 +278,7 @@ void video_configure(struct retro_game_geometry *geom)
             throw std::exception();
         }
 
-        // printf("video_configure: rect=%d, %d, %d, %d\n", y, x, h, w);
+        logger.log(Logger::DEB, "video_configured: rect=%d, %d, %d, %d\n", y, x, h, w);
     }
 }
 
@@ -320,26 +320,47 @@ uintptr_t core_video_get_current_framebuffer()
 
 void prepareScreen(int width, int height)
 {
-
+   
     
-    screen_aspect_ratio = (float)go2_display_height_get(display) / (float)go2_display_width_get(display);
-    if (isDuckStation() && !wideScreenNotRotated())
-    {
-        // for DuckStation we need to invert the width and the height
-        x = 0;
-        y = 0;
-        w = display_height;
-        h = display_width;
-        if (isWideScreen)
+   
+        screen_aspect_ratio = (float)go2_display_height_get(display) / (float)go2_display_width_get(display);
+    
+        if (isDuckStation() && !wideScreenNotRotated())
         {
-            int temp = h;
-            h = w * 4 / 3;
-            y = (temp - h) / 2;
             x = 0;
+            y = 0;
+            w = display_height;
+            h = display_width;
+            if (isWideScreen)
+            {
+                int temp = h;
+                h = w * 4 / 3;
+                y = (temp - h) / 2;
+                x = 0;
+            }
+            return;
         }
-        
-        return;
-    }
+    
+        if (pixel_perfect)
+        {
+            // Calculate the maximum integer scaling factor that preserves the aspect ratio and fits within the screen.
+            int native_width = width;
+            int native_height = height;
+    
+            int max_scale_x = go2_display_width_get(display) / native_width;
+            int max_scale_y = go2_display_height_get(display) / native_height;
+            int scale = (max_scale_x < max_scale_y) ? max_scale_x : max_scale_y;
+    
+            if (scale < 1) scale = 1;
+    
+            w = native_width * scale;
+            h = native_height * scale;
+            x = (go2_display_width_get(display) - w) / 2;
+            y = (go2_display_height_get(display) - h) / 2;
+    
+            logger.log(Logger::DEB, "Pixel perfect mode enabled: scale=%d, x=%d, y=%d, w=%d, h=%d", scale, x, y, w, h);
+            return;
+        }
 
     if (game_aspect_ratio >= 1.0f)
     {
@@ -463,6 +484,8 @@ void prepareScreen(int width, int height)
             }
         }
     }
+
+    logger.log(Logger::DEB, "Pixel perfect mode disabled: x=%d, y=%d, w=%d, h=%d", x, y, w, h);
 }
 
 
@@ -516,18 +539,21 @@ bool lastWasInfo = false;
 bool cleanUpScreen = false;
 */
 bool last_input_info_requested=false;
-int maxFrameBlack= 15;
+int maxFrameBlack= 6;
 int clearScreenDelay =maxFrameBlack;
+
+int dot_counter = 0;
+static int frame_counter = 0;
 bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
 {
 
     bool showStatus = false;
     int res_width = width;
     int res_height = height;
-    if (input_info_requested || input_credits_requested || last_input_info_requested)
+    if (input_info_requested || input_credits_requested || last_input_info_requested || showLoading)
     {
         
-        // printf("cleanUpScreen:%s\n", cleanUpScreen ? "true" : "false");
+        
         res_width = INFO_MENU_WIDTH;
         res_height = INFO_MENU_HEIGHT;
 
@@ -536,7 +562,7 @@ bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
             status_surface_full = go2_surface_create(display, res_width, res_height, format_565);
         }
 
-        if (input_credits_requested )
+        if (input_credits_requested && !showLoading )
         {
             
             makeScreenBlackCredits(status_surface_full, res_width, res_height);
@@ -550,22 +576,24 @@ bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
                 clearScreenDelay=maxFrameBlack;
             }
         }
-        else
-        {
+        else if (showLoading){
+            frame_counter++;
+            std::string label = "  Please wait  ";
+            if (frame_counter % 30 > 15) {
+               label = ". Please wait .";
+            }
+            makeScreenBlack(status_surface_full, res_width, res_height);
+            
+            int lenghtLabel= ((label.length())*8/2);
+            showTextBigger(res_width/2 -lenghtLabel, res_height/2, label.c_str(), WHITE, &status_surface_full);
+        }
+        else{
 
-            // if (!cleanUpScreen)
-            // {
+            
             drawMenuInfoBackgroud(status_surface_full, res_width, res_height);
             showInfo(gs_w, &status_surface_full);
 
-            /*}
-            else
-            {
-                printf("Devo fare tutto neor!!!!\n");
-
-
-               makeScreenTotalBlack(status_surface_full, res_width, res_height);
-            }*/
+            
         }
         showStatus = true;
         status_obj->show_full = true;
@@ -782,22 +810,46 @@ bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
      last_input_info_requested = input_info_requested ? true : clearScreenDelay==maxFrameBlack ? false : true;
     return showStatus;
 }
-
+int timeCorrectFrame =0;
 inline void core_video_refresh_NON_OPENGL(const void *data, unsigned width, unsigned height, size_t pitch)
 {
-
+    static std::vector<uint16_t> black_frame;
     if (!data)
     {
         if (!input_info_requested )
         {
             logger.log(Logger::DEB, "DATA NOT VALID - skipping frame.");
             core_input_poll();
-            return;
+            //return;
+            
         }
+        if (black_frame.empty() && showLoading ) {
+            if (width==0 || height==0 ){
+                logger.log(Logger::DEB, "Setting a valid size for width and height");
+                width=320;
+                height=200;
+            }
+            if (pitch == 0) {
+                pitch = width * sizeof(uint16_t);  // fallback for RGB565
+            }
+            
+            size_t num_pixels = (pitch / sizeof(uint16_t)) * height;
+            black_frame.resize(num_pixels);
+            memset(black_frame.data(), 0x00, num_pixels * sizeof(uint16_t)); // RGB565 black
+            data = black_frame.data();
+        }
+        if (!showLoading){
+            return; // if the data is not valid and we are not loading the game then we need to dont draw this frame
+        }
+        
+
+
     }else{
-        if (firstTimeCorrectFrame){
-            logger.log(Logger::DEB, "Loading finished!");
-            firstTimeCorrectFrame=false;
+        timeCorrectFrame++;
+        if (showLoading && timeCorrectFrame>2){
+            //logger.log(Logger::DEB, "---------------------->Loading finished!");
+            showLoading=false;
+            twiceTimeCorrectFrame=false;
         }
     }
     gs_w = go2_surface_width_get(surface);
@@ -817,20 +869,41 @@ inline void core_video_refresh_NON_OPENGL(const void *data, unsigned width, unsi
 
 inline void core_video_refresh_OPENGL(const void *data, unsigned width, unsigned height, size_t pitch)
 {
-
+    static std::vector<uint16_t> black_frame;
     // eglSwapInterval(display, 0);
     if (data != RETRO_HW_FRAME_BUFFER_VALID)
     {
-        if (!input_info_requested)
+        if (!input_info_requested )
         {
-            logger.log(Logger::DEB, "RETRO HW FRAME BUFFER NOT VALID - skipping frame.");
+            logger.log(Logger::DEB, "DATA NOT VALID - skipping frame.");
             core_input_poll();
-            return;
+            //return;
+            
+        }
+        if (black_frame.empty() && showLoading ) {
+            if (width==0 || height==0 ){
+                logger.log(Logger::DEB, "Setting a valid size for width and height");
+                width=320;
+                height=200;
+            }
+            if (pitch == 0) {
+                pitch = width * sizeof(uint16_t);  // fallback for RGB565
+            }
+            
+            size_t num_pixels = (pitch / sizeof(uint16_t)) * height;
+            black_frame.resize(num_pixels);
+            memset(black_frame.data(), 0x00, num_pixels * sizeof(uint16_t)); // RGB565 black
+            data = black_frame.data();
+        }
+        if (!showLoading){
+            return; // if the data is not valid and we are not loading the game then we need to dont draw this frame
         }
     }else{
-        if (firstTimeCorrectFrame){
-            logger.log(Logger::DEB, "Loading finished!");
-            firstTimeCorrectFrame=false;
+        timeCorrectFrame++;
+        if (showLoading && timeCorrectFrame>2){
+            //logger.log(Logger::DEB, "Loading finished!");
+            twiceTimeCorrectFrame=false;
+            showLoading=false;
         }
     }
 
@@ -853,11 +926,11 @@ inline void core_video_refresh_OPENGL(const void *data, unsigned width, unsigned
 
 const void *lastData;
 size_t lastPitch;
+//bool lastPixelPerfect= pixel_perfect;
 void core_video_refresh(const void *data, unsigned width, unsigned height, size_t pitch)
 {
 
-
-
+  
     if (input_info_requested)
     {
         width = currentWidth;
@@ -902,9 +975,9 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         }
     }
 
-    if (first_video_refresh)
+    if (first_video_refresh )
     {
-
+        
         prepareScreen(width, height);
 
         logger.log(Logger::DEB, "Real aspect_ratio=%f", aspect_ratio);
@@ -937,6 +1010,15 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         last351BlitRotation = _351BlitRotation;
         first_video_refresh = false;
     }
+
+   /* if ( lastPixelPerfect!=pixel_perfect){
+        printf("Settgin screen!\n");
+        prepareScreen(width, height);
+    }
+    if (!input_info_requested){
+    lastPixelPerfect = pixel_perfect;
+    }*/
+   // printf("lastPixelPerfect:%s\n",lastPixelPerfect? "true":"false");
     if (height != currentHeight || width != currentWidth)
     {
         logger.log(Logger::DEB, "Resolution switched to width=%d, height=%d", width, height);

@@ -75,14 +75,31 @@ static bool has_triggers = false;
 static bool has_right_analog = false;
 //static bool isTate = false;
 // static unsigned lastId = 0;
-static go2_input_button_t selectButton = Go2InputButton_F1; // hotkey is a special one
-static go2_input_button_t startButton = Go2InputButton_F6;
-static go2_input_button_t l1Button = Go2InputButton_TriggerLeft;
-static go2_input_button_t r1Button = Go2InputButton_TriggerRight;
-static go2_input_button_t l2Button = Go2InputButton_F4;
-static go2_input_button_t r2Button = Go2InputButton_F3;
-static go2_input_button_t l3Button = Go2InputButton_F2;
-static go2_input_button_t r3Button = Go2InputButton_F5;
+
+
+static go2_input_button_t upButton;
+static go2_input_button_t downButton;
+static go2_input_button_t leftButton;
+static go2_input_button_t rightButton;
+
+static go2_input_button_t aButton;
+static go2_input_button_t bButton;
+static go2_input_button_t xButton;
+static go2_input_button_t yButton;
+
+static go2_input_button_t selectButton;
+static go2_input_button_t startButton;
+static go2_input_button_t l1Button;
+static go2_input_button_t r1Button;
+static go2_input_button_t l2Button;
+static go2_input_button_t r2Button;
+static go2_input_button_t l3Button;
+static go2_input_button_t r3Button;
+// these are special:
+static go2_input_button_t f1Button;
+static go2_input_button_t f2Button;
+
+
 bool firstExecution = true;
 bool elable_key_log = false;
 
@@ -100,54 +117,188 @@ bool input_slot_memory_load_done=false;
 bool input_slot_memory_save_done=false;
 bool input_slot_memory_reset_done=false;
 
+
+go2_input_button_t stringToGo2Button(const std::string& str) {
+    if (str == "DPadUp") return Go2InputButton_DPadUp;
+    if (str == "DPadDown") return Go2InputButton_DPadDown;
+    if (str == "DPadLeft") return Go2InputButton_DPadLeft;
+    if (str == "DPadRight") return Go2InputButton_DPadRight;
+    if (str == "A") return Go2InputButton_A;
+    if (str == "B") return Go2InputButton_B;
+    if (str == "X") return Go2InputButton_X;
+    if (str == "Y") return Go2InputButton_Y;
+    if (str == "F1") return Go2InputButton_F1;
+    if (str == "F2") return Go2InputButton_F2;
+    if (str == "F3") return Go2InputButton_F3;
+    if (str == "F4") return Go2InputButton_F4;
+    if (str == "F5") return Go2InputButton_F5;
+    if (str == "F6") return Go2InputButton_F6;
+    if (str == "F7") return Go2InputButton_F7;
+    if (str == "F8") return Go2InputButton_F8;
+    if (str == "F9") return Go2InputButton_F9;
+    if (str == "F10") return Go2InputButton_F10;
+    if (str == "F11") return Go2InputButton_F11;
+    if (str == "F12") return Go2InputButton_F12;
+    if (str == "START") return Go2InputButton_START;
+    if (str == "SELECT") return Go2InputButton_SELECT;
+    if (str == "TopLeft") return Go2InputButton_TopLeft;
+    if (str == "TopRight") return Go2InputButton_TopRight;
+    if (str == "TriggerLeft") return Go2InputButton_TriggerLeft;
+    if (str == "TriggerRight") return Go2InputButton_TriggerRight;
+    if (str == "THUMBL") return Go2InputButton_THUMBL;
+    if (str == "THUMBR") return Go2InputButton_THUMBR;
+
+    return Go2InputButton_A; // fallback
+}
+
+
+
+void applyButtonRemapping()
+{
+    logger.log(Logger::DEB, "Default buttons remapping if it's the case...");
+    
+    for (const auto& [key, value] : conf_map)
+    {
+        go2_input_button_t button = stringToGo2Button(value);
+
+        if (key == "retrorun_mapping_button_up") {
+            upButton = button;
+            logger.log(Logger::DEB, "Remapped UP to '%s'", value.c_str());
+        }
+        else if (key == "retrorun_mapping_button_down") {
+            downButton = button;
+            logger.log(Logger::DEB, "Remapped DOWN to '%s'", value.c_str());
+        }
+        else if (key == "retrorun_mapping_button_left") {
+            leftButton = button;
+            logger.log(Logger::DEB, "Remapped LEFT to '%s'", value.c_str());
+        }
+        else if (key == "retrorun_mapping_button_right") {
+            rightButton = button;
+            logger.log(Logger::DEB, "Remapped RIGHT to '%s'", value.c_str());
+        }
+        else if (key == "retrorun_mapping_button_a") {
+            aButton = button;
+            logger.log(Logger::DEB, "Remapped A to '%s'", value.c_str());
+        }
+        else if (key == "retrorun_mapping_button_b") {
+            bButton = button;
+            logger.log(Logger::DEB, "Remapped B to '%s'", value.c_str());
+        }
+        else if (key == "retrorun_mapping_button_x") {
+            xButton = button;
+            logger.log(Logger::DEB, "Remapped X to '%s'", value.c_str());
+        }
+        else if (key == "retrorun_mapping_button_y") {
+            yButton = button;
+            logger.log(Logger::DEB, "Remapped Y to '%s'", value.c_str());
+        }
+        else if (key == "retrorun_mapping_button_select") {
+            selectButton = button;
+            logger.log(Logger::DEB, "Remapped SELECT to '%s'", value.c_str());
+        }
+        else if (key == "retrorun_mapping_button_start") {
+            startButton = button;
+            logger.log(Logger::DEB, "Remapped START to '%s'", value.c_str());
+        }
+        else if (key == "retrorun_mapping_button_l1") {
+            l1Button = button;
+            logger.log(Logger::DEB, "Remapped L1 to '%s'", value.c_str());
+        }
+        else if (key == "retrorun_mapping_button_r1") {
+            r1Button = button;
+            logger.log(Logger::DEB, "Remapped R1 to '%s'", value.c_str());
+        }
+        else if (key == "retrorun_mapping_button_l2") {
+            l2Button = button;
+            logger.log(Logger::DEB, "Remapped L2 to '%s'", value.c_str());
+        }
+        else if (key == "retrorun_mapping_button_r2") {
+            r2Button = button;
+            logger.log(Logger::DEB, "Remapped R2 to '%s'", value.c_str());
+        }
+        else if (key == "retrorun_mapping_button_l3") {
+            l3Button = button;
+            logger.log(Logger::DEB, "Remapped L3 to '%s'", value.c_str());
+        }
+        else if (key == "retrorun_mapping_button_r3") {
+            r3Button = button;
+            logger.log(Logger::DEB, "Remapped R3 to '%s'", value.c_str());
+        }
+        else if (key == "retrorun_mapping_button_f1") {
+            f1Button = button;
+            logger.log(Logger::DEB, "Remapped F1 to '%s'", value.c_str());
+        }
+        else if (key == "retrorun_mapping_button_f2") {
+            f2Button = button;
+            logger.log(Logger::DEB, "Remapped F2 to '%s'", value.c_str());
+        }
+        
+    }
+}
+
+
+void initButtons(){
+    logger.log(Logger::DEB, "Default buttons initialization...");
+    upButton =Go2InputButton_DPadUp;
+    downButton =Go2InputButton_DPadDown;
+    leftButton =Go2InputButton_DPadLeft;
+    rightButton =Go2InputButton_DPadRight;
+
+    aButton = Go2InputButton_A;
+    bButton = Go2InputButton_B;
+    xButton = Go2InputButton_X;
+    yButton = Go2InputButton_Y;
+
+    selectButton = Go2InputButton_F1;
+    startButton = Go2InputButton_F6;
+    l1Button = Go2InputButton_TopLeft;
+    r1Button = Go2InputButton_TopRight;
+    l2Button = Go2InputButton_F4;
+    r2Button = Go2InputButton_F3;
+    l3Button = Go2InputButton_F2;
+    r3Button = Go2InputButton_F5;
+    // these are special:
+    f1Button = Go2InputButton_F1;
+    f2Button = Go2InputButton_F2;
+
+     // if the device has a gpio_joypad (RG351MP) some buttons are reverted
+     if (gpio_joypad == true){
+         startButton = Go2InputButton_F2;
+         l2Button = Go2InputButton_TriggerLeft;
+         r2Button = Go2InputButton_TriggerRight;
+         l3Button = Go2InputButton_F3;
+         r3Button = Go2InputButton_F4;
+         logger.log(Logger::DEB, "gpio_joypad type detected");
+     }
+ 
+     if ( isRG503()||isRG353V() || isRG353M() )
+     {
+         l2Button = Go2InputButton_TriggerLeft;
+         r2Button = Go2InputButton_TriggerRight;
+         selectButton = Go2InputButton_SELECT; // check if this is ok!
+         startButton = Go2InputButton_START;
+         l3Button = Go2InputButton_THUMBL;
+         r3Button = Go2InputButton_THUMBR;   
+         logger.log(Logger::DEB, "RG503/RG353 joypad configuration detected.");
+     }else{
+        logger.log(Logger::DEB, "RG351 joypad configuration detected.");
+     }
+ 
+     applyButtonRemapping();
+ 
+}
+
+
+
+
 void input_gamepad_read()
 {
-
-    
-    
-    // if the device has a gpio_joypad (RG351MP) some buttons are reverted
-    if (gpio_joypad == true)
-    {
-        selectButton = Go2InputButton_F1; // check if this is ok!
-        startButton = Go2InputButton_F2;
-        l1Button = Go2InputButton_TopLeft;
-        r1Button = Go2InputButton_TopRight;
-
-        l2Button = Go2InputButton_TriggerLeft;
-        r2Button = Go2InputButton_TriggerRight;
-        l3Button = Go2InputButton_F3;
-        r3Button = Go2InputButton_F4;
-
-        if (firstExecution)
-        {
-            logger.log(Logger::DEB, "GPIO JOYPAD: ENABLED!");
-            //firstExecution = false;
-        }
-    }
-
-
-    if ( isRG503()||isRG353V() || isRG353M() )
-    {
-        l1Button = Go2InputButton_TopLeft;
-        r1Button = Go2InputButton_TopRight;
-        l2Button = Go2InputButton_TriggerLeft;
-        r2Button = Go2InputButton_TriggerRight;
-    }
-    if (isRG503()||isRG353V() || isRG353M()  ){
-        selectButton = Go2InputButton_SELECT; // check if this is ok!
-        startButton = Go2InputButton_START;
-        l3Button = Go2InputButton_THUMBL;
-        r3Button = Go2InputButton_THUMBR;   
-    }
-
-    if (isRG351M() ||isRG351P() || isRG351V()){
-        l1Button = Go2InputButton_TopLeft;
-        r1Button = Go2InputButton_TopRight;
-    }
 
     if (!input)
     {
         if (firstExecution){
+            initButtons();
             input = go2_input_create(getDeviceName());
             firstExecution = false;
         }
@@ -186,11 +337,11 @@ go2_input_state_t *input_gampad_current_get()
 }
 
 void manageCredits(){
-if (go2_input_state_button_get(gamepadState, Go2InputButton_B) == ButtonState_Pressed)
+if (go2_input_state_button_get(gamepadState, bButton) == ButtonState_Pressed)
     {
         menuManager.handle_input_credits(B_BUTTON);
     }
-    if (go2_input_state_button_get(gamepadState, Go2InputButton_A) == ButtonState_Pressed)
+    if (go2_input_state_button_get(gamepadState, aButton) == ButtonState_Pressed)
     {
         menuManager.handle_input_credits(A_BUTTON);
     }
@@ -199,27 +350,27 @@ if (go2_input_state_button_get(gamepadState, Go2InputButton_B) == ButtonState_Pr
 void manageMenu()
 {
     // mutexInput.lock();
-    if (go2_input_state_button_get(gamepadState, Go2InputButton_B) == ButtonState_Pressed)
+    if (go2_input_state_button_get(gamepadState, bButton) == ButtonState_Pressed)
     {
         menuManager.handle_input(B_BUTTON);
     }
-    if (go2_input_state_button_get(gamepadState, Go2InputButton_A) == ButtonState_Pressed)
+    if (go2_input_state_button_get(gamepadState, aButton) == ButtonState_Pressed)
     {
         menuManager.handle_input(A_BUTTON);
     }
-    if (go2_input_state_button_get(gamepadState, Go2InputButton_DPadUp) == ButtonState_Pressed)
+    if (go2_input_state_button_get(gamepadState, upButton) == ButtonState_Pressed)
     {
         menuManager.handle_input(UP);
     }
-    if (go2_input_state_button_get(gamepadState, Go2InputButton_DPadDown) == ButtonState_Pressed)
+    if (go2_input_state_button_get(gamepadState, downButton) == ButtonState_Pressed)
     {
         menuManager.handle_input(DOWN);
     }
-    if (go2_input_state_button_get(gamepadState, Go2InputButton_DPadLeft) == ButtonState_Pressed)
+    if (go2_input_state_button_get(gamepadState, leftButton) == ButtonState_Pressed)
     {
         menuManager.handle_input(LEFT);
     }
-    if (go2_input_state_button_get(gamepadState, Go2InputButton_DPadRight) == ButtonState_Pressed)
+    if (go2_input_state_button_get(gamepadState, rightButton) == ButtonState_Pressed)
     {
         menuManager.handle_input(RIGHT);
     }
@@ -255,88 +406,88 @@ void core_input_poll(void)
     {
         
             if (go2_input_state_button_get(gamepadState, Go2InputButton_F1) == ButtonState_Pressed) {
-                logger.log(Logger::INF, "Joypad button pressed: F1");
+                logger.log(Logger::INF, "Joypad button pressed: [BTN_TRIGGER_HAPPY1] - [F1]");
             }
             if (go2_input_state_button_get(gamepadState, Go2InputButton_F2) == ButtonState_Pressed) {
-                logger.log(Logger::INF, "Joypad button pressed: F2");
+                logger.log(Logger::INF, "Joypad button pressed: [BTN_TRIGGER_HAPPY2] - [F2]");
             }
             if (go2_input_state_button_get(gamepadState, Go2InputButton_F3) == ButtonState_Pressed) {
-                logger.log(Logger::INF, "Joypad button pressed: F3");
+                logger.log(Logger::INF, "Joypad button pressed: [BTN_TRIGGER_HAPPY3] - [F3]");
             }
             if (go2_input_state_button_get(gamepadState, Go2InputButton_F4) == ButtonState_Pressed) {
-                logger.log(Logger::INF, "Joypad button pressed: F4");
+                logger.log(Logger::INF, "Joypad button pressed: [BTN_TRIGGER_HAPPY4] - [F4]");
             }
             if (go2_input_state_button_get(gamepadState, Go2InputButton_F5) == ButtonState_Pressed) {
-                logger.log(Logger::INF, "Joypad button pressed: F5");
+                logger.log(Logger::INF, "Joypad button pressed: [BTN_TRIGGER_HAPPY5] - [F5]");
             }
             if (go2_input_state_button_get(gamepadState, Go2InputButton_F6) == ButtonState_Pressed) {
-                logger.log(Logger::INF, "Joypad button pressed: F6");
+                logger.log(Logger::INF, "Joypad button pressed: [BTN_TRIGGER_HAPPY6] - [F6]");
             }
             if (go2_input_state_button_get(gamepadState, Go2InputButton_F7) == ButtonState_Pressed) {
-                logger.log(Logger::INF, "Joypad button pressed: F7");
+                logger.log(Logger::INF, "Joypad button pressed: [BTN_TRIGGER_HAPPY7] - [F7]");
             }
             if (go2_input_state_button_get(gamepadState, Go2InputButton_F8) == ButtonState_Pressed) {
-                logger.log(Logger::INF, "Joypad button pressed: F8");
+                logger.log(Logger::INF, "Joypad button pressed: [BTN_TRIGGER_HAPPY8] - [F8]");
             }
             if (go2_input_state_button_get(gamepadState, Go2InputButton_F9) == ButtonState_Pressed) {
-                logger.log(Logger::INF, "Joypad button pressed: F9");
+                logger.log(Logger::INF, "Joypad button pressed: [BTN_TRIGGER_HAPPY9] - [F9]");
             }
             if (go2_input_state_button_get(gamepadState, Go2InputButton_F10) == ButtonState_Pressed) {
-                logger.log(Logger::INF, "Joypad button pressed: F10");
+                logger.log(Logger::INF, "Joypad button pressed: [BTN_TRIGGER_HAPPY10[] - [F10]");
             }
             if (go2_input_state_button_get(gamepadState, Go2InputButton_F11) == ButtonState_Pressed) {
-                logger.log(Logger::INF, "Joypad button pressed: F11");
+                logger.log(Logger::INF, "Joypad button pressed: [BTN_TRIGGER_HAPPY11] - [F11]");
             }
             if (go2_input_state_button_get(gamepadState, Go2InputButton_F12) == ButtonState_Pressed) {
-                logger.log(Logger::INF, "Joypad button pressed: F12");
+                logger.log(Logger::INF, "Joypad button pressed: [BTN_TRIGGER_HAPPY12] - [F12]");
             }
             if (go2_input_state_button_get(gamepadState, Go2InputButton_SELECT) == ButtonState_Pressed) {
-                logger.log(Logger::INF, "Joypad button pressed: SELECT");
+                logger.log(Logger::INF, "Joypad button pressed: [BTN_SELECT] - [SELECT]");
             }
             if (go2_input_state_button_get(gamepadState, Go2InputButton_START) == ButtonState_Pressed) {
-                logger.log(Logger::INF, "Joypad button pressed: START");
+                logger.log(Logger::INF, "Joypad button pressed: [BTN_START] - [START]");
             }
             if (go2_input_state_button_get(gamepadState, Go2InputButton_THUMBR) == ButtonState_Pressed) {
-                logger.log(Logger::INF, "Joypad button pressed: THUMBR");
+                logger.log(Logger::INF, "Joypad button pressed: [BTN_THUMBR] - [THUMBR]");
             }
             if (go2_input_state_button_get(gamepadState, Go2InputButton_THUMBL) == ButtonState_Pressed) {
-                logger.log(Logger::INF, "Joypad button pressed: THUMBL");
+                logger.log(Logger::INF, "Joypad button pressed: [BTN_THUMBL] - [THUMBL]");
             }
             if (go2_input_state_button_get(gamepadState, Go2InputButton_A) == ButtonState_Pressed) {
-                logger.log(Logger::INF, "Joypad button pressed: A");
+                logger.log(Logger::INF, "Joypad button pressed: [BTN_EAST] - [A]");
             }
             if (go2_input_state_button_get(gamepadState, Go2InputButton_B) == ButtonState_Pressed) {
-                logger.log(Logger::INF, "Joypad button pressed: B");
+                logger.log(Logger::INF, "Joypad button pressed: [BTN_SOUTH] - [B]");
             }
             if (go2_input_state_button_get(gamepadState, Go2InputButton_X) == ButtonState_Pressed) {
-                logger.log(Logger::INF, "Joypad button pressed: X");
+                logger.log(Logger::INF, "Joypad button pressed: [BTN_NORTH] - [X]");
             }
             if (go2_input_state_button_get(gamepadState, Go2InputButton_Y) == ButtonState_Pressed) {
-                logger.log(Logger::INF, "Joypad button pressed: Y");
+                logger.log(Logger::INF, "Joypad button pressed: [BTN_WEST] - [Y]");
             }
             if (go2_input_state_button_get(gamepadState, Go2InputButton_DPadUp) == ButtonState_Pressed) {
-                logger.log(Logger::INF, "Joypad button pressed: UP");
+                logger.log(Logger::INF, "Joypad button pressed: [BTN_DPAD_UP] - [UP]");
             }
             if (go2_input_state_button_get(gamepadState, Go2InputButton_DPadDown) == ButtonState_Pressed) {
-                logger.log(Logger::INF, "Joypad button pressed: DOWN");
+                logger.log(Logger::INF, "Joypad button pressed: [BTN_DPAD_DOWN] - [DOWN]");
             }
             if (go2_input_state_button_get(gamepadState, Go2InputButton_DPadLeft) == ButtonState_Pressed) {
-                logger.log(Logger::INF, "Joypad button pressed: LEFT");
+                logger.log(Logger::INF, "Joypad button pressed: [BTN_DPAD_LEFT] - [LEFT]");
             }
             if (go2_input_state_button_get(gamepadState, Go2InputButton_DPadRight) == ButtonState_Pressed) {
-                logger.log(Logger::INF, "Joypad button pressed: RIGHT");
+                logger.log(Logger::INF, "Joypad button pressed: [BTN_DPAD_RIGHT] - [RIGHT]");
             }
             if (go2_input_state_button_get(gamepadState, Go2InputButton_TopLeft) == ButtonState_Pressed) {
-                logger.log(Logger::INF, "Joypad button pressed: TopLeft");
+                logger.log(Logger::INF, "Joypad button pressed: [BTN_TL] - [TopLeft]");
             }
             if (go2_input_state_button_get(gamepadState, Go2InputButton_TopRight) == ButtonState_Pressed) {
-                logger.log(Logger::INF, "Joypad button pressed: TopRight");
+                logger.log(Logger::INF, "Joypad button pressed: [BTN_TR] - [TopRight]");
             }
             if (go2_input_state_button_get(gamepadState, Go2InputButton_TriggerLeft) == ButtonState_Pressed) {
-                logger.log(Logger::INF, "Joypad button pressed: TriggerLeft");
+                logger.log(Logger::INF, "Joypad button pressed: [BTN_TL2] - [TriggerLeft]");
             }
             if (go2_input_state_button_get(gamepadState, Go2InputButton_TriggerRight) == ButtonState_Pressed) {
-                logger.log(Logger::INF, "Joypad button pressed: TriggerRight");
+                logger.log(Logger::INF, "Joypad button pressed: [BTN_TR2] - [TriggerRight]");
             }
         
     }
@@ -360,12 +511,12 @@ bool isL3Pressed = go2_input_state_button_get(gamepadState, l3Button) == ButtonS
 bool isR3Pressed = go2_input_state_button_get(gamepadState, r3Button) == ButtonState_Pressed;
 bool isSelectPressed = go2_input_state_button_get(gamepadState, selectButton) == ButtonState_Pressed;
 bool isStartPressed = go2_input_state_button_get(gamepadState, startButton) == ButtonState_Pressed;
-bool isXPressed = go2_input_state_button_get(gamepadState, Go2InputButton_X) == ButtonState_Pressed;
-bool isYPressed = go2_input_state_button_get(gamepadState, Go2InputButton_Y) == ButtonState_Pressed;
-bool isBPressed = go2_input_state_button_get(gamepadState, Go2InputButton_B) == ButtonState_Pressed;
-bool isAPressed = go2_input_state_button_get(gamepadState, Go2InputButton_A) == ButtonState_Pressed;
-bool isF1Pressed = go2_input_state_button_get(gamepadState, Go2InputButton_F1) == ButtonState_Pressed;
-bool isF2Pressed = go2_input_state_button_get(gamepadState, Go2InputButton_F2) == ButtonState_Pressed;
+bool isXPressed = go2_input_state_button_get(gamepadState, xButton) == ButtonState_Pressed;
+bool isYPressed = go2_input_state_button_get(gamepadState, yButton) == ButtonState_Pressed;
+bool isBPressed = go2_input_state_button_get(gamepadState, bButton) == ButtonState_Pressed;
+bool isAPressed = go2_input_state_button_get(gamepadState, aButton) == ButtonState_Pressed;
+//bool isF1Pressed = go2_input_state_button_get(gamepadState, f1Button) == ButtonState_Pressed;
+bool isF2Pressed = go2_input_state_button_get(gamepadState, f2Button) == ButtonState_Pressed;
 bool isR2Pressed = go2_input_state_button_get(gamepadState, r2Button) == ButtonState_Pressed;
 bool wasR2Released = go2_input_state_button_get(prevGamepadState, r2Button) == ButtonState_Released;
 
@@ -376,7 +527,7 @@ double currentTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
 // Handle input_info_requested_alternative condition
 if (input_info_requested_alternative) { // this are the alternative combinations used by ArkOs
     // Handle emntering in Menu request
-    if ((isSelectPressed && isXPressed) || (isF2Pressed && isXPressed)) {
+    if (!showLoading && ((isSelectPressed && isXPressed) || (isF2Pressed && isXPressed))) {
         double elapsed = currentTime - lastInforequestTime;
         logger.log(Logger::DEB, "Input: Info requested");
         if (elapsed >= 0.5) {
@@ -399,7 +550,7 @@ if (input_info_requested_alternative) { // this are the alternative combinations
             }
         }
         // Handle FPS request
-        if ( (isF2Pressed && isYPressed) || (isSelectPressed && isYPressed) ) {
+        if ( !showLoading && ((isF2Pressed && isYPressed) || (isSelectPressed && isYPressed)) ) {
             double elapsed = currentTime - lastFPSrequestTime;
             if (elapsed >= 0.5) {
                 input_fps_requested = !input_fps_requested;
@@ -407,14 +558,14 @@ if (input_info_requested_alternative) { // this are the alternative combinations
             }
         }
         // Handle screenshot request
-        if ((isF2Pressed && isBPressed)|| (isSelectPressed && isBPressed)) {
+        if (!showLoading && ((isF2Pressed && isBPressed)|| (isSelectPressed && isBPressed))) {
             screenshot_requested = true;
             lastScreenhotrequestTime = currentTime;
             logger.log(Logger::DEB, "Input: Screenshot requested");
         }
 
         // Handle pause request
-        if ((isF2Pressed && isAPressed) || (isSelectPressed && isAPressed)) {
+        if (!showLoading && ((isF2Pressed && isAPressed) || (isSelectPressed && isAPressed))) {
             double elapsed = currentTime - pauseRequestTime;
             if (elapsed >= 0.5) {
                 logger.log(Logger::DEB, "Input: Pause requested");
@@ -431,7 +582,7 @@ if (input_info_requested_alternative) { // this are the alternative combinations
 } else { // this is the oermal behaviour used in AmberElec
 
     // Handle emntering in Menu request
-    if (isL3Pressed && isR3Pressed) {
+    if (!showLoading && isL3Pressed && isR3Pressed) {
         double elapsed = currentTime - lastInforequestTime;
         logger.log(Logger::DEB, "Input: Info requested");
         if (elapsed >= 0.5) {
@@ -453,7 +604,7 @@ if (input_info_requested_alternative) { // this are the alternative combinations
          }
         }
         // Handle FPS request
-        if (isSelectPressed && isYPressed) {
+        if (!showLoading && isSelectPressed && isYPressed) {
             double elapsed = currentTime - lastFPSrequestTime;
             if (elapsed >= 0.5) {
                 input_fps_requested = !input_fps_requested;
@@ -461,13 +612,13 @@ if (input_info_requested_alternative) { // this are the alternative combinations
             }
         }
         // Handle screenshot request
-        if (isSelectPressed && isBPressed) {
+        if (!showLoading && isSelectPressed && isBPressed) {
             screenshot_requested = true;
             lastScreenhotrequestTime = currentTime;
             logger.log(Logger::DEB, "Input: Screenshot requested");
         }
         // Handle pause request
-        if (isSelectPressed && isAPressed) {
+        if (!showLoading && isSelectPressed && isAPressed) {
             double elapsed = currentTime - pauseRequestTime;
             if (elapsed >= 0.5) {
                 logger.log(Logger::DEB, "Input: Pause requested");
@@ -480,7 +631,7 @@ if (input_info_requested_alternative) { // this are the alternative combinations
             }
         }
         // Handle fast-forward request
-        if (isF1Pressed && isR2Pressed && wasR2Released) {
+        if (!showLoading && isSelectPressed && isR2Pressed && wasR2Released) {
             input_ffwd_requested = !input_ffwd_requested;
             logger.log(Logger::DEB, "Input: Fast-forward %s", input_ffwd_requested ? "on" : "off");
         }
@@ -493,7 +644,7 @@ if (input_info_requested_alternative) { // this are the alternative combinations
 
 
 // new
-if ((go2_input_state_button_get(gamepadState, selectButton) == ButtonState_Pressed) &&
+if (!showLoading && (go2_input_state_button_get(gamepadState, selectButton) == ButtonState_Pressed) &&
 (go2_input_state_button_get(gamepadState, r1Button) == ButtonState_Pressed))
 {
 gettimeofday(&valTime, NULL);
@@ -508,8 +659,8 @@ if (elapsed >= 0.5)
 }  
 }
 
-if ((go2_input_state_button_get(gamepadState, selectButton) == ButtonState_Pressed) &&
-(go2_input_state_button_get(gamepadState, Go2InputButton_DPadUp) == ButtonState_Pressed))
+if (!showLoading && (go2_input_state_button_get(gamepadState, selectButton) == ButtonState_Pressed) &&
+(go2_input_state_button_get(gamepadState, upButton) == ButtonState_Pressed))
 {
 gettimeofday(&valTime, NULL);
 double currentTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
@@ -526,8 +677,8 @@ if (elapsed >= 0.5)
 
 }
 
-if ((go2_input_state_button_get(gamepadState, selectButton) == ButtonState_Pressed) &&
-(go2_input_state_button_get(gamepadState, Go2InputButton_DPadDown) == ButtonState_Pressed))
+if (!showLoading && (go2_input_state_button_get(gamepadState, selectButton) == ButtonState_Pressed) &&
+(go2_input_state_button_get(gamepadState, downButton) == ButtonState_Pressed))
 {
 gettimeofday(&valTime, NULL);
 double currentTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
@@ -542,7 +693,7 @@ if (elapsed >= 0.5)
 } 
 }
 
-if ((go2_input_state_button_get(gamepadState, selectButton) == ButtonState_Pressed) &&
+if (!showLoading && (go2_input_state_button_get(gamepadState, selectButton) == ButtonState_Pressed) &&
 (go2_input_state_button_get(gamepadState, l1Button) == ButtonState_Pressed))
 {
 gettimeofday(&valTime, NULL);
@@ -562,90 +713,90 @@ if (elapsed >= 0.5)
 
 go2_button_state_t getInputUp(){
     if (!isTate()){
-       return  go2_input_state_button_get(gamepadState, Go2InputButton_DPadUp);
+       return  go2_input_state_button_get(gamepadState, upButton);
     }
     if (tateState== REVERSED){
-        return go2_input_state_button_get(gamepadState, Go2InputButton_DPadRight);
+        return go2_input_state_button_get(gamepadState, rightButton);
     }else{
-        return go2_input_state_button_get(gamepadState, Go2InputButton_DPadLeft);
+        return go2_input_state_button_get(gamepadState, leftButton);
     }
 }
 
 go2_button_state_t getInputDown(){
     if (!isTate()){
-       return  go2_input_state_button_get(gamepadState, Go2InputButton_DPadDown);
+       return  go2_input_state_button_get(gamepadState, downButton);
     }
     if (tateState== REVERSED){
-        return go2_input_state_button_get(gamepadState, Go2InputButton_DPadLeft);
+        return go2_input_state_button_get(gamepadState, leftButton);
     }else{
-        return go2_input_state_button_get(gamepadState, Go2InputButton_DPadRight);
+        return go2_input_state_button_get(gamepadState, rightButton);
     }
 }
 
 
 go2_button_state_t getInputLeft(){
     if (!isTate()){
-       return  go2_input_state_button_get(gamepadState, Go2InputButton_DPadLeft);
+       return  go2_input_state_button_get(gamepadState, leftButton);
     }
     if (tateState== REVERSED){
-        return go2_input_state_button_get(gamepadState, Go2InputButton_DPadUp);
+        return go2_input_state_button_get(gamepadState, upButton);
     }else{
-        return go2_input_state_button_get(gamepadState, Go2InputButton_DPadDown);
+        return go2_input_state_button_get(gamepadState, downButton);
     }
 }
 
 go2_button_state_t getInputRight(){
     if (!isTate()){
-       return  go2_input_state_button_get(gamepadState, Go2InputButton_DPadRight);
+       return  go2_input_state_button_get(gamepadState, rightButton);
     }
     if (tateState== REVERSED){
-        return go2_input_state_button_get(gamepadState, Go2InputButton_DPadDown);
+        return go2_input_state_button_get(gamepadState, downButton);
     }else{
-        return go2_input_state_button_get(gamepadState, Go2InputButton_DPadUp);
+        return go2_input_state_button_get(gamepadState, upButton);
     }
 }
 
 go2_button_state_t getInputA(){
     if (!isTate()){
-       return go2_input_state_button_get(gamepadState, Go2InputButton_A);
+       return go2_input_state_button_get(gamepadState, aButton);
     }
     if (tateState== REVERSED){
-        return go2_input_state_button_get(gamepadState, Go2InputButton_B);
+        return go2_input_state_button_get(gamepadState, bButton);
     }else{
-        return go2_input_state_button_get(gamepadState, Go2InputButton_X);
+        return go2_input_state_button_get(gamepadState, xButton);
     }
 }
 
 go2_button_state_t getInputB(){
     if (!isTate()){
-       return go2_input_state_button_get(gamepadState, Go2InputButton_B);
+       return go2_input_state_button_get(gamepadState, bButton);
     }
     if (tateState== REVERSED){
-        return go2_input_state_button_get(gamepadState, Go2InputButton_Y);
+        return go2_input_state_button_get(gamepadState, yButton);
     }else{
-        return go2_input_state_button_get(gamepadState, Go2InputButton_A);
+        return go2_input_state_button_get(gamepadState, aButton);
     }
 }
 
 go2_button_state_t getInputX(){
     if (!isTate()){
-       return go2_input_state_button_get(gamepadState, Go2InputButton_X);
+       return go2_input_state_button_get(gamepadState, xButton);
     }
     if (tateState== REVERSED){
-        return go2_input_state_button_get(gamepadState, Go2InputButton_A);
+        return go2_input_state_button_get(gamepadState, aButton);
     }else{
-        return go2_input_state_button_get(gamepadState, Go2InputButton_Y);
+        return go2_input_state_button_get(gamepadState, yButton);
     }
 }
 
 go2_button_state_t getInputY(){
     if (!isTate()){
-       return go2_input_state_button_get(gamepadState, Go2InputButton_Y);
+       return go2_input_state_button_get(gamepadState, yButton);
     }
     if (tateState== REVERSED){
-        return go2_input_state_button_get(gamepadState, Go2InputButton_X);
+        return go2_input_state_button_get(gamepadState, xButton);
     }else{
-        return go2_input_state_button_get(gamepadState, Go2InputButton_B);
+        return go2_input_state_button_get(gamepadState, bButton);
     }
 }
 
@@ -875,13 +1026,13 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
         go2_thumb_t thumb = go2_input_state_thumbstick_get(gamepadState, Go2InputThumbstick_Left);
 
         if (thumb.y < -TRIM)
-            go2_input_state_button_set(gamepadState, Go2InputButton_DPadUp, ButtonState_Pressed);
+            go2_input_state_button_set(gamepadState, upButton, ButtonState_Pressed);
         if (thumb.y > TRIM)
-            go2_input_state_button_set(gamepadState, Go2InputButton_DPadDown, ButtonState_Pressed);
+            go2_input_state_button_set(gamepadState, downButton, ButtonState_Pressed);
         if (thumb.x < -TRIM)
-            go2_input_state_button_set(gamepadState, Go2InputButton_DPadLeft, ButtonState_Pressed);
+            go2_input_state_button_set(gamepadState, leftButton, ButtonState_Pressed);
         if (thumb.x > TRIM)
-            go2_input_state_button_set(gamepadState, Go2InputButton_DPadRight, ButtonState_Pressed);
+            go2_input_state_button_set(gamepadState, rightButton, ButtonState_Pressed);
     }
 
 
@@ -894,22 +1045,22 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
         if (thumb.y < -TRIM) // UP
         {
             go2_input_state_button_set(gamepadState, r2Button, ButtonState_Pressed);
-            go2_input_state_button_set(gamepadState, Go2InputButton_X, ButtonState_Pressed);
+            go2_input_state_button_set(gamepadState, xButton, ButtonState_Pressed);
         }
         if (thumb.y > TRIM) //DOWN
         {
             go2_input_state_button_set(gamepadState, r2Button, ButtonState_Pressed);
-            go2_input_state_button_set(gamepadState, Go2InputButton_B, ButtonState_Pressed);
+            go2_input_state_button_set(gamepadState, bButton, ButtonState_Pressed);
         }
         if (thumb.x < -TRIM)//LEFT
         {
             go2_input_state_button_set(gamepadState, r2Button, ButtonState_Pressed);
-            go2_input_state_button_set(gamepadState, Go2InputButton_Y, ButtonState_Pressed);
+            go2_input_state_button_set(gamepadState, yButton, ButtonState_Pressed);
         }
         if (thumb.x > TRIM)// RIGHT
         {
             go2_input_state_button_set(gamepadState, r2Button, ButtonState_Pressed);
-            go2_input_state_button_set(gamepadState, Go2InputButton_A, ButtonState_Pressed);
+            go2_input_state_button_set(gamepadState, aButton, ButtonState_Pressed);
         }
         thumb.x = 0;
         thumb.y = 0;    

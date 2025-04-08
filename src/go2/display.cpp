@@ -304,7 +304,7 @@ void go2_display_backlight_set(go2_display_t *display, uint32_t value)
         float percent = value / 100.0f * (float)max;
         sprintf(buffer, "%d\n", (uint32_t)percent);
 
-        // printf("backlight=%d, max=%d\n", (uint32_t)percent, max);
+        logger.log(Logger::DEB, "backlight=%d, max=%d\n", (uint32_t)percent, max);
 
         ssize_t count = write(fd, buffer, strlen(buffer));
         if (count < 0)

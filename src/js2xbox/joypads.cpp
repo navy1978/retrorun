@@ -1,5 +1,6 @@
 /*
 *	js2xbox (C) 2017 E. Oriani, ema <AT> fastwebnet <DOT> it
+*   Copyright (C) 2025-present  navy1978
 *
 *	This file is part of js2xbox.
 *
@@ -22,7 +23,8 @@
 #include <linux/input.h>
 
 // supported joypads
-const events::js_desc	joypads::j_ps3_bt =	{ "ps3_bt", BUS_BLUETOOTH, 0x054c, 0x0268, 0x0110 },
+const events::js_desc	
+			joypads::j_ps3_bt =	{ "ps3_bt", BUS_BLUETOOTH, 0x054c, 0x0268, 0x0110 },
 			joypads::j_ps3_usb =	{ "ps3_usb", BUS_USB, 0x054c, 0x0268, 0x0111 },
 			joypads::j_xbox_360 =	{ "xbox_360", BUS_USB, 0x045e, 0x028e, 0x0110 },
 			joypads::j_rg351p =	{ "rg351p_joypad", BUS_USB, 0x1209, 0x3100, 0x0111 },

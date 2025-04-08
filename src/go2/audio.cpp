@@ -80,7 +80,6 @@ go2_audio_t *go2_audio_create(int frequency)
     result->context = alcCreateContext(result->device, NULL);
     if (!alcMakeContextCurrent(result->context))
     {
-        //printf("alcMakeContextCurrent failed.\n");
         alcCloseDevice(result->device);
         free(result);
         return NULL;
@@ -94,7 +93,6 @@ go2_audio_t *go2_audio_create(int frequency)
     alSource3f(result->source, AL_VELOCITY, 0, 0, 0);
     alSourcei(result->source, AL_LOOPING, AL_FALSE);
 
-    // memset(audioBuffer, 0, AUDIOBUFFER_LENGTH * sizeof(short));
 
     const int BUFFER_COUNT = 4;
     for (int i = 0; i < BUFFER_COUNT; ++i)
@@ -224,7 +222,6 @@ void go2_audio_submit(go2_audio_t *audio, const short *data, int frames)
     // make sure each frame takes *at least* 1/60th of a second
     // auto frameClock = std::chrono::high_resolution_clock::now();
     double deltaTime = (nextClock - prevClock).count() / 1e9;
-    // printf("frame time: %.2lf ms\n", deltaTime * 1e3);
     double sleepSecs = 1.0 / max_fps - deltaTime;
 
     if (sleepSecs > 0)
