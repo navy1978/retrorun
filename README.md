@@ -78,7 +78,7 @@ General Settings
 	•	**retrorun_log_level** = INFO | DEBUG | WARNING | ERROR (Log level, default: INFO)  <br>
 
 Input Settings  
-	•	**retrorun_force_left_analog_stick** = true | false (Map left analog stick to D-pad, default: false)  <br>
+	•	**retrorun_force_left_analog_stick** = true | false (Map left analog stick to D-pad, default: true)  <br>
 	•	**retrorun_swap_l1r1_with_l2r2** = true | false (Swap L1/L2 with R1/R2, default: false)  <br>
 	•	**retrorun_swap_sticks** = true | false (Swap left and right analog sticks, default: false)  <br>
 	•	**retrorun_alternative_input_mode** = true | false (Enable OSD toggle with SELECT+X instead of L3+R3, and some alternatives combination to show FPS, take ascreenshot and so on)  <br>
@@ -216,4 +216,4 @@ RetroRun was initially developed by **OtherCrashOverride** until 2020. Since 202
 
 ### Special Thanks  
 A heartfelt thanks to:  <br>
-**Cebion, Christian_Haitian, dhwz, madcat1990, and Szalik** for their contributions and support.  <br>
+**Cebion, Christian_Haitian, dhwz, madcat1990, pkegg and Szalik** for their contributions and support.  <br>

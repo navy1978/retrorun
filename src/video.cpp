@@ -693,8 +693,13 @@ bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
 
         if (input_slot_memory_load_done)
         {
-            std::string label = " SLOT:" + std::to_string(currentSlot) + " LOADED."; 
-            showTextBigger(0, 5, label.c_str(), WHITE, &status_surface_bottom_center);   
+            if (lastLoadSaveStateDoneOk){
+                std::string label = " SLOT:" + std::to_string(currentSlot) + " LOADED."; 
+                showTextBigger(0, 5, label.c_str(), WHITE, &status_surface_bottom_center); 
+            } else{
+                std::string label = " LOAD FAILED!"; 
+                showTextBigger(0, 5, label.c_str(), RED, &status_surface_bottom_center); 
+            } 
         }
         else if (input_slot_memory_save_done)
         {

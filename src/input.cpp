@@ -116,6 +116,7 @@ double lastSlotSaveTime = -1;
 bool input_slot_memory_load_done=false;
 bool input_slot_memory_save_done=false;
 bool input_slot_memory_reset_done=false;
+bool lastLoadSaveStateDoneOk =true;
 
 
 go2_input_button_t stringToGo2Button(const std::string& str) {
