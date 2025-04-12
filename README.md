@@ -79,13 +79,17 @@ These parameters can be set in the `retrorun.cfg` file:
 
 General Settings  
 	•	**retrorun_screenshot_folder** = /storage/roms/screenshots (Default screenshot save folder)  <br>
-	•	**retrorun_log_level** = INFO | DEBUG | WARNING | ERROR (Log level, default: INFO)  <br>
+ 	•	**retrorun_screenshot_folder** = /storage/roms/screenshots (Default screenshot save folder)  <br>
+	•	**retrorun_device_name** = Specifies a custom name for the device (e.g., RG351P, RG552, etc.). Useful for customizing per-device behavior <br>
+ 	•	**retrorun_log_level** = INFO | DEBUG | WARNING | ERROR (Sets the log verbosity level. Default is INFO.) <br>
+ 	•	**retrorun_enable_key_log** = true | false (Enables logging of key/button presses. Useful for identifying input names. Default is false.) <br>
 
 Input Settings  
 	•	**retrorun_force_left_analog_stick** = true | false (Map left analog stick to D-pad, default: true)  <br>
 	•	**retrorun_swap_l1r1_with_l2r2** = true | false (Swap L1/L2 with R1/R2, default: false)  <br>
 	•	**retrorun_swap_sticks** = true | false (Swap left and right analog sticks, default: false)  <br>
 	•	**retrorun_alternative_input_mode** = true | false (Enable OSD toggle with SELECT+X instead of L3+R3, and some alternatives combination to show FPS, take ascreenshot and so on)  <br>
+ 	•	**retrorun_mouse_speed_factor** = int (Defines mouse movement speed in emulators that support mouse input. Default is 5.)  <br>
 
 Device Matching Overrides  <br>
 	These parameters allow you to dynamically extend the list of recognized joypad devices:  <br>
@@ -114,6 +118,7 @@ Rumble Settings
 	•	**retrorun_rumble_type** = pwm | event (Rumble type, default varies by device)  <br>
 	•	**retrorun_rumble_event** = /dev/input/eventX (Override default rumble event file)  <br>
 	•	**retrorun_rumble_pwm_file** = /sys/class/pwm/pwmchip0/pwm0/duty_cycle (Override default PWM file)  <br>
+ 	•	**retrorun_disable_rumble** = true | false (Disables rumble/vibration support. Default is false.)  <br>
 
 ## Build
 
