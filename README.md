@@ -238,7 +238,7 @@ retrorun_mapping_button_x = SELECT
 How to Find the Correct Button Name?
 To identify which button name to use, start retrorun with the following parameters enabled:
 ```
-retrorun_elable_key_log = true
+retrorun_enable_key_log = true
 retrorun_log_level = DEBUG
 ```
 This will enable logging of button presses. When you press a button, the logs will show output like:
