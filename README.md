@@ -6,32 +6,6 @@ This version of RetroRun differs significantly from retrorun-go2, as it encapsul
 
 📄 [Changelog](https://github.com/navy1978/retrorun/blob/master/changelog.txt)
 
-
-Launching a Game with RetroRun
-
-To launch a game using RetroRun, it is recommended to create a bash script (retrorun.sh) that accepts three parameters: core, rom, and platform (optional). Below is an example script:
-````
-#!/bin/bash
-
-. /etc/profile
-echo 'Starting RetroRun front-end...'
-CORE="$1"
-ROM="${2##*/}"
-PLATFORM="$3" # Optional
-
-FPS='-f' # Optional
-GPIO_JOYPAD='-g' # Optional
-./retrorun --triggers $FPS $GPIO_JOYPAD -s /storage/roms/"$3" -d /roms/bios "$1" "$2"
-echo 'front-end ended!'
-````
-
-To run the script:
-```shell
-./retrorun.sh /path/to/core /path/to/game name_of_platform
-````
-![WhatsApp Image 2025-03-17 at 14 24 34](https://github.com/user-attachments/assets/22063641-19a5-47c1-a440-9a7b188003df)
-
-
 ## Supported Cores (Tested)
 
 RetroRun has been tested and supports the following cores:<br>
@@ -73,53 +47,6 @@ This project adds many improvements and new features to the [retrorun-go2 projec
 
 ⸻
 
-## RetroRun Configuration Parameters
-
-These parameters can be set in the `retrorun.cfg` file:  
-
-General Settings  
-	•	**retrorun_screenshot_folder** = /storage/roms/screenshots (Default screenshot save folder)  <br>
- 	•	**retrorun_screenshot_folder** = /storage/roms/screenshots (Default screenshot save folder)  <br>
-	•	**retrorun_device_name** = Specifies a custom name for the device (e.g., RG351P, RG552, etc.). Useful for customizing per-device behavior <br>
- 	•	**retrorun_log_level** = INFO | DEBUG | WARNING | ERROR (Sets the log verbosity level. Default is INFO.) <br>
- 	•	**retrorun_enable_key_log** = true | false (Enables logging of key/button presses. Useful for identifying input names. Default is false.) <br>
-
-Input Settings  
-	•	**retrorun_force_left_analog_stick** = true | false (Map left analog stick to D-pad, default: true)  <br>
-	•	**retrorun_swap_l1r1_with_l2r2** = true | false (Swap L1/L2 with R1/R2, default: false)  <br>
-	•	**retrorun_swap_sticks** = true | false (Swap left and right analog sticks, default: false)  <br>
-	•	**retrorun_alternative_input_mode** = true | false (Enable OSD toggle with SELECT+X instead of L3+R3, and some alternatives combination to show FPS, take ascreenshot and so on)  <br>
- 	•	**retrorun_mouse_speed_factor** = int (Defines mouse movement speed in emulators that support mouse input. Default is 5.)  <br>
-
-Device Matching Overrides  <br>
-	These parameters allow you to dynamically extend the list of recognized joypad devices:  <br>
- 	•	**retrorun_extra_retrogame_name** = string (Adds a joypad name to the list of recognized Retrogame devices)  <br>
-	•	**retrorun_extra_osh_name** = string (Adds a joypad name to the list of recognized OpenSimHardware devices)  <br>
-	•	**retrorun_extra_evdev_name** = /dev/input/by-path/… (Specifies an alternative evdev file for Retrogame devices)  <br>
-	These values are optional: if not defined, they are ignored. They are useful for supporting custom devices or unofficial hardware revisions.  <br>
-
-Save/Load Features  
-	•	**retrorun_auto_save** = true | false (Enable auto-save, default: false)  <br>
-	•	**retrorun_auto_load** = true | false (Enable auto-load, default: same as auto-save)  <br>
-
-Performance Settings  
-	•	**retrorun_loop_60_fps** = true | false (Restrict loop to 60 FPS, default: true)  <br>
-	•	**retrorun_audio_buffer** = -1, 1, 256, 512, 1024, ... (Audio buffer size, default: -1)  <br>
-	•	**retrorun_force_video_multithread** = true | false (Run video tasks in a separate thread, default: varies by device)  <br>
-
-Video Settings  
-	•	**retrorun_tate_mode** = auto | enabled | disabled | reverted (Enable vertical display mode, default: disabled)<br>
-	•	**retrorun_pixel_perfect** = true | false (Enable pixel perfect display, default: disabled)<br>
-	•	**retrorun_fps_counter** = true | false (Display FPS counter, default: false)  <br>
-	•	**retrorun_aspect_ratio** = 2:1 | 4:3 | 5:4 | 16:9 | 16:10 | 1:1 | 3:2 | auto (Aspect ratio, default: core-defined)  <br>
-	•	**retrorun_show_loading_screen** = true| false (Show the Loadig screen during the game loading, default: true)  <br>
-	
-Rumble Settings  
-	•	**retrorun_rumble_type** = pwm | event (Rumble type, default varies by device)  <br>
-	•	**retrorun_rumble_event** = /dev/input/eventX (Override default rumble event file)  <br>
-	•	**retrorun_rumble_pwm_file** = /sys/class/pwm/pwmchip0/pwm0/duty_cycle (Override default PWM file)  <br>
- 	•	**retrorun_disable_rumble** = true | false (Disables rumble/vibration support. Default is false.)  <br>
-
 ## Build
 
 Clone the repository and compile RetroRun using:
@@ -129,6 +56,35 @@ cd retrorun
 make
 strip retrorun
 ```
+
+
+## Launching a Game with RetroRun
+
+To launch a game using RetroRun, it is recommended to create a bash script (retrorun.sh) that accepts three parameters: core, rom, and platform (optional). Below is an example script:
+````
+#!/bin/bash
+
+. /etc/profile
+echo 'Starting RetroRun front-end...'
+CORE="$1"
+ROM="${2##*/}"
+PLATFORM="$3" # Optional
+
+FPS='-f' # Optional
+GPIO_JOYPAD='-g' # Optional
+./retrorun --triggers $FPS $GPIO_JOYPAD -s /storage/roms/"$3" -d /roms/bios "$1" "$2"
+echo 'front-end ended!'
+````
+
+To run the script:
+```shell
+./retrorun.sh /path/to/core /path/to/game name_of_platform
+````
+![WhatsApp Image 2025-03-17 at 14 24 34](https://github.com/user-attachments/assets/22063641-19a5-47c1-a440-9a7b188003df)
+
+
+
+
 
 
 ## Configuration file
@@ -212,6 +168,68 @@ swanstation_GPU_Renderer = Software
 
 ````
 (*) Pay attention to the parameter names, as they follow the naming convention of the core. For example, in some distributions, the Flycast core is named Reicast. In such cases, parameters should be prefixed accordingly—e.g., 'flycast_threaded_rendering' should be renamed to 'reicast_threaded_rendering'.<br>
+
+The configuration file (retrorun.cfg) can be put in the same folder of retrorun executable. By default the configuration file will be search in :
+````
+/storage/.config/distribution/configs/retrorun.cfg
+````
+
+Otherwise anohter path can be specified with the "-c" arg, like this:
+
+````
+retrorun -c /my-path/retrorun.cfg
+````
+
+
+## RetroRun Configuration Parameters
+
+These parameters can be set in the `retrorun.cfg` file:  
+
+General Settings  
+	•	**retrorun_screenshot_folder** = /storage/roms/screenshots (Default screenshot save folder)  <br>
+ 	•	**retrorun_screenshot_folder** = /storage/roms/screenshots (Default screenshot save folder)  <br>
+	•	**retrorun_device_name** = Specifies a custom name for the device (e.g., RG351P, RG552, etc.). Useful for customizing per-device behavior <br>
+ 	•	**retrorun_log_level** = INFO | DEBUG | WARNING | ERROR (Sets the log verbosity level. Default is INFO.) <br>
+ 	•	**retrorun_enable_key_log** = true | false (Enables logging of key/button presses. Useful for identifying input names. Default is false.) <br>
+
+Input Settings  
+	•	**retrorun_force_left_analog_stick** = true | false (Map left analog stick to D-pad, default: true)  <br>
+	•	**retrorun_swap_l1r1_with_l2r2** = true | false (Swap L1/L2 with R1/R2, default: false)  <br>
+	•	**retrorun_swap_sticks** = true | false (Swap left and right analog sticks, default: false)  <br>
+	•	**retrorun_alternative_input_mode** = true | false (Enable OSD toggle with SELECT+X instead of L3+R3, and some alternatives combination to show FPS, take ascreenshot and so on)  <br>
+ 	•	**retrorun_mouse_speed_factor** = int (Defines mouse movement speed in emulators that support mouse input. Default is 5.)  <br>
+
+Device Matching Overrides  <br>
+	These parameters allow you to dynamically extend the list of recognized joypad devices:  <br>
+ 	•	**retrorun_extra_retrogame_name** = string (Adds a joypad name to the list of recognized Retrogame devices)  <br>
+	•	**retrorun_extra_osh_name** = string (Adds a joypad name to the list of recognized OpenSimHardware devices)  <br>
+	•	**retrorun_extra_evdev_name** = /dev/input/by-path/… (Specifies an alternative evdev file for Retrogame devices)  <br>
+	These values are optional: if not defined, they are ignored. They are useful for supporting custom devices or unofficial hardware revisions.  <br>
+
+Save/Load Features  
+	•	**retrorun_auto_save** = true | false (Enable auto-save, default: false)  <br>
+	•	**retrorun_auto_load** = true | false (Enable auto-load, default: same as auto-save)  <br>
+
+Performance Settings  
+	•	**retrorun_loop_60_fps** = true | false (Restrict loop to 60 FPS, default: true)  <br>
+	•	**retrorun_audio_buffer** = -1, 1, 256, 512, 1024, ... (Audio buffer size, default: -1)  <br>
+	•	**retrorun_force_video_multithread** = true | false (Run video tasks in a separate thread, default: varies by device)  <br>
+
+Video Settings  
+	•	**retrorun_tate_mode** = auto | enabled | disabled | reverted (Enable vertical display mode, default: disabled)<br>
+	•	**retrorun_pixel_perfect** = true | false (Enable pixel perfect display, default: disabled)<br>
+	•	**retrorun_fps_counter** = true | false (Display FPS counter, default: false)  <br>
+	•	**retrorun_aspect_ratio** = 2:1 | 4:3 | 5:4 | 16:9 | 16:10 | 1:1 | 3:2 | auto (Aspect ratio, default: core-defined)  <br>
+	•	**retrorun_show_loading_screen** = true| false (Show the Loadig screen during the game loading, default: true)  <br>
+	
+Rumble Settings  
+	•	**retrorun_rumble_type** = pwm | event (Rumble type, default varies by device)  <br>
+	•	**retrorun_rumble_event** = /dev/input/eventX (Override default rumble event file)  <br>
+	•	**retrorun_rumble_pwm_file** = /sys/class/pwm/pwmchip0/pwm0/duty_cycle (Override default PWM file)  <br>
+ 	•	**retrorun_disable_rumble** = true | false (Disables rumble/vibration support. Default is false.)  <br>
+
+
+
 
 
 ## Button configuration
