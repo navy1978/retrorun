@@ -67,7 +67,8 @@ This project adds many improvements and new features to the [retrorun-go2 projec
 	10.	Info Menu displaying device and game information  <br>
 	11.	Working SaveState support for all cores, including   Flycast2021 and Flycast  <br>
 	12.	Rumble support for all cores and devices  <br>
-	13. Hotkeas for SaveState
+	13.     Hotkeas for SaveState
+ 	14.     Buttons configuration
 	13.	Many additional enhancements  <br>
 
 ⸻
@@ -208,11 +209,52 @@ swanstation_GPU_Renderer = Software
 (*) Pay attention to the parameter names, as they follow the naming convention of the core. For example, in some distributions, the Flycast core is named Reicast. In such cases, parameters should be prefixed accordingly—e.g., 'flycast_threaded_rendering' should be renamed to 'reicast_threaded_rendering'.<br>
 
 
+## Button configuration
+To configure button mappings in retrorun.cfg, you can set one or more of the following parameters:
+```
+retrorun_mapping_button_up  
+retrorun_mapping_button_down  
+retrorun_mapping_button_left  
+retrorun_mapping_button_right  
+retrorun_mapping_button_a  
+retrorun_mapping_button_b  
+retrorun_mapping_button_x  
+retrorun_mapping_button_y  
+retrorun_mapping_button_select  
+retrorun_mapping_button_start  
+retrorun_mapping_button_l1  
+retrorun_mapping_button_r1  
+retrorun_mapping_button_l2  
+retrorun_mapping_button_r2  
+retrorun_mapping_button_l3  
+retrorun_mapping_button_r3  
+retrorun_mapping_button_f1  
+retrorun_mapping_button_f2  
+```
+Each parameter should be assigned the corresponding button name you want to map. For example:
+```
+retrorun_mapping_button_x = SELECT
+```
+How to Find the Correct Button Name?
+To identify which button name to use, start retrorun with the following parameters enabled:
+```
+retrorun_elable_key_log = true
+retrorun_log_level = DEBUG
+```
+This will enable logging of button presses. When you press a button, the logs will show output like:
+```
+Joypad button pressed: [BTN_TRIGGER_HAPPY2] - [F2]
+```
+
+In this case, the button name to use is the one shown inside the second set of square brackets, e.g.:
+```
+retrorun_mapping_button_l3 = F2
+```
+
+
 ## Conclusion
 
 RetroRun delivers a streamlined and optimized gaming experience for Anbernic devices, offering enhanced performance, simplified configuration, and broad core compatibility.  <br>
-
-For more details or to contribute, visit the [GitHub repository](https://github.com/navy1978/retrorun).  <br>
 
 ### Development History  
 RetroRun was initially developed by **OtherCrashOverride** until 2020. Since 2021, development has been continued and maintained by **navy1978**.  <br>
