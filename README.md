@@ -4,8 +4,6 @@ RetroRun is a libretro frontend specifically designed for Anbernic devices, incl
 
 This version of RetroRun differs significantly from retrorun-go2, as it encapsulates libgo2 and rg351p-js2box within itself. This eliminates the need for complex joypad configuration or compiling additional libraries. These libraries are not only integrated but also enhanced to provide the best possible experience.
 
-ChangeLog
-
 📄 [Changelog](https://github.com/navy1978/retrorun/blob/master/changelog.txt)
 
 
