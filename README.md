@@ -67,8 +67,8 @@ This project adds many improvements and new features to the [retrorun-go2 projec
 	10.	Info Menu displaying device and game information  <br>
 	11.	Working SaveState support for all cores, including   Flycast2021 and Flycast  <br>
 	12.	Rumble support for all cores and devices  <br>
-	13.     Hotkeas for SaveState
- 	14.     Buttons configuration
+	13.     Hotkeas for SaveState <br>
+ 	14.     Buttons re-mapping <br>
 	13.	Many additional enhancements  <br>
 
 ⸻
