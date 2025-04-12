@@ -101,7 +101,7 @@ static go2_input_button_t f2Button;
 
 
 bool firstExecution = true;
-bool elable_key_log = false;
+bool enable_key_log = false;
 
 
 bool input_slot_memory_plus_requested = false;
@@ -260,8 +260,8 @@ void initButtons(){
     l3Button = Go2InputButton_F2;
     r3Button = Go2InputButton_F5;
     // these are special:
-    f1Button = Go2InputButton_F1;
-    f2Button = Go2InputButton_F2;
+    //f1Button = Go2InputButton_F1;
+    // this is problematic! ask why F2 is needed in alternative stuff
 
      // if the device has a gpio_joypad (RG351MP) some buttons are reverted
      if (gpio_joypad == true){
@@ -271,6 +271,8 @@ void initButtons(){
          l3Button = Go2InputButton_F3;
          r3Button = Go2InputButton_F4;
          logger.log(Logger::DEB, "gpio_joypad type detected");
+     }else{
+        f2Button = Go2InputButton_F2;
      }
  
      if ( isRG503()||isRG353V() || isRG353M() )
@@ -281,6 +283,7 @@ void initButtons(){
          startButton = Go2InputButton_START;
          l3Button = Go2InputButton_THUMBL;
          r3Button = Go2InputButton_THUMBR;   
+         f2Button = Go2InputButton_F2;
          logger.log(Logger::DEB, "RG503/RG353 joypad configuration detected.");
      }else{
         logger.log(Logger::DEB, "RG351 joypad configuration detected.");
@@ -403,7 +406,7 @@ void core_input_poll(void)
         input_exit_requested_firstTime = false;
     }
 
-    if (elable_key_log)
+    if (enable_key_log)
     {
         
             if (go2_input_state_button_get(gamepadState, Go2InputButton_F1) == ButtonState_Pressed) {

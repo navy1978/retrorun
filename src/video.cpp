@@ -125,7 +125,7 @@ bool drawOneFrame;
 
 void video_configure(struct retro_game_geometry *geom)
 {
-    logger.log(Logger::DEB, "Cofiguring video...");
+    logger.log(Logger::DEB, "Configuring video...");
     if (isPPSSPP() && geom->base_height == 0)
     {
         // for PPSSPP is possible to receive geom with 0 values
@@ -313,9 +313,46 @@ uintptr_t core_video_get_current_framebuffer()
 }
 
 
+bool pixel_perfect_max_scaling = true;
 
+void prepareScreenPixelPerfect(int width, int height) {
 
+    int display_height = go2_display_height_get(display);
+    int display_width = go2_display_width_get(display);
 
+    int scaled_w = width;
+    int scaled_h = height;
+
+    if (pixel_perfect_max_scaling ) {
+        int scale_x = display_width / width;
+        int scale_y = display_height / height;
+        int scale = (scale_x < scale_y) ? scale_x : scale_y;
+        if (scale < 1) scale = 1;
+
+        scaled_w = width * scale;
+        scaled_h = height * scale;
+    }
+
+    x = (display_width - scaled_w) / 2;
+    y = (display_height - scaled_h) / 2;
+    w = scaled_w;
+    h = scaled_h;
+
+    
+    if (isWideScreen && !isRG503()) {
+        x = (display_width - scaled_h) / 2;
+        y = (display_height - scaled_w) / 2;
+        w = scaled_h;
+        h = scaled_w;
+    }
+    
+
+    if (first_video_refresh) {
+        logger.log(Logger::DEB,
+            "Pixel perfect mode enabled: max_scaling=%d, x=%d, y=%d, w=%d, h=%d",
+            pixel_perfect_max_scaling, x, y, w, h);
+    }
+}
 
 
 void prepareScreen(int width, int height)
@@ -343,35 +380,23 @@ void prepareScreen(int width, int height)
     
         if (pixel_perfect)
         {
-            // Calculate the maximum integer scaling factor that preserves the aspect ratio and fits within the screen.
-            int native_width = width;
-            int native_height = height;
-    
-            int max_scale_x = go2_display_width_get(display) / native_width;
-            int max_scale_y = go2_display_height_get(display) / native_height;
-            int scale = (max_scale_x < max_scale_y) ? max_scale_x : max_scale_y;
-    
-            if (scale < 1) scale = 1;
-    
-            w = native_width * scale;
-            h = native_height * scale;
-            x = (go2_display_width_get(display) - w) / 2;
-            y = (go2_display_height_get(display) - h) / 2;
-    
-            logger.log(Logger::DEB, "Pixel perfect mode enabled: scale=%d, x=%d, y=%d, w=%d, h=%d", scale, x, y, w, h);
+            prepareScreenPixelPerfect(width,height);
             return;
         }
 
     if (game_aspect_ratio >= 1.0f)
     {
+        if (first_video_refresh)
         logger.log(Logger::DEB, "game is landscape");
         isGameVertical = false;
         if (isWideScreen)
         {
+            if (first_video_refresh)
             logger.log(Logger::DEB, "device is widescreen");
 
             if (isTate())
             {
+                if (first_video_refresh)
                 logger.log(Logger::DEB, "Tate mode active");
                 x = 0;
                 y = 0;
@@ -380,9 +405,11 @@ void prepareScreen(int width, int height)
             }
             else
             {
+                if (first_video_refresh)
                 logger.log(Logger::DEB, "Tate mode not active");
                 if (cmpf(aspect_ratio, screen_aspect_ratio))
                 {
+                    if (first_video_refresh)
                     logger.log(Logger::DEB, "aspect_ratio = screen_aspect_ratio");
                     h = go2_display_height_get(display);
                     w = go2_display_width_get(display);
@@ -391,6 +418,7 @@ void prepareScreen(int width, int height)
                 }
                 else if (aspect_ratio < screen_aspect_ratio)
                 {
+                    if (first_video_refresh)
                     logger.log(Logger::DEB, "aspect_ratio < screen_aspect_ratio");
                     w = go2_display_width_get(display);
                     h = w * aspect_ratio;
@@ -400,6 +428,7 @@ void prepareScreen(int width, int height)
                 }
                 else if (aspect_ratio > screen_aspect_ratio)
                 {
+                    if (first_video_refresh)
                     logger.log(Logger::DEB, "aspect_ratio > screen_aspect_ratio");
                     h = go2_display_height_get(display);
                     if (wideScreenNotRotated()){
@@ -416,12 +445,14 @@ void prepareScreen(int width, int height)
         }
         else
         {
+            if (first_video_refresh)
             logger.log(Logger::DEB, "screen is NOT widescreen");
             
             screen_aspect_ratio = 1 / screen_aspect_ratio; // screen is rotated
 
             if (cmpf(aspect_ratio, screen_aspect_ratio))
             {
+                if (first_video_refresh)
                 logger.log(Logger::DEB, "aspect_ratio = screen_aspect_ratio");
                 h = go2_display_height_get(display);
                 w = go2_display_width_get(display);
@@ -430,6 +461,7 @@ void prepareScreen(int width, int height)
             }
             else if (aspect_ratio < screen_aspect_ratio)
             {
+                if (first_video_refresh)
                 logger.log(Logger::DEB, "aspect_ratio < screen_aspect_ratio");
                 h = go2_display_height_get(display);
                 w = h / aspect_ratio;
@@ -439,6 +471,7 @@ void prepareScreen(int width, int height)
             }
             else if (aspect_ratio > screen_aspect_ratio)
             {
+                if (first_video_refresh)
                 logger.log(Logger::DEB, "aspect_ratio > screen_aspect_ratio");
                 w = go2_display_width_get(display);
                 h = w / aspect_ratio;
@@ -452,9 +485,11 @@ void prepareScreen(int width, int height)
     {
         // the game is vertical
         isGameVertical = true;
+        if (first_video_refresh)
         logger.log(Logger::DEB, "game is portrait (vertical)");
         if (isTate())
         {
+            if (first_video_refresh)
             logger.log(Logger::DEB, "Tate mode is active");
             x = 0;
             y = 0;
@@ -463,9 +498,11 @@ void prepareScreen(int width, int height)
         }
         else
         {
+            if (first_video_refresh)
             logger.log(Logger::DEB, "Tate mode is NOT active");
             if (aspect_ratio < screen_aspect_ratio)
             {
+                if (first_video_refresh)
                 logger.log(Logger::DEB, "aspect_ratio < screen_aspect_ratio");
                 w = go2_display_width_get(display);
                 h = w / aspect_ratio;
@@ -475,6 +512,7 @@ void prepareScreen(int width, int height)
             }
             else if (aspect_ratio > screen_aspect_ratio)
             {
+                if (first_video_refresh)
                 logger.log(Logger::DEB, "aspect_ratio > screen_aspect_ratio");
                 h = go2_display_height_get(display);
                 w = h / aspect_ratio;
@@ -484,7 +522,7 @@ void prepareScreen(int width, int height)
             }
         }
     }
-
+    if (first_video_refresh)
     logger.log(Logger::DEB, "Pixel perfect mode disabled: x=%d, y=%d, w=%d, h=%d", x, y, w, h);
 }
 
@@ -980,11 +1018,11 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         }
     }
 
-    if (first_video_refresh )
-    {
+   /* if (true )
+    {*/
         
         prepareScreen(width, height);
-
+        if (first_video_refresh){
         logger.log(Logger::DEB, "Real aspect_ratio=%f", aspect_ratio);
         logger.log(Logger::DEB, "Screen aspect_ratio=%f\n", screen_aspect_ratio);
         logger.log(Logger::DEB, "Drawing info: w=%d, h=%d, x=%d, y=%d\n", w, h, x, y);
@@ -1007,6 +1045,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         {
             logger.log(Logger::WARN, "Color format:Unknown");
         }
+    }
 
         real_aspect_ratio = aspect_ratio;
         _351BlitRotation = getBlitRotation();
@@ -1014,8 +1053,11 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         last351Rotation = _351Rotation;
         last351BlitRotation = _351BlitRotation;
         first_video_refresh = false;
-    }
+    //}
 
+    if (first_video_refresh){
+        first_video_refresh = false;
+    }
    /* if ( lastPixelPerfect!=pixel_perfect){
         printf("Settgin screen!\n");
         prepareScreen(width, height);

@@ -1,4 +1,12 @@
-RetroRun
+ -= RetroRun - Light Libretro Front-end =-
+
+=======================
+Version 2.7.5 (Apr 12, 2025)
+---------------------------------
+- Fixed "Pixel Perfect" functionality (not working on certain devices)
+- Fixed typo in paramter "retrorun_enable_key_log"
+- Fixed F2 button on OGA devices (thanks to christian_haitian)
+- Minor fixes
 
 =======================
 Version 2.7.4 (Apr 8, 2025)

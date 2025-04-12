@@ -89,4 +89,11 @@ find /sys/devices/platform/ -maxdepth 2 -type d -name "*.gpu" -printf "%f\n"
 https://github.com/AmberELEC/AmberELEC/blob/6a7a49240dc953fa7861b026bced95511a95abe5/packages/amberelec/profile.d/99-distribution.conf
 
 
+----- USEFUL COMMANDS:
+amberelec: systemctl stop emustation & clear > /dev/console
+arkos: sudo systemctl stop emulationstation
+
+ nano /storage/.config/distribution/configs/
+
+ cat /sys/devices/platform/dmc/devfreq/dmc/governor
 */

@@ -37,7 +37,7 @@ extern bool input_ffwd_requested;
 extern bool input_pause_requested;
 extern bool input_credits_requested;
 extern bool input_message;
-extern bool elable_key_log;
+extern bool enable_key_log;
 extern bool input_slot_memory_plus_requested;
 extern bool input_slot_memory_minus_requested;
 extern bool input_slot_memory_load_requested;

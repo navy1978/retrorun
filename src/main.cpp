@@ -1567,13 +1567,13 @@ void initConfig()
 
         try
         {
-            const std::string &asValue = conf_map.at("retrorun_elable_key_log");
-            elable_key_log = asValue == "true" ? true : false;
-            logger.log(Logger::DEB, "retrorun_elable_key_log: %s.", elable_key_log ? "true" : "false");
+            const std::string &asValue = conf_map.at("retrorun_enable_key_log");
+            enable_key_log = asValue == "true" ? true : false;
+            logger.log(Logger::DEB, "retrorun_enable_key_log: %s.", enable_key_log ? "true" : "false");
         }
         catch (...)
         {
-            logger.log(Logger::DEB, "retrorun_elable_key_log parameter not found in retrorun.cfg using default value (%s)",elable_key_log ? "true" : "false");
+            logger.log(Logger::DEB, "retrorun_enable_key_log parameter not found in retrorun.cfg using default value (%s)",enable_key_log ? "true" : "false");
         }
 
 
