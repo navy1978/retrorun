@@ -8,7 +8,7 @@ This version of RetroRun differs significantly from retrorun-go2, as it encapsul
 
 ## Supported Cores (Tested)
 
-RetroRun has been tested and supports the following cores:<br>
+RetroRun has been tested and supports the following cores (using the retrorun.cfg you can find below):<br>
 
 - **Dreamcast**: [Flycast](https://github.com/flyinghead/flycast), [Flycast 2021](https://github.com/libretro/flycast)  <br>
 - **Nintendo 64**: ParaLLEl N64  <br>
