@@ -98,6 +98,7 @@ static go2_input_button_t r3Button;
 // these are special:
 static go2_input_button_t f1Button;
 static go2_input_button_t f2Button;
+bool ignoreF2=true;
 
 
 bool firstExecution = true;
@@ -273,6 +274,7 @@ void initButtons(){
          logger.log(Logger::DEB, "gpio_joypad type detected");
      }else{
         f2Button = Go2InputButton_F2;
+        ignoreF2 = false;
      }
  
      if ( isRG503()||isRG353V() || isRG353M() )
@@ -284,6 +286,7 @@ void initButtons(){
          l3Button = Go2InputButton_THUMBL;
          r3Button = Go2InputButton_THUMBR;   
          f2Button = Go2InputButton_F2;
+         ignoreF2 = false;
          logger.log(Logger::DEB, "RG503/RG353 joypad configuration detected.");
      }else{
         logger.log(Logger::DEB, "RG351 joypad configuration detected.");
@@ -520,7 +523,7 @@ bool isYPressed = go2_input_state_button_get(gamepadState, yButton) == ButtonSta
 bool isBPressed = go2_input_state_button_get(gamepadState, bButton) == ButtonState_Pressed;
 bool isAPressed = go2_input_state_button_get(gamepadState, aButton) == ButtonState_Pressed;
 //bool isF1Pressed = go2_input_state_button_get(gamepadState, f1Button) == ButtonState_Pressed;
-bool isF2Pressed = go2_input_state_button_get(gamepadState, f2Button) == ButtonState_Pressed;
+bool isF2Pressed = ignoreF2 ? false: go2_input_state_button_get(gamepadState, f2Button) == ButtonState_Pressed;
 bool isR2Pressed = go2_input_state_button_get(gamepadState, r2Button) == ButtonState_Pressed;
 bool wasR2Released = go2_input_state_button_get(prevGamepadState, r2Button) == ButtonState_Released;
 
