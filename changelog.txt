@@ -8,6 +8,11 @@
                  -= Light Libretro Front-end =-
 
 =================================
+Version 2.7.6 (May 10, 2025)
+---------------------------------
+- Fixed "F2" button always pressed when retrorun_alternative_input_mode = true (thanks to GazousGit and ciarli-b )
+
+=================================
 Version 2.7.5 (Apr 12, 2025)
 ---------------------------------
 - Fixed "Pixel Perfect" functionality (not working on certain devices)
