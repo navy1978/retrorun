@@ -10,7 +10,7 @@
 =================================
 Version 2.7.6 (May 10, 2025)
 ---------------------------------
-- Fixed "F2" button always pressed when retrorun_alternative_input_mode = true (thanks to GazousGit and ciarli-b for reporting it)
+- Fixed "F2" button always pressed on RG351MP when retrorun_alternative_input_mode = true (thanks to GazousGit and ciarli-b for reporting it)
 
 =================================
 Version 2.7.5 (Apr 12, 2025)
