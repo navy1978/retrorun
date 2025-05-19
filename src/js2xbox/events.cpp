@@ -23,10 +23,15 @@
 #include <unistd.h>
 #include <stdexcept>
 #include <linux/input.h>
+#include <glob.h>
 
 #include "../logger.h"
 #include "../globals.h"
 
+static const char *EVDEV_WILDCARD =
+	"/dev/input/by-path/platform-*-joypad-event-joystick";
+static const char *EVDEV_GENERIC =
+	"/dev/input/by-path/platform-joypad-event-joystick";
 
 #define BITS_PER_LONG (sizeof(long) * 8)
 #define NBITS(x) ((((x)-1)/BITS_PER_LONG)+1)
@@ -60,18 +65,19 @@ int events::is_event_device(const struct dirent *dir) {
 }
 
 const char* find_existing_evdev() {
-    static const char *EVDEV_NAMES[] = {
-        "/dev/input/by-path/platform-odroidgo2-joypad-event-joystick",
-        "/dev/input/by-path/platform-odroidgo3-joypad-event-joystick",
-        "/dev/input/by-path/platform-singleadc-joypad-event-joystick"
-		
-    };
+	glob_t globbuf;
 
-    for (const char* dev : EVDEV_NAMES) {
-		if (access(dev, F_OK) == 0) {
-			return dev;
-		}
+	int rc = glob(EVDEV_WILDCARD, 0, NULL, &globbuf);
+	if (rc == 0) {
+		return *globbuf.gl_pathv;
 	}
+
+	// If glob fails, check for fallback device
+	if (access(EVDEV_GENERIC, F_OK) == 0) {
+		return EVDEV_GENERIC;
+	}
+
+	// Check for extra evdev name if provided
 	if (!events::extra_evdev_name.empty() && access(events::extra_evdev_name.c_str(), F_OK) == 0) {
 		return events::extra_evdev_name.c_str();
 	}
@@ -116,12 +122,12 @@ joypad events::find_event_js(const js_desc** js, js_desc const **out) {
 		// Search for a matching vendor/product
 		for (const js_desc** p = js; *p; ++p) {
 			logger.log(Logger::DEB,
-				"Checking device: [%s] (bus: 0x%x, vendor: 0x%x, product: 0x%x, version: 0x%x) against expected (bus: 0x%x, vendor: 0x%x, product: 0x%x)", 
-				name, 
-				id.bustype, id.vendor, id.product, id.version, 
+				"Checking device: [%s] (bus: 0x%x, vendor: 0x%x, product: 0x%x, version: 0x%x) against expected (bus: 0x%x, vendor: 0x%x, product: 0x%x)",
+				name,
+				id.bustype, id.vendor, id.product, id.version,
 				(*p)->bus, (*p)->vendor, (*p)->product);
 
-				bool isRetrogameJoypad = 
+				bool isRetrogameJoypad =
 				(strcmp(name, "retrogame_joypad") == 0 &&
 				 id.bustype == 0x19 &&
 				 id.vendor == 0x484b &&
@@ -132,7 +138,7 @@ joypad events::find_event_js(const js_desc** js, js_desc const **out) {
 				strcmp(name, "GO-Advance Gamepad (rev 1.1)") == 0 ||
 				(!events::extra_retrogame_name.empty() && strcmp(name, events::extra_retrogame_name.c_str()) == 0);
 
-				bool isOSHController = 
+				bool isOSHController =
 				(strcmp(name, "OpenSimHardware OSH PB Controller") == 0 ||
 				 (!events::extra_osh_name.empty() && strcmp(name, events::extra_osh_name.c_str()) == 0)) &&
 				 id.bustype == (*p)->bus &&
@@ -148,7 +154,7 @@ joypad events::find_event_js(const js_desc** js, js_desc const **out) {
 
 				if (out) *out = *p;
 
-				logger.log(Logger::DEB, "Found matching device: [%s] (id: 0x%04x,0x%04x,0x%04x,0x%04x) on '%s'", 
+				logger.log(Logger::DEB, "Found matching device: [%s] (id: 0x%04x,0x%04x,0x%04x,0x%04x) on '%s'",
 							name, id.bustype, id.vendor, id.product, id.version, fname.c_str());
 
 				// Free remaining memory before returning
@@ -174,17 +180,17 @@ void events::print_info_js(const std::string& fname) {
 	int 		version = 0;
 	unsigned long	bit[EV_MAX][NBITS(KEY_MAX)] = {0};
 	char 		name[256] = "???";
- 
+
 	if(0 > ioctl(f.fd, EVIOCGNAME(sizeof(name)), name)) {
 		sprintf(name, "Unknown name");
 	}
 
 	if(ioctl(f.fd, EVIOCGVERSION, &version))
 		throw std::runtime_error("Can't get EVIOCGVERSION");
- 	
+
 	char	buf[128];
 	snprintf(buf, 128, "%d.%d.%d", version >> 16, (version >> 8) & 0xff, version & 0xff);
-	
+
 	logger.log(Logger::DEB, "Device [%s] on '%s' version: %s", name, fname.c_str(), buf);
 
 	struct input_id id = {0};
@@ -217,11 +223,11 @@ void events::print_info_js(const std::string& fname) {
 					if (i == EV_ABS) {
 						struct input_absinfo abs = {0};
 						ioctl(f.fd, EVIOCGABS(j), &abs);
-						
+
 						char absDetails[128];
 						snprintf(absDetails, sizeof(absDetails),
-								"(%d, %d, %d, %d, %d, %d)", 
-								abs.value, abs.minimum, abs.maximum, 
+								"(%d, %d, %d, %d, %d, %d)",
+								abs.value, abs.minimum, abs.maximum,
 								abs.fuzz, abs.flat, abs.resolution);
 
 						keyLog += std::string(absDetails); // Append absolute data
