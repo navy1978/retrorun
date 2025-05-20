@@ -66,10 +66,14 @@ int events::is_event_device(const struct dirent *dir) {
 
 const char* find_existing_evdev() {
 	glob_t globbuf;
+	char *result = NULL;
 
 	int rc = glob(EVDEV_WILDCARD, 0, NULL, &globbuf);
 	if (rc == 0) {
-		return *globbuf.gl_pathv;
+		result = strdup(globbuf.gl_pathv[0]);
+		globfree(&globbuf);
+
+		return result;
 	}
 
 	// If glob fails, check for fallback device
