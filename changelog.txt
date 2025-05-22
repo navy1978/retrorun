@@ -8,6 +8,11 @@
                  -= Light Libretro Front-end =-
 
 =================================
+Version 2.7.7 (May 22, 2025)
+---------------------------------
+- Used more robust way to detect gamepad and evdev
+
+=================================
 Version 2.7.6 (May 10, 2025)
 ---------------------------------
 - Fixed "F2" button always pressed on RG351MP when retrorun_alternative_input_mode = true (thanks to GazousGit and ciarli-b for reporting it)

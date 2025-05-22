@@ -95,19 +95,28 @@ const char* find_existing_rumble_evdev() {
 
 int contains_gamepad(const char *name) {
     const char *needle = "gamepad";
+
+    if (!name) {
+        return 0; // null check
+    }
     size_t name_len = strlen(name);
     size_t needle_len = strlen(needle);
+
+    if (name_len < needle_len) {
+        return 0; // too short to contain "gamepad"
+    }
 
     for (size_t i = 0; i <= name_len - needle_len; ++i) {
         size_t j = 0;
         while (j < needle_len &&
                tolower((unsigned char)name[i + j]) == needle[j]) {
-            j++;
+            ++j;
         }
-        if (j == needle_len)
-            return 1; // found
+        if (j == needle_len) {
+            return 1; // match found
+        }
     }
-    return 0; // not found
+    return 0; // no match
 }
 
 

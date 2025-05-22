@@ -281,4 +281,4 @@ RetroRun was initially developed by **OtherCrashOverride** until 2020. Since 202
 
 ### Special Thanks  
 A heartfelt thanks to:  <br>
-**Cebion, Christian_Haitian, dhwz, madcat1990, pkegg and Szalik** for their contributions and support.  <br>
+**Cebion, Christian_Haitian, dhwz, madcat1990, pkegg, superdealloc and Szalik** for their contributions and support.  <br>

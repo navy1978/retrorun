@@ -544,6 +544,8 @@ void showCredits(go2_surface_t **surface)
     drawCreditLine(currentY, "madcat1990", WHITE, surface);
     currentY += stepCredits;
     drawCreditLine(currentY, "pkegg", WHITE, surface);
+     currentY += stepCredits;
+    drawCreditLine(currentY, "superdealloc", WHITE, surface);
     currentY += stepCredits;
     drawCreditLine(currentY, "Szalik", WHITE, surface);
 
