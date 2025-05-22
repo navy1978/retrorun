@@ -1581,12 +1581,12 @@ void initConfig()
         {
             const std::string &ssFolderValue = conf_map.at("retrorun_extra_retrogame_name");
             events::extra_retrogame_name= ssFolderValue;
-            logger.log(Logger::DEB, "retrorun_extra_retrogame_name set to:%s", events::extra_retrogame_name);
+            logger.log(Logger::DEB, "retrorun_extra_retrogame_name set to:%s", events::extra_retrogame_name.c_str());
         }
         catch (...)
         {
             logger.log(Logger::DEB, "retrorun_extra_retrogame_name parameter not found in retrorun.cfg using default values.");
-            
+
         }
 
         try
@@ -1606,12 +1606,12 @@ void initConfig()
         {
             const std::string &ssFolderValue = conf_map.at("retrorun_extra_evdev_name");
             events::extra_osh_name= ssFolderValue;
-            logger.log(Logger::DEB, "retrorun_extra_evdev_name set to:%s", events::extra_evdev_name);
+            logger.log(Logger::DEB, "retrorun_extra_evdev_name set to:%s", events::extra_evdev_name.c_str());
         }
         catch (...)
         {
             logger.log(Logger::DEB, "retrorun_extra_evdev_name parameter not found in retrorun.cfg using default values.");
-            
+
         }
 
         try
