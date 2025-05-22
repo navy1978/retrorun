@@ -24,14 +24,14 @@
 #include <stdexcept>
 #include <linux/input.h>
 #include <glob.h>
+#include <ctype.h>
 
 #include "../logger.h"
 #include "../globals.h"
 
-static const char *EVDEV_WILDCARD =
-	"/dev/input/by-path/platform-*-joypad-event-joystick";
-static const char *EVDEV_GENERIC =
-	"/dev/input/by-path/platform-joypad-event-joystick";
+
+static const char *EVDEV_ANY =
+    "/dev/input/by-path/platform*-joypad-event-joystick";
 
 #define BITS_PER_LONG (sizeof(long) * 8)
 #define NBITS(x) ((((x)-1)/BITS_PER_LONG)+1)
@@ -68,7 +68,7 @@ const char* find_existing_evdev() {
 	glob_t globbuf;
 	char *result = NULL;
 
-	int rc = glob(EVDEV_WILDCARD, 0, NULL, &globbuf);
+	int rc = glob(EVDEV_ANY, 0, NULL, &globbuf);
 	if (rc == 0) {
 		result = strdup(globbuf.gl_pathv[0]);
 		globfree(&globbuf);
@@ -76,10 +76,7 @@ const char* find_existing_evdev() {
 		return result;
 	}
 
-	// If glob fails, check for fallback device
-	if (access(EVDEV_GENERIC, F_OK) == 0) {
-		return EVDEV_GENERIC;
-	}
+	
 
 	// Check for extra evdev name if provided
 	if (!events::extra_evdev_name.empty() && access(events::extra_evdev_name.c_str(), F_OK) == 0) {
@@ -93,6 +90,26 @@ const char* find_existing_rumble_evdev() {
     static const char *EVDEV_RUMBLE = "/sys/class/pwm/pwmchip0/pwm0/duty_cycle";
     return (access(EVDEV_RUMBLE, F_OK) == 0) ? EVDEV_RUMBLE : nullptr;
 }
+
+
+
+int contains_gamepad(const char *name) {
+    const char *needle = "gamepad";
+    size_t name_len = strlen(name);
+    size_t needle_len = strlen(needle);
+
+    for (size_t i = 0; i <= name_len - needle_len; ++i) {
+        size_t j = 0;
+        while (j < needle_len &&
+               tolower((unsigned char)name[i + j]) == needle[j]) {
+            j++;
+        }
+        if (j == needle_len)
+            return 1; // found
+    }
+    return 0; // not found
+}
+
 
 joypad events::find_event_js(const js_desc** js, js_desc const **out) {
 	if (!js)
@@ -137,10 +154,8 @@ joypad events::find_event_js(const js_desc** js, js_desc const **out) {
 				 id.vendor == 0x484b &&
 				 id.product == 0x1101 &&
 				 id.version == 0x100) ||
-				strcmp(name, "GO-Super Gamepad") == 0 ||
-				strcmp(name, "GO-Advance Gamepad") == 0 ||
-				strcmp(name, "GO-Advance Gamepad (rev 1.1)") == 0 ||
-				(!events::extra_retrogame_name.empty() && strcmp(name, events::extra_retrogame_name.c_str()) == 0);
+				 contains_gamepad(name) ||
+				 (!events::extra_retrogame_name.empty() && strcmp(name, events::extra_retrogame_name.c_str()) == 0);
 
 				bool isOSHController =
 				(strcmp(name, "OpenSimHardware OSH PB Controller") == 0 ||
