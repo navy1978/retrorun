@@ -1,5 +1,9 @@
 # RetroRun
 
+<p align="center">
+  <img src="assets/retrorun.png" alt="RetroRun logo" width="240">
+</p>
+
 RetroRun is a lightweight libretro frontend for Linux handhelds and desktop
 systems. It was originally designed for Anbernic devices using the GO2/DRM
 graphics stack and now provides a platform abstraction for input, audio and
@@ -43,6 +47,18 @@ SDL2 target produces a separate executable and does not replace `retrorun`.
 - Controller remapping, analog sticks, triggers and rumble.
 - Device, core and game information screens.
 - Per-core libretro options loaded from `retrorun.cfg`.
+
+## On-screen menu
+
+RetroRun includes an OSD menu shared by the native GO2/DRM and SDL2 backends.
+It can pause and resume the active core and provides access to device, core and
+game information, runtime settings, save states, credits and clean shutdown.
+The default controller shortcut is L3 + R3; alternative Select/F2 shortcuts
+can be enabled with `retrorun_alternative_input_mode`.
+
+<p align="center">
+  <img src="assets/menu.png" alt="RetroRun on-screen main menu" width="720">
+</p>
 
 ## Tested cores
 
