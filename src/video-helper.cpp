@@ -20,7 +20,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 #include "globals.h"
 #include "video-helper.h"
-#include <drm/drm_fourcc.h>
 #include <ctime>
 #include <stdlib.h>
 #include <stdio.h>
@@ -30,13 +29,16 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <sys/time.h>
 
 #include <cmath>
+#ifdef RR_PLATFORM_GO2
 #include <sys/sysinfo.h>
+#endif
 
-#include "go2/display.h"
-#include "go2/struct.h"
+#include "platform.h"
+
 #include "fonts.h"
 #include "imgs/imgs_numbers.h"
 #include "input.h"
+#include "system-info.h"
 
 int size_char = 8;
 
@@ -53,7 +55,7 @@ bool direction_forward = true;
 int rowForText = 0;
 int colorInc = 0;
 
-uint32_t format_565 = DRM_FORMAT_RGB565; // DRM_FORMAT_RGB888; // DRM_FORMAT_XRGB8888;//color_format;
+uint32_t format_565 = RR_PIXEL_FORMAT_RGB565; // RR_PIXEL_FORMAT_RGB888; // RR_PIXEL_FORMAT_XRGB8888;//color_format;
 
 int width_fixed = 640;
 int height_fixed = 480;
@@ -83,24 +85,24 @@ unsigned currentHeight = 0;
 auto t_flash_start = std::chrono::high_resolution_clock::now();
 bool flash = false;
 
-extern go2_battery_state_t batteryState;
+extern rr_battery_state_t batteryState;
 
 
-go2_display_t *display= NULL;
-go2_surface_t *surface= NULL;
-go2_surface_t *status_surface_bottom_right= NULL;
-go2_surface_t *status_surface_bottom_center= NULL;
-go2_surface_t *status_surface_bottom_left= NULL;
-go2_surface_t *status_surface_top_right= NULL;
-go2_surface_t *status_surface_top_left= NULL;
-go2_surface_t *status_surface_full= NULL;
+rr_display_t *display= NULL;
+rr_surface_t *surface= NULL;
+rr_surface_t *status_surface_bottom_right= NULL;
+rr_surface_t *status_surface_bottom_center= NULL;
+rr_surface_t *status_surface_bottom_left= NULL;
+rr_surface_t *status_surface_top_right= NULL;
+rr_surface_t *status_surface_top_left= NULL;
+rr_surface_t *status_surface_full= NULL;
 
-go2_surface_t *display_surface= NULL;
-go2_frame_buffer_t *frame_buffer= NULL;
-go2_presenter_t *presenter= NULL;
-go2_context_t *context3D= NULL;
+rr_surface_t *display_surface= NULL;
+rr_frame_buffer_t *frame_buffer= NULL;
+rr_presenter_t *presenter= NULL;
+rr_context_t *context3D= NULL;
 
-go2_surface_t *gles_surface= NULL;
+rr_surface_t *gles_surface= NULL;
 struct timeval valTime2;
 
 
@@ -113,23 +115,26 @@ bool cmpf(float A, float B, float epsilon)
 }
 
 
-go2_rotation getBlitRotation()
+rr_rotation_t getBlitRotation()
 {
+#ifdef RR_PLATFORM_SDL
+    return isTate() ? RR_ROTATION_DEGREES_90 : RR_ROTATION_DEGREES_0;
+#endif
     
     if (isGameVertical) // portrait
     {
         if (!isTate())
         {
 
-            return (hasDeviceRotatedScreen()) ? GO2_ROTATION_DEGREES_0 : GO2_ROTATION_DEGREES_270;
+            return (hasDeviceRotatedScreen()) ? RR_ROTATION_DEGREES_0 : RR_ROTATION_DEGREES_270;
         }
         if (tateState == REVERSED)
         {
-            return (hasDeviceRotatedScreen()) ? GO2_ROTATION_DEGREES_90 : GO2_ROTATION_DEGREES_0;
+            return (hasDeviceRotatedScreen()) ? RR_ROTATION_DEGREES_90 : RR_ROTATION_DEGREES_0;
         }
         else
         {
-            return (hasDeviceRotatedScreen()) ? GO2_ROTATION_DEGREES_270 : GO2_ROTATION_DEGREES_180;
+            return (hasDeviceRotatedScreen()) ? RR_ROTATION_DEGREES_270 : RR_ROTATION_DEGREES_180;
         }
     }
     else // landscape
@@ -137,50 +142,53 @@ go2_rotation getBlitRotation()
 
         if (!isTate() && tateState != REVERSED)
         {
-            return (hasDeviceRotatedScreen()) ? GO2_ROTATION_DEGREES_0 : GO2_ROTATION_DEGREES_270;
+            return (hasDeviceRotatedScreen()) ? RR_ROTATION_DEGREES_0 : RR_ROTATION_DEGREES_270;
         }
         if (tateState == REVERSED)
         {
-            return (hasDeviceRotatedScreen()) ? GO2_ROTATION_DEGREES_90 : GO2_ROTATION_DEGREES_0;
+            return (hasDeviceRotatedScreen()) ? RR_ROTATION_DEGREES_90 : RR_ROTATION_DEGREES_0;
         }
         else
         {
-            return (hasDeviceRotatedScreen()) ? GO2_ROTATION_DEGREES_270 : GO2_ROTATION_DEGREES_180;
+            return (hasDeviceRotatedScreen()) ? RR_ROTATION_DEGREES_270 : RR_ROTATION_DEGREES_180;
         }
     }
 }
 
-go2_rotation getRotation()
+rr_rotation_t getRotation()
 {
+#ifdef RR_PLATFORM_SDL
+    return isTate() ? RR_ROTATION_DEGREES_90 : RR_ROTATION_DEGREES_0;
+#endif
 
     if (isGameVertical) // portrait
     {
         if (!isTate())
         {
-            return (hasDeviceRotatedScreen()) ? GO2_ROTATION_DEGREES_270 : GO2_ROTATION_DEGREES_180;
+            return (hasDeviceRotatedScreen()) ? RR_ROTATION_DEGREES_270 : RR_ROTATION_DEGREES_180;
         }
         if (tateState == REVERSED)
         {
-            return (hasDeviceRotatedScreen()) ? GO2_ROTATION_DEGREES_0 : GO2_ROTATION_DEGREES_270;
+            return (hasDeviceRotatedScreen()) ? RR_ROTATION_DEGREES_0 : RR_ROTATION_DEGREES_270;
         }
         else
         {
-            return (hasDeviceRotatedScreen()) ? GO2_ROTATION_DEGREES_180 : GO2_ROTATION_DEGREES_90;
+            return (hasDeviceRotatedScreen()) ? RR_ROTATION_DEGREES_180 : RR_ROTATION_DEGREES_90;
         }
     }
     else
     { // landscape
         if (!isTate() && tateState != REVERSED)
         {
-            return (hasDeviceRotatedScreen()) ? GO2_ROTATION_DEGREES_0 : GO2_ROTATION_DEGREES_270;
+            return (hasDeviceRotatedScreen()) ? RR_ROTATION_DEGREES_0 : RR_ROTATION_DEGREES_270;
         }
         if (tateState == REVERSED)
         {
-            return (hasDeviceRotatedScreen()) ? GO2_ROTATION_DEGREES_90 : GO2_ROTATION_DEGREES_0;
+            return (hasDeviceRotatedScreen()) ? RR_ROTATION_DEGREES_90 : RR_ROTATION_DEGREES_0;
         }
         else
         {
-            return (hasDeviceRotatedScreen()) ? GO2_ROTATION_DEGREES_270 : GO2_ROTATION_DEGREES_180;
+            return (hasDeviceRotatedScreen()) ? RR_ROTATION_DEGREES_270 : RR_ROTATION_DEGREES_180;
         }
     }
 }
@@ -259,39 +267,39 @@ int getGeom_max_height(const struct retro_game_geometry *geom)
 
 
 
-void showText(int x, int y, const char *text, unsigned short color, go2_surface_t **surface)
+void showText(int x, int y, const char *text, unsigned short color, rr_surface_t **surface)
 {
 
     if (*surface == nullptr)
     {
 
-        *surface = go2_surface_create(display, 200, 20, format_565);
+        *surface = rr_surface_create(display, 200, 20, format_565);
     }
 
-    uint8_t *dst = (uint8_t *)go2_surface_map(*surface);
+    uint8_t *dst = (uint8_t *)rr_surface_map(*surface);
     if (dst == nullptr)
     {
         return;
     }
-    int dst_stride = go2_surface_stride_get(*surface);
+    int dst_stride = rr_surface_stride_get(*surface);
     basic_text_out16_nf_color(dst, dst_stride / 2, x, y, text, color);
 }
 
-void showTextBigger(int x, int y, const char *text, unsigned short color, go2_surface_t **surface)
+void showTextBigger(int x, int y, const char *text, unsigned short color, rr_surface_t **surface)
 {
 
     if (*surface == nullptr)
     {
 
-        *surface = go2_surface_create(display, 150, 20, format_565);
+        *surface = rr_surface_create(display, 150, 20, format_565);
     }
 
-    uint8_t *dst = (uint8_t *)go2_surface_map(*surface);
+    uint8_t *dst = (uint8_t *)rr_surface_map(*surface);
     if (dst == nullptr)
     {
         return;
     }
-    int dst_stride = go2_surface_stride_get(*surface);
+    int dst_stride = rr_surface_stride_get(*surface);
     basic_text_out16_nf_color(dst, dst_stride / 2, x, y, text, color);
     //basic_text_out16x16_nf_color_scaled_from_8x8(dst, dst_stride / 2, x, y, text, color);
 }
@@ -335,7 +343,7 @@ void resetCredisPosition()
 }
 
 
-void showLongCenteredText(int y, const char *text, unsigned short color, go2_surface_t **surface)
+void showLongCenteredText(int y, const char *text, unsigned short color, rr_surface_t **surface)
 {
     static int offset = 0;
     static bool direction_forward = true;
@@ -390,7 +398,7 @@ void showLongCenteredText(int y, const char *text, unsigned short color, go2_sur
 }
 
 
-void showCenteredText(int y, const char *text, unsigned short color, go2_surface_t **surface)
+void showCenteredText(int y, const char *text, unsigned short color, rr_surface_t **surface)
 {
     /*std::string title(text); // The text to scroll
     int title_length = title.length();
@@ -410,7 +418,7 @@ void showCenteredText(int y, const char *text, unsigned short color, go2_surface
 
 
 
-void drawCreditLine(int y, const char *text, unsigned short color, go2_surface_t **surface)
+void drawCreditLine(int y, const char *text, unsigned short color, rr_surface_t **surface)
 {
 
     int currentY = y;
@@ -422,15 +430,30 @@ void drawCreditLine(int y, const char *text, unsigned short color, go2_surface_t
 
 
 
-void showInfoDevice(int w, go2_surface_t **surface, int posX)
+void showInfoDevice(int w, rr_surface_t **surface, int posX)
 {
+#ifdef RR_PLATFORM_SDL
+    const SystemInfo info = querySystemInfo();
+    showCenteredText(getRowForText(), ("Host: " + info.hostname).c_str(), DARKGREY, surface);
+    showCenteredText(getRowForText(), ("Model: " + info.model).c_str(), DARKGREY, surface);
+    showLongCenteredText(getRowForText(), ("OS: " + info.operating_system).c_str(), DARKGREY, surface);
+    showLongCenteredText(getRowForText(), ("CPU: " + info.cpu).c_str(), DARKGREY, surface);
+    showCenteredText(getRowForText(), ("CPU threads: " + std::to_string(info.logical_cpus)).c_str(), DARKGREY, surface);
+    showLongCenteredText(getRowForText(), ("Renderer: " + info.gpu).c_str(), DARKGREY, surface);
+    std::string memory = "RAM: " + std::to_string(info.total_memory_mb) + " MB";
+    if (info.available_memory_mb)
+        memory += " (free " + std::to_string(info.available_memory_mb) + " MB)";
+    showCenteredText(getRowForText(), memory.c_str(), DARKGREY, surface);
+    return;
+#endif
     std::string hostName(getDeviceName());
     hostName = stripReturnCarriage(hostName);
     showCenteredText(getRowForText(), (tabSpaces + "Model: " + hostName).c_str(), DARKGREY, surface);
 
-    struct sysinfo sys_info;
     std::string tot_ram = "Total RAM: N/A";
     std::string free_ram = "Free RAM: N/A";
+#ifdef RR_PLATFORM_GO2
+    struct sysinfo sys_info;
     // std::string procs = "Number of processes: N/A";
     if (sysinfo(&sys_info) == 0)
     {
@@ -441,6 +464,7 @@ void showInfoDevice(int w, go2_surface_t **surface, int posX)
         free_ram = std::to_string(free_ram_val) + " MB";
         // procs = "# of processes:" + std::to_string(number_procs);
     }
+#endif
 
     for (const auto &cpu_info : cpu_info_list)
     {
@@ -457,7 +481,7 @@ void showInfoDevice(int w, go2_surface_t **surface, int posX)
     // showCenteredText(getRowForText(), (procs).c_str(), DARKGREY, surface);
 }
 
-void showInfoCore(int w, go2_surface_t **surface, int posX)
+void showInfoCore(int w, rr_surface_t **surface, int posX)
 {
     std::string core = tabSpaces + "Name: ";
     showCenteredText(getRowForText(), const_cast<char *>(core.append(coreName).c_str()), DARKGREY, surface);
@@ -470,7 +494,7 @@ void showInfoCore(int w, go2_surface_t **surface, int posX)
     showCenteredText(getRowForText(), const_cast<char *>(openGl.append(isOpenGL ? "true" : "false").c_str()), DARKGREY, surface);
 }
 
-void showInfoGame(int w, go2_surface_t **surface, int posX)
+void showInfoGame(int w, rr_surface_t **surface, int posX)
 {
     std::string origFps = tabSpaces + "Orignal FPS: ";
     showCenteredText(getRowForText(), const_cast<char *>(origFps.append(std::to_string((int)originalFps)).c_str()), DARKGREY, surface);
@@ -484,7 +508,7 @@ void showInfoGame(int w, go2_surface_t **surface, int posX)
     showCenteredText(getRowForText(), const_cast<char *>(orientation.append(isGameVertical ? "Portrait" : "Landscape").c_str()), DARKGREY, surface);
 }
 
-void showCredits(go2_surface_t **surface)
+void showCredits(rr_surface_t **surface)
 {
 
     if (time_credit > 0)
@@ -560,7 +584,7 @@ void showCredits(go2_surface_t **surface)
 
 
 
-void showInfo(int w, go2_surface_t **surface)
+void showInfo(int w, rr_surface_t **surface)
 {
 
     rowForText = 0;
@@ -689,12 +713,12 @@ void showNumberSprite(int x, int y, int number, int width, int height, const uin
 {
     int height_sprite = height / 10; // 10 are the total number of sprites present in the image
     int src_stride = width * sizeof(short);
-    uint8_t *dst = (uint8_t *)go2_surface_map(status_surface_top_right);
+    uint8_t *dst = (uint8_t *)rr_surface_map(status_surface_top_right);
     if (dst == nullptr)
     {
         return;
     }
-    int dst_stride = go2_surface_stride_get(status_surface_top_right);
+    int dst_stride = rr_surface_stride_get(status_surface_top_right);
     int brightnessIndex = number;
     src += (brightnessIndex * height_sprite * src_stride); // 18
     dst += x * sizeof(short) + y * dst_stride;
@@ -719,7 +743,7 @@ int getDigit(int n, int position)
 int getWidthFPS()
 {
 
-    return go2_surface_width_get(status_surface_top_right);
+    return rr_surface_width_get(status_surface_top_right);
 }
 
 void showFPSImage()
@@ -731,21 +755,21 @@ void showFPSImage()
     showNumberSprite(x + numbers.width, y, getDigit(capFps, 1), numbers.width, numbers.height, numbers.pixel_data);
 }
 
-void showFullImage_888(int x, int y, int width, int height, const uint8_t *src, go2_surface_t **surface)
+void showFullImage_888(int x, int y, int width, int height, const uint8_t *src, rr_surface_t **surface)
 {
     int bytes = 4;
     // create the different surfaces for the statues
     if (*surface == nullptr)
     {
-        *surface = go2_surface_create(display, width, height, DRM_FORMAT_RGBA8888);
+        *surface = rr_surface_create(display, width, height, RR_PIXEL_FORMAT_RGBA8888);
     }
     int src_stride = width * bytes;
-    uint8_t *dst = (uint8_t *)go2_surface_map(*surface);
+    uint8_t *dst = (uint8_t *)rr_surface_map(*surface);
     if (dst == nullptr)
     {
         return;
     }
-    int dst_stride = go2_surface_stride_get(*surface);
+    int dst_stride = rr_surface_stride_get(*surface);
     src += 0;
     dst += x * bytes + y * dst_stride;
     for (int y = 0; y < height; ++y)
@@ -779,22 +803,22 @@ void showFullImage_888(int x, int y, int width, int height, const uint8_t *src, 
     }
 }
 
-void showFullImage(int x, int y, int width, int height, const uint8_t *src, go2_surface_t **surface)
+void showFullImage(int x, int y, int width, int height, const uint8_t *src, rr_surface_t **surface)
 {
 
     // create the different surfaces for the statues
     if (*surface == nullptr)
     {
 
-        *surface = go2_surface_create(display, width, height, format_565);
+        *surface = rr_surface_create(display, width, height, format_565);
     }
     int src_stride = width * sizeof(short);
-    uint8_t *dst = (uint8_t *)go2_surface_map(*surface);
+    uint8_t *dst = (uint8_t *)rr_surface_map(*surface);
     if (dst == nullptr)
     {
         return;
     }
-    int dst_stride = go2_surface_stride_get(*surface);
+    int dst_stride = rr_surface_stride_get(*surface);
     src += 0;
     dst += x * sizeof(short) + y * dst_stride;
     for (int y = 0; y < height; ++y)
@@ -806,7 +830,7 @@ void showFullImage(int x, int y, int width, int height, const uint8_t *src, go2_
 }
 // refactor
 
-void showImage(Image img, go2_surface_t **surface)
+void showImage(Image img, rr_surface_t **surface)
 {
     showFullImage(0, 0, img.width, img.height, img.pixel_data, surface);
 }
@@ -816,16 +840,16 @@ void showImage(Image img, go2_surface_t **surface)
 void takeScreenshot(int w, int h)
 {
     logger.log(Logger::DEB, "Taking a screenshot!");
-    w = isOpenGL ? gles_surface->width : surface->width;
-    h = isOpenGL ? gles_surface->height : surface->height;
-    go2_surface_t *screenshot = go2_surface_create(display, w, h, DRM_FORMAT_RGB888);
+    w = isOpenGL ? rr_surface_width_get(gles_surface) : rr_surface_width_get(surface);
+    h = isOpenGL ? rr_surface_height_get(gles_surface) : rr_surface_height_get(surface);
+    rr_surface_t *screenshot = rr_surface_create(display, w, h, RR_PIXEL_FORMAT_RGB888);
     if (!screenshot)
     {
-        logger.log(Logger::ERR, "go2_surface_create for screenshot failed.");
+        logger.log(Logger::ERR, "rr_surface_create for screenshot failed.");
         throw std::exception();
     }
 
-    go2_surface_blit(isOpenGL ? gles_surface : surface,
+    rr_surface_blit(isOpenGL ? gles_surface : surface,
                      0, 0, w, h,
                      screenshot,
                      0, 0, w, h,
@@ -833,9 +857,9 @@ void takeScreenshot(int w, int h)
 
     // snap in screenshot directory
     std::string fullPath = screenShotFolder + "/" + romName + "-" + getCurrentTimeForFileName() + ".png";
-    go2_surface_save_as_png(screenshot, fullPath.c_str());
+    rr_surface_save_as_png(screenshot, fullPath.c_str());
     logger.log(Logger::DEB, "Screenshot saved:'%s'\n", fullPath.c_str());
-    go2_surface_destroy(screenshot);
+    rr_surface_destroy(screenshot);
     screenshot_requested = false;
     flash = true;
     t_flash_start = std::chrono::high_resolution_clock::now();
@@ -843,11 +867,11 @@ void takeScreenshot(int w, int h)
 
 
 
-void makeScreenBlackCredits(go2_surface_t *go2_surface, int res_width, int res_height)
+void makeScreenBlackCredits(rr_surface_t *rr_surface, int res_width, int res_height)
 {
     // bool specialCase = (isJaguar() || isBeetleVB() || isDosBox() || isDosCore() || isMame());
     //  res_width = specialCase? res_width * 2 : res_width; // just to be sure to cover the full screen (in some emulators is not enough to use res_width)
-    uint8_t *dst = (uint8_t *)go2_surface_map(go2_surface);
+    uint8_t *dst = (uint8_t *)rr_surface_map(rr_surface);
     if (dst == nullptr)
     {
         return;
@@ -876,16 +900,16 @@ void makeScreenBlackCredits(go2_surface_t *go2_surface, int res_width, int res_h
                 dst[x] = 0x000000; // black color for the rest of the screen
             }
         }
-        dst += go2_surface_stride_get(go2_surface);
+        dst += rr_surface_stride_get(rr_surface);
         --yy;
     }
     colorInc++;
 }
 
-void drawMenuInfoBackgroud(go2_surface_t *go2_surface, int res_width, int res_height)
+void drawMenuInfoBackgroud(rr_surface_t *rr_surface, int res_width, int res_height)
 {
     // this was intended to make the screen black but it contained an error, but I resued because it draws the menu context well
-    uint8_t *dst = (uint8_t *)go2_surface_map(go2_surface);
+    uint8_t *dst = (uint8_t *)rr_surface_map(rr_surface);
     if (dst == nullptr)
     {
         return;
@@ -921,20 +945,20 @@ void drawMenuInfoBackgroud(go2_surface_t *go2_surface, int res_width, int res_he
                 dst[x] = 0x000000;
             }
         }
-        dst += go2_surface_stride_get(go2_surface);
+        dst += rr_surface_stride_get(rr_surface);
         --yy;
     }
 
     // col_increase++;
 }
 
-void makeScreenBlack(go2_surface_t *go2_surface, int res_width, int res_height)
+void makeScreenBlack(rr_surface_t *rr_surface, int res_width, int res_height)
 {
-    uint16_t *dst = (uint16_t *)go2_surface_map(go2_surface);
+    uint16_t *dst = (uint16_t *)rr_surface_map(rr_surface);
     if (dst == nullptr)
         return;
 
-    int stride = go2_surface_stride_get(go2_surface) / sizeof(uint16_t);
+    int stride = rr_surface_stride_get(rr_surface) / sizeof(uint16_t);
 
     for (int y = 0; y < res_height; ++y)
     {
@@ -946,10 +970,10 @@ void makeScreenBlack(go2_surface_t *go2_surface, int res_width, int res_height)
 }
 
 
-void makeScreenTotalBlack(go2_surface_t *go2_surface, int res_width, int res_height)
+void makeScreenTotalBlack(rr_surface_t *rr_surface, int res_width, int res_height)
 {
     // res_width = (isJaguar() || isBeetleVB() || isDosBox() || isDosCore() || isMame()) ? res_width * 2 : res_width; // just to be sure to cover the full screen (in some emulators is not enough to use res_width)
-    uint8_t *dst = (uint8_t *)go2_surface_map(go2_surface);
+    uint8_t *dst = (uint8_t *)rr_surface_map(rr_surface);
     if (dst == nullptr)
     {
         return;
@@ -963,7 +987,7 @@ void makeScreenTotalBlack(go2_surface_t *go2_surface, int res_width, int res_hei
 
             dst[x] = 0x000000;
         }
-        dst += go2_surface_stride_get(go2_surface);
+        dst += rr_surface_stride_get(rr_surface);
         --yy;
     }
 }
@@ -1027,6 +1051,3 @@ void checkPaused()
         pause_requested = false;
     }
 }
-
-
-

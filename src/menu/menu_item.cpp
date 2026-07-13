@@ -193,6 +193,9 @@ std::string MenuItem::getMisUnit()
     || mis_unit_ == "device-type"
     || mis_unit_ == "analog-to-digital"
     || mis_unit_ == "test-rumble"
+    || mis_unit_ == "video-renderer"
+    || mis_unit_ == "video-filter"
+    || mis_unit_ == "video-shader"
     )
     {
         return "";
@@ -230,6 +233,22 @@ const char *aspect_ratio_names[] = {
     "3:2",
     "auto"};
 
+const char *video_renderer_names[] = {
+    "Auto",
+    "Software",
+    "OpenGL EXP",
+    "Vulkan N/A"};
+
+const char *video_filter_names[] = {
+    "Off (default)",
+    "Nearest",
+    "Linear"};
+
+const char *video_shader_names[] = {
+    "Off",
+    "Scanlines",
+    "CRT"};
+
 
     std::string MenuItem::getDeviceType(int deviceIndex)
 {
@@ -258,6 +277,18 @@ std::string MenuItem::getStringValue()
     else if (mis_unit_ == "aspect-ratio")
     {
         return aspect_ratio_names[getValue()];
+    }
+    else if (mis_unit_ == "video-renderer")
+    {
+        return video_renderer_names[getValue()];
+    }
+    else if (mis_unit_ == "video-filter")
+    {
+        return video_filter_names[getValue()];
+    }
+    else if (mis_unit_ == "video-shader")
+    {
+        return video_shader_names[getValue()];
     }
     else if (mis_unit_ == "device-type")
     {

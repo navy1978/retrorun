@@ -247,6 +247,16 @@ void getCpuInfo()
 
 const char *getDeviceName() noexcept
 {
+#ifdef RR_PLATFORM_SDL
+    if (!deviceInitialized)
+    {
+        std::strncpy(DEVICE_NAME, "SDL2 macOS", DEVICE_NAME_SIZE - 1);
+        DEVICE_NAME[DEVICE_NAME_SIZE - 1] = '\0';
+        gpu_name = "SDL2 renderer";
+        deviceInitialized = true;
+    }
+    return DEVICE_NAME;
+#endif
 
     if (!deviceInitialized)
     {

@@ -18,7 +18,9 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 #pragma once
+#ifdef RR_PLATFORM_GO2
 #include <linux/input.h>
+#endif
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -44,4 +46,3 @@ extern bool disableRumble; // to disable rumble
 
 
 bool retrorun_input_set_rumble(unsigned port, enum retro_rumble_effect effect, uint16_t strength);
-

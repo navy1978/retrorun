@@ -35,7 +35,7 @@ void Logger::log(LogLevel level, const char* format, ...) {
         if (len == 0 || format[len - 1] != '\n') {
             printf("\n");
         }
-        
+        fflush(stdout);
     }
 }
 

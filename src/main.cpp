@@ -25,20 +25,20 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "audio.h"
 #include "input.h"
 #include "rumble.h"
+#ifdef RR_PLATFORM_SDL
+#include <SDL.h>
+#endif
 #include <functional>
 
 #include <unistd.h>   // Per la funzione access()
 #include <cstdio>     // Per std::printf
 #include <cstdlib>    // Per std::free
+#include <cmath>
 #include <sys/stat.h> // Per le funzioni stat()
+#include <sys/mman.h>
 #include <ctime>      // Per le funzioni localtime() e strftime()
 
 #include <unistd.h>
-
-// #include <go2/queue.h>
-
-#include <linux/dma-buf.h>
-#include <sys/ioctl.h>
 
 #include "libretro.h"
 #include <dlfcn.h>
@@ -52,15 +52,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <vector>
 #include <regex>
 
-#define EGL_EGLEXT_PROTOTYPES
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
-
-#include <drm/drm_fourcc.h>
 #include <sys/time.h>
-#include <go2/input.h>
+#include "platform.h"
 
 #include <signal.h>
 #include <string>
@@ -89,9 +82,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 static struct retro_perf_counter *perf_counters[MAX_COUNTERS];
 static int perf_counter_count = 0;
 typedef int64_t retro_time_t;
-extern go2_brightness_state_t brightnessState;
+extern rr_brightness_state_t brightnessState;
 
 retro_hw_context_reset_t retro_context_reset;
+retro_hw_context_reset_t retro_context_destroy;
 
 const char *opt_savedir = ".";
 const char *opt_systemdir = ".";
@@ -105,7 +99,17 @@ const char *arg_rom = "";
 typedef std::map<std::string, std::string> varmap_t;
 varmap_t variables;
 int exitFlag = -1;
+rr_video_filter_t videoFilter = RR_VIDEO_FILTER_DEFAULT;
+rr_video_shader_t videoShader = RR_VIDEO_SHADER_OFF;
+std::string activeConfigFile;
+#ifdef RR_PLATFORM_SDL
+enum class SDLVideoRenderer { Auto = 0, Software, OpenGL, Vulkan };
+SDLVideoRenderer sdlVideoRenderer = SDLVideoRenderer::Auto;
+bool sdlVsync = false;
+const char *opt_setting_file = "./retrorun.cfg";
+#else
 const char *opt_setting_file = "/storage/.config/distribution/configs/retrorun.cfg"; // In AmberElec retrorun.cfg is in this folder
+#endif
 
 bool opt_show_fps = false;
 bool auto_save = false;
@@ -311,7 +315,7 @@ void initMapConfig(std::string pathConfFile)
         }
         catch (...)
         {
-            logger.log(Logger::ERR, "Error reading configuration file, key:%s", key);
+            logger.log(Logger::ERR, "Error reading configuration file, key:%s", key.c_str());
         }
     }
     logger.log(Logger::DEB, "Configuration loaded!");
@@ -320,13 +324,15 @@ void initMapConfig(std::string pathConfFile)
     file_in.close();
 }
 
-static __eglMustCastToProperFunctionPointerType get_proc_address(const char *sym)
+#ifdef RR_PLATFORM_GO2
+static retro_proc_address_t get_proc_address(const char *sym)
 {
-    __eglMustCastToProperFunctionPointerType result = eglGetProcAddress(sym);
+    retro_proc_address_t result = reinterpret_cast<retro_proc_address_t>(rr_context_get_proc_address(sym));
     logger.log(Logger::DEB, "get_proc_address: sym='%s', result=%p", sym, (void *)result);
 
     return result;
 }
+#endif
 
 /*static std::string trim(std::string str)
 {
@@ -362,18 +368,18 @@ static bool core_environment(unsigned cmd, void *data)
         switch (fmt)
         {
         case RETRO_PIXEL_FORMAT_0RGB1555:
-            logger.log(Logger::DEB, "RETRO_ENVIRONMENT_SET_PIXEL_FORMAT: DRM_FORMAT_RGBA5551");
-            color_format = DRM_FORMAT_RGBA5551;
+            logger.log(Logger::DEB, "RETRO_ENVIRONMENT_SET_PIXEL_FORMAT: RR_PIXEL_FORMAT_RGBA5551");
+            color_format = RR_PIXEL_FORMAT_RGBA5551;
             break;
 
         case RETRO_PIXEL_FORMAT_RGB565:
-            logger.log(Logger::DEB, "RETRO_ENVIRONMENT_SET_PIXEL_FORMAT: DRM_FORMAT_RGB565");
-            color_format = DRM_FORMAT_RGB565;
+            logger.log(Logger::DEB, "RETRO_ENVIRONMENT_SET_PIXEL_FORMAT: RR_PIXEL_FORMAT_RGB565");
+            color_format = RR_PIXEL_FORMAT_RGB565;
             break;
 
         case RETRO_PIXEL_FORMAT_XRGB8888:
-            logger.log(Logger::DEB, "RETRO_ENVIRONMENT_SET_PIXEL_FORMAT: DRM_FORMAT_XRGB8888");
-            color_format = DRM_FORMAT_XRGB8888;
+            logger.log(Logger::DEB, "RETRO_ENVIRONMENT_SET_PIXEL_FORMAT: RR_PIXEL_FORMAT_XRGB8888");
+            color_format = RR_PIXEL_FORMAT_XRGB8888;
             break;
 
         default:
@@ -403,14 +409,71 @@ static bool core_environment(unsigned cmd, void *data)
 
     case RETRO_ENVIRONMENT_GET_PREFERRED_HW_RENDER:
     {
+#ifdef RR_PLATFORM_SDL
+        unsigned int *preferred = static_cast<unsigned int *>(data);
+        if (sdlVideoRenderer == SDLVideoRenderer::Software) {
+            *preferred = RETRO_HW_CONTEXT_NONE;
+            logger.log(Logger::DEB, "SDL renderer preference: software");
+        } else if (sdlVideoRenderer == SDLVideoRenderer::Vulkan) {
+            *preferred = RETRO_HW_CONTEXT_VULKAN;
+            logger.log(Logger::WARN, "SDL renderer preference: Vulkan (not available in this build)");
+        } else {
+#ifdef RR_SDL_GLES
+            *preferred = RETRO_HW_CONTEXT_OPENGLES3;
+            logger.log(Logger::DEB, "SDL renderer preference: OpenGL ES 3");
+#else
+            *preferred = RETRO_HW_CONTEXT_OPENGL_CORE;
+            logger.log(Logger::DEB, "SDL renderer preference: OpenGL Core");
+#endif
+        }
+        return true;
+#else
         logger.log(Logger::DEB, "RETRO_ENVIRONMENT_SET_PIXEL_FORMAT: preferred OPENGLES3");
         unsigned int *preferred = (unsigned int *)data;
         *preferred = RETRO_HW_CONTEXT_OPENGLES3;
         return true;
+#endif
     }
 
     case RETRO_ENVIRONMENT_SET_HW_RENDER:
     {
+#ifdef RR_PLATFORM_SDL
+        retro_hw_render_callback *hw = static_cast<retro_hw_render_callback *>(data);
+        if (sdlVideoRenderer == SDLVideoRenderer::Software) {
+            logger.log(Logger::WARN, "SDL software renderer selected; rejecting hardware context type %d", hw->context_type);
+            return false;
+        }
+        if (hw->context_type == RETRO_HW_CONTEXT_VULKAN ||
+            sdlVideoRenderer == SDLVideoRenderer::Vulkan) {
+            logger.log(Logger::ERR, "Vulkan requires a libretro Vulkan interface and MoltenVK; unavailable in this build");
+            return false;
+        }
+#ifdef RR_SDL_GLES
+        if (hw->context_type != RETRO_HW_CONTEXT_OPENGLES_VERSION &&
+            hw->context_type != RETRO_HW_CONTEXT_OPENGLES3 &&
+            hw->context_type != RETRO_HW_CONTEXT_OPENGLES2) {
+            logger.log(Logger::WARN, "SDL OpenGL ES backend cannot provide requested context type %d", hw->context_type);
+            return false;
+        }
+#else
+        if (hw->context_type != RETRO_HW_CONTEXT_OPENGL &&
+            hw->context_type != RETRO_HW_CONTEXT_OPENGL_CORE) {
+            logger.log(Logger::WARN, "SDL OpenGL backend cannot provide requested context type %d", hw->context_type);
+            return false;
+        }
+#endif
+
+        isOpenGL = true;
+        GLContextMajor = hw->version_major;
+        GLContextMinor = hw->version_minor;
+        retro_context_reset = hw->context_reset;
+        retro_context_destroy = hw->context_destroy;
+        hw->get_current_framebuffer = core_video_get_current_framebuffer;
+        hw->get_proc_address = (retro_hw_get_proc_address_t)rr_context_get_proc_address;
+        logger.log(Logger::DEB, "SDL HW render accepted: type=%d, version=%d.%d",
+                   hw->context_type, GLContextMajor, GLContextMinor);
+        return true;
+#else
         retro_hw_render_callback *hw = (retro_hw_render_callback *)data;
         logger.log(Logger::DEB, "RETRO_ENVIRONMENT_SET_HW_RENDER: context_type=%d", hw->context_type);
 
@@ -432,6 +495,7 @@ static bool core_environment(unsigned cmd, void *data)
                    hw->context_type, GLContextMajor, GLContextMinor);
 
         return true;
+#endif
     }
 
     case RETRO_ENVIRONMENT_SET_VARIABLES:
@@ -784,9 +848,9 @@ void *unload(void *arg)
     if (g_retro.handle)
     {
         dlclose(g_retro.handle);
-        exitFlag = 0;
     }
-    throw std::runtime_error("Force exiting retrorun.\n");
+    exitFlag = 0;
+    return nullptr;
 }
 
 static const char *FileNameFromPath(const char *fullpath)
@@ -887,8 +951,10 @@ static int LoadState(const char *saveName)
     main_thread_id = pthread_self();
     fflush(stdout);
     pthread_mutex_lock(&stateMutex);
+#ifdef RR_PLATFORM_GO2
     glFinish();
     glFlush();
+#endif
     mprotect(ptr, size, PROT_READ);
     bool result = g_retro.retro_unserialize(ptr, size);
     mprotect(ptr, size, PROT_READ | PROT_WRITE);
@@ -1104,8 +1170,12 @@ const char *aspect_ratio_names_array[] = {
     "3:2",
     "auto"};
 
+static bool persistVideoSetting(const std::string &setting, const std::string &value);
+
 int getClosestValue(float value)
 {
+    if (value <= 0.0f)
+        return 7; // auto / core-provided aspect ratio
     int result = 1; // 4:3 by default
     // we need to refresh the game_aspect_ratio
     // float current_game_aspect_ratio = game_aspect_ratio == 0.0f ? aspect_ratio : game_aspect_ratio;
@@ -1137,17 +1207,14 @@ int getClosestValue(float value)
 
 int getAspectRatioSettings()
 {
-
-    int result = getClosestValue(aspect_ratio);
-
-    return result;
+    return opt_aspect == 0.0f ? 7 : getClosestValue(opt_aspect);
 }
 
 auto setAspectRatioSettings = [](int button) -> std::function<void(int)>
 {
     const int aspect_ratio_count = sizeof(aspect_ratio_names_array) / sizeof(aspect_ratio_names_array[0]);
 
-    int currentIndex = getClosestValue(aspect_ratio);
+    int currentIndex = getAspectRatioSettings();
 
     if (button == RIGHT)
     {
@@ -1162,12 +1229,14 @@ auto setAspectRatioSettings = [](int button) -> std::function<void(int)>
     {
         currentIndex = aspect_ratio_count - 1;
     }
-    else if (currentIndex >= aspect_ratio_count - 1)
+    else if (currentIndex >= aspect_ratio_count)
     {
         currentIndex = 0;
     }
-    aspect_ratio = getAspectRatio(aspect_ratio_names_array[currentIndex]);
+    opt_aspect = getAspectRatio(aspect_ratio_names_array[currentIndex]);
+    aspect_ratio = opt_aspect == 0.0f ? game_aspect_ratio : opt_aspect;
     prepareScreen(currentWidth, currentHeight);
+    persistVideoSetting("retrorun_aspect_ratio", aspect_ratio_names_array[currentIndex]);
     return std::function<void(int)>();
 };
 
@@ -1295,6 +1364,7 @@ void initConfig()
         config_file = opt_setting_file; // Use the default config file
     }
     std::ifstream infile(config_file);
+    activeConfigFile = config_file;
 
     if (!infile.good())
     {
@@ -1340,8 +1410,13 @@ void initConfig()
         }
         catch (...)
         {
+#ifdef RR_PLATFORM_SDL
+            logger.log(Logger::DEB, "retrorun_screenshot_folder parameter not found; using current directory.");
+            screenShotFolder = ".";
+#else
             logger.log(Logger::DEB, "retrorun_screenshot_folder parameter not found in retrorun.cfg using default folder (/storage/roms/screenshots).");
             screenShotFolder = "/storage/roms/screenshots";
+#endif
         }
 
         try
@@ -1355,6 +1430,65 @@ void initConfig()
             logger.log(Logger::DEB, "retrorun_fps_counter parameter not found in retrorun.cfg using defaulf value (disabled).");
             input_fps_requested = false;
         }
+
+#ifdef RR_PLATFORM_SDL
+        try
+        {
+            const std::string &renderer = conf_map.at("retrorun_video_renderer");
+            if (renderer == "auto") sdlVideoRenderer = SDLVideoRenderer::Auto;
+            else if (renderer == "software") sdlVideoRenderer = SDLVideoRenderer::Software;
+            else if (renderer == "opengl") sdlVideoRenderer = SDLVideoRenderer::OpenGL;
+            else if (renderer == "vulkan") sdlVideoRenderer = SDLVideoRenderer::Vulkan;
+            else logger.log(Logger::WARN, "Unknown retrorun_video_renderer '%s'; using auto", renderer.c_str());
+            logger.log(Logger::DEB, "retrorun_video_renderer: %s", renderer.c_str());
+        }
+        catch (...)
+        {
+            logger.log(Logger::DEB, "retrorun_video_renderer not found; using auto");
+        }
+
+        try
+        {
+            const std::string &value = conf_map.at("retrorun_vsync");
+            sdlVsync = value == "true" || value == "enabled" || value == "1";
+            logger.log(Logger::DEB, "retrorun_vsync: %s", sdlVsync ? "true" : "false");
+        }
+        catch (...)
+        {
+            logger.log(Logger::DEB, "retrorun_vsync not found; using false");
+        }
+        rr_video_vsync_set(sdlVsync);
+#endif
+
+        try
+        {
+            const std::string &value = conf_map.at("retrorun_video_filter");
+            if (value == "nearest") videoFilter = RR_VIDEO_FILTER_NEAREST;
+            else if (value == "linear") videoFilter = RR_VIDEO_FILTER_LINEAR;
+            else if (value == "off" || value == "default") videoFilter = RR_VIDEO_FILTER_DEFAULT;
+            else logger.log(Logger::WARN, "Unknown retrorun_video_filter '%s'; using off", value.c_str());
+            logger.log(Logger::DEB, "retrorun_video_filter: %s", value.c_str());
+        }
+        catch (...)
+        {
+            logger.log(Logger::DEB, "retrorun_video_filter not found; using off");
+        }
+        rr_video_filter_set(videoFilter);
+
+        try
+        {
+            const std::string &value = conf_map.at("retrorun_video_shader");
+            if (value == "scanlines") videoShader = RR_VIDEO_SHADER_SCANLINES;
+            else if (value == "crt") videoShader = RR_VIDEO_SHADER_CRT;
+            else if (value == "off" || value == "none") videoShader = RR_VIDEO_SHADER_OFF;
+            else logger.log(Logger::WARN, "Unknown retrorun_video_shader '%s'; using off", value.c_str());
+            logger.log(Logger::DEB, "retrorun_video_shader: %s", value.c_str());
+        }
+        catch (...)
+        {
+            logger.log(Logger::DEB, "retrorun_video_shader not found; using off");
+        }
+        rr_video_shader_set(videoShader);
 
         if (opt_aspect != 0.0f)
         {
@@ -1593,7 +1727,7 @@ void initConfig()
         {
             const std::string &ssFolderValue = conf_map.at("retrorun_extra_osh_name");
             events::extra_osh_name= ssFolderValue;
-            logger.log(Logger::DEB, "retrorun_extra_osh_name set to:%s", events::extra_osh_name);
+            logger.log(Logger::DEB, "retrorun_extra_osh_name set to:%s", events::extra_osh_name.c_str());
         }
         catch (...)
         {
@@ -1713,8 +1847,116 @@ auto setLockDeclaredFPS = [](int button) -> std::function<void(int)>
     return std::function<void(int)>();
 };
 
+static bool persistVideoSetting(const std::string &setting, const std::string &value)
+{
+    std::ifstream input(activeConfigFile);
+    if (!input.good()) return false;
 
-/*
+    std::vector<std::string> lines;
+    std::string line;
+    bool replaced = false;
+    while (std::getline(input, line)) {
+        std::string key = line.substr(0, line.find('='));
+        trim(key);
+        if (key == setting) {
+            line = setting + " = " + value;
+            replaced = true;
+        }
+        lines.push_back(line);
+    }
+    input.close();
+    if (!replaced)
+        lines.push_back(setting + " = " + value);
+
+    std::ofstream output(activeConfigFile, std::ios::trunc);
+    if (!output.good()) return false;
+    for (const std::string &entry : lines) output << entry << '\n';
+    return true;
+}
+
+#ifdef RR_PLATFORM_SDL
+int getSDLVideoRenderer()
+{
+    return static_cast<int>(sdlVideoRenderer);
+}
+
+auto setSDLVideoRenderer = [](int button) -> std::function<void(int)>
+{
+    static const char *names[] = {"auto", "software", "opengl", "vulkan"};
+    int renderer = static_cast<int>(sdlVideoRenderer);
+    if (button == LEFT) renderer = (renderer + 3) % 4;
+    if (button == RIGHT) renderer = (renderer + 1) % 4;
+    sdlVideoRenderer = static_cast<SDLVideoRenderer>(renderer);
+    if (persistVideoSetting("retrorun_video_renderer", names[renderer]))
+        logger.log(Logger::WARN, "Video renderer saved; restart RetroRun to apply it");
+    else
+        logger.log(Logger::ERR, "Unable to save video renderer in '%s'", activeConfigFile.c_str());
+    return std::function<void(int)>();
+};
+
+int getSDLVsync()
+{
+    return sdlVsync ? 1 : 0;
+}
+
+auto setSDLVsync = [](int button) -> std::function<void(int)>
+{
+    if (button != LEFT && button != RIGHT)
+        return std::function<void(int)>();
+
+    sdlVsync = !sdlVsync;
+    const bool applied = rr_video_vsync_set(sdlVsync);
+    if (!persistVideoSetting("retrorun_vsync", sdlVsync ? "true" : "false"))
+        logger.log(Logger::ERR, "Unable to save VSync in '%s'", activeConfigFile.c_str());
+    if (!applied)
+        logger.log(Logger::WARN, "SDL could not apply VSync on the active renderer");
+    else
+        logger.log(Logger::DEB, "VSync %s", sdlVsync ? "enabled" : "disabled");
+    return std::function<void(int)>();
+};
+#endif
+
+int getVideoFilter()
+{
+    return static_cast<int>(videoFilter);
+}
+
+auto setVideoFilter = [](int button) -> std::function<void(int)>
+{
+    if (button != LEFT && button != RIGHT)
+        return std::function<void(int)>();
+    int value = static_cast<int>(videoFilter);
+    if (button == LEFT) value = (value + 2) % 3;
+    if (button == RIGHT) value = (value + 1) % 3;
+    videoFilter = static_cast<rr_video_filter_t>(value);
+    rr_video_filter_set(videoFilter);
+    static const char *names[] = {"off", "nearest", "linear"};
+    if (!persistVideoSetting("retrorun_video_filter", names[value]))
+        logger.log(Logger::ERR, "Unable to save video filter in '%s'", activeConfigFile.c_str());
+    return std::function<void(int)>();
+};
+
+int getVideoShader()
+{
+    return static_cast<int>(videoShader);
+}
+
+auto setVideoShader = [](int button) -> std::function<void(int)>
+{
+    if (button != LEFT && button != RIGHT)
+        return std::function<void(int)>();
+    int value = static_cast<int>(videoShader);
+    if (button == LEFT) value = (value + 2) % 3;
+    if (button == RIGHT) value = (value + 1) % 3;
+    videoShader = static_cast<rr_video_shader_t>(value);
+    rr_video_shader_set(videoShader);
+    static const char *names[] = {"off", "scanlines", "crt"};
+    if (!persistVideoSetting("retrorun_video_shader", names[value]))
+        logger.log(Logger::ERR, "Unable to save video shader in '%s'", activeConfigFile.c_str());
+    logger.log(Logger::WARN, "Video shader saved; restart RetroRun to apply it on every backend");
+    return std::function<void(int)>();
+};
+
 int getPixelPerfect()
 {
     return pixel_perfect ? 1 : 0;
@@ -1725,9 +1967,11 @@ auto setPixelPerfect = [](int button) -> std::function<void(int)>
     if (button == LEFT || button == RIGHT)
     {
         pixel_perfect = !pixel_perfect;
+        prepareScreen(currentWidth, currentHeight);
+        persistVideoSetting("retrorun_pixel_perfect", pixel_perfect ? "true" : "false");
     }
     return std::function<void(int)>();
-};*/
+};
 
 int getAudioDisabled()
 {
@@ -1819,7 +2063,7 @@ auto setBrightnessValue = [](int button) -> std::function<void(int)>
             selectedBrigthness = step_left_right; // preventiing black screenn
         if (selectedBrigthness > 100)
             selectedBrigthness = 100;
-        go2_input_brightness_write(selectedBrigthness);
+        rr_input_brightness_write(selectedBrigthness);
     }
     else if (button == RIGHT)
     {
@@ -1828,7 +2072,7 @@ auto setBrightnessValue = [](int button) -> std::function<void(int)>
             selectedBrigthness = step_left_right; // preventiing black screenn
         if (selectedBrigthness > 100)
             selectedBrigthness = 100;
-        go2_input_brightness_write(selectedBrigthness);
+        rr_input_brightness_write(selectedBrigthness);
     }
     return std::function<void(int)>();
 };
@@ -1964,7 +2208,7 @@ auto loadSaveSlot = [](int slotNumber, std::string type) -> std::function<void(i
 
             if (type == "Load")
             {
-                logger.log(Logger::DEB, "loading file :%s\n", savePath1);
+                logger.log(Logger::DEB, "loading file :%s\n", savePath1.c_str());
                 int loaded=LoadState(savePath1.c_str());
                 if (loaded<0){
                     lastLoadSaveStateDoneOk =false;
@@ -2192,8 +2436,8 @@ int main(int argc, char *argv[])
     core_load_game(arg_rom);
     // conf_map.clear();
 
-    go2_input_state_t *gamepadState = input_gampad_current_get();
-    if (go2_input_state_button_get(gamepadState, Go2InputButton_F1) == ButtonState_Pressed)
+    rr_input_state_t *gamepadState = input_gampad_current_get();
+    if (rr_input_state_button_get(gamepadState, RRInputButton_F1) == RRButtonState_Pressed)
     {
         logger.log(Logger::WARN, "Forcing restart due to button press (F1)...");
         opt_restart = true;
@@ -2413,9 +2657,15 @@ int main(int argc, char *argv[])
 
     std::vector<MenuItem> itemsVideo = {
         MenuItem("Aspect ratio", getAspectRatioSettings, setAspectRatioSettings, "aspect-ratio"),
+        MenuItem("Pixel perfect", getPixelPerfect, setPixelPerfect, "bool"),
         MenuItem("Lock FPS", getLockDeclaredFPS, setLockDeclaredFPS, "bool"),
+#ifdef RR_PLATFORM_SDL
+        MenuItem("Renderer (restart)", getSDLVideoRenderer, setSDLVideoRenderer, "video-renderer"),
+        MenuItem("VSync", getSDLVsync, setSDLVsync, "bool"),
+#endif
+        MenuItem("Video filter", getVideoFilter, setVideoFilter, "video-filter"),
+        MenuItem("Shader (restart)", getVideoShader, setVideoShader, "video-shader"),
         MenuItem("Tate mode", getTateMode, setTateMode, "rotation"),
-       // MenuItem("Pixel Perfet", getPixelPerfect, setPixelPerfect, "bool"),
     };
 
 
@@ -2488,9 +2738,14 @@ int main(int argc, char *argv[])
     menuManager.setCurrentMenu(&menu);
     // end menu
     auto frameDuration = duration_cast<nanoseconds>(seconds(1)) / max_fps;
+#ifdef RR_PLATFORM_SDL
+    auto nextFrameDeadline = steady_clock::now();
+#endif
     while (isRunning)
     {
+#ifndef RR_PLATFORM_SDL
         auto loopStart = high_resolution_clock::now();
+#endif
         input_message = false;
         auto nextClock = std::chrono::high_resolution_clock::now();
         // double deltaTime = (nextClock - prevClock).count() / 1e9;
@@ -2502,7 +2757,16 @@ int main(int argc, char *argv[])
             totalFrames = 0; // reset total frames otherwise in next loop FPS are not accurate anymore
             core_input_poll();
             core_video_refresh(nullptr, 0, 0, 0);
-            // std::this_thread::sleep_for(std::chrono::nanoseconds((int64_t)(10 * 1e6)));
+#ifdef RR_PLATFORM_SDL
+            // Menu animations are frame based. Keep the menu on the same
+            // clock as gameplay instead of spinning as fast as the CPU allows.
+            nextFrameDeadline += duration_cast<steady_clock::duration>(frameDuration);
+            const auto now = steady_clock::now();
+            if (nextFrameDeadline > now)
+                std::this_thread::sleep_until(nextFrameDeadline);
+            else if (now - nextFrameDeadline > frameDuration)
+                nextFrameDeadline = now;
+#endif
             continue;
         }
         else if (realPause)
@@ -2555,17 +2819,34 @@ int main(int argc, char *argv[])
             input_slot_memory_minus_requested=false;
         
         }
+#ifdef RR_PLATFORM_SDL
+        // Use absolute deadlines so scheduler oversleep does not accumulate.
+        // Keep the core's declared rate as the primary clock. Optional VSync
+        // only synchronizes presentation and also works on high-refresh displays.
+        if (runLoopAtDeclaredfps && !input_ffwd_requested)
+        {
+            nextFrameDeadline += duration_cast<steady_clock::duration>(frameDuration);
+            const auto now = steady_clock::now();
+            if (nextFrameDeadline > now)
+                std::this_thread::sleep_until(nextFrameDeadline);
+            else if (now - nextFrameDeadline > frameDuration)
+                nextFrameDeadline = now;
+        }
+        else
+        {
+            nextFrameDeadline = steady_clock::now();
+        }
+#else
         auto loopEnd = high_resolution_clock::now();
         auto loopDuration = duration_cast<nanoseconds>(loopEnd - loopStart);
 
-        // Calculate the remaining time to meet the frame duration
+        // Preserve the original GO2/AmberELEC pacing path.
         auto sleepTime = frameDuration - loopDuration;
-
-        // If the remaining time is positive, sleep to ensure fixed frame rate
         if ((runLoopAtDeclaredfps && sleepTime > nanoseconds::zero()) && !input_ffwd_requested)
         {
             std::this_thread::sleep_for(sleepTime * 0.99);
         }
+#endif
 
         /*if ((runLoopAtDeclaredfps && sleepSecs > 0) && !input_ffwd_requested)
         {
@@ -2577,7 +2858,11 @@ int main(int argc, char *argv[])
 
         totalFrames++;
         elapsed += (totClock - nextClock).count() / 1e9;
+#ifdef RR_PLATFORM_SDL
+        newFps = std::lround(totalFrames / elapsed);
+#else
         newFps = (int)(totalFrames / elapsed);
+#endif
         retrorunLoopSkip = newFps;
         if (!startCalAvgFps)
         {
@@ -2601,7 +2886,11 @@ int main(int argc, char *argv[])
         if (retrorunLoopCounter >= retrorunLoopSkip)
         {
             drawFps = true;
+#ifdef RR_PLATFORM_SDL
+            newFps = std::lround(totalFrames / elapsed);
+#else
             newFps = (int)(totalFrames / elapsed);
+#endif
             retrorunLoopCounter = 0;
         }
         if (adaptiveFps && !input_ffwd_requested)
@@ -2623,7 +2912,11 @@ int main(int argc, char *argv[])
             if (!input_ffwd_requested)
                 fps = newFps; // > max_fps ? max_fps : newFps;
 
-            if (opt_show_fps && elapsed >= 1.0)
+            if (opt_show_fps
+#ifndef RR_PLATFORM_SDL
+                && elapsed >= 1.0
+#endif
+            )
             {
                 logger.log(Logger::DEB, "FPS: %f", fps);
             }
@@ -2645,6 +2938,28 @@ int main(int argc, char *argv[])
     }
     // free(saveName);
     logger.log(Logger::DEB, "Unloading core and deinit audio and video...");
+#ifdef RR_PLATFORM_SDL
+    // Hardware-rendered cores own resources tied to the SDL GL context.
+    // Libretro requires retro_unload_game()/retro_deinit() while that context
+    // is still alive, and several cores (including Flycast) require this to
+    // happen on the same thread that ran the core.
+    video_prepare_core_unload();
+    if (g_retro.initialized)
+    {
+        g_retro.retro_unload_game();
+        g_retro.retro_deinit();
+        g_retro.initialized = false;
+    }
+
+    audio_deinit();
+    video_deinit();
+
+    if (g_retro.handle)
+    {
+        dlclose(g_retro.handle);
+        g_retro.handle = nullptr;
+    }
+#else
     video_deinit();
     audio_deinit();
     // atexit(unload);
@@ -2664,6 +2979,7 @@ int main(int argc, char *argv[])
         logger.log(Logger::DEB, "Force exiting retrorun.");
         throw std::runtime_error("Force exiting retrorun.\n");
     }
+#endif
 
     return 0;
 }

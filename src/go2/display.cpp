@@ -1198,7 +1198,7 @@ void blit_surface_status(go2_presenter_t *presenter, go2_surface_t *source_surfa
 
 
 
-void go2_presenter_post_multiple(go2_presenter_t *presenter, go2_surface_t *surface1, status *status_obj, int srcX, int srcY, int srcWidth, int srcHeight, int dstX, int dstY, int dstWidth, int dstHeight, go2_rotation_t rotation, go2_rotation_t blitRotation, bool isWideScreen)
+void go2_presenter_post_multiple(go2_presenter_t *presenter, go2_surface_t *surface1, go2_status_t *status_obj, int srcX, int srcY, int srcWidth, int srcHeight, int dstX, int dstY, int dstWidth, int dstHeight, go2_rotation_t rotation, go2_rotation_t blitRotation, bool isWideScreen)
 {
 
     //printf("Name of rotation: %s\n", rotation_names[rotation]);

@@ -6,18 +6,50 @@ ifndef config
 endif
 export config
 
+UNAME_S := $(shell uname -s)
+PLATFORM ?= auto
+
 PROJECTS := retrorun
 
-.PHONY: all clean help $(PROJECTS)
+.PHONY: all clean help sdl2 go2 $(PROJECTS)
 
 all: $(PROJECTS)
 
+ifeq ($(PLATFORM),sdl2)
+retrorun:
+	@echo "==== Building retrorun SDL2 for Linux/OpenGL ES ===="
+	@${MAKE} --no-print-directory -C build/linux-sdl -f Makefile config=$(config)
+
+clean:
+	@${MAKE} --no-print-directory -C build/linux-sdl -f Makefile clean
+else ifeq ($(PLATFORM),go2)
+retrorun:
+	@echo "==== Building retrorun GO2/DRM ($(config)) ===="
+	@${MAKE} --no-print-directory -C build/gmake -f Makefile
+
+clean:
+	@${MAKE} --no-print-directory -C build/gmake -f Makefile clean
+else ifeq ($(UNAME_S),Darwin)
+retrorun:
+	@echo "==== Building retrorun SDL2 for macOS ===="
+	@${MAKE} --no-print-directory -C build/macos -f Makefile
+
+clean:
+	@${MAKE} --no-print-directory -C build/macos -f Makefile clean
+else
 retrorun: 
 	@echo "==== Building retrorun ($(config)) ===="
 	@${MAKE} --no-print-directory -C build/gmake -f Makefile
 
 clean:
 	@${MAKE} --no-print-directory -C build/gmake -f Makefile clean
+endif
+
+sdl2:
+	@${MAKE} --no-print-directory PLATFORM=sdl2 config=$(config) retrorun
+
+go2:
+	@${MAKE} --no-print-directory PLATFORM=go2 config=$(config) retrorun
 
 help:
 	@echo "Usage: make [config=name] [target]"
@@ -30,5 +62,7 @@ help:
 	@echo "   all (default)"
 	@echo "   clean"
 	@echo "   retrorun"
+	@echo "   sdl2       Linux SDL2/KMSDRM/OpenGL ES alternative"
+	@echo "   go2        Native GO2/DRM backend (Linux default)"
 	@echo ""
 	@echo "For more information, see http://industriousone.com/premake/quick-start"

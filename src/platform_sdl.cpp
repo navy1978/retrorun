@@ -1,0 +1,863 @@
+#include "platform.h"
+#include "status.h"
+
+#include <SDL.h>
+#ifdef __APPLE__
+#define GL_SILENCE_DEPRECATION
+#include <OpenGL/gl3.h>
+#elif defined(RR_SDL_GLES)
+#include <GLES3/gl3.h>
+#else
+#include <SDL_opengl.h>
+#endif
+#include <png.h>
+
+#include <algorithm>
+#include <cstdlib>
+#include <cstring>
+#include <vector>
+
+struct rr_input { SDL_GameController* controller; };
+struct rr_input_state {
+    rr_button_state_t buttons[RRInputButton_Quit + 1];
+    rr_thumb_t sticks[2];
+};
+struct rr_audio { SDL_AudioDeviceID device; int volume; int frequency; };
+struct rr_display { SDL_Window* window; int width; int height; int brightness; };
+struct rr_surface {
+    rr_display_t* display;
+    int width, height, stride;
+    uint32_t format;
+    std::vector<uint8_t> pixels;
+};
+struct rr_presenter { rr_display_t* display; SDL_Renderer* renderer; uint32_t background; };
+struct rr_context {
+    rr_display_t* display;
+    SDL_Window* window;
+    SDL_GLContext gl;
+    int width;
+    int height;
+    int framebuffer_width;
+    int framebuffer_height;
+    bool owns_window;
+    GLuint framebuffer;
+    GLuint color_texture;
+    GLuint depth_stencil;
+    GLuint post_program;
+    GLuint post_vao;
+    GLuint post_vbo;
+};
+
+static SDL_GameController* active_controller = NULL;
+static char renderer_name[128] = "SDL2";
+static bool vsync_enabled = false;
+static rr_video_filter_t video_filter = RR_VIDEO_FILTER_DEFAULT;
+static rr_video_shader_t video_shader = RR_VIDEO_SHADER_OFF;
+static rr_presenter_t* active_presenter = NULL;
+static rr_context_t* active_context = NULL;
+
+static void refresh_display_size(rr_display_t* display) {
+    if (!display || !display->window) return;
+    int width = 0;
+    int height = 0;
+    SDL_GetWindowSize(display->window, &width, &height);
+    if (width <= 0 || height <= 0 ||
+        (width == display->width && height == display->height)) return;
+
+    display->width = width;
+    display->height = height;
+    if (active_presenter && active_presenter->display == display && active_presenter->renderer)
+        SDL_RenderSetLogicalSize(active_presenter->renderer, width, height);
+}
+
+static void ensure_sdl(uint32_t flags) {
+    if ((SDL_WasInit(flags) & flags) == flags) return;
+    const int result = SDL_InitSubSystem(flags);
+    if (result != 0)
+        std::fprintf(stderr, "RetroRun SDL initialization failed (0x%x): %s\n", flags, SDL_GetError());
+}
+
+static int env_dimension(const char* name, int fallback) {
+    const char* value = std::getenv(name);
+    if (!value) return fallback;
+    const int parsed = std::atoi(value);
+    return parsed > 0 ? parsed : fallback;
+}
+
+static Uint32 sdl_pixel_format(uint32_t format) {
+    switch (format) {
+    case RR_PIXEL_FORMAT_RGB565: return SDL_PIXELFORMAT_RGB565;
+    case RR_PIXEL_FORMAT_RGB888: return SDL_PIXELFORMAT_RGB24;
+    case RR_PIXEL_FORMAT_XRGB8888: return SDL_PIXELFORMAT_ARGB8888;
+    case RR_PIXEL_FORMAT_RGBA8888: return SDL_PIXELFORMAT_ABGR8888;
+    case RR_PIXEL_FORMAT_RGBA5551: return SDL_PIXELFORMAT_ARGB1555;
+    default: return SDL_PIXELFORMAT_UNKNOWN;
+    }
+}
+
+static SDL_Surface* wrap_surface(rr_surface_t* surface) {
+    return SDL_CreateRGBSurfaceWithFormatFrom(surface->pixels.data(), surface->width,
+                                               surface->height,
+                                               rr_pixel_format_bpp(surface->format),
+                                               surface->stride,
+                                               sdl_pixel_format(surface->format));
+}
+
+rr_input_t* rr_input_create(const char*) {
+    ensure_sdl(SDL_INIT_EVENTS | SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC);
+    rr_input_t* input = new rr_input_t();
+    input->controller = NULL;
+    for (int i = 0; i < SDL_NumJoysticks(); ++i) {
+        if (SDL_IsGameController(i)) {
+            input->controller = SDL_GameControllerOpen(i);
+            if (input->controller) break;
+        }
+    }
+    active_controller = input->controller;
+    return input;
+}
+
+void rr_input_destroy(rr_input_t* input) {
+    if (!input) return;
+    if (input->controller) SDL_GameControllerClose(input->controller);
+    if (active_controller == input->controller) active_controller = NULL;
+    delete input;
+}
+
+rr_input_feature_flags_t rr_input_features_get(rr_input_t*) {
+    return static_cast<rr_input_feature_flags_t>(RRInputFeatureFlags_Triggers |
+                                                  RRInputFeatureFlags_RightAnalog);
+}
+
+rr_input_state_t* rr_input_state_create() { return new rr_input_state_t(); }
+void rr_input_state_destroy(rr_input_state_t* state) { delete state; }
+
+static void set_key(rr_input_state_t* state, const Uint8* keys, SDL_Scancode key,
+                    rr_input_button_t button) {
+    if (keys[key]) state->buttons[button] = RRButtonState_Pressed;
+}
+
+static float normalized_axis(Sint16 value) {
+    return value < 0 ? value / 32768.0f : value / 32767.0f;
+}
+
+void rr_input_state_read(rr_input_t* input, rr_input_state_t* state) {
+    std::memset(state, 0, sizeof(*state));
+    SDL_Event event;
+    while (SDL_PollEvent(&event)) {
+        if (event.type == SDL_QUIT)
+            state->buttons[RRInputButton_Quit] = RRButtonState_Pressed;
+        else if (event.type == SDL_CONTROLLERDEVICEADDED && !input->controller) {
+            input->controller = SDL_GameControllerOpen(event.cdevice.which);
+            active_controller = input->controller;
+        } else if (event.type == SDL_CONTROLLERDEVICEREMOVED && input->controller &&
+                   SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(input->controller)) == event.cdevice.which) {
+            SDL_GameControllerClose(input->controller);
+            input->controller = NULL;
+            active_controller = NULL;
+        }
+    }
+
+    SDL_PumpEvents();
+    const Uint8* keys = SDL_GetKeyboardState(NULL);
+    set_key(state, keys, SDL_SCANCODE_UP, RRInputButton_DPadUp);
+    set_key(state, keys, SDL_SCANCODE_DOWN, RRInputButton_DPadDown);
+    set_key(state, keys, SDL_SCANCODE_LEFT, RRInputButton_DPadLeft);
+    set_key(state, keys, SDL_SCANCODE_RIGHT, RRInputButton_DPadRight);
+    set_key(state, keys, SDL_SCANCODE_X, RRInputButton_A);
+    set_key(state, keys, SDL_SCANCODE_Z, RRInputButton_B);
+    set_key(state, keys, SDL_SCANCODE_S, RRInputButton_X);
+    set_key(state, keys, SDL_SCANCODE_A, RRInputButton_Y);
+    set_key(state, keys, SDL_SCANCODE_BACKSPACE, RRInputButton_SELECT);
+    set_key(state, keys, SDL_SCANCODE_RETURN, RRInputButton_START);
+    set_key(state, keys, SDL_SCANCODE_Q, RRInputButton_TopLeft);
+    set_key(state, keys, SDL_SCANCODE_W, RRInputButton_TopRight);
+    set_key(state, keys, SDL_SCANCODE_1, RRInputButton_TriggerLeft);
+    set_key(state, keys, SDL_SCANCODE_2, RRInputButton_TriggerRight);
+    set_key(state, keys, SDL_SCANCODE_3, RRInputButton_THUMBL);
+    set_key(state, keys, SDL_SCANCODE_4, RRInputButton_THUMBR);
+    set_key(state, keys, SDL_SCANCODE_ESCAPE, RRInputButton_Quit);
+
+    SDL_GameController* pad = input->controller;
+    if (!pad) return;
+#define PAD_BUTTON(sdl, rr) if (SDL_GameControllerGetButton(pad, sdl)) state->buttons[rr] = RRButtonState_Pressed
+    PAD_BUTTON(SDL_CONTROLLER_BUTTON_DPAD_UP, RRInputButton_DPadUp);
+    PAD_BUTTON(SDL_CONTROLLER_BUTTON_DPAD_DOWN, RRInputButton_DPadDown);
+    PAD_BUTTON(SDL_CONTROLLER_BUTTON_DPAD_LEFT, RRInputButton_DPadLeft);
+    PAD_BUTTON(SDL_CONTROLLER_BUTTON_DPAD_RIGHT, RRInputButton_DPadRight);
+    PAD_BUTTON(SDL_CONTROLLER_BUTTON_A, RRInputButton_B);
+    PAD_BUTTON(SDL_CONTROLLER_BUTTON_B, RRInputButton_A);
+    PAD_BUTTON(SDL_CONTROLLER_BUTTON_X, RRInputButton_Y);
+    PAD_BUTTON(SDL_CONTROLLER_BUTTON_Y, RRInputButton_X);
+    PAD_BUTTON(SDL_CONTROLLER_BUTTON_BACK, RRInputButton_SELECT);
+    PAD_BUTTON(SDL_CONTROLLER_BUTTON_START, RRInputButton_START);
+    PAD_BUTTON(SDL_CONTROLLER_BUTTON_LEFTSHOULDER, RRInputButton_TopLeft);
+    PAD_BUTTON(SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, RRInputButton_TopRight);
+    PAD_BUTTON(SDL_CONTROLLER_BUTTON_LEFTSTICK, RRInputButton_THUMBL);
+    PAD_BUTTON(SDL_CONTROLLER_BUTTON_RIGHTSTICK, RRInputButton_THUMBR);
+#undef PAD_BUTTON
+    if (SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_TRIGGERLEFT) > 16000)
+        state->buttons[RRInputButton_TriggerLeft] = RRButtonState_Pressed;
+    if (SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_TRIGGERRIGHT) > 16000)
+        state->buttons[RRInputButton_TriggerRight] = RRButtonState_Pressed;
+    state->sticks[RRInputThumbstick_Left] = {
+        normalized_axis(SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_LEFTX)),
+        normalized_axis(SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_LEFTY))};
+    state->sticks[RRInputThumbstick_Right] = {
+        normalized_axis(SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_RIGHTX)),
+        normalized_axis(SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_RIGHTY))};
+}
+
+rr_button_state_t rr_input_state_button_get(rr_input_state_t* state, rr_input_button_t button) {
+    return state && button >= 0 && button <= RRInputButton_Quit ? state->buttons[button] : RRButtonState_Released;
+}
+void rr_input_state_button_set(rr_input_state_t* state, rr_input_button_t button, rr_button_state_t value) {
+    if (state && button >= 0 && button <= RRInputButton_Quit) state->buttons[button] = value;
+}
+rr_thumb_t rr_input_state_thumbstick_get(rr_input_state_t* state, rr_input_thumbstick_t stick) {
+    return state ? state->sticks[stick] : rr_thumb_t{0.0f, 0.0f};
+}
+void rr_input_state_thumbstick_set_null(rr_input_state_t* state, rr_input_thumbstick_t stick) {
+    if (state) state->sticks[stick] = {0.0f, 0.0f};
+}
+void rr_input_battery_read(rr_input_t*, rr_battery_state_t* state) { state->level = 100; state->status = RRBattery_Status_Unknown; }
+void rr_input_brightness_read(rr_input_t*, rr_brightness_state_t* state) { state->level = 100; }
+void rr_input_brightness_write(int) {}
+bool rr_input_set_rumble(uint16_t low, uint16_t high, uint32_t duration) {
+    return active_controller && SDL_GameControllerRumble(active_controller, low, high, duration) == 0;
+}
+
+rr_audio_t* rr_audio_create(int frequency) {
+    ensure_sdl(SDL_INIT_AUDIO);
+    SDL_AudioSpec wanted = {};
+    wanted.freq = frequency; wanted.format = AUDIO_S16SYS; wanted.channels = 2; wanted.samples = 1024;
+    rr_audio_t* audio = new rr_audio_t();
+    audio->device = SDL_OpenAudioDevice(NULL, 0, &wanted, NULL, 0);
+    audio->volume = 100; audio->frequency = frequency;
+    if (audio->device) SDL_PauseAudioDevice(audio->device, 0);
+    return audio;
+}
+void rr_audio_destroy(rr_audio_t* audio) { if (audio) { if (audio->device) SDL_CloseAudioDevice(audio->device); delete audio; } }
+void rr_audio_submit(rr_audio_t* audio, const short* data, int frames) {
+    if (!audio || !audio->device || frames <= 0) return;
+    const size_t samples = static_cast<size_t>(frames) * 2;
+
+    // SDL_QueueAudio has no intrinsic size limit. If emulation gets even
+    // slightly ahead of the audio device, an ever-growing queue becomes
+    // seconds of audible latency. Use the audio clock as a small secondary
+    // pacing source and retain only a short queue.
+    const Uint32 bytes_per_ms = static_cast<Uint32>(audio->frequency * 2 * sizeof(short) / 1000);
+    const Uint32 target_queue = bytes_per_ms * 60;
+    const Uint32 recovery_limit = bytes_per_ms * 250;
+    Uint32 queued = SDL_GetQueuedAudioSize(audio->device);
+    if (queued > recovery_limit) {
+        SDL_ClearQueuedAudio(audio->device);
+    } else {
+        // Keep this bounded: a suspended or disconnected audio device must
+        // never be able to stall the emulation thread indefinitely.
+        for (int attempt = 0; queued > target_queue && attempt < 4; ++attempt) {
+            const Uint32 excess_ms = (queued - target_queue) / std::max<Uint32>(bytes_per_ms, 1);
+            SDL_Delay(std::min<Uint32>(excess_ms + 1, 5));
+            queued = SDL_GetQueuedAudioSize(audio->device);
+        }
+    }
+
+    if (audio->volume >= 100) {
+        SDL_QueueAudio(audio->device, data, static_cast<Uint32>(samples * sizeof(short)));
+    } else {
+        std::vector<short> adjusted(samples);
+        for (size_t i = 0; i < samples; ++i) adjusted[i] = static_cast<short>((data[i] * audio->volume) / 100);
+        SDL_QueueAudio(audio->device, adjusted.data(), static_cast<Uint32>(adjusted.size() * sizeof(short)));
+    }
+}
+uint32_t rr_audio_volume_get(rr_audio_t* audio, const char*) { return audio ? audio->volume : 0; }
+void rr_audio_volume_set(rr_audio_t* audio, uint32_t value, const char*) { if (audio) audio->volume = std::min<uint32_t>(value, 100); }
+
+rr_display_t* rr_display_create() {
+    ensure_sdl(SDL_INIT_VIDEO);
+    rr_display_t* display = new rr_display_t();
+    display->width = env_dimension("RETRORUN_WINDOW_WIDTH", 960);
+    display->height = env_dimension("RETRORUN_WINDOW_HEIGHT", 720);
+    display->brightness = 100;
+#ifdef RR_SDL_GLES
+    Uint32 window_flags = SDL_WINDOW_FULLSCREEN_DESKTOP | SDL_WINDOW_OPENGL;
+    const char* windowed = std::getenv("RETRORUN_WINDOWED");
+    if (windowed && std::atoi(windowed) != 0)
+        window_flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL;
+    SDL_DisplayMode mode = {};
+    if (!(window_flags & SDL_WINDOW_RESIZABLE) && SDL_GetCurrentDisplayMode(0, &mode) == 0) {
+        display->width = mode.w;
+        display->height = mode.h;
+    }
+#else
+    const Uint32 window_flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI |
+                                SDL_WINDOW_OPENGL;
+#endif
+    display->window = SDL_CreateWindow("RetroRun SDL2", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+                                       display->width, display->height,
+                                       window_flags);
+    if (!display->window)
+        std::fprintf(stderr, "RetroRun SDL window creation failed: %s\n", SDL_GetError());
+    return display;
+}
+void rr_display_destroy(rr_display_t* display) { if (display) { if (display->window) SDL_DestroyWindow(display->window); delete display; } }
+int rr_display_width_get(rr_display_t* display) { refresh_display_size(display); return display->width; }
+int rr_display_height_get(rr_display_t* display) { refresh_display_size(display); return display->height; }
+uint32_t rr_display_backlight_get(rr_display_t* display) { return display->brightness; }
+void rr_display_backlight_set(rr_display_t* display, uint32_t value) { display->brightness = std::min<uint32_t>(value, 100); }
+int rr_pixel_format_bpp(uint32_t format) {
+    switch (format) { case RR_PIXEL_FORMAT_RGB565: case RR_PIXEL_FORMAT_RGBA5551: return 16;
+                      case RR_PIXEL_FORMAT_RGB888: return 24; default: return 32; }
+}
+
+rr_surface_t* rr_surface_create(rr_display_t* display, int width, int height, uint32_t format) {
+    if (width <= 0 || height <= 0 || sdl_pixel_format(format) == SDL_PIXELFORMAT_UNKNOWN) return NULL;
+    rr_surface_t* surface = new rr_surface_t();
+    surface->display = display; surface->width = width; surface->height = height; surface->format = format;
+    surface->stride = width * (rr_pixel_format_bpp(format) / 8);
+    surface->pixels.resize(static_cast<size_t>(surface->stride) * height);
+    return surface;
+}
+void rr_surface_destroy(rr_surface_t* surface) { delete surface; }
+int rr_surface_width_get(rr_surface_t* surface) { return surface->width; }
+int rr_surface_height_get(rr_surface_t* surface) { return surface->height; }
+uint32_t rr_surface_format_get(rr_surface_t* surface) { return surface->format; }
+int rr_surface_stride_get(rr_surface_t* surface) { return surface->stride; }
+void* rr_surface_map(rr_surface_t* surface) { return surface ? surface->pixels.data() : NULL; }
+void rr_surface_unmap(rr_surface_t*) {}
+void rr_surface_blit(rr_surface_t* source, int sx, int sy, int sw, int sh,
+                     rr_surface_t* dest, int dx, int dy, int dw, int dh, rr_rotation_t) {
+    SDL_Surface* src = wrap_surface(source); SDL_Surface* dst = wrap_surface(dest);
+    if (src && dst) { SDL_Rect sr = {sx,sy,sw,sh}; SDL_Rect dr = {dx,dy,dw,dh}; SDL_BlitScaled(src,&sr,dst,&dr); }
+    if (src) SDL_FreeSurface(src); if (dst) SDL_FreeSurface(dst);
+}
+int rr_surface_save_as_png(rr_surface_t* surface, const char* filename) {
+    SDL_Surface* wrapped = wrap_surface(surface);
+    SDL_Surface* rgba = wrapped ? SDL_ConvertSurfaceFormat(wrapped, SDL_PIXELFORMAT_RGBA32, 0) : NULL;
+    if (wrapped) SDL_FreeSurface(wrapped);
+    if (!rgba) return -1;
+    FILE* file = std::fopen(filename, "wb");
+    if (!file) { SDL_FreeSurface(rgba); return -1; }
+    png_structp png = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+    png_infop info = png ? png_create_info_struct(png) : NULL;
+    if (!png || !info || setjmp(png_jmpbuf(png))) { if (png) png_destroy_write_struct(&png, info ? &info : NULL); std::fclose(file); SDL_FreeSurface(rgba); return -1; }
+    png_init_io(png, file);
+    png_set_IHDR(png, info, rgba->w, rgba->h, 8, PNG_COLOR_TYPE_RGBA, PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
+    png_write_info(png, info);
+    for (int y = 0; y < rgba->h; ++y) png_write_row(png, static_cast<png_bytep>(rgba->pixels) + y * rgba->pitch);
+    png_write_end(png, info); png_destroy_write_struct(&png, &info); std::fclose(file); SDL_FreeSurface(rgba); return 0;
+}
+
+static void render_surface(rr_presenter_t* presenter, rr_surface_t* surface, const SDL_Rect* src,
+                           const SDL_Rect* dst, rr_rotation_t rotation) {
+    if (!presenter || !presenter->renderer || !surface) return;
+    SDL_Surface* wrapped = wrap_surface(surface);
+    SDL_Texture* texture = wrapped ? SDL_CreateTextureFromSurface(presenter->renderer, wrapped) : NULL;
+    if (wrapped) SDL_FreeSurface(wrapped);
+    if (!texture) return;
+    SDL_SetTextureBlendMode(texture, surface->format == RR_PIXEL_FORMAT_RGBA8888
+                                         ? SDL_BLENDMODE_BLEND
+                                         : SDL_BLENDMODE_NONE);
+    SDL_RenderCopyEx(presenter->renderer, texture, src, dst,
+                     90.0 * static_cast<int>(rotation), NULL, SDL_FLIP_NONE);
+    SDL_DestroyTexture(texture);
+}
+
+rr_presenter_t* rr_presenter_create(rr_display_t* display, uint32_t, uint32_t background) {
+    rr_presenter_t* presenter = new rr_presenter_t(); presenter->display = display; presenter->background = background;
+    const Uint32 vsync_flag = vsync_enabled ? SDL_RENDERER_PRESENTVSYNC : 0;
+    presenter->renderer = SDL_CreateRenderer(display->window, -1,
+                                              SDL_RENDERER_ACCELERATED | vsync_flag);
+    if (!presenter->renderer)
+        presenter->renderer = SDL_CreateRenderer(display->window, -1,
+                                                  SDL_RENDERER_SOFTWARE | vsync_flag);
+    if (!presenter->renderer && vsync_enabled)
+        presenter->renderer = SDL_CreateRenderer(display->window, -1, SDL_RENDERER_SOFTWARE);
+    if (presenter->renderer) {
+        SDL_RendererInfo info = {};
+        if (SDL_GetRendererInfo(presenter->renderer, &info) == 0 && info.name)
+            SDL_strlcpy(renderer_name, info.name, sizeof(renderer_name));
+        SDL_RenderSetLogicalSize(presenter->renderer, display->width, display->height);
+    }
+    active_presenter = presenter;
+    return presenter;
+}
+void rr_presenter_destroy(rr_presenter_t* presenter) { if (presenter) { if (active_presenter == presenter) active_presenter = NULL; if (presenter->renderer) SDL_DestroyRenderer(presenter->renderer); delete presenter; } }
+static void clear_presenter(rr_presenter_t* p) { SDL_SetRenderDrawColor(p->renderer, 8, 8, 8, 255); SDL_RenderClear(p->renderer); }
+void rr_presenter_post(rr_presenter_t* p, rr_surface_t* s, int sx, int sy, int sw, int sh,
+                       int dx, int dy, int dw, int dh, rr_rotation_t r) {
+    clear_presenter(p); SDL_Rect src={sx,sy,sw,sh}, dst={dx,dy,dw,dh}; render_surface(p,s,&src,&dst,r); SDL_RenderPresent(p->renderer);
+}
+void rr_presenter_black(rr_presenter_t* p, int, int, int, int, rr_rotation_t) { clear_presenter(p); SDL_RenderPresent(p->renderer); }
+void rr_presenter_post_multiple(rr_presenter_t* p, rr_surface_t* base, status* o,
+                                int sx, int sy, int sw, int sh, int dx, int dy, int dw, int dh,
+                                rr_rotation_t r, rr_rotation_t, bool) {
+    clear_presenter(p); SDL_Rect src={sx,sy,sw,sh}, dst={dx,dy,dw,dh}; render_surface(p,base,&src,&dst,r);
+    const float scale = std::max(1.0f, p->display->width / 640.0f);
+    auto overlay = [&](rr_surface_t* s, int x, int y, int w, int h) { SDL_Rect d={x,y,w,h}; render_surface(p,s,NULL,&d,RR_ROTATION_DEGREES_0); };
+    if (o->show_full && o->full) overlay(o->full, dx, dy, dw, dh);
+    if (o->show_top_left && o->top_left) overlay(o->top_left, 0, 0, o->top_left->width*scale, o->top_left->height*scale);
+    if (o->show_top_right && o->top_right) overlay(o->top_right, p->display->width-o->top_right->width*scale, 0, o->top_right->width*scale, o->top_right->height*scale);
+    if (o->show_bottom_left && o->bottom_left) overlay(o->bottom_left, 0, p->display->height-o->bottom_left->height*scale, o->bottom_left->width*scale, o->bottom_left->height*scale);
+    if (o->show_bottom_right && o->bottom_right) overlay(o->bottom_right, p->display->width-o->bottom_right->width*scale, p->display->height-o->bottom_right->height*scale, o->bottom_right->width*scale, o->bottom_right->height*scale);
+    if (o->show_bottom_center && o->bottom_center) overlay(o->bottom_center, (p->display->width-o->bottom_center->width*scale)/2, p->display->height-o->bottom_center->height*scale, o->bottom_center->width*scale, o->bottom_center->height*scale);
+    SDL_RenderPresent(p->renderer);
+}
+
+static GLuint compile_post_shader(GLenum type, const char* source) {
+    GLuint shader = glCreateShader(type);
+    glShaderSource(shader, 1, &source, NULL);
+    glCompileShader(shader);
+    GLint compiled = GL_FALSE;
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
+    if (compiled == GL_TRUE) return shader;
+
+    char log[1024] = {};
+    glGetShaderInfoLog(shader, sizeof(log), NULL, log);
+    std::fprintf(stderr, "RetroRun SDL post-processing shader failed: %s\n", log);
+    glDeleteShader(shader);
+    return 0;
+}
+
+static bool ensure_post_pipeline(rr_context_t* context) {
+    if (context->post_program) return true;
+#ifdef RR_SDL_GLES
+    static const char* vertex_source = R"GLSL(
+#version 300 es
+precision mediump float;
+in vec2 position;
+in vec2 texcoord;
+out vec2 uv;
+void main() {
+    uv = texcoord;
+    gl_Position = vec4(position, 0.0, 1.0);
+}
+)GLSL";
+    static const char* fragment_source = R"GLSL(
+#version 300 es
+precision mediump float;
+uniform sampler2D frame_texture;
+uniform vec2 source_size;
+uniform vec2 texture_scale;
+uniform int shader_mode;
+in vec2 uv;
+out vec4 output_color;
+void main() {
+    vec2 sample_uv = uv;
+    vec2 centered = sample_uv * 2.0 - 1.0;
+    if (shader_mode == 2) {
+        float radius2 = dot(centered, centered);
+        centered *= 1.0 + radius2 * 0.055;
+        sample_uv = centered * 0.5 + 0.5;
+        if (any(lessThan(sample_uv, vec2(0.0))) ||
+            any(greaterThan(sample_uv, vec2(1.0)))) {
+            output_color = vec4(0.0, 0.0, 0.0, 1.0);
+            return;
+        }
+    }
+
+    vec3 color = texture(frame_texture, sample_uv * texture_scale).rgb;
+    if (shader_mode > 0) {
+        float scanline = 0.82 + 0.18 * sin(sample_uv.y * source_size.y * 3.14159265);
+        color *= scanline;
+    }
+    if (shader_mode == 2) {
+        float vignette = 1.0 - 0.24 * dot(centered, centered);
+        float mask = mod(floor(gl_FragCoord.x), 3.0);
+        vec3 grille = mask < 1.0 ? vec3(1.00, 0.92, 0.92) :
+                      (mask < 2.0 ? vec3(0.92, 1.00, 0.92) : vec3(0.92, 0.92, 1.00));
+        color *= max(vignette, 0.55) * grille;
+    }
+    output_color = vec4(color, 1.0);
+}
+)GLSL";
+#else
+    static const char* vertex_source = R"GLSL(
+#version 150
+in vec2 position;
+in vec2 texcoord;
+out vec2 uv;
+void main() {
+    uv = texcoord;
+    gl_Position = vec4(position, 0.0, 1.0);
+}
+)GLSL";
+    static const char* fragment_source = R"GLSL(
+#version 150
+uniform sampler2D frame_texture;
+uniform vec2 source_size;
+uniform vec2 texture_scale;
+uniform int shader_mode;
+in vec2 uv;
+out vec4 output_color;
+void main() {
+    vec2 sample_uv = uv;
+    vec2 centered = sample_uv * 2.0 - 1.0;
+    if (shader_mode == 2) {
+        float radius2 = dot(centered, centered);
+        centered *= 1.0 + radius2 * 0.055;
+        sample_uv = centered * 0.5 + 0.5;
+        if (any(lessThan(sample_uv, vec2(0.0))) ||
+            any(greaterThan(sample_uv, vec2(1.0)))) {
+            output_color = vec4(0.0, 0.0, 0.0, 1.0);
+            return;
+        }
+    }
+
+    vec3 color = texture(frame_texture, sample_uv * texture_scale).rgb;
+    if (shader_mode > 0) {
+        float scanline = 0.82 + 0.18 * sin(sample_uv.y * source_size.y * 3.14159265);
+        color *= scanline;
+    }
+
+    if (shader_mode == 2) {
+        float vignette = 1.0 - 0.24 * dot(centered, centered);
+        float mask = mod(floor(gl_FragCoord.x), 3.0);
+        vec3 grille = mask < 1.0 ? vec3(1.00, 0.92, 0.92) :
+                      (mask < 2.0 ? vec3(0.92, 1.00, 0.92) : vec3(0.92, 0.92, 1.00));
+        color *= max(vignette, 0.55) * grille;
+    }
+    output_color = vec4(color, 1.0);
+}
+)GLSL";
+#endif
+
+    GLuint vertex = compile_post_shader(GL_VERTEX_SHADER, vertex_source);
+    GLuint fragment = compile_post_shader(GL_FRAGMENT_SHADER, fragment_source);
+    if (!vertex || !fragment) {
+        if (vertex) glDeleteShader(vertex);
+        if (fragment) glDeleteShader(fragment);
+        return false;
+    }
+
+    context->post_program = glCreateProgram();
+    glAttachShader(context->post_program, vertex);
+    glAttachShader(context->post_program, fragment);
+    glBindAttribLocation(context->post_program, 0, "position");
+    glBindAttribLocation(context->post_program, 1, "texcoord");
+#ifndef RR_SDL_GLES
+    glBindFragDataLocation(context->post_program, 0, "output_color");
+#endif
+    glLinkProgram(context->post_program);
+    glDeleteShader(vertex);
+    glDeleteShader(fragment);
+
+    GLint linked = GL_FALSE;
+    glGetProgramiv(context->post_program, GL_LINK_STATUS, &linked);
+    if (linked != GL_TRUE) {
+        char log[1024] = {};
+        glGetProgramInfoLog(context->post_program, sizeof(log), NULL, log);
+        std::fprintf(stderr, "RetroRun SDL post-processing program failed: %s\n", log);
+        glDeleteProgram(context->post_program);
+        context->post_program = 0;
+        return false;
+    }
+
+    static const GLfloat vertices[] = {
+        -1.0f, -1.0f, 0.0f, 0.0f,
+         1.0f, -1.0f, 1.0f, 0.0f,
+        -1.0f,  1.0f, 0.0f, 1.0f,
+         1.0f,  1.0f, 1.0f, 1.0f
+    };
+    glGenVertexArrays(1, &context->post_vao);
+    glBindVertexArray(context->post_vao);
+    glGenBuffers(1, &context->post_vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, context->post_vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat),
+                          (void*)(2 * sizeof(GLfloat)));
+    glBindVertexArray(0);
+    return true;
+}
+
+static bool draw_post_processed_frame(rr_context_t* context, int source_width, int source_height,
+                                      int left, int bottom, int right, int top) {
+    if (video_shader == RR_VIDEO_SHADER_OFF || !ensure_post_pipeline(context)) return false;
+
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    glViewport(left, bottom, right - left, top - bottom);
+    glUseProgram(context->post_program);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, context->color_texture);
+    const GLint filtering = video_filter == RR_VIDEO_FILTER_NEAREST ? GL_NEAREST : GL_LINEAR;
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filtering);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filtering);
+    glUniform1i(glGetUniformLocation(context->post_program, "frame_texture"), 0);
+    glUniform2f(glGetUniformLocation(context->post_program, "source_size"),
+                static_cast<float>(source_width), static_cast<float>(source_height));
+    glUniform2f(glGetUniformLocation(context->post_program, "texture_scale"),
+                static_cast<float>(source_width) / context->framebuffer_width,
+                static_cast<float>(source_height) / context->framebuffer_height);
+    glUniform1i(glGetUniformLocation(context->post_program, "shader_mode"),
+                video_shader == RR_VIDEO_SHADER_CRT ? 2 : 1);
+    glBindVertexArray(context->post_vao);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glBindVertexArray(0);
+    return true;
+}
+
+rr_context_t* rr_context_create(rr_display_t* display, int width, int height,
+                                const rr_context_attributes_t* attributes) {
+    if (!display || width <= 0 || height <= 0 || !attributes) return NULL;
+
+#ifdef RR_SDL_GLES
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, std::max(attributes->major, 3));
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION,
+                        attributes->major >= 3 ? attributes->minor : 0);
+#else
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, attributes->major);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, attributes->minor);
+#endif
+    SDL_GL_SetAttribute(SDL_GL_RED_SIZE, attributes->red_bits);
+    SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, attributes->green_bits);
+    SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, attributes->blue_bits);
+    SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, attributes->alpha_bits);
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, attributes->depth_bits);
+    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, attributes->stencil_bits);
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+
+    rr_context_t* context = new rr_context_t();
+    context->display = display;
+    context->width = display->width;
+    context->height = display->height;
+    context->framebuffer_width = width;
+    context->framebuffer_height = height;
+    context->window = display->window;
+    context->owns_window = false;
+    context->framebuffer = 0;
+    context->color_texture = 0;
+    context->depth_stencil = 0;
+    context->gl = SDL_GL_CreateContext(context->window);
+    if (!context->window || !context->gl) {
+        std::fprintf(stderr, "RetroRun SDL OpenGL context creation failed: %s\n", SDL_GetError());
+        delete context;
+        return NULL;
+    }
+    SDL_GL_MakeCurrent(context->window, context->gl);
+#ifdef RR_SDL_GLES
+    SDL_strlcpy(renderer_name, "OpenGL ES 3", sizeof(renderer_name));
+#else
+    SDL_strlcpy(renderer_name, "OpenGL Core", sizeof(renderer_name));
+#endif
+    if (SDL_GL_SetSwapInterval(vsync_enabled ? 1 : 0) != 0 && vsync_enabled)
+        std::fprintf(stderr, "RetroRun SDL could not enable OpenGL VSync: %s\n", SDL_GetError());
+    active_context = context;
+
+    glGenFramebuffers(1, &context->framebuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, context->framebuffer);
+    glGenTextures(1, &context->color_texture);
+    glBindTexture(GL_TEXTURE_2D, context->color_texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA,
+                 GL_UNSIGNED_BYTE, NULL);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
+                           context->color_texture, 0);
+
+    glGenRenderbuffers(1, &context->depth_stencil);
+    glBindRenderbuffer(GL_RENDERBUFFER, context->depth_stencil);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
+                              GL_RENDERBUFFER, context->depth_stencil);
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        std::fprintf(stderr, "RetroRun SDL OpenGL framebuffer creation failed\n");
+        rr_context_destroy(context);
+        return NULL;
+    }
+    return context;
+}
+void rr_context_destroy(rr_context_t* context) {
+    if (!context) return;
+    if (active_context == context) active_context = NULL;
+    if (context->gl) SDL_GL_MakeCurrent(context->window, context->gl);
+    if (context->post_vbo) glDeleteBuffers(1, &context->post_vbo);
+    if (context->post_vao) glDeleteVertexArrays(1, &context->post_vao);
+    if (context->post_program) glDeleteProgram(context->post_program);
+    if (context->depth_stencil) glDeleteRenderbuffers(1, &context->depth_stencil);
+    if (context->color_texture) glDeleteTextures(1, &context->color_texture);
+    if (context->framebuffer) glDeleteFramebuffers(1, &context->framebuffer);
+    if (context->gl) SDL_GL_DeleteContext(context->gl);
+    if (context->owns_window && context->window) SDL_DestroyWindow(context->window);
+    delete context;
+}
+void rr_context_make_current(rr_context_t* context) {
+    if (context) SDL_GL_MakeCurrent(context->window, context->gl);
+}
+
+static void blit_overlay(rr_context_t* context, rr_surface_t* surface,
+                         int x, int y, int width, int height,
+                         int drawable_width, int drawable_height) {
+    if (!surface || width <= 0 || height <= 0) return;
+
+    GLuint texture = 0;
+    GLuint framebuffer = 0;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    const GLenum source_format = surface->format == RR_PIXEL_FORMAT_RGB565 ? GL_RGB : GL_RGBA;
+    const GLenum source_type = surface->format == RR_PIXEL_FORMAT_RGB565
+                                   ? GL_UNSIGNED_SHORT_5_6_5 : GL_UNSIGNED_BYTE;
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, surface->width, surface->height, 0,
+                 source_format, source_type, surface->pixels.data());
+    glGenFramebuffers(1, &framebuffer);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, framebuffer);
+    glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                           GL_TEXTURE_2D, texture, 0);
+
+    const float scale_x = static_cast<float>(drawable_width) / context->display->width;
+    const float scale_y = static_cast<float>(drawable_height) / context->display->height;
+    const int left = static_cast<int>(x * scale_x);
+    const int right = static_cast<int>((x + width) * scale_x);
+    const int bottom = drawable_height - static_cast<int>((y + height) * scale_y);
+    const int top = drawable_height - static_cast<int>(y * scale_y);
+    glBlitFramebuffer(0, surface->height, surface->width, 0,
+                      left, bottom, right, top, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    glDeleteFramebuffers(1, &framebuffer);
+    glDeleteTextures(1, &texture);
+}
+
+static void draw_overlays(rr_context_t* context, status* overlays,
+                          int game_x, int game_y, int game_width, int game_height,
+                          int drawable_width, int drawable_height) {
+    if (!overlays) return;
+    const float scale = std::max(1.0f, context->display->width / 640.0f);
+    auto draw = [&](rr_surface_t* surface, int x, int y, int width, int height) {
+        blit_overlay(context, surface, x, y, width, height, drawable_width, drawable_height);
+    };
+    if (overlays->show_full && overlays->full)
+        draw(overlays->full, game_x, game_y, game_width, game_height);
+    if (overlays->show_top_left && overlays->top_left)
+        draw(overlays->top_left, 0, 0, overlays->top_left->width * scale,
+             overlays->top_left->height * scale);
+    if (overlays->show_top_right && overlays->top_right)
+        draw(overlays->top_right, context->display->width - overlays->top_right->width * scale,
+             0, overlays->top_right->width * scale, overlays->top_right->height * scale);
+    if (overlays->show_bottom_left && overlays->bottom_left)
+        draw(overlays->bottom_left, 0,
+             context->display->height - overlays->bottom_left->height * scale,
+             overlays->bottom_left->width * scale, overlays->bottom_left->height * scale);
+    if (overlays->show_bottom_right && overlays->bottom_right)
+        draw(overlays->bottom_right,
+             context->display->width - overlays->bottom_right->width * scale,
+             context->display->height - overlays->bottom_right->height * scale,
+             overlays->bottom_right->width * scale, overlays->bottom_right->height * scale);
+    if (overlays->show_bottom_center && overlays->bottom_center)
+        draw(overlays->bottom_center,
+             (context->display->width - overlays->bottom_center->width * scale) / 2,
+             context->display->height - overlays->bottom_center->height * scale,
+             overlays->bottom_center->width * scale, overlays->bottom_center->height * scale);
+}
+
+void rr_context_swap_buffers(rr_context_t* context, int source_width, int source_height,
+                             int dest_x, int dest_y, int dest_width, int dest_height,
+                             status* overlays) {
+    if (!context) return;
+    rr_context_make_current(context);
+
+    int drawable_width = context->display->width;
+    int drawable_height = context->display->height;
+    SDL_GL_GetDrawableSize(context->window, &drawable_width, &drawable_height);
+    const float scale_x = static_cast<float>(drawable_width) / context->display->width;
+    const float scale_y = static_cast<float>(drawable_height) / context->display->height;
+    const int left = static_cast<int>(dest_x * scale_x);
+    const int right = static_cast<int>((dest_x + dest_width) * scale_x);
+    const int bottom = drawable_height - static_cast<int>((dest_y + dest_height) * scale_y);
+    const int top = drawable_height - static_cast<int>(dest_y * scale_y);
+
+    GLint previous_read = 0;
+    GLint previous_draw = 0;
+    GLint previous_program = 0;
+    GLint previous_vao = 0;
+    GLint previous_active_texture = 0;
+    GLint previous_texture = 0;
+    GLint previous_viewport[4] = {};
+    glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &previous_read);
+    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &previous_draw);
+    glGetIntegerv(GL_CURRENT_PROGRAM, &previous_program);
+    glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &previous_vao);
+    glGetIntegerv(GL_ACTIVE_TEXTURE, &previous_active_texture);
+    glActiveTexture(GL_TEXTURE0);
+    glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous_texture);
+    glGetIntegerv(GL_VIEWPORT, previous_viewport);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    glViewport(0, 0, drawable_width, drawable_height);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, context->framebuffer);
+    const GLenum filtering = video_filter == RR_VIDEO_FILTER_NEAREST ? GL_NEAREST : GL_LINEAR;
+    if (!draw_post_processed_frame(context, source_width, source_height,
+                                   left, bottom, right, top)) {
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, context->framebuffer);
+        glBlitFramebuffer(0, 0, source_width, source_height,
+                          left, bottom, right, top, GL_COLOR_BUFFER_BIT, filtering);
+    }
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    draw_overlays(context, overlays, dest_x, dest_y, dest_width, dest_height,
+                  drawable_width, drawable_height);
+    SDL_GL_SwapWindow(context->window);
+    glUseProgram(static_cast<GLuint>(previous_program));
+    glBindVertexArray(static_cast<GLuint>(previous_vao));
+    glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(previous_texture));
+    glActiveTexture(static_cast<GLenum>(previous_active_texture));
+    glViewport(previous_viewport[0], previous_viewport[1],
+               previous_viewport[2], previous_viewport[3]);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, static_cast<GLuint>(previous_read));
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, static_cast<GLuint>(previous_draw));
+}
+uintptr_t rr_context_framebuffer_get(rr_context_t* context) {
+    return context ? static_cast<uintptr_t>(context->framebuffer) : 0;
+}
+rr_surface_t* rr_context_surface_lock(rr_context_t* context) {
+    if (!context) return NULL;
+    rr_context_make_current(context);
+    rr_surface_t* surface = new rr_surface_t();
+    surface->display = context->display;
+    surface->width = context->width;
+    surface->height = context->height;
+    surface->stride = context->width * 4;
+    surface->format = RR_PIXEL_FORMAT_RGBA8888;
+    surface->pixels.resize(static_cast<size_t>(surface->stride) * surface->height);
+
+    std::vector<uint8_t> bottom_up(surface->pixels.size());
+#ifdef RR_SDL_GLES
+    glReadBuffer(GL_BACK);
+#else
+    glReadBuffer(GL_FRONT);
+#endif
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glReadPixels(0, 0, context->width, context->height, GL_RGBA, GL_UNSIGNED_BYTE,
+                 bottom_up.data());
+    for (int row = 0; row < context->height; ++row) {
+        std::memcpy(surface->pixels.data() + static_cast<size_t>(row) * surface->stride,
+                    bottom_up.data() + static_cast<size_t>(context->height - 1 - row) * surface->stride,
+                    surface->stride);
+    }
+    return surface;
+}
+void rr_context_surface_unlock(rr_context_t*, rr_surface_t* surface) { delete surface; }
+void* rr_context_get_proc_address(const char* symbol) { return SDL_GL_GetProcAddress(symbol); }
+bool rr_video_vsync_set(bool enabled) {
+    vsync_enabled = enabled;
+    bool applied = true;
+    if (active_context && active_context->gl) {
+        SDL_GL_MakeCurrent(active_context->window, active_context->gl);
+        applied = SDL_GL_SetSwapInterval(enabled ? 1 : 0) == 0 && applied;
+    }
+#if SDL_VERSION_ATLEAST(2, 0, 18)
+    if (active_presenter && active_presenter->renderer)
+        applied = SDL_RenderSetVSync(active_presenter->renderer, enabled ? 1 : 0) == 0 && applied;
+#endif
+    return applied;
+}
+void rr_video_filter_set(rr_video_filter_t filter) { video_filter = filter; }
+void rr_video_shader_set(rr_video_shader_t shader) { video_shader = shader; }
+const char* rr_platform_backend_name() { return "sdl2"; }
+const char* rr_platform_renderer_name() { return renderer_name; }

@@ -1,2 +1,6 @@
 build/gmake/obj/**/*.*
+build/linux-sdl/obj/
+saves/
+system/
 retrorun
+retrorun-sdl2

@@ -20,6 +20,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include "globals.h"
 #include "video.h"
+#include "ui-renderer.h"
 
 #include "input.h"
 #include "libretro.h"
@@ -28,32 +29,17 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <stdlib.h>
 #include <stdio.h>
 #include <exception>
+#include <stdexcept>
 #include <string.h>
 #include <string>
 #include <sys/time.h>
 
 #include <cmath>
 
-#include "go2/display.h"
-#include "go2/struct.h"
+#include "platform.h"
 
-#define EGL_EGLEXT_PROTOTYPES
-#define GL_GLEXT_PROTOTYPES
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
-#include <drm/drm_fourcc.h>
-#include <map>
-#include "fonts.h"
 
 #include <chrono>
-
-#include "imgs/imgs_press.h"
-#include "imgs/imgs_numbers.h"
-#include "imgs/imgs_pause.h"
-#include "imgs/imgs_screenshot.h"
-#include "imgs/imgs_fast_forwarding.h"
 #include "video-helper.h"
 
 #include <chrono>
@@ -67,8 +53,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 extern int opt_backlight;
 
 
-
-status *status_obj = new status(); // quit, pause, screenshot,FPS, fastforward
 
 // float aspect_ratio;
 uint32_t color_format;
@@ -86,10 +70,12 @@ int prevBacklight;
 
 bool isWideScreen = false;
 extern retro_hw_context_reset_t retro_context_reset;
+extern retro_hw_context_reset_t retro_context_destroy;
+extern rr_video_shader_t videoShader;
 
 
 const char *batteryStateDesc[] = {"UNK", "DSC", "CHG", "FUL"};
-extern go2_brightness_state_t brightnessState;
+extern rr_brightness_state_t brightnessState;
 bool first_video_refresh = true;
 float real_aspect_ratio = 0.0f;
 
@@ -112,10 +98,10 @@ int y;
 int w;
 int h;
 float screen_aspect_ratio;
-go2_rotation_t _351BlitRotation;
-go2_rotation_t _351Rotation;
-go2_rotation last351Rotation;
-go2_rotation last351BlitRotation;
+rr_rotation_t _351BlitRotation;
+rr_rotation_t _351Rotation;
+rr_rotation_t last351Rotation;
+rr_rotation_t last351BlitRotation;
 bool drawOneFrame;
 
 
@@ -136,19 +122,23 @@ void video_configure(struct retro_game_geometry *geom)
         geom->max_width = 480;
     }
 
-    if (isRG503())// || isRG353V() || isRG353M())
+    if (isRG503()
+#ifdef RR_PLATFORM_SDL
+        || true
+#endif
+    )// || isRG353V() || isRG353M())
     {
         /*geom->base_height = 544;
         geom->base_width = 960;
         geom->max_height = 544;
         geom->max_width = 960;*/
-        display = go2_display_create();
-        display_width = go2_display_width_get(display);
-        display_height = go2_display_height_get(display);
+        display = rr_display_create();
+        display_width = rr_display_width_get(display);
+        display_height = rr_display_height_get(display);
     }else {
-        display = go2_display_create();
-        display_width = go2_display_height_get(display);
-        display_height = go2_display_width_get(display);
+        display = rr_display_create();
+        display_width = rr_display_height_get(display);
+        display_height = rr_display_width_get(display);
     }
 
     float aspect_ratio_display = (float)display_width / (float)display_height;
@@ -165,15 +155,17 @@ void video_configure(struct retro_game_geometry *geom)
         geom->max_height = display_width;
     }
 
-    presenter = go2_presenter_create(display, DRM_FORMAT_RGB888, 0xff080808); // ABGR
+#ifndef RR_PLATFORM_SDL
+    presenter = rr_presenter_create(display, RR_PIXEL_FORMAT_RGB888, 0xff080808); // ABGR
+#endif
 
     if (opt_backlight > -1)
     {
-        go2_display_backlight_set(display, (uint32_t)opt_backlight);
+        rr_display_backlight_set(display, (uint32_t)opt_backlight);
     }
     else
     {
-        opt_backlight = go2_display_backlight_get(display);
+        opt_backlight = rr_display_backlight_get(display);
     }
     prevBacklight = opt_backlight;
 
@@ -223,11 +215,22 @@ void video_configure(struct retro_game_geometry *geom)
 
     if (isOpenGL)
     {
-        go2_context_attributes_t attr;
-        if (color_format == DRM_FORMAT_XRGB8888 && !(isRG503()||isRG353V() ||isRG353M())) // should be always true
+        rr_context_attributes_t attr;
+        if (color_format == RR_PIXEL_FORMAT_XRGB8888 && !(isRG503()||isRG353V() ||isRG353M())) // should be always true
         {
+#ifdef RR_SDL_GLES
+            // GLES3 cores commonly leave version_major/minor at zero. Request
+            // the widely supported ES 3.0 baseline unless a core explicitly
+            // asks for a newer GLES_VERSION context.
+            attr.major = GLContextMajor >= 3 ? GLContextMajor : 3;
+            attr.minor = GLContextMajor >= 3 ? GLContextMinor : 0;
+#elif defined(RR_PLATFORM_SDL)
+            attr.major = GLContextMajor > 0 ? GLContextMajor : 3;
+            attr.minor = GLContextMajor > 0 ? GLContextMinor : 2;
+#else
             attr.major = 3;
             attr.minor = 2;
+#endif
             attr.red_bits = 8;
             attr.green_bits = 8;
             attr.blue_bits = 8;
@@ -237,8 +240,13 @@ void video_configure(struct retro_game_geometry *geom)
         }
         else
         {
+#ifdef RR_SDL_GLES
+            attr.major = GLContextMajor >= 3 ? GLContextMajor : 3;
+            attr.minor = GLContextMajor >= 3 ? GLContextMinor : 0;
+#else
             attr.major = 3;
             attr.minor = 2;
+#endif
             attr.red_bits = 5;
             attr.green_bits = 6;
             attr.blue_bits = 5;
@@ -249,12 +257,20 @@ void video_configure(struct retro_game_geometry *geom)
 
    
 
-        context3D = go2_context_create(display, getGeom_max_width(geom), getGeom_max_height(geom), &attr);
-        go2_context_make_current(context3D);
+        context3D = rr_context_create(display, getGeom_max_width(geom), getGeom_max_height(geom), &attr);
+        if (!context3D)
+        {
+            logger.log(Logger::ERR, "Unable to create the requested hardware rendering context");
+            throw std::runtime_error("hardware rendering context creation failed");
+        }
+        rr_context_make_current(context3D);
         retro_context_reset();
     }
     else
     {
+#ifdef RR_PLATFORM_SDL
+        presenter = rr_presenter_create(display, RR_PIXEL_FORMAT_RGB888, 0xff080808);
+#endif
         if (surface)
             exit(1);
 
@@ -263,18 +279,18 @@ void video_configure(struct retro_game_geometry *geom)
         logger.log(Logger::DEB, "video_configure: aw=%d, ah=%d", aw, ah);
         logger.log(Logger::DEB, "video_configure: base_width=%d, base_height=%d", geom->base_width, geom->base_height);
 
-        if (color_format == DRM_FORMAT_RGBA5551)
+        if (color_format == RR_PIXEL_FORMAT_RGBA5551)
         {
-            surface = go2_surface_create(display, aw, ah, format_565);
+            surface = rr_surface_create(display, aw, ah, format_565);
         }
         else
         {
-            surface = go2_surface_create(display, aw, ah, color_format);
+            surface = rr_surface_create(display, aw, ah, color_format);
         }
 
         if (!surface)
         {
-            logger.log(Logger::ERR, "go2_surface_create failed.\n");
+            logger.log(Logger::ERR, "rr_surface_create failed.\n");
             throw std::exception();
         }
 
@@ -282,34 +298,46 @@ void video_configure(struct retro_game_geometry *geom)
     }
 }
 
+void video_prepare_core_unload()
+{
+#ifdef RR_PLATFORM_SDL
+    if (isOpenGL && context3D != NULL && retro_context_destroy != NULL)
+    {
+        rr_context_make_current(context3D);
+        retro_context_destroy();
+        retro_context_destroy = NULL;
+    }
+#endif
+}
+
 void video_deinit()
 {
 
     if (status_surface_bottom_right != NULL)
-        go2_surface_destroy(status_surface_bottom_right);
+        rr_surface_destroy(status_surface_bottom_right);
     if (status_surface_bottom_left != NULL)
-        go2_surface_destroy(status_surface_bottom_left);
+        rr_surface_destroy(status_surface_bottom_left);
     if (status_surface_bottom_center != NULL)
-        go2_surface_destroy(status_surface_bottom_center);
+        rr_surface_destroy(status_surface_bottom_center);
     if (status_surface_top_right != NULL)
-        go2_surface_destroy(status_surface_top_right);
+        rr_surface_destroy(status_surface_top_right);
     if (status_surface_top_left != NULL)
-        go2_surface_destroy(status_surface_top_left);
+        rr_surface_destroy(status_surface_top_left);
     if (status_surface_full != NULL)
-        go2_surface_destroy(status_surface_full);
+        rr_surface_destroy(status_surface_full);
     if (surface != NULL)
-        go2_surface_destroy(surface);
+        rr_surface_destroy(surface);
     if (context3D != NULL)
-        go2_context_destroy(context3D);
+        rr_context_destroy(context3D);
     if (presenter != NULL)
-        go2_presenter_destroy(presenter);
+        rr_presenter_destroy(presenter);
     if (display != NULL)
-        go2_display_destroy(display);
+        rr_display_destroy(display);
 }
 
 uintptr_t core_video_get_current_framebuffer()
 {
-    return 0;
+    return rr_context_framebuffer_get(context3D);
 }
 
 
@@ -317,8 +345,8 @@ bool pixel_perfect_max_scaling = true;
 
 void prepareScreenPixelPerfect(int width, int height) {
 
-    int display_height = go2_display_height_get(display);
-    int display_width = go2_display_width_get(display);
+    int display_height = rr_display_height_get(display);
+    int display_width = rr_display_width_get(display);
 
     int scaled_w = width;
     int scaled_h = height;
@@ -339,12 +367,14 @@ void prepareScreenPixelPerfect(int width, int height) {
     h = scaled_h;
 
     
+#ifndef RR_PLATFORM_SDL
     if (isWideScreen && !isRG503()) {
         x = (display_width - scaled_h) / 2;
         y = (display_height - scaled_w) / 2;
         w = scaled_h;
         h = scaled_w;
     }
+#endif
     
 
     if (first_video_refresh) {
@@ -360,7 +390,11 @@ void prepareScreen(int width, int height)
    
     
    
-        screen_aspect_ratio = (float)go2_display_height_get(display) / (float)go2_display_width_get(display);
+#ifdef RR_PLATFORM_SDL
+        screen_aspect_ratio = (float)rr_display_width_get(display) / (float)rr_display_height_get(display);
+#else
+        screen_aspect_ratio = (float)rr_display_height_get(display) / (float)rr_display_width_get(display);
+#endif
     
         if (isDuckStation() && !wideScreenNotRotated())
         {
@@ -384,6 +418,37 @@ void prepareScreen(int width, int height)
             return;
         }
 
+#ifdef RR_PLATFORM_SDL
+    // Desktop windows can change size at any time (maximize/fullscreen/drag).
+    // Fit the core's display aspect ratio inside the current SDL window and
+    // center it, leaving pillarbox or letterbox bars as required.
+    if (!isTate())
+    {
+        const int window_width = rr_display_width_get(display);
+        const int window_height = rr_display_height_get(display);
+        const float target_aspect = aspect_ratio > 0.0f
+                                        ? aspect_ratio
+                                        : (height > 0 ? static_cast<float>(width) / height : 1.0f);
+        const float window_aspect = static_cast<float>(window_width) / window_height;
+
+        if (target_aspect < window_aspect)
+        {
+            h = window_height;
+            w = static_cast<int>(std::lround(h * target_aspect));
+            x = (window_width - w) / 2;
+            y = 0;
+        }
+        else
+        {
+            w = window_width;
+            h = static_cast<int>(std::lround(w / target_aspect));
+            x = 0;
+            y = (window_height - h) / 2;
+        }
+        return;
+    }
+#endif
+
     if (game_aspect_ratio >= 1.0f)
     {
         if (first_video_refresh)
@@ -400,8 +465,8 @@ void prepareScreen(int width, int height)
                 logger.log(Logger::DEB, "Tate mode active");
                 x = 0;
                 y = 0;
-                h = go2_display_height_get(display);
-                w = go2_display_width_get(display);
+                h = rr_display_height_get(display);
+                w = rr_display_width_get(display);
             }
             else
             {
@@ -411,8 +476,8 @@ void prepareScreen(int width, int height)
                 {
                     if (first_video_refresh)
                     logger.log(Logger::DEB, "aspect_ratio = screen_aspect_ratio");
-                    h = go2_display_height_get(display);
-                    w = go2_display_width_get(display);
+                    h = rr_display_height_get(display);
+                    w = rr_display_width_get(display);
                     x = 0;
                     y = 0;
                 }
@@ -420,24 +485,24 @@ void prepareScreen(int width, int height)
                 {
                     if (first_video_refresh)
                     logger.log(Logger::DEB, "aspect_ratio < screen_aspect_ratio");
-                    w = go2_display_width_get(display);
+                    w = rr_display_width_get(display);
                     h = w * aspect_ratio;
-                    h = (h > go2_display_height_get(display)) ? go2_display_height_get(display) : h;
-                    y = (go2_display_height_get(display) / 2) - (h / 2);
+                    h = (h > rr_display_height_get(display)) ? rr_display_height_get(display) : h;
+                    y = (rr_display_height_get(display) / 2) - (h / 2);
                     x = 0;
                 }
                 else if (aspect_ratio > screen_aspect_ratio)
                 {
                     if (first_video_refresh)
                     logger.log(Logger::DEB, "aspect_ratio > screen_aspect_ratio");
-                    h = go2_display_height_get(display);
+                    h = rr_display_height_get(display);
                     if (wideScreenNotRotated()){
                         w = h * aspect_ratio;
                     }else{
                         w = h / aspect_ratio;
                     }
-                    w = (w > go2_display_width_get(display)) ? go2_display_width_get(display) : w;
-                    x = (go2_display_width_get(display) / 2) - (w / 2);
+                    w = (w > rr_display_width_get(display)) ? rr_display_width_get(display) : w;
+                    x = (rr_display_width_get(display) / 2) - (w / 2);
                     y = 0;
                     
                 }
@@ -454,8 +519,8 @@ void prepareScreen(int width, int height)
             {
                 if (first_video_refresh)
                 logger.log(Logger::DEB, "aspect_ratio = screen_aspect_ratio");
-                h = go2_display_height_get(display);
-                w = go2_display_width_get(display);
+                h = rr_display_height_get(display);
+                w = rr_display_width_get(display);
                 x = 0;
                 y = 0;
             }
@@ -463,20 +528,20 @@ void prepareScreen(int width, int height)
             {
                 if (first_video_refresh)
                 logger.log(Logger::DEB, "aspect_ratio < screen_aspect_ratio");
-                h = go2_display_height_get(display);
+                h = rr_display_height_get(display);
                 w = h / aspect_ratio;
-                w = (w > go2_display_width_get(display)) ? go2_display_width_get(display) : w;
-                x = (go2_display_width_get(display) / 2) - (w / 2);
+                w = (w > rr_display_width_get(display)) ? rr_display_width_get(display) : w;
+                x = (rr_display_width_get(display) / 2) - (w / 2);
                 y = 0;
             }
             else if (aspect_ratio > screen_aspect_ratio)
             {
                 if (first_video_refresh)
                 logger.log(Logger::DEB, "aspect_ratio > screen_aspect_ratio");
-                w = go2_display_width_get(display);
+                w = rr_display_width_get(display);
                 h = w / aspect_ratio;
-                h = (h > go2_display_height_get(display)) ? go2_display_height_get(display) : h;
-                y = (go2_display_height_get(display) / 2) - (h / 2);
+                h = (h > rr_display_height_get(display)) ? rr_display_height_get(display) : h;
+                y = (rr_display_height_get(display) / 2) - (h / 2);
                 x = 0;
             }
         }
@@ -493,8 +558,8 @@ void prepareScreen(int width, int height)
             logger.log(Logger::DEB, "Tate mode is active");
             x = 0;
             y = 0;
-            h = go2_display_height_get(display);
-            w = go2_display_width_get(display);
+            h = rr_display_height_get(display);
+            w = rr_display_width_get(display);
         }
         else
         {
@@ -504,20 +569,20 @@ void prepareScreen(int width, int height)
             {
                 if (first_video_refresh)
                 logger.log(Logger::DEB, "aspect_ratio < screen_aspect_ratio");
-                w = go2_display_width_get(display);
+                w = rr_display_width_get(display);
                 h = w / aspect_ratio;
-                h = (h > go2_display_height_get(display)) ? go2_display_height_get(display) : h;
-                y = (go2_display_height_get(display) / 2) - (h / 2);
+                h = (h > rr_display_height_get(display)) ? rr_display_height_get(display) : h;
+                y = (rr_display_height_get(display) / 2) - (h / 2);
                 x = 0;
             }
             else if (aspect_ratio > screen_aspect_ratio)
             {
                 if (first_video_refresh)
                 logger.log(Logger::DEB, "aspect_ratio > screen_aspect_ratio");
-                h = go2_display_height_get(display);
+                h = rr_display_height_get(display);
                 w = h / aspect_ratio;
-                w = (w > go2_display_width_get(display)) ? go2_display_width_get(display) : w;
-                x = (go2_display_width_get(display) / 2) - (w / 2);
+                w = (w > rr_display_width_get(display)) ? rr_display_width_get(display) : w;
+                x = (rr_display_width_get(display) / 2) - (w / 2);
                 y = 0;
             }
         }
@@ -529,7 +594,7 @@ void prepareScreen(int width, int height)
 
 inline void presenter_post(int width, int height)
 {
-    go2_presenter_post(presenter,
+    rr_presenter_post(presenter,
                        gles_surface,
                        0, (gs_h - height), width, height,
                        x, y, w, h,
@@ -540,17 +605,18 @@ void drawNonOpenGL(const void *data, unsigned width, unsigned height, size_t pit
 {
 
     uint8_t *src = (uint8_t *)data;
-    uint8_t *dst = (uint8_t *)go2_surface_map(surface);
+    uint8_t *mapped = (uint8_t *)rr_surface_map(surface);
+    uint8_t *dst = mapped;
     if (dst == nullptr)
     {
         return;
     }
-    int bpp = go2_drm_format_get_bpp(go2_surface_format_get(surface)) / 8;
+    int bpp = rr_pixel_format_bpp(rr_surface_format_get(surface)) / 8;
 
     int yy = height;
     while (yy > 0)
     {
-        if (color_format == DRM_FORMAT_RGBA5551)
+        if (color_format == RR_PIXEL_FORMAT_RGBA5551)
         {
             uint32_t *src2 = (uint32_t *)src;
             uint32_t *dst2 = (uint32_t *)dst;
@@ -568,290 +634,82 @@ void drawNonOpenGL(const void *data, unsigned width, unsigned height, size_t pit
         }
 
         src += pitch;
-        dst += go2_surface_stride_get(surface);
+        dst += rr_surface_stride_get(surface);
         --yy;
     }
-}
-/*
-bool lastWasInfo = false;
-bool cleanUpScreen = false;
-*/
-bool last_input_info_requested=false;
-int maxFrameBlack= 6;
-int clearScreenDelay =maxFrameBlack;
 
-int dot_counter = 0;
-static int frame_counter = 0;
-bool osdDrawing(const void *data, unsigned width, unsigned height, size_t pitch)
-{
-
-    bool showStatus = false;
-    int res_width = width;
-    int res_height = height;
-    if (input_info_requested || input_credits_requested || last_input_info_requested || showLoading)
+    if (videoShader != RR_VIDEO_SHADER_OFF)
     {
-        
-        
-        res_width = INFO_MENU_WIDTH;
-        res_height = INFO_MENU_HEIGHT;
+        const uint32_t format = rr_surface_format_get(surface);
+        const int stride = rr_surface_stride_get(surface);
+        const bool crt = videoShader == RR_VIDEO_SHADER_CRT;
+        auto scale_channel = [](unsigned value, float factor, unsigned maximum) {
+            return static_cast<unsigned>(std::min<float>(maximum, value * factor));
+        };
 
-        if (status_surface_full == nullptr)
+        for (unsigned py = 0; py < height; ++py)
         {
-            status_surface_full = go2_surface_create(display, res_width, res_height, format_565);
-        }
+            const float normalized_y = height > 1
+                                           ? (2.0f * py / static_cast<float>(height - 1)) - 1.0f
+                                           : 0.0f;
+            const float scanline = (py & 1U) ? 0.68f : 1.0f;
+            uint8_t *row = mapped + static_cast<size_t>(py) * stride;
+            for (unsigned px = 0; px < width; ++px)
+            {
+                float factor = scanline;
+                if (crt)
+                {
+                    const float normalized_x = width > 1
+                                                   ? (2.0f * px / static_cast<float>(width - 1)) - 1.0f
+                                                   : 0.0f;
+                    factor *= std::max(0.62f,
+                                       1.0f - 0.18f * (normalized_x * normalized_x +
+                                                       normalized_y * normalized_y));
+                }
 
-        if (input_credits_requested && !showLoading )
-        {
-            
-            makeScreenBlackCredits(status_surface_full, res_width, res_height);
-            showCredits(&status_surface_full);
-        }else if (last_input_info_requested && !input_info_requested && clearScreenDelay>0) // Se il menu si chiude
-        {
-            logger.log(Logger::DEB, "Ensuring full screen clear before resuming game...");
-            makeScreenBlackCredits(status_surface_full, res_width, res_height);
-            clearScreenDelay--;
-            if (clearScreenDelay==0){
-                clearScreenDelay=maxFrameBlack;
+                if (format == RR_PIXEL_FORMAT_RGB565)
+                {
+                    uint16_t &pixel = reinterpret_cast<uint16_t *>(row)[px];
+                    unsigned red = (pixel >> 11) & 0x1f;
+                    unsigned green = (pixel >> 5) & 0x3f;
+                    unsigned blue = pixel & 0x1f;
+                    if (crt) {
+                        const unsigned mask = px % 3;
+                        red = scale_channel(red, factor * (mask == 0 ? 1.0f : 0.88f), 0x1f);
+                        green = scale_channel(green, factor * (mask == 1 ? 1.0f : 0.88f), 0x3f);
+                        blue = scale_channel(blue, factor * (mask == 2 ? 1.0f : 0.88f), 0x1f);
+                    } else {
+                        red = scale_channel(red, factor, 0x1f);
+                        green = scale_channel(green, factor, 0x3f);
+                        blue = scale_channel(blue, factor, 0x1f);
+                    }
+                    pixel = static_cast<uint16_t>((red << 11) | (green << 5) | blue);
+                }
+                else if (format == RR_PIXEL_FORMAT_XRGB8888 ||
+                         format == RR_PIXEL_FORMAT_RGBA8888)
+                {
+                    uint32_t &pixel = reinterpret_cast<uint32_t *>(row)[px];
+                    unsigned red = (pixel >> 16) & 0xff;
+                    unsigned green = (pixel >> 8) & 0xff;
+                    unsigned blue = pixel & 0xff;
+                    const unsigned mask = px % 3;
+                    red = scale_channel(red, factor * (crt && mask != 0 ? 0.88f : 1.0f), 0xff);
+                    green = scale_channel(green, factor * (crt && mask != 1 ? 0.88f : 1.0f), 0xff);
+                    blue = scale_channel(blue, factor * (crt && mask != 2 ? 0.88f : 1.0f), 0xff);
+                    pixel = (pixel & 0xff000000U) | (red << 16) | (green << 8) | blue;
+                }
+                else if (format == RR_PIXEL_FORMAT_RGB888)
+                {
+                    uint8_t *pixel = row + px * 3;
+                    const unsigned mask = px % 3;
+                    pixel[0] = static_cast<uint8_t>(scale_channel(pixel[0], factor * (crt && mask != 0 ? 0.88f : 1.0f), 0xff));
+                    pixel[1] = static_cast<uint8_t>(scale_channel(pixel[1], factor * (crt && mask != 1 ? 0.88f : 1.0f), 0xff));
+                    pixel[2] = static_cast<uint8_t>(scale_channel(pixel[2], factor * (crt && mask != 2 ? 0.88f : 1.0f), 0xff));
+                }
             }
         }
-        else if (showLoading){
-            frame_counter++;
-            std::string label = "  Please wait  ";
-            if (frame_counter % 30 > 15) {
-               label = ". Please wait .";
-            }
-            makeScreenBlack(status_surface_full, res_width, res_height);
-            
-            int lenghtLabel= ((label.length())*8/2);
-            showTextBigger(res_width/2 -lenghtLabel, res_height/2, label.c_str(), WHITE, &status_surface_full);
-        }
-        else{
-
-            
-            drawMenuInfoBackgroud(status_surface_full, res_width, res_height);
-            showInfo(gs_w, &status_surface_full);
-
-            
-        }
-        showStatus = true;
-        status_obj->show_full = true;
     }
-    else
-    {
-        status_obj->show_full = false;
-        if (!isOpenGL)
-        {
-            drawNonOpenGL(data, width, height, pitch);
-        }
-    }
-    if (input_fps_requested && !input_info_requested && !input_credits_requested)
-    {
-        if (status_surface_top_right == nullptr)
-        {
-            status_surface_top_right = go2_surface_create(display, numbers.width * 2, (numbers.height / 10), format_565);
-        }
-
-        showFPSImage();
-
-        showStatus = true;
-        status_obj->show_top_right = true;
-    }
-    else
-    {
-        status_obj->show_top_right = false;
-    }
-    if (screenshot_requested && !input_info_requested && !input_credits_requested)
-    {
-        takeScreenshot(res_width, res_height);
-    }
-    if (continueToShowScreenshotImage())
-    {
-        showImage(screenshot, &status_surface_bottom_right);
-        showStatus = true;
-        status_obj->show_bottom_right = true;
-    }
-    else
-    {
-        status_obj->show_bottom_right = false;
-    }
-    if (input_ffwd_requested || input_message)
-    {
-        if (input_message)
-        {
-            showText(10, 10, status_message.c_str(), 0xffff, &status_surface_top_left);
-            showStatus = true;
-            status_obj->show_top_left = true;
-        }
-        else
-        {
-            showImage(fast, &status_surface_top_left);
-
-            showStatus = true;
-            status_obj->show_top_left = true;
-        }
-    }
-
-    else
-    {
-        status_obj->show_top_left = false;
-    }
-    if (input_exit_requested_firstTime && !input_info_requested && !input_credits_requested)
-    {
-        showImage(quit, &status_surface_bottom_left);
-        showStatus = true;
-        status_obj->show_bottom_left = true;
-    }
-    if (input_pause_requested && !input_info_requested)
-    {
-        showImage(pause_img, &status_surface_bottom_left);
-
-        showStatus = true;
-        status_obj->show_bottom_left = true;
-    }
-    if (!input_exit_requested_firstTime && !input_pause_requested && !input_credits_requested)
-    {
-        status_obj->show_bottom_left = false;
-    }
-    checkPaused();
-
-
-    bool show_bottom_center=false;
-    if ( continueToShowSaveLoadStateDoneImage() || input_slot_memory_load_done ||
-        input_slot_memory_save_done  || input_slot_memory_reset_done 
-    ) // the order here it's ompirtrant because the method continueToShowSaveLoadStateDoneImage is going to put agan to fales the value of these two variables
-    {
-
-        if (status_surface_bottom_center == nullptr)
-        {
-            status_surface_bottom_center = go2_surface_create(display, 150, 20, format_565);
-        }
-        makeScreenBlack(status_surface_bottom_center, 150, 20);
-        showStatus = true;
-        show_bottom_center= true;
-
-        if (input_slot_memory_load_done)
-        {
-            if (lastLoadSaveStateDoneOk){
-                std::string label = " SLOT:" + std::to_string(currentSlot) + " LOADED."; 
-                showTextBigger(0, 5, label.c_str(), WHITE, &status_surface_bottom_center); 
-            } else{
-                std::string label = " LOAD FAILED!"; 
-                showTextBigger(0, 5, label.c_str(), RED, &status_surface_bottom_center); 
-            } 
-        }
-        else if (input_slot_memory_save_done)
-        {
-            std::string label = " SLOT:" + std::to_string(currentSlot) + " SAVED."; 
-            showTextBigger(0, 5 ,label.c_str(), WHITE, &status_surface_bottom_center);
-        }else if (input_slot_memory_reset_done)
-        {
-            std::string label = " CORE RESET DONE."; 
-            showTextBigger(0,5 ,label.c_str(), WHITE, &status_surface_bottom_center);
-        }
-       
-    }
-
-    if (input_slot_memory_load_requested ||
-        input_slot_memory_save_requested ||
-        input_slot_memory_plus_requested ||
-        input_slot_memory_minus_requested || continueToShowSaveLoadStateImage())
-    {
-
-        if (status_surface_bottom_center == nullptr)
-        {
-            status_surface_bottom_center = go2_surface_create(display, 150, 20, format_565);
-        }
-        makeScreenBlack(status_surface_bottom_center, 150, 20);
-        showStatus = true;
-        show_bottom_center =true;
-        
-
-        if (input_slot_memory_load_requested)
-        {
-            std::string label = " LOADING SLOT:" + std::to_string(currentSlot)+" ...";
-            showTextBigger(0, 5, label.c_str(), ORANGE, &status_surface_bottom_center);   
-        }
-        else if (input_slot_memory_save_requested)
-        {
-            std::string label = " SAVING SLOT:"  + std::to_string(currentSlot)+" ...";
-            showTextBigger(0, 5 ,label.c_str(), ORANGE, &status_surface_bottom_center);
-        }
-        else if (input_slot_memory_plus_requested)
-        {
-            std::string label = " SLOT:"  + std::to_string(currentSlot)+" SELECTED.";
-            showTextBigger(0, 5 ,label.c_str(), WHITE, &status_surface_bottom_center);
-        }
-        else if (input_slot_memory_minus_requested)
-        {
-            std::string label = " SLOT:"  + std::to_string(currentSlot)+" SELECTED.";
-            showTextBigger(0, 5 ,label.c_str(), WHITE, &status_surface_bottom_center);
-        }
-    }
-    
-    if (show_bottom_center){
-        status_obj->show_bottom_center = true;
-    }else{
-        status_obj->show_bottom_center = false;
-    }
-
-    if (showStatus)
-    {
-        if (status_surface_bottom_center != nullptr)
-        {
-            status_obj->bottom_center = status_surface_bottom_center;
-        }
-
-        if (status_surface_bottom_left != nullptr)
-        {
-            status_obj->bottom_left = status_surface_bottom_left;
-        }
-        if (status_surface_bottom_right != nullptr)
-        {
-            status_obj->bottom_right = status_surface_bottom_right;
-        }
-        if (status_surface_top_right != nullptr)
-        {
-            status_obj->top_right = status_surface_top_right;
-        }
-        if (status_surface_top_left != nullptr)
-        {
-            status_obj->top_left = status_surface_top_left;
-        }
-        if (status_surface_full != nullptr)
-        {
-            status_obj->full = status_surface_full;
-        }
-        if (isOpenGL)
-        {
-
-            // blit_surface_status(presenter,status_obj->full, dstSurface, dstWidth, dstHeight,rotation, FULL);
-            /* if (cleanUpScreen){
-
-                  go2_presenter_black(presenter,
-                            x, y, width, height,
-                            _351Rotation);
-             }else{*/
-            go2_presenter_post_multiple(presenter,
-                                        gles_surface, status_obj,
-                                        0, (gs_h - height), width, height,
-                                        x, y, w, h,
-                                        getRotation(), getBlitRotation(), isWideScreen);
-
-            //}
-        }
-        else
-        {
-
-            go2_presenter_post_multiple(presenter,
-                                        surface, status_obj,
-                                        0, 0, res_width, res_height,
-                                        x, y, w, h,
-                                        getRotation(), getBlitRotation(), isWideScreen);
-        }
-    }
-     // Update status for the ext frame
-     last_input_info_requested = input_info_requested ? true : clearScreenDelay==maxFrameBlack ? false : true;
-    return showStatus;
+    rr_surface_unmap(surface);
 }
 int timeCorrectFrame =0;
 inline void core_video_refresh_NON_OPENGL(const void *data, unsigned width, unsigned height, size_t pitch)
@@ -890,19 +748,21 @@ inline void core_video_refresh_NON_OPENGL(const void *data, unsigned width, unsi
     }else{
         timeCorrectFrame++;
         if (showLoading && timeCorrectFrame>2){
-            //logger.log(Logger::DEB, "---------------------->Loading finished!");
+            logger.log(Logger::DEB,
+                       "Loading screen: disabled after %d valid video frames",
+                       timeCorrectFrame);
             showLoading=false;
             twiceTimeCorrectFrame=false;
         }
     }
-    gs_w = go2_surface_width_get(surface);
-    gs_h = go2_surface_height_get(surface);
+    gs_w = rr_surface_width_get(surface);
+    gs_h = rr_surface_height_get(surface);
 
-    bool showStatus = osdDrawing(data, width, height, pitch);
+    bool showStatus = uiRenderOverlays(data, width, height, pitch);
     // printf("showStatus %s\n:", showStatus ? "true" : "false");
     if (!showStatus)
     {
-        go2_presenter_post(presenter,
+        rr_presenter_post(presenter,
                            surface,
                            0, 0, width, height,
                            x, y, w, h,
@@ -944,21 +804,23 @@ inline void core_video_refresh_OPENGL(const void *data, unsigned width, unsigned
     }else{
         timeCorrectFrame++;
         if (showLoading && timeCorrectFrame>2){
-            //logger.log(Logger::DEB, "Loading finished!");
+            logger.log(Logger::DEB,
+                       "Loading screen: disabled after %d valid video frames",
+                       timeCorrectFrame);
             twiceTimeCorrectFrame=false;
             showLoading=false;
         }
     }
 
     
-    gs_w = go2_surface_width_get(gles_surface);
-    gs_h = go2_surface_height_get(gles_surface);
+    gs_w = rr_surface_width_get(gles_surface);
+    gs_h = rr_surface_height_get(gles_surface);
 
-    bool showStatus = osdDrawing(data, width, height, pitch);
+    bool showStatus = uiRenderOverlays(data, width, height, pitch);
 
     if (!showStatus)
     {
-        go2_presenter_post(presenter,
+        rr_presenter_post(presenter,
                            gles_surface,
                            0, (gs_h - height), width, height,
                            x, y, w, h,
@@ -1029,17 +891,17 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         logger.log(Logger::DEB, "OpenGL=%s", isOpenGL ? "true" : "false");
         logger.log(Logger::DEB, "isTate=%s", isTate() ? "true" : "false");
 
-        if (color_format == DRM_FORMAT_RGBA5551)
+        if (color_format == RR_PIXEL_FORMAT_RGBA5551)
         {
-            logger.log(Logger::DEB, "Color format:DRM_FORMAT_RGBA5551");
+            logger.log(Logger::DEB, "Color format:RR_PIXEL_FORMAT_RGBA5551");
         }
-        else if (color_format == DRM_FORMAT_RGB888)
+        else if (color_format == RR_PIXEL_FORMAT_RGB888)
         {
-            logger.log(Logger::DEB, "Color format:DRM_FORMAT_RGB888");
+            logger.log(Logger::DEB, "Color format:RR_PIXEL_FORMAT_RGB888");
         }
-        else if (color_format == DRM_FORMAT_XRGB8888)
+        else if (color_format == RR_PIXEL_FORMAT_XRGB8888)
         {
-            logger.log(Logger::DEB, "Color format:DRM_FORMAT_XRGB8888");
+            logger.log(Logger::DEB, "Color format:RR_PIXEL_FORMAT_XRGB8888");
         }
         else
         {
@@ -1075,10 +937,30 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
 
     if (isOpenGL)
     {
+#ifdef RR_PLATFORM_SDL
+        // Hardware cores signal a completed frame with this libretro sentinel.
+        // The GO2 path handled it in core_video_refresh_OPENGL(), while the
+        // direct SDL presentation path used to bypass that loading-state code.
+        if (data == RETRO_HW_FRAME_BUFFER_VALID)
+        {
+            ++timeCorrectFrame;
+            if (showLoading && timeCorrectFrame > 2)
+            {
+                logger.log(Logger::DEB,
+                           "Loading screen: disabled after %d valid OpenGL frames",
+                           timeCorrectFrame);
+                showLoading = false;
+                twiceTimeCorrectFrame = false;
+            }
+        }
+        const bool overlays_visible = uiRenderOverlays(data, width, height, pitch);
+        rr_context_swap_buffers(context3D, width, height, x, y, w, h,
+                                overlays_visible ? uiCurrentOverlays() : nullptr);
+        return;
+#else
+        rr_context_swap_buffers(context3D, width, height, x, y, w, h, nullptr);
 
-        go2_context_swap_buffers(context3D);
-
-        gles_surface = go2_context_surface_lock(context3D);
+        gles_surface = rr_context_surface_lock(context3D);
         if (processVideoInAnotherThread)
         {
             std::thread th(core_video_refresh_OPENGL, data, width, height, pitch);
@@ -1089,7 +971,8 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
             core_video_refresh_OPENGL(data, width, height, pitch);
         }
 
-        go2_context_surface_unlock(context3D, gles_surface);
+        rr_context_surface_unlock(context3D, gles_surface);
+#endif
     }
     else
     {

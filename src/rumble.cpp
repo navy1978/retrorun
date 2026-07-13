@@ -19,6 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 #include "rumble.h"
 #include "globals.h"
+#include "platform.h"
 
 
 
@@ -29,9 +30,11 @@ bool disableRumble= false; // by default rumble is enabled (if supported by the 
 
 // for event rumble
 std::string DEVICE_PATH = "";
+#ifdef RR_PLATFORM_GO2
 static int rumble_fd = -1;
 static struct ff_effect rumble_effect;
 static int rumble_id = -1;
+#endif
 
 // for pwm rumble
 std::string  PWM_RUMBLE_PATH = "";
@@ -42,6 +45,14 @@ bool retrorun_input_set_rumble(unsigned port, enum retro_rumble_effect effect, u
 {
 
     if (disableRumble) return true;
+
+#ifdef RR_PLATFORM_SDL
+    static uint16_t low = 0;
+    static uint16_t high = 0;
+    if (effect == RETRO_RUMBLE_WEAK) low = strength;
+    if (effect == RETRO_RUMBLE_STRONG) high = strength;
+    return rr_input_set_rumble(low, high, (low || high) ? 250 : 0);
+#else
 
     bool pwmDevices = pwm!= TRIBOOL_NULL ? pwm : joy.pwm;
 
@@ -152,4 +163,5 @@ bool retrorun_input_set_rumble(unsigned port, enum retro_rumble_effect effect, u
 
     return true;
     }
+#endif
 }

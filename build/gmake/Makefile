@@ -23,7 +23,7 @@ ifeq ($(config),debug)
   OBJDIR     = obj/Debug
   TARGETDIR  = ../..
   TARGET     = $(TARGETDIR)/retrorun
-  DEFINES   += -DDEBUG
+  DEFINES   += -DDEBUG -DRR_PLATFORM_GO2
   INCLUDES  += -I../../src -I../.. -I../../src/go2 -I../../src/menu
   CPPFLAGS  += -MMD -MP $(DEFINES) $(INCLUDES)
   CFLAGS    += $(CPPFLAGS) $(ARCH) -g -Wall -D__GBM__
@@ -45,7 +45,7 @@ ifeq ($(config),release)
   OBJDIR     = obj/Release
   TARGETDIR  = ../..
   TARGET     = $(TARGETDIR)/retrorun
-  DEFINES   += -DNDEBUG
+  DEFINES   += -DNDEBUG -DRR_PLATFORM_GO2
   INCLUDES  += -I../../src -I../.. -I../../src/go2 -I../../src/menu
   CPPFLAGS  += -MMD -MP $(DEFINES) $(INCLUDES)
   CFLAGS    += $(CPPFLAGS) $(ARCH) -Ofast -Wall -D__GBM__
@@ -65,6 +65,9 @@ endif
 
 OBJECTS := \
 	$(OBJDIR)/logger.o \
+	$(OBJDIR)/platform_go2.o \
+	$(OBJDIR)/system-info.o \
+	$(OBJDIR)/ui-renderer.o \
 	$(OBJDIR)/menu/menu_item.o \
 	$(OBJDIR)/menu/menu.o \
 	$(OBJDIR)/menu/menu_manager.o \
@@ -149,6 +152,15 @@ endif
 $(OBJDIR)/logger.o: ../../src/logger.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"	
+$(OBJDIR)/platform_go2.o: ../../src/platform_go2.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/system-info.o: ../../src/system-info.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/ui-renderer.o: ../../src/ui-renderer.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/menu/menu_item.o: ../../src/menu/menu_item.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"	
