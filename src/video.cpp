@@ -712,6 +712,19 @@ void drawNonOpenGL(const void *data, unsigned width, unsigned height, size_t pit
     rr_surface_unmap(surface);
 }
 int timeCorrectFrame =0;
+
+static void finishLoadingScreenWhenReady(const char *frame_type)
+{
+    if (!showLoading || timeCorrectFrame <= 2 || !uiLoadingMinimumDurationElapsed())
+        return;
+
+    logger.log(Logger::DEB,
+               "Loading screen: disabled after %d valid %s frames and at least 700 ms",
+               timeCorrectFrame, frame_type);
+    showLoading = false;
+    twiceTimeCorrectFrame = false;
+}
+
 inline void core_video_refresh_NON_OPENGL(const void *data, unsigned width, unsigned height, size_t pitch)
 {
     static std::vector<uint16_t> black_frame;
@@ -747,13 +760,7 @@ inline void core_video_refresh_NON_OPENGL(const void *data, unsigned width, unsi
 
     }else{
         timeCorrectFrame++;
-        if (showLoading && timeCorrectFrame>2){
-            logger.log(Logger::DEB,
-                       "Loading screen: disabled after %d valid video frames",
-                       timeCorrectFrame);
-            showLoading=false;
-            twiceTimeCorrectFrame=false;
-        }
+        finishLoadingScreenWhenReady("video");
     }
     gs_w = rr_surface_width_get(surface);
     gs_h = rr_surface_height_get(surface);
@@ -803,13 +810,7 @@ inline void core_video_refresh_OPENGL(const void *data, unsigned width, unsigned
         }
     }else{
         timeCorrectFrame++;
-        if (showLoading && timeCorrectFrame>2){
-            logger.log(Logger::DEB,
-                       "Loading screen: disabled after %d valid video frames",
-                       timeCorrectFrame);
-            twiceTimeCorrectFrame=false;
-            showLoading=false;
-        }
+        finishLoadingScreenWhenReady("OpenGL");
     }
 
     
@@ -944,18 +945,13 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         if (data == RETRO_HW_FRAME_BUFFER_VALID)
         {
             ++timeCorrectFrame;
-            if (showLoading && timeCorrectFrame > 2)
-            {
-                logger.log(Logger::DEB,
-                           "Loading screen: disabled after %d valid OpenGL frames",
-                           timeCorrectFrame);
-                showLoading = false;
-                twiceTimeCorrectFrame = false;
-            }
+            finishLoadingScreenWhenReady("OpenGL");
         }
         const bool overlays_visible = uiRenderOverlays(data, width, height, pitch);
         rr_context_swap_buffers(context3D, width, height, x, y, w, h,
                                 overlays_visible ? uiCurrentOverlays() : nullptr);
+        if (overlays_visible && showLoading)
+            uiNotifyLoadingPresented();
         return;
 #else
         rr_context_swap_buffers(context3D, width, height, x, y, w, h, nullptr);

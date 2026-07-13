@@ -30,7 +30,12 @@ struct rr_surface {
     uint32_t format;
     std::vector<uint8_t> pixels;
 };
-struct rr_presenter { rr_display_t* display; SDL_Renderer* renderer; uint32_t background; };
+struct rr_presenter {
+    rr_display_t* display;
+    SDL_Renderer* renderer;
+    uint32_t background;
+    bool loading_wait_completed;
+};
 struct rr_context {
     rr_display_t* display;
     SDL_Window* window;
@@ -296,8 +301,15 @@ rr_display_t* rr_display_create() {
     display->window = SDL_CreateWindow("RetroRun SDL2", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
                                        display->width, display->height,
                                        window_flags);
-    if (!display->window)
+    if (!display->window) {
         std::fprintf(stderr, "RetroRun SDL window creation failed: %s\n", SDL_GetError());
+    } else {
+        // Cocoa may map a newly created window asynchronously. Explicitly
+        // expose it before the loading-screen timer starts on first present.
+        SDL_ShowWindow(display->window);
+        SDL_RaiseWindow(display->window);
+        SDL_PumpEvents();
+    }
     return display;
 }
 void rr_display_destroy(rr_display_t* display) { if (display) { if (display->window) SDL_DestroyWindow(display->window); delete display; } }
@@ -352,9 +364,19 @@ static void render_surface(rr_presenter_t* presenter, rr_surface_t* surface, con
                            const SDL_Rect* dst, rr_rotation_t rotation) {
     if (!presenter || !presenter->renderer || !surface) return;
     SDL_Surface* wrapped = wrap_surface(surface);
-    SDL_Texture* texture = wrapped ? SDL_CreateTextureFromSurface(presenter->renderer, wrapped) : NULL;
+    // Some macOS SDL renderers do not reliably upload RGB565 surfaces. The
+    // game frames normally use XRGB8888, while menus and loading artwork use
+    // RGB565, so convert those overlays explicitly before creating a texture.
+    SDL_Surface* upload = wrapped;
+    if (wrapped && surface->format == RR_PIXEL_FORMAT_RGB565)
+        upload = SDL_ConvertSurfaceFormat(wrapped, SDL_PIXELFORMAT_ARGB8888, 0);
+    SDL_Texture* texture = upload ? SDL_CreateTextureFromSurface(presenter->renderer, upload) : NULL;
+    if (upload && upload != wrapped) SDL_FreeSurface(upload);
     if (wrapped) SDL_FreeSurface(wrapped);
-    if (!texture) return;
+    if (!texture) {
+        std::fprintf(stderr, "RetroRun SDL texture upload failed: %s\n", SDL_GetError());
+        return;
+    }
     SDL_SetTextureBlendMode(texture, surface->format == RR_PIXEL_FORMAT_RGBA8888
                                          ? SDL_BLENDMODE_BLEND
                                          : SDL_BLENDMODE_NONE);
@@ -365,6 +387,7 @@ static void render_surface(rr_presenter_t* presenter, rr_surface_t* surface, con
 
 rr_presenter_t* rr_presenter_create(rr_display_t* display, uint32_t, uint32_t background) {
     rr_presenter_t* presenter = new rr_presenter_t(); presenter->display = display; presenter->background = background;
+    presenter->loading_wait_completed = false;
     const Uint32 vsync_flag = vsync_enabled ? SDL_RENDERER_PRESENTVSYNC : 0;
     presenter->renderer = SDL_CreateRenderer(display->window, -1,
                                               SDL_RENDERER_ACCELERATED | vsync_flag);
@@ -389,6 +412,22 @@ void rr_presenter_post(rr_presenter_t* p, rr_surface_t* s, int sx, int sy, int s
     clear_presenter(p); SDL_Rect src={sx,sy,sw,sh}, dst={dx,dy,dw,dh}; render_surface(p,s,&src,&dst,r); SDL_RenderPresent(p->renderer);
 }
 void rr_presenter_black(rr_presenter_t* p, int, int, int, int, rr_rotation_t) { clear_presenter(p); SDL_RenderPresent(p->renderer); }
+void rr_presenter_wait_for_loading_screen(rr_presenter_t* presenter, unsigned milliseconds) {
+    if (!presenter || !presenter->display || !presenter->display->window ||
+        presenter->loading_wait_completed)
+        return;
+
+    presenter->loading_wait_completed = true;
+    SDL_ShowWindow(presenter->display->window);
+    SDL_RaiseWindow(presenter->display->window);
+    const Uint64 started = SDL_GetTicks64();
+    while (SDL_GetTicks64() - started < milliseconds) {
+        // Cocoa needs its event queue serviced before a newly created window's
+        // first rendered frame is guaranteed to reach the compositor.
+        SDL_PumpEvents();
+        SDL_Delay(5);
+    }
+}
 void rr_presenter_post_multiple(rr_presenter_t* p, rr_surface_t* base, status* o,
                                 int sx, int sy, int sw, int sh, int dx, int dy, int dw, int dh,
                                 rr_rotation_t r, rr_rotation_t, bool) {

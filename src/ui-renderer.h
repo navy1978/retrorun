@@ -6,3 +6,5 @@ class status;
 
 bool uiRenderOverlays(const void* frame, unsigned width, unsigned height, size_t pitch);
 status* uiCurrentOverlays();
+void uiNotifyLoadingPresented();
+bool uiLoadingMinimumDurationElapsed();

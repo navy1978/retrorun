@@ -10,8 +10,11 @@
 #include "imgs/imgs_numbers.h"
 #include "imgs/imgs_pause.h"
 #include "imgs/imgs_press.h"
+#include "imgs/imgs_retrorun.h"
 #include "imgs/imgs_screenshot.h"
 
+#include <atomic>
+#include <chrono>
 #include <string>
 
 namespace {
@@ -21,6 +24,12 @@ const int clear_frame_count = 6;
 int clear_frames_left = clear_frame_count;
 int loading_frame = 0;
 bool loading_overlay_logged = false;
+std::atomic<int64_t> loading_started_ns{0};
+
+int64_t steadyNowNs() {
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(
+               std::chrono::steady_clock::now().time_since_epoch()).count();
+}
 
 void bindOverlaySurfaces() {
     overlays.bottom_center = status_surface_bottom_center;
@@ -48,8 +57,11 @@ void renderFullOverlay(int width, int height) {
         }
         const std::string label = (++loading_frame % 30 > 15) ? ". Please wait ." : "  Please wait  ";
         makeScreenBlack(status_surface_full, width, height);
+        showFullImage((width - static_cast<int>(retrorun_logo.width)) / 2, 18,
+                      retrorun_logo.width, retrorun_logo.height,
+                      retrorun_logo.pixel_data, &status_surface_full);
         showTextBigger(width / 2 - static_cast<int>(label.length()) * 4,
-                       height / 2, label.c_str(), WHITE, &status_surface_full);
+                       116, label.c_str(), WHITE, &status_surface_full);
     } else {
         drawMenuInfoBackgroud(status_surface_full, width, height);
         showInfo(gs_w, &status_surface_full);
@@ -151,11 +163,22 @@ bool uiRenderOverlays(const void* frame, unsigned width, unsigned height, size_t
 
     if (visible && presenter) {
         bindOverlaySurfaces();
-        rr_surface_t* base = isOpenGL ? gles_surface : surface;
-        const int source_y = isOpenGL ? gs_h - static_cast<int>(height) : 0;
-        rr_presenter_post_multiple(presenter, base, &overlays,
-                                   0, source_y, overlay_width, overlay_height,
-                                   x, y, w, h, getRotation(), getBlitRotation(), isWideScreen);
+        if (showLoading) {
+            // Software cores do not need the game frame beneath the opaque
+            // loading page. Presenting it directly also avoids losing the
+            // freshly drawn logo in a multi-surface composition.
+            rr_presenter_post(presenter, status_surface_full,
+                              0, 0, overlay_width, overlay_height,
+                              x, y, w, h, getRotation());
+            uiNotifyLoadingPresented();
+            rr_presenter_wait_for_loading_screen(presenter, 700);
+        } else {
+            rr_surface_t* base = isOpenGL ? gles_surface : surface;
+            const int source_y = isOpenGL ? gs_h - static_cast<int>(height) : 0;
+            rr_presenter_post_multiple(presenter, base, &overlays,
+                                       0, source_y, overlay_width, overlay_height,
+                                       x, y, w, h, getRotation(), getBlitRotation(), isWideScreen);
+        }
     }
 
     last_menu_frame = input_info_requested || clear_frames_left != clear_frame_count;
@@ -165,4 +188,15 @@ bool uiRenderOverlays(const void* frame, unsigned width, unsigned height, size_t
 status* uiCurrentOverlays() {
     bindOverlaySurfaces();
     return &overlays;
+}
+
+void uiNotifyLoadingPresented() {
+    int64_t expected = 0;
+    loading_started_ns.compare_exchange_strong(expected, steadyNowNs());
+}
+
+bool uiLoadingMinimumDurationElapsed() {
+    constexpr int64_t minimum_duration_ns = 700LL * 1000LL * 1000LL;
+    const int64_t started = loading_started_ns.load();
+    return started != 0 && steadyNowNs() - started >= minimum_duration_ns;
 }

@@ -95,6 +95,7 @@ rr_presenter_t* rr_presenter_create(rr_display_t* display, uint32_t format, uint
 void rr_presenter_destroy(rr_presenter_t* presenter) { if (presenter) { go2_presenter_destroy(presenter->native); delete presenter; } }
 void rr_presenter_post(rr_presenter_t* p, rr_surface_t* s, int sx, int sy, int sw, int sh, int dx, int dy, int dw, int dh, rr_rotation_t r) { go2_presenter_post(p->native, s->native, sx, sy, sw, sh, dx, dy, dw, dh, native_rotation(r)); }
 void rr_presenter_black(rr_presenter_t* p, int x, int y, int w, int h, rr_rotation_t r) { go2_presenter_black(p->native, x, y, w, h, native_rotation(r)); }
+void rr_presenter_wait_for_loading_screen(rr_presenter_t*, unsigned) {}
 void rr_presenter_post_multiple(rr_presenter_t* p, rr_surface_t* s, status* o, int sx, int sy, int sw, int sh, int dx, int dy, int dw, int dh, rr_rotation_t r, rr_rotation_t br, bool wide) {
     go2_status_t native = {};
     native.top_right = o->top_right ? o->top_right->native : NULL;

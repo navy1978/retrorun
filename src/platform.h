@@ -140,6 +140,7 @@ void rr_presenter_post(rr_presenter_t* presenter, rr_surface_t* surface,
                        int dst_x, int dst_y, int dst_w, int dst_h, rr_rotation_t rotation);
 void rr_presenter_black(rr_presenter_t* presenter, int x, int y, int width, int height,
                         rr_rotation_t rotation);
+void rr_presenter_wait_for_loading_screen(rr_presenter_t* presenter, unsigned milliseconds);
 void rr_presenter_post_multiple(rr_presenter_t* presenter, rr_surface_t* surface, status* overlays,
                                 int src_x, int src_y, int src_w, int src_h,
                                 int dst_x, int dst_y, int dst_w, int dst_h,

@@ -301,7 +301,7 @@ Frontend video settings:
 | `retrorun_pixel_perfect` | `true` or `false`; default is disabled. |
 | `retrorun_tate_mode` | `auto`, `enabled`, `disabled` or `reverted`. |
 | `retrorun_fps_counter` | Enables the on-screen FPS counter. |
-| `retrorun_show_loading_screen` | Shows the loading screen while a core initializes. |
+| `retrorun_show_loading_screen` | Shows the logo and loading message while a core initializes, for at least 700 ms. |
 | `retrorun_video_filter` | `off`, `nearest` or `linear`; default is `off`. |
 | `retrorun_video_shader` | `off`, `scanlines` or `crt`; default is `off`. |
 | `retrorun_loop_declared_fps` | Paces the frontend using the frame rate declared by the core. |
