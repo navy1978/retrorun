@@ -1761,6 +1761,20 @@ void initConfig()
 
         try
         {
+            const std::string &value = conf_map.at("retrorun_ui_profile");
+            if (value == "auto") setUIProfile(UIProfile::Auto);
+            else if (value == "handheld") setUIProfile(UIProfile::Handheld);
+            else if (value == "desktop") setUIProfile(UIProfile::Desktop);
+            else logger.log(Logger::WARN, "Unknown retrorun_ui_profile '%s'; using auto", value.c_str());
+            logger.log(Logger::DEB, "retrorun_ui_profile: %s", value.c_str());
+        }
+        catch (...)
+        {
+            logger.log(Logger::DEB, "retrorun_ui_profile parameter not found; using auto");
+        }
+
+        try
+        {
             const std::string &asValue = conf_map.at("retrorun_pixel_perfect");
             pixel_perfect = asValue == "true" ? true : false;
             logger.log(Logger::DEB, "retrorun_pixel_perfect: %s.", pixel_perfect ? "true" : "false");
@@ -1933,6 +1947,25 @@ auto setVideoFilter = [](int button) -> std::function<void(int)>
     static const char *names[] = {"off", "nearest", "linear"};
     if (!persistVideoSetting("retrorun_video_filter", names[value]))
         logger.log(Logger::ERR, "Unable to save video filter in '%s'", activeConfigFile.c_str());
+    return std::function<void(int)>();
+};
+
+int getUIProfileSetting()
+{
+    return static_cast<int>(getUIProfile());
+}
+
+auto setUIProfileSetting = [](int button) -> std::function<void(int)>
+{
+    if (button != LEFT && button != RIGHT)
+        return std::function<void(int)>();
+    int value = static_cast<int>(getUIProfile());
+    if (button == LEFT) value = (value + 2) % 3;
+    if (button == RIGHT) value = (value + 1) % 3;
+    setUIProfile(static_cast<UIProfile>(value));
+    static const char *names[] = {"auto", "handheld", "desktop"};
+    if (!persistVideoSetting("retrorun_ui_profile", names[value]))
+        logger.log(Logger::ERR, "Unable to save UI profile in '%s'", activeConfigFile.c_str());
     return std::function<void(int)>();
 };
 
@@ -2659,6 +2692,7 @@ int main(int argc, char *argv[])
         MenuItem("Aspect ratio", getAspectRatioSettings, setAspectRatioSettings, "aspect-ratio"),
         MenuItem("Pixel perfect", getPixelPerfect, setPixelPerfect, "bool"),
         MenuItem("Lock FPS", getLockDeclaredFPS, setLockDeclaredFPS, "bool"),
+        MenuItem("UI profile", getUIProfileSetting, setUIProfileSetting, "ui-profile"),
 #ifdef RR_PLATFORM_SDL
         MenuItem("Renderer (restart)", getSDLVideoRenderer, setSDLVideoRenderer, "video-renderer"),
         MenuItem("VSync", getSDLVsync, setSDLVsync, "bool"),
@@ -2705,10 +2739,15 @@ int main(int argc, char *argv[])
         MenuItem(SHOW_GAME, NULL)};
     Menu menuInfoGame = Menu("Current game", game);
 
+    std::vector<MenuItem> graphics = {
+        MenuItem(SHOW_GRAPHICS, NULL)};
+    Menu menuInfoGraphics = Menu("Graphics", graphics);
+
     std::vector<MenuItem> itemsInfo = {
         MenuItem("Device", &menuInfoDevice, fake),
         MenuItem("Libretro core", &menuInfoCore, fake),
-        MenuItem("Current game", &menuInfoGame, fake)};
+        MenuItem("Current game", &menuInfoGame, fake),
+        MenuItem("Graphics", &menuInfoGraphics, fake)};
 
     // MenuItem menuItem_q = MenuItem("Are you sure?", quit);
     MenuItem menuItem_q = MenuItem("Are you sure?", [](int button)

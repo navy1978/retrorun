@@ -35,6 +35,12 @@ extern int height_fixed;
 extern int INFO_MENU_WIDTH;  // 288;
 extern int INFO_MENU_HEIGHT; // 192;
 
+enum class UIProfile { Auto = 0, Handheld, Desktop };
+void setUIProfile(UIProfile profile);
+UIProfile getUIProfile();
+UIProfile getResolvedUIProfile();
+void updateUIMenuDimensions(int destination_width, int destination_height);
+
 extern int display_width, display_height;
 extern int base_width;
 extern int base_height; 
@@ -95,6 +101,7 @@ void drawCreditLine(int y, const char *text, unsigned short color, rr_surface_t 
 void showInfoDevice(int w, rr_surface_t **surface, int posX);
 void showInfoCore(int w, rr_surface_t **surface, int posX);
 void showInfoGame(int w, rr_surface_t **surface, int posX);
+void showInfoGraphics(int w, rr_surface_t **surface, int posX);
 void showCredits(rr_surface_t **surface);
 void showInfo(int w, rr_surface_t **surface);
 std::string getCurrentTimeForFileName();
@@ -115,6 +122,4 @@ bool continueToShowScreenshotImage();
 bool continueToShowSaveLoadStateImage();
 bool continueToShowSaveLoadStateDoneImage();
 void checkPaused();
-
-
 

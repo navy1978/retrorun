@@ -314,8 +314,11 @@ rr_surface_t* rr_context_surface_lock(rr_context_t* context) { go2_surface_t* na
 void rr_context_surface_unlock(rr_context_t* context, rr_surface_t* surface) { go2_context_surface_unlock(context->native, surface->native); delete surface; }
 void* rr_context_get_proc_address(const char* symbol) { return reinterpret_cast<void*>(eglGetProcAddress(symbol)); }
 bool rr_video_vsync_set(bool) { return false; }
+bool rr_video_vsync_get() { return false; }
 void rr_video_filter_set(rr_video_filter_t filter) { video_filter = filter; }
+rr_video_filter_t rr_video_filter_get() { return video_filter; }
 void rr_video_shader_set(rr_video_shader_t shader) { video_shader = shader; }
+rr_video_shader_t rr_video_shader_get() { return video_shader; }
 
 const char* rr_platform_backend_name() { return "go2"; }
 const char* rr_platform_renderer_name() { return "GO2 / DRM"; }

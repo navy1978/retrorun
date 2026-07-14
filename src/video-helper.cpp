@@ -20,6 +20,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 #include "globals.h"
 #include "video-helper.h"
+#include <algorithm>
 #include <ctime>
 #include <stdlib.h>
 #include <stdio.h>
@@ -39,6 +40,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "imgs/imgs_numbers.h"
 #include "input.h"
 #include "system-info.h"
+#include "video.h"
+
+#include <chrono>
+#include <unordered_map>
 
 int size_char = 8;
 
@@ -62,6 +67,48 @@ int height_fixed = 480;
 
 int INFO_MENU_WIDTH = 240;  // 288;
 int INFO_MENU_HEIGHT = 160; // 192;
+UIProfile uiProfile = UIProfile::Auto;
+
+void setUIProfile(UIProfile profile)
+{
+    uiProfile = profile;
+}
+
+UIProfile getUIProfile()
+{
+    return uiProfile;
+}
+
+UIProfile getResolvedUIProfile()
+{
+    if (uiProfile != UIProfile::Auto)
+        return uiProfile;
+#ifdef RR_PLATFORM_GO2
+    return UIProfile::Handheld;
+#else
+    (void)getDeviceName();
+    if (isRG351M() || isRG351P() || isRG351V() || isRG351MP() || isRG552() ||
+        isRG503() || isRG353V() || isRG353M())
+        return UIProfile::Handheld;
+    return UIProfile::Desktop;
+#endif
+}
+
+void updateUIMenuDimensions(int destination_width, int destination_height)
+{
+    const int previous_width = INFO_MENU_WIDTH;
+    const int previous_height = INFO_MENU_HEIGHT;
+    if (getResolvedUIProfile() == UIProfile::Handheld) {
+        INFO_MENU_WIDTH = 240;
+        INFO_MENU_HEIGHT = 160;
+    } else {
+        INFO_MENU_WIDTH = std::max(320, destination_width / 2);
+        INFO_MENU_HEIGHT = std::max(240, destination_height / 2);
+    }
+
+    if (INFO_MENU_WIDTH != previous_width || INFO_MENU_HEIGHT != previous_height)
+        posYCredits = INFO_MENU_HEIGHT + 16;
+}
 
 
 
@@ -282,7 +329,9 @@ void showText(int x, int y, const char *text, unsigned short color, rr_surface_t
         return;
     }
     int dst_stride = rr_surface_stride_get(*surface);
-    basic_text_out16_nf_color(dst, dst_stride / 2, x, y, text, color);
+    basic_text_out16_nf_color_clipped(dst, dst_stride / 2,
+                                      rr_surface_width_get(*surface), rr_surface_height_get(*surface),
+                                      x, y, text, color);
 }
 
 void showTextBigger(int x, int y, const char *text, unsigned short color, rr_surface_t **surface)
@@ -300,14 +349,19 @@ void showTextBigger(int x, int y, const char *text, unsigned short color, rr_sur
         return;
     }
     int dst_stride = rr_surface_stride_get(*surface);
-    basic_text_out16_nf_color(dst, dst_stride / 2, x, y, text, color);
+    basic_text_out16_nf_color_clipped(dst, dst_stride / 2,
+                                      rr_surface_width_get(*surface), rr_surface_height_get(*surface),
+                                      x, y, text, color);
     //basic_text_out16x16_nf_color_scaled_from_8x8(dst, dst_stride / 2, x, y, text, color);
 }
 
 
 int getRowForText()
 {
-    rowForText = rowForText + 10;
+    const int row_step = getResolvedUIProfile() == UIProfile::Handheld
+                             ? 10
+                             : 12;
+    rowForText += row_step;
     return rowForText;
 }
 
@@ -345,53 +399,47 @@ void resetCredisPosition()
 
 void showLongCenteredText(int y, const char *text, unsigned short color, rr_surface_t **surface)
 {
-    static int offset = 0;
-    static bool direction_forward = true;
-    static int frame_counter = 0;  // Contatore per rallentare lo scorrimento
-    const int FRAME_DELAY = 3;  // Numero di frame da aspettare prima di aggiornare l'offset
+    struct MarqueeState {
+        std::string text;
+        int viewport_width = 0;
+        std::chrono::steady_clock::time_point started;
+    };
+    static std::unordered_map<int, MarqueeState> states;
 
-    std::string title(text);
-    int title_length = title.length();
-    int total_text_width = title_length * 8;
+    const std::string title(text ? text : "");
+    const int total_text_width = static_cast<int>(title.length()) * 8;
 
     if (total_text_width > INFO_MENU_WIDTH) {
-        // Aggiungiamo spazio per il looping
-        title = "   " + title + "   ";
-        title_length = title.length();
-        total_text_width = title_length * 8;
-
-        // Rallenta lo scorrimento: aggiorna offset solo ogni FRAME_DELAY chiamate
-        frame_counter++;
-        if (frame_counter >= FRAME_DELAY) {
-            frame_counter = 0; // Reset contatore solo quando raggiungiamo il delay
-
-            if (direction_forward) {
-                offset += 1; // Movimento più lento (prima era PIXELS_PER_FRAME)
-                if (offset >= total_text_width - INFO_MENU_WIDTH) {
-                    offset = total_text_width - INFO_MENU_WIDTH;
-                    direction_forward = false;
-                }
-            } else {
-                offset -= 1;
-                if (offset <= 0) {
-                    offset = 0;
-                    direction_forward = true;
-                }
-            }
+        MarqueeState &state = states[y];
+        if (state.text != title || state.viewport_width != INFO_MENU_WIDTH) {
+            state.text = title;
+            state.viewport_width = INFO_MENU_WIDTH;
+            state.started = std::chrono::steady_clock::now();
         }
 
-        // Calcola l'indice iniziale per il testo visibile
-        int start_index = offset / 8;
-        if (start_index < 0) start_index = 0;
+        constexpr double speed_pixels_per_second = 20.0;
+        constexpr double endpoint_pause_seconds = 0.7;
+        const int maximum_offset = total_text_width - INFO_MENU_WIDTH;
+        const double travel_seconds = maximum_offset / speed_pixels_per_second;
+        const double cycle_seconds = endpoint_pause_seconds * 2.0 + travel_seconds * 2.0;
+        double elapsed = std::chrono::duration<double>(
+                             std::chrono::steady_clock::now() - state.started).count();
+        elapsed = std::fmod(elapsed, cycle_seconds);
 
-        int remaining_text_width = total_text_width - offset;
-        int truncated_text_width = std::min(INFO_MENU_WIDTH / 8, remaining_text_width / 8);
+        double offset = 0.0;
+        if (elapsed < endpoint_pause_seconds) {
+            offset = 0.0;
+        } else if (elapsed < endpoint_pause_seconds + travel_seconds) {
+            offset = (elapsed - endpoint_pause_seconds) * speed_pixels_per_second;
+        } else if (elapsed < endpoint_pause_seconds * 2.0 + travel_seconds) {
+            offset = maximum_offset;
+        } else {
+            offset = maximum_offset -
+                     (elapsed - endpoint_pause_seconds * 2.0 - travel_seconds) *
+                         speed_pixels_per_second;
+        }
 
-        std::string truncated_text = title.substr(start_index, truncated_text_width);
-
-        int x = -(offset % 8); // Mantiene il movimento fluido
-
-        showText(x, y, truncated_text.c_str(), color, surface);
+        showText(-static_cast<int>(offset), y, title.c_str(), color, surface);
     } else {
         showText(INFO_MENU_WIDTH / 2 - total_text_width / 2, y, title.c_str(), color, surface);
     }
@@ -406,6 +454,52 @@ void showCenteredText(int y, const char *text, unsigned short color, rr_surface_
     */
     showLongCenteredText(y,text,color,surface);
     // showText(0, y, title.c_str(), color, surface);
+}
+
+void showMovingHeaderText(int y, const char *text, unsigned short color, rr_surface_t **surface)
+{
+    const std::string title(text ? text : "");
+    const int text_width = static_cast<int>(title.length()) * 8;
+    if (text_width >= INFO_MENU_WIDTH) {
+        showLongCenteredText(y, title.c_str(), color, surface);
+        return;
+    }
+
+    struct HeaderState {
+        std::string text;
+        int viewport_width = 0;
+        std::chrono::steady_clock::time_point started;
+    };
+    static HeaderState state;
+    if (state.text != title || state.viewport_width != INFO_MENU_WIDTH) {
+        state.text = title;
+        state.viewport_width = INFO_MENU_WIDTH;
+        state.started = std::chrono::steady_clock::now();
+    }
+
+    constexpr double speed_pixels_per_second = 30.0;
+    constexpr double endpoint_pause_seconds = 0.7;
+    const int maximum_x = INFO_MENU_WIDTH - text_width;
+    const double travel_seconds = maximum_x / speed_pixels_per_second;
+    const double cycle_seconds = endpoint_pause_seconds * 2.0 + travel_seconds * 2.0;
+    double elapsed = std::chrono::duration<double>(
+                         std::chrono::steady_clock::now() - state.started).count();
+    elapsed = std::fmod(elapsed, cycle_seconds);
+
+    double position = 0.0;
+    if (elapsed < endpoint_pause_seconds) {
+        position = 0.0;
+    } else if (elapsed < endpoint_pause_seconds + travel_seconds) {
+        position = (elapsed - endpoint_pause_seconds) * speed_pixels_per_second;
+    } else if (elapsed < endpoint_pause_seconds * 2.0 + travel_seconds) {
+        position = maximum_x;
+    } else {
+        position = maximum_x -
+                   (elapsed - endpoint_pause_seconds * 2.0 - travel_seconds) *
+                       speed_pixels_per_second;
+    }
+
+    showText(static_cast<int>(position), y, title.c_str(), color, surface);
 }
 
 
@@ -508,6 +602,60 @@ void showInfoGame(int w, rr_surface_t **surface, int posX)
     showCenteredText(getRowForText(), const_cast<char *>(orientation.append(isGameVertical ? "Portrait" : "Landscape").c_str()), DARKGREY, surface);
 }
 
+void showInfoGraphics(int, rr_surface_t **surface, int)
+{
+    const std::string backend = std::string(rr_platform_backend_name()) == "sdl2"
+                                    ? "SDL2" : "GO2 / DRM";
+    showCenteredText(getRowForText(), ("Backend: " + backend).c_str(), DARKGREY, surface);
+    showLongCenteredText(getRowForText(),
+                         ("Renderer: " + std::string(rr_platform_renderer_name())).c_str(),
+                         DARKGREY, surface);
+    showCenteredText(getRowForText(),
+                     isOpenGL ? "Core video: Hardware OpenGL" : "Core video: Software",
+                     DARKGREY, surface);
+
+    const std::string output = "Output: " + std::to_string(rr_display_width_get(display)) + "x" +
+                               std::to_string(rr_display_height_get(display)) + " / Core: " +
+                               std::to_string(currentWidth) + "x" + std::to_string(currentHeight);
+    showLongCenteredText(getRowForText(), output.c_str(), DARKGREY, surface);
+
+    const char *pixel_format = "Unknown";
+    if (color_format == RR_PIXEL_FORMAT_RGB565) pixel_format = "RGB565";
+    else if (color_format == RR_PIXEL_FORMAT_RGB888) pixel_format = "RGB888";
+    else if (color_format == RR_PIXEL_FORMAT_XRGB8888) pixel_format = "XRGB8888";
+    else if (color_format == RR_PIXEL_FORMAT_RGBA8888) pixel_format = "RGBA8888";
+    else if (color_format == RR_PIXEL_FORMAT_RGBA5551) pixel_format = "RGBA5551";
+    showCenteredText(getRowForText(), ("Pixel format: " + std::string(pixel_format)).c_str(),
+                     DARKGREY, surface);
+
+    char aspect[64] = {};
+    std::snprintf(aspect, sizeof(aspect), "Aspect ratio: %.3f", aspect_ratio);
+    showCenteredText(getRowForText(), aspect, DARKGREY, surface);
+
+    static const char *filter_names[] = {"Off", "Nearest", "Linear"};
+    static const char *shader_names[] = {"Off", "Scanlines", "CRT"};
+    const int filter = static_cast<int>(rr_video_filter_get());
+    const int shader = static_cast<int>(rr_video_shader_get());
+    const std::string effects = "Filter: " + std::string(filter_names[filter]) +
+                                " / Shader: " + shader_names[shader];
+    showLongCenteredText(getRowForText(), effects.c_str(), DARKGREY, surface);
+
+#ifdef RR_PLATFORM_SDL
+    const std::string sync = std::string("VSync: ") + (rr_video_vsync_get() ? "On" : "Off") +
+                             " / Pixel perfect: " + (pixel_perfect ? "On" : "Off");
+#else
+    const std::string sync = std::string("VSync: Backend / Pixel perfect: ") +
+                             (pixel_perfect ? "On" : "Off");
+#endif
+    showLongCenteredText(getRowForText(), sync.c_str(), DARKGREY, surface);
+
+    static const char *profile_names[] = {"Auto", "Handheld", "Desktop"};
+    const std::string profile = "UI: " +
+        std::string(profile_names[static_cast<int>(getUIProfile())]) + " -> " +
+        profile_names[static_cast<int>(getResolvedUIProfile())];
+    showCenteredText(getRowForText(), profile.c_str(), DARKGREY, surface);
+}
+
 void showCredits(rr_surface_t **surface)
 {
 
@@ -590,18 +738,8 @@ void showInfo(int w, rr_surface_t **surface)
     rowForText = 0;
     int posX = 0;
 
-    std::string title = "RetroRun - " + release; // The text to scroll
-    int title_length = title.length();
-    showText(posRetro, 2, title.c_str(), WHITE, surface);
-    if (posRetro == (INFO_MENU_WIDTH - (title_length * size_char)))
-    {
-        step = -1;
-    }
-    else if (posRetro == 0)
-    {
-        step = 1;
-    }
-    posRetro += step;
+    std::string title = "RetroRun - " + release;
+    showMovingHeaderText(2, title.c_str(), WHITE, surface);
 
     showText(posX, getRowForText(), " ", ORANGE, surface);
     showText(posX, getRowForText(), " ", ORANGE, surface);
@@ -629,6 +767,10 @@ void showInfo(int w, rr_surface_t **surface)
         else if (mi.get_name() == SHOW_GAME)
         {
             showInfoGame(w, surface, posX);
+        }
+        else if (mi.get_name() == SHOW_GRAPHICS)
+        {
+            showInfoGraphics(w, surface, posX);
         }
 
         else if (mi.isQuit()|| mi.isQuestion())

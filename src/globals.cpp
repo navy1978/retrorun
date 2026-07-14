@@ -250,7 +250,24 @@ const char *getDeviceName() noexcept
 #ifdef RR_PLATFORM_SDL
     if (!deviceInitialized)
     {
-        std::strncpy(DEVICE_NAME, "SDL2 macOS", DEVICE_NAME_SIZE - 1);
+        if (!retrorun_device_name.empty()) {
+            std::strncpy(DEVICE_NAME, retrorun_device_name.c_str(), DEVICE_NAME_SIZE - 1);
+        } else if (access(OS_ARCH_FILE.c_str(), F_OK) == 0) {
+            FILE *device_file = std::fopen(OS_ARCH_FILE.c_str(), "r");
+            if (!device_file || !std::fgets(DEVICE_NAME, DEVICE_NAME_SIZE, device_file))
+                DEVICE_NAME[0] = '\0';
+            if (device_file) std::fclose(device_file);
+        } else if (const char *configured_device = std::getenv("DEVICE_NAME")) {
+            std::strncpy(DEVICE_NAME, configured_device, DEVICE_NAME_SIZE - 1);
+        } else {
+#if defined(__APPLE__)
+            std::strncpy(DEVICE_NAME, "SDL2 macOS", DEVICE_NAME_SIZE - 1);
+#elif defined(_WIN32)
+            std::strncpy(DEVICE_NAME, "SDL2 Windows", DEVICE_NAME_SIZE - 1);
+#else
+            std::strncpy(DEVICE_NAME, "SDL2 Linux", DEVICE_NAME_SIZE - 1);
+#endif
+        }
         DEVICE_NAME[DEVICE_NAME_SIZE - 1] = '\0';
         gpu_name = "SDL2 renderer";
         deviceInitialized = true;

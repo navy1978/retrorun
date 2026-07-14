@@ -196,6 +196,7 @@ std::string MenuItem::getMisUnit()
     || mis_unit_ == "video-renderer"
     || mis_unit_ == "video-filter"
     || mis_unit_ == "video-shader"
+    || mis_unit_ == "ui-profile"
     )
     {
         return "";
@@ -249,6 +250,11 @@ const char *video_shader_names[] = {
     "Scanlines",
     "CRT"};
 
+const char *ui_profile_names[] = {
+    "Auto",
+    "Handheld",
+    "Desktop"};
+
 
     std::string MenuItem::getDeviceType(int deviceIndex)
 {
@@ -289,6 +295,10 @@ std::string MenuItem::getStringValue()
     else if (mis_unit_ == "video-shader")
     {
         return video_shader_names[getValue()];
+    }
+    else if (mis_unit_ == "ui-profile")
+    {
+        return ui_profile_names[getValue()];
     }
     else if (mis_unit_ == "device-type")
     {

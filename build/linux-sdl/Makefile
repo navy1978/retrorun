@@ -15,7 +15,9 @@ ifeq ($(strip $(GLES_LIBS)),)
   GLES_LIBS := -lEGL -lGLESv2
 endif
 
-COMMON_FLAGS := -std=c++20 -Wall -Wextra -DRR_PLATFORM_SDL -DRR_SDL_GLES \
+# GCC 9 (the default compiler on Ubuntu 20.04) exposes C++20 as c++2a.
+# Newer GCC and Clang versions continue to accept this spelling.
+COMMON_FLAGS := -std=c++2a -Wall -Wextra -DRR_PLATFORM_SDL -DRR_SDL_GLES \
                 -I$(ROOT)/src -I$(ROOT)/src/menu \
                 $(SDL_CFLAGS) $(PNG_CFLAGS) $(GLES_CFLAGS)
 ifeq ($(config),release)

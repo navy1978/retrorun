@@ -53,8 +53,21 @@ SDL2 target produces a separate executable and does not replace `retrorun`.
 RetroRun includes an OSD menu shared by the native GO2/DRM and SDL2 backends.
 It can pause and resume the active core and provides access to device, core and
 game information, runtime settings, save states, credits and clean shutdown.
+Each menu remembers its selected item when entering a submenu and returning.
+The read-only **Info > Graphics** page reports the active platform backend,
+renderer, software or hardware core path, output and core resolutions, pixel
+format, aspect ratio, filter, shader, VSync, pixel-perfect state and UI profile.
 The default controller shortcut is L3 + R3; alternative Select/F2 shortcuts
 can be enabled with `retrorun_alternative_input_mode`.
+
+The menu uses clipped, time-based text scrolling for labels wider than the
+available area. Its UI profile can be changed under **Settings > Video**:
+
+- `auto` keeps the original compact layout on recognized Anbernic devices and
+  selects the responsive desktop layout on macOS, Windows and regular Linux PCs;
+- `handheld` always uses the original 240x160 menu canvas;
+- `desktop` derives the menu canvas from the window size so that text remains
+  approximately 16 pixels high instead of being enlarged with the game image.
 
 <p align="center">
   <img src="assets/menu.png" alt="RetroRun on-screen main menu" width="720">
@@ -283,6 +296,7 @@ retrorun_aspect_ratio = auto
 retrorun_pixel_perfect = false
 retrorun_fps_counter = false
 retrorun_loop_declared_fps = true
+retrorun_ui_profile = auto
 
 # SDL2 only
 retrorun_video_renderer = auto
@@ -302,6 +316,7 @@ Frontend video settings:
 | `retrorun_tate_mode` | `auto`, `enabled`, `disabled` or `reverted`. |
 | `retrorun_fps_counter` | Enables the on-screen FPS counter. |
 | `retrorun_show_loading_screen` | Shows the logo and loading message while a core initializes, for at least 700 ms. |
+| `retrorun_ui_profile` | `auto`, `handheld` or `desktop`; default is `auto`. It can also be changed at runtime under **Settings > Video**. |
 | `retrorun_video_filter` | `off`, `nearest` or `linear`; default is `off`. |
 | `retrorun_video_shader` | `off`, `scanlines` or `crt`; default is `off`. |
 | `retrorun_loop_declared_fps` | Paces the frontend using the frame rate declared by the core. |

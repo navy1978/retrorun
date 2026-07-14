@@ -13,33 +13,48 @@ PROJECTS := retrorun
 
 .PHONY: all clean help sdl2 go2 $(PROJECTS)
 
+# Run a sub-build, preserve its exit status, and always report the elapsed time.
+# Usage: $(call timed_build,<make arguments>)
+define timed_build
+	@start=$$(date +%s); \
+	${MAKE} --no-print-directory $(1); \
+	status=$$?; \
+	end=$$(date +%s); \
+	elapsed=$$((end - start)); \
+	minutes=$$((elapsed / 60)); \
+	seconds=$$((elapsed % 60)); \
+	if [ $$status -eq 0 ]; then result="completed"; else result="failed"; fi; \
+	printf '==== Build %s in %dm %02ds ====\n' "$$result" "$$minutes" "$$seconds"; \
+	exit $$status
+endef
+
 all: $(PROJECTS)
 
 ifeq ($(PLATFORM),sdl2)
 retrorun:
 	@echo "==== Building retrorun SDL2 for Linux/OpenGL ES ===="
-	@${MAKE} --no-print-directory -C build/linux-sdl -f Makefile config=$(config)
+	$(call timed_build,-C build/linux-sdl -f Makefile config=$(config))
 
 clean:
 	@${MAKE} --no-print-directory -C build/linux-sdl -f Makefile clean
 else ifeq ($(PLATFORM),go2)
 retrorun:
 	@echo "==== Building retrorun GO2/DRM ($(config)) ===="
-	@${MAKE} --no-print-directory -C build/gmake -f Makefile
+	$(call timed_build,-C build/gmake -f Makefile)
 
 clean:
 	@${MAKE} --no-print-directory -C build/gmake -f Makefile clean
 else ifeq ($(UNAME_S),Darwin)
 retrorun:
 	@echo "==== Building retrorun SDL2 for macOS ===="
-	@${MAKE} --no-print-directory -C build/macos -f Makefile
+	$(call timed_build,-C build/macos -f Makefile)
 
 clean:
 	@${MAKE} --no-print-directory -C build/macos -f Makefile clean
 else
 retrorun: 
 	@echo "==== Building retrorun ($(config)) ===="
-	@${MAKE} --no-print-directory -C build/gmake -f Makefile
+	$(call timed_build,-C build/gmake -f Makefile)
 
 clean:
 	@${MAKE} --no-print-directory -C build/gmake -f Makefile clean

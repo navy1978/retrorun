@@ -192,15 +192,14 @@ void MenuManager::handle_input(int buttonPressed)
                         Menu *prevMenu = queueMenus.top();
                         queueMenus.pop();
                         currentMenu_ = prevMenu;
-                        currentMenu_->resetSelected();
                     }
                 }
                 return;
                 
             }
 
-            if (mi.get_name() == SHOW_DEVICE || mi.get_name() == SHOW_CORE 
-            || mi.get_name() == SHOW_GAME 
+            if (mi.get_name() == SHOW_DEVICE || mi.get_name() == SHOW_CORE
+            || mi.get_name() == SHOW_GAME || mi.get_name() == SHOW_GRAPHICS
             || (mi.get_name().find("empty") != std::string::npos && mi.get_name().find("<-") != std::string::npos ))
             {
                 return;
@@ -213,7 +212,6 @@ void MenuManager::handle_input(int buttonPressed)
                     queueMenus.push(currentMenu_); // push the current menu onto the queue before updating it
                 }
                 currentMenu_ = mi.getMenu();
-                currentMenu_->resetSelected();
             }
             else
             {
@@ -228,7 +226,6 @@ void MenuManager::handle_input(int buttonPressed)
                 Menu *prevMenu = queueMenus.top();
                 queueMenus.pop();
                 currentMenu_ = prevMenu;
-                currentMenu_->resetSelected();
             }
         }
     }
@@ -247,8 +244,9 @@ void MenuManager::setCurrentMenu(Menu *menu)
 }
 
 void MenuManager::resetMenu(){
+    if (queueMenus.empty())
+        return;
     Menu *prevMenu = queueMenus.top();
     queueMenus.pop();
     currentMenu_ = prevMenu;
-    currentMenu_->resetSelected();
 }

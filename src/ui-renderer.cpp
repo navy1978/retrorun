@@ -41,6 +41,13 @@ void bindOverlaySurfaces() {
 }
 
 void renderFullOverlay(int width, int height) {
+    if (status_surface_full &&
+        (rr_surface_width_get(status_surface_full) != width ||
+         rr_surface_height_get(status_surface_full) != height)) {
+        rr_surface_destroy(status_surface_full);
+        status_surface_full = nullptr;
+        overlays.full = nullptr;
+    }
     if (!status_surface_full)
         status_surface_full = rr_surface_create(display, width, height, format_565);
 
@@ -112,6 +119,8 @@ bool uiRenderOverlays(const void* frame, unsigned width, unsigned height, size_t
     int overlay_height = static_cast<int>(height);
 
     if (input_info_requested || input_credits_requested || last_menu_frame || showLoading) {
+        if (!showLoading)
+            updateUIMenuDimensions(w, h);
         overlay_width = INFO_MENU_WIDTH;
         overlay_height = INFO_MENU_HEIGHT;
         renderFullOverlay(overlay_width, overlay_height);

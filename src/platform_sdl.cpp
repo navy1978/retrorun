@@ -896,7 +896,10 @@ bool rr_video_vsync_set(bool enabled) {
 #endif
     return applied;
 }
+bool rr_video_vsync_get() { return vsync_enabled; }
 void rr_video_filter_set(rr_video_filter_t filter) { video_filter = filter; }
+rr_video_filter_t rr_video_filter_get() { return video_filter; }
 void rr_video_shader_set(rr_video_shader_t shader) { video_shader = shader; }
+rr_video_shader_t rr_video_shader_get() { return video_shader; }
 const char* rr_platform_backend_name() { return "sdl2"; }
 const char* rr_platform_renderer_name() { return renderer_name; }
