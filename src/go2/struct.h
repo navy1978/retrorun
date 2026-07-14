@@ -14,6 +14,8 @@ typedef struct go2_display
     uint32_t width;
     uint32_t height;
     uint32_t crtc_id;
+    bool modeset_complete;
+    bool page_flip_disabled;
 } go2_display_t;
 
 typedef struct go2_surface

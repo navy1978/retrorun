@@ -48,9 +48,9 @@ ifeq ($(config),release)
   DEFINES   += -DNDEBUG -DRR_PLATFORM_GO2
   INCLUDES  += -I../../src -I../.. -I../../src/go2 -I../../src/menu
   CPPFLAGS  += -MMD -MP $(DEFINES) $(INCLUDES)
-  CFLAGS    += $(CPPFLAGS) $(ARCH) -Ofast -Wall -D__GBM__
+  CFLAGS    += $(CPPFLAGS) $(ARCH) -O3 -ffast-math -flto -Wall -D__GBM__
   CXXFLAGS  += $(CFLAGS) -std=c++2a
-  LDFLAGS   += -s -Wl,-rpath=. -L../../. -ldl -lEGL -lGLESv2 -lrga -pthread -ffast-math -levdev -lgbm -ldrm -lpng -lasound -lopenal
+  LDFLAGS   += -s -flto -Wl,-rpath=. -L../../. -ldl -lEGL -lGLESv2 -lrga -pthread -ffast-math -levdev -lgbm -ldrm -lpng -lasound -lopenal
   LIBS      += 
   RESFLAGS  += $(DEFINES) $(INCLUDES) 
   LDDEPS    += 

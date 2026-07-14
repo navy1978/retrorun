@@ -1710,16 +1710,49 @@ void initConfig()
         {
             logger.log(Logger::DEB, "retrorun_alternative_input_mode parameter not found in retrorun.cfg using default value (%s).", input_info_requested_alternative ? "true" : "false");
         }
-        bool forceMultithread=false;
         try
         {
             const std::string &asValue = conf_map.at("retrorun_force_video_multithread");
-            forceMultithread = asValue == "true" ? true : false;
-            logger.log(Logger::DEB, "retrorun_force_video_multithread: %s.", forceMultithread ? "true" : "false");
+            forceVideoMultithread = asValue == "true";
+            logger.log(Logger::DEB, "retrorun_force_video_multithread: %s.", forceVideoMultithread ? "true" : "false");
         }
         catch (...)
         {
             logger.log(Logger::DEB, "retrorun_force_video_multithread parameter not found in retrorun.cfg using default value.");
+        }
+
+        try
+        {
+            const std::string &value = conf_map.at("retrorun_adaptive_frameskip");
+            adaptiveFrameSkip = value == "true";
+            logger.log(Logger::DEB, "retrorun_adaptive_frameskip: %s.",
+                       adaptiveFrameSkip ? "true" : "false");
+        }
+        catch (...)
+        {
+            logger.log(Logger::DEB,
+                       "retrorun_adaptive_frameskip parameter not found; using %s.",
+                       adaptiveFrameSkip ? "true" : "false");
+        }
+
+        try
+        {
+            const std::string &value = conf_map.at("retrorun_frameskip");
+            fixedFrameSkip = std::max(0, std::min(5, stoi(value)));
+            logger.log(Logger::DEB, "retrorun_frameskip: %d.", fixedFrameSkip);
+        }
+        catch (...)
+        {
+            fixedFrameSkip = 0;
+            logger.log(Logger::DEB,
+                       "retrorun_frameskip parameter not found; using 0.");
+        }
+
+        if (fixedFrameSkip > 0 && adaptiveFrameSkip)
+        {
+            adaptiveFrameSkip = false;
+            logger.log(Logger::WARN,
+                       "Fixed frameskip is enabled; adaptive frameskip has been disabled.");
         }
 
         try
@@ -1808,7 +1841,8 @@ void initConfig()
         }
         
 
-        processVideoInAnotherThread = (isRG552()  || forceMultithread /*|| isRG503()*/) ? true : false;
+        processVideoInAnotherThread =
+            (isRG552() && isFlycast2021()) || forceVideoMultithread;
         pwm = rumble_type_pwm;
 
         adaptiveFps = false;
@@ -2804,13 +2838,13 @@ int main(int argc, char *argv[])
     menuManager.setCurrentMenu(&menu);
     // end menu
     auto frameDuration = duration_cast<nanoseconds>(seconds(1)) / max_fps;
-#ifdef RR_PLATFORM_SDL
+    const auto frameDurationTick =
+        duration_cast<steady_clock::duration>(frameDuration);
     auto nextFrameDeadline = steady_clock::now();
-#endif
     while (isRunning)
     {
 #ifndef RR_PLATFORM_SDL
-        auto loopStart = high_resolution_clock::now();
+        auto loopStart = steady_clock::now();
 #endif
         input_message = false;
         auto nextClock = std::chrono::high_resolution_clock::now();
@@ -2826,16 +2860,14 @@ int main(int argc, char *argv[])
             // frame to the core video path in that case.
             if (input_info_requested)
                 core_video_refresh(nullptr, 0, 0, 0);
-#ifdef RR_PLATFORM_SDL
             // Menu animations are frame based. Keep the menu on the same
             // clock as gameplay instead of spinning as fast as the CPU allows.
-            nextFrameDeadline += duration_cast<steady_clock::duration>(frameDuration);
+            nextFrameDeadline += frameDurationTick;
             const auto now = steady_clock::now();
             if (nextFrameDeadline > now)
                 std::this_thread::sleep_until(nextFrameDeadline);
-            else if (now - nextFrameDeadline > frameDuration)
+            else if (now - nextFrameDeadline > frameDurationTick)
                 nextFrameDeadline = now;
-#endif
             continue;
         }
         else if (realPause)
@@ -2888,34 +2920,64 @@ int main(int argc, char *argv[])
             input_slot_memory_minus_requested=false;
         
         }
-#ifdef RR_PLATFORM_SDL
-        // Use absolute deadlines so scheduler oversleep does not accumulate.
-        // Keep the core's declared rate as the primary clock. Optional VSync
-        // only synchronizes presentation and also works on high-refresh displays.
+#ifndef RR_PLATFORM_SDL
+        auto loopEnd = steady_clock::now();
+        auto loopDuration = duration_cast<nanoseconds>(loopEnd - loopStart);
+        const nanoseconds frameDurationNs = duration_cast<nanoseconds>(frameDuration);
+
+        // Adaptive presentation-only frame skipping. Accumulate only material
+        // overruns, require sustained debt, and enforce a cooldown between
+        // duplicated frames. Page-flip/vblank time is part of loopDuration,
+        // therefore a small overrun alone must never trigger skipping.
+        // The core, audio and input continue at their normal cadence.
+        static nanoseconds frameDebt = nanoseconds::zero();
+        static unsigned skipCooldown = 0;
+        if (adaptiveFrameSkip && runLoopAtDeclaredfps && !input_ffwd_requested &&
+            !realPause && !showInfo)
+        {
+            const nanoseconds tolerance = frameDurationNs / 12;
+            if (loopDuration > frameDurationNs + tolerance)
+                frameDebt += loopDuration - frameDurationNs;
+            else if (loopDuration < frameDurationNs)
+                frameDebt = std::max(nanoseconds::zero(),
+                                     frameDebt - (frameDurationNs - loopDuration));
+
+            if (skipCooldown > 0)
+                --skipCooldown;
+            const bool overloaded = frameDebt > frameDurationNs * 3;
+            skipNextVideoFrame = overloaded && skipCooldown == 0;
+            if (skipNextVideoFrame)
+            {
+                frameDebt = frameDebt > frameDurationNs
+                    ? frameDebt - frameDurationNs : nanoseconds::zero();
+                skipCooldown = 6;
+            }
+        }
+        else
+        {
+            frameDebt = nanoseconds::zero();
+            skipNextVideoFrame = false;
+            skipCooldown = 0;
+        }
+
+#endif
+
+        // A single absolute clock drives both backends. VSync/page-flip and
+        // audio may consume part of the frame budget; sleep_until only waits
+        // for the remainder and cannot accumulate relative-sleep drift.
         if (runLoopAtDeclaredfps && !input_ffwd_requested)
         {
-            nextFrameDeadline += duration_cast<steady_clock::duration>(frameDuration);
+            nextFrameDeadline += frameDurationTick;
             const auto now = steady_clock::now();
             if (nextFrameDeadline > now)
                 std::this_thread::sleep_until(nextFrameDeadline);
-            else if (now - nextFrameDeadline > frameDuration)
+            else if (now - nextFrameDeadline > frameDurationTick)
                 nextFrameDeadline = now;
         }
         else
         {
             nextFrameDeadline = steady_clock::now();
         }
-#else
-        auto loopEnd = high_resolution_clock::now();
-        auto loopDuration = duration_cast<nanoseconds>(loopEnd - loopStart);
-
-        // Preserve the original GO2/AmberELEC pacing path.
-        auto sleepTime = frameDuration - loopDuration;
-        if ((runLoopAtDeclaredfps && sleepTime > nanoseconds::zero()) && !input_ffwd_requested)
-        {
-            std::this_thread::sleep_for(sleepTime * 0.99);
-        }
-#endif
 
         /*if ((runLoopAtDeclaredfps && sleepSecs > 0) && !input_ffwd_requested)
         {

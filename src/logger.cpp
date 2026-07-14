@@ -4,6 +4,8 @@
 #include "libretro.h"
 #include <iostream>
 #include <cstring>
+#include <cstdio>
+#include <algorithm>
 
 static std::string coreName_;
 static Logger::LogLevel globalLogLevel = Logger::ERR;  // Default to INFO
@@ -17,25 +19,20 @@ void Logger::setLogLevel(LogLevel level) {
 
 void Logger::log(LogLevel level, const char* format, ...) {
     if (level >= logLevel_) {
-        std::string prefix = " > RetroRun < ";
-        printf("%s ", prefix.c_str());
-
-        switch (level) {
-        case DEB: printf("[DEBUG] "); break;
-        case INF: printf("[INFO] "); break;
-        case WARN: printf("[WARNING] "); break;
-        case ERR: printf("[ERROR] "); break;
-        }
-
+        static const char* labels[] = {"[DEBUG] ", "[INFO] ", "[WARNING] ", "[ERROR] "};
+        char buffer[4096];
+        int used = std::snprintf(buffer, sizeof(buffer), " > RetroRun <  %s", labels[level]);
+        if (used < 0) return;
         va_list args;
         va_start(args, format);
-        vprintf(format, args);
+        int written = std::vsnprintf(buffer + used, sizeof(buffer) - used, format, args);
         va_end(args);
-        size_t len = strlen(format);
-        if (len == 0 || format[len - 1] != '\n') {
-            printf("\n");
-        }
-        fflush(stdout);
+        if (written < 0) return;
+        size_t length = std::min(sizeof(buffer) - 1,
+                                 static_cast<size_t>(used) + static_cast<size_t>(written));
+        if (length == 0 || buffer[length - 1] != '\n') buffer[length++] = '\n';
+        std::fwrite(buffer, 1, length, stdout);
+        if (level >= WARN) std::fflush(stdout);
     }
 }
 
@@ -65,21 +62,18 @@ void Logger::core_log(enum retro_log_level level, const char* fmt, ...) {
         return; // Don't log messages that are below the set logging level
     }
 
-    printf("> %s < ", coreName_.c_str());
-
-    switch (coreLogLevel) {
-    case DEB: printf("[DEBUG] "); break;
-    case INF: printf("[INFO] "); break;
-    case WARN: printf("[WARNING] "); break;
-    case ERR: printf("[ERROR] "); break;
-    }
-
-    // Print log message without an extra newline
+    static const char* labels[] = {"[DEBUG] ", "[INFO] ", "[WARNING] ", "[ERROR] "};
+    char buffer[4096];
+    int used = std::snprintf(buffer, sizeof(buffer), "> %s < %s",
+                             coreName_.c_str(), labels[coreLogLevel]);
+    if (used < 0) return;
     va_list args;
     va_start(args, fmt);
-    vprintf(fmt, args);
+    int written = std::vsnprintf(buffer + used, sizeof(buffer) - used, fmt, args);
     va_end(args);
-
-    //printf("\n"); // Only add one newline at the end
-    fflush(stdout); // Ensure immediate printing
+    if (written < 0) return;
+    size_t length = std::min(sizeof(buffer) - 1,
+                             static_cast<size_t>(used) + static_cast<size_t>(written));
+    std::fwrite(buffer, 1, length, stdout);
+    if (coreLogLevel >= WARN) std::fflush(stdout);
 }

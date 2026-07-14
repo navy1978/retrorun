@@ -201,6 +201,10 @@ void resetDeviceName();
 bool isTate();
 
 extern bool processVideoInAnotherThread;
+extern bool forceVideoMultithread;
+extern bool adaptiveFrameSkip;
+extern bool skipNextVideoFrame;
+extern int fixedFrameSkip;
 
 
 extern bool runLoopAtDeclaredfps;
@@ -238,8 +242,6 @@ extern bool pause_requested;
 extern bool  showLoading;
 extern std::map<std::string, std::string> conf_map;
 extern bool pixel_perfect;
-
-
 
 
 

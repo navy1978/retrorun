@@ -23,6 +23,12 @@ struct rr_context {
     GLuint depth_buffer;
     GLuint stencil_buffer;
     GLuint post_program;
+    GLuint post_vbo;
+    GLint uniform_frame_texture;
+    GLint uniform_source_size;
+    GLint uniform_texture_scale;
+    GLint uniform_shader_mode;
+    GLint texture_filter;
 };
 
 static rr_video_filter_t video_filter = RR_VIDEO_FILTER_DEFAULT;
@@ -147,15 +153,17 @@ static GLuint create_go2_post_program() {
         "varying vec2 uv;\n"
         "void main(){\n"
         " vec2 sample_uv=uv; vec2 centered=sample_uv*2.0-1.0;\n"
-        " if(shader_mode==2){ float r2=dot(centered,centered); centered*=1.0+r2*0.055;\n"
+        " if(shader_mode==2){ float r2=dot(centered,centered); centered*=1.0+r2*0.05;\n"
         "  sample_uv=centered*0.5+0.5;\n"
         "  if(sample_uv.x<0.0||sample_uv.y<0.0||sample_uv.x>1.0||sample_uv.y>1.0){ gl_FragColor=vec4(0.0,0.0,0.0,1.0); return; }}\n"
         " vec3 color=texture2D(frame_texture,sample_uv*texture_scale).rgb;\n"
-        " if(shader_mode>0){ float scanline=0.82+0.18*sin(sample_uv.y*source_size.y*3.14159265); color*=scanline; }\n"
-        " if(shader_mode==2){ float vignette=1.0-0.24*dot(centered,centered);\n"
-        "  float mask=mod(floor(gl_FragCoord.x),3.0);\n"
-        "  vec3 grille=mask<1.0?vec3(1.0,0.92,0.92):(mask<2.0?vec3(0.92,1.0,0.92):vec3(0.92,0.92,1.0));\n"
-        "  color*=max(vignette,0.55)*grille; } gl_FragColor=vec4(color,1.0); }\n";
+        " if(shader_mode>0){ color*=mix(0.70,1.0,step(1.0,mod(gl_FragCoord.y,2.0))); }\n"
+        " if(shader_mode==2){ float vignette=max(1.0-0.22*dot(centered,centered),0.58);\n"
+        "  float mask=mod(gl_FragCoord.x,3.0); vec3 grille=vec3(0.93);\n"
+        "  grille.r+=0.07*(1.0-step(1.0,mask));\n"
+        "  grille.g+=0.07*step(1.0,mask)*(1.0-step(2.0,mask));\n"
+        "  grille.b+=0.07*step(2.0,mask);\n"
+        "  color*=vignette*grille; } gl_FragColor=vec4(color,1.0); }\n";
 
     GLuint vertex = compile_go2_shader(GL_VERTEX_SHADER, vertex_source);
     GLuint fragment = compile_go2_shader(GL_FRAGMENT_SHADER, fragment_source);
@@ -211,7 +219,26 @@ static bool create_go2_post_framebuffer(rr_context_t* context) {
         return false;
     }
     context->post_program = create_go2_post_program();
-    return context->post_program != 0;
+    if (!context->post_program)
+        return false;
+
+    context->uniform_frame_texture =
+        glGetUniformLocation(context->post_program, "frame_texture");
+    context->uniform_source_size =
+        glGetUniformLocation(context->post_program, "source_size");
+    context->uniform_texture_scale =
+        glGetUniformLocation(context->post_program, "texture_scale");
+    context->uniform_shader_mode =
+        glGetUniformLocation(context->post_program, "shader_mode");
+    static const GLfloat vertices[] = {
+        -1.0f,-1.0f, 0.0f,0.0f,  1.0f,-1.0f, 1.0f,0.0f,
+        -1.0f, 1.0f, 0.0f,1.0f,  1.0f, 1.0f, 1.0f,1.0f
+    };
+    glGenBuffers(1, &context->post_vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, context->post_vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    context->texture_filter = GL_LINEAR;
+    return true;
 }
 
 rr_context_t* rr_context_create(rr_display_t* display, int width, int height,
@@ -246,6 +273,7 @@ void rr_context_destroy(rr_context_t* context) {
     if (!context) return;
     go2_context_make_current(context->native);
     if (context->post_program) glDeleteProgram(context->post_program);
+    if (context->post_vbo) glDeleteBuffers(1, &context->post_vbo);
     if (context->stencil_buffer) glDeleteRenderbuffers(1, &context->stencil_buffer);
     if (context->depth_buffer) glDeleteRenderbuffers(1, &context->depth_buffer);
     if (context->framebuffer) glDeleteFramebuffers(1, &context->framebuffer);
@@ -281,27 +309,27 @@ void rr_context_swap_buffers(rr_context_t* context, int source_width, int source
     glUseProgram(context->post_program);
     glBindTexture(GL_TEXTURE_2D, context->color_texture);
     const GLint filtering = video_filter == RR_VIDEO_FILTER_NEAREST ? GL_NEAREST : GL_LINEAR;
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filtering);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filtering);
-    glUniform1i(glGetUniformLocation(context->post_program, "frame_texture"), 0);
-    glUniform2f(glGetUniformLocation(context->post_program, "source_size"),
+    if (context->texture_filter != filtering) {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filtering);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filtering);
+        context->texture_filter = filtering;
+    }
+    glUniform1i(context->uniform_frame_texture, 0);
+    glUniform2f(context->uniform_source_size,
                 static_cast<float>(source_width), static_cast<float>(source_height));
-    glUniform2f(glGetUniformLocation(context->post_program, "texture_scale"),
+    glUniform2f(context->uniform_texture_scale,
                 static_cast<float>(source_width) / context->width,
                 static_cast<float>(source_height) / context->height);
-    glUniform1i(glGetUniformLocation(context->post_program, "shader_mode"),
+    glUniform1i(context->uniform_shader_mode,
                 video_shader == RR_VIDEO_SHADER_CRT ? 2 :
                 (video_shader == RR_VIDEO_SHADER_SCANLINES ? 1 : 0));
 
-    static const GLfloat vertices[] = {
-        -1.0f,-1.0f, 0.0f,0.0f,  1.0f,-1.0f, 1.0f,0.0f,
-        -1.0f, 1.0f, 0.0f,1.0f,  1.0f, 1.0f, 1.0f,1.0f
-    };
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ARRAY_BUFFER, context->post_vbo);
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4*sizeof(GLfloat), vertices);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4*sizeof(GLfloat), vertices+2);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4*sizeof(GLfloat), (void*)0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4*sizeof(GLfloat),
+                          (void*)(2*sizeof(GLfloat)));
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glDisableVertexAttribArray(0);
     glDisableVertexAttribArray(1);
@@ -320,7 +348,6 @@ void rr_context_surface_unlock(rr_context_t* context, rr_surface_t* surface) { g
 void* rr_context_get_proc_address(const char* symbol) { return reinterpret_cast<void*>(eglGetProcAddress(symbol)); }
 void rr_video_sync() {
     glFinish();
-    glFlush();
 }
 bool rr_video_vsync_set(bool) { return false; }
 bool rr_video_vsync_get() { return false; }

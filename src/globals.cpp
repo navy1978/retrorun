@@ -78,6 +78,14 @@ int audioCounter = 0;
 int audioCounterSkip = 6;
 
 bool processVideoInAnotherThread = true;
+bool forceVideoMultithread = false;
+// Frame duplication is perceptible on handheld displays. Keep adaptive
+// skipping opt-in until backend-specific timings can exclude vblank waits.
+bool adaptiveFrameSkip = false;
+bool skipNextVideoFrame = false;
+// Number of video callbacks discarded after every presented frame.
+// Core execution, audio and input are never skipped.
+int fixedFrameSkip = 0;
 
 bool adaptiveFps = false;
 

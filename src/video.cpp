@@ -643,29 +643,56 @@ void drawNonOpenGL(const void *data, unsigned width, unsigned height, size_t pit
         const uint32_t format = rr_surface_format_get(surface);
         const int stride = rr_surface_stride_get(surface);
         const bool crt = videoShader == RR_VIDEO_SHADER_CRT;
-        auto scale_channel = [](unsigned value, float factor, unsigned maximum) {
-            return static_cast<unsigned>(std::min<float>(maximum, value * factor));
+        // Rebuild the effect map only when geometry or mode changes. Q8 gains
+        // remove floating point, division and vignette math from every frame.
+        static std::vector<uint16_t> effect_gain;
+        static std::vector<uint8_t> grille_mask;
+        static unsigned cached_width = 0;
+        static unsigned cached_height = 0;
+        static bool cached_crt = false;
+        if (cached_width != width || cached_height != height ||
+            cached_crt != crt || effect_gain.size() != width * height)
+        {
+            effect_gain.resize(static_cast<size_t>(width) * height);
+            grille_mask.resize(width);
+            for (unsigned px = 0; px < width; ++px)
+                grille_mask[px] = static_cast<uint8_t>(px % 3U);
+            for (unsigned py = 0; py < height; ++py)
+            {
+                const float normalized_y = height > 1
+                    ? (2.0f * py / static_cast<float>(height - 1)) - 1.0f : 0.0f;
+                const float scanline = (py & 1U) ? 0.68f : 1.0f;
+                for (unsigned px = 0; px < width; ++px)
+                {
+                    float factor = scanline;
+                    if (crt)
+                    {
+                        const float normalized_x = width > 1
+                            ? (2.0f * px / static_cast<float>(width - 1)) - 1.0f : 0.0f;
+                        factor *= std::max(0.62f,
+                            1.0f - 0.18f * (normalized_x * normalized_x +
+                                            normalized_y * normalized_y));
+                    }
+                    effect_gain[static_cast<size_t>(py) * width + px] =
+                        static_cast<uint16_t>(std::clamp(factor, 0.0f, 1.0f) * 256.0f);
+                }
+            }
+            cached_width = width;
+            cached_height = height;
+            cached_crt = crt;
+        }
+        auto scale_channel = [](unsigned value, unsigned gain, unsigned maximum) {
+            return std::min(maximum, (value * gain + 128U) >> 8U);
         };
 
         for (unsigned py = 0; py < height; ++py)
         {
-            const float normalized_y = height > 1
-                                           ? (2.0f * py / static_cast<float>(height - 1)) - 1.0f
-                                           : 0.0f;
-            const float scanline = (py & 1U) ? 0.68f : 1.0f;
             uint8_t *row = mapped + static_cast<size_t>(py) * stride;
             for (unsigned px = 0; px < width; ++px)
             {
-                float factor = scanline;
-                if (crt)
-                {
-                    const float normalized_x = width > 1
-                                                   ? (2.0f * px / static_cast<float>(width - 1)) - 1.0f
-                                                   : 0.0f;
-                    factor *= std::max(0.62f,
-                                       1.0f - 0.18f * (normalized_x * normalized_x +
-                                                       normalized_y * normalized_y));
-                }
+                const unsigned gain = effect_gain[static_cast<size_t>(py) * width + px];
+                const unsigned dim_gain = (gain * 225U) >> 8U;
+                const unsigned mask = grille_mask[px];
 
                 if (format == RR_PIXEL_FORMAT_RGB565)
                 {
@@ -674,14 +701,13 @@ void drawNonOpenGL(const void *data, unsigned width, unsigned height, size_t pit
                     unsigned green = (pixel >> 5) & 0x3f;
                     unsigned blue = pixel & 0x1f;
                     if (crt) {
-                        const unsigned mask = px % 3;
-                        red = scale_channel(red, factor * (mask == 0 ? 1.0f : 0.88f), 0x1f);
-                        green = scale_channel(green, factor * (mask == 1 ? 1.0f : 0.88f), 0x3f);
-                        blue = scale_channel(blue, factor * (mask == 2 ? 1.0f : 0.88f), 0x1f);
+                        red = scale_channel(red, mask == 0 ? gain : dim_gain, 0x1f);
+                        green = scale_channel(green, mask == 1 ? gain : dim_gain, 0x3f);
+                        blue = scale_channel(blue, mask == 2 ? gain : dim_gain, 0x1f);
                     } else {
-                        red = scale_channel(red, factor, 0x1f);
-                        green = scale_channel(green, factor, 0x3f);
-                        blue = scale_channel(blue, factor, 0x1f);
+                        red = scale_channel(red, gain, 0x1f);
+                        green = scale_channel(green, gain, 0x3f);
+                        blue = scale_channel(blue, gain, 0x1f);
                     }
                     pixel = static_cast<uint16_t>((red << 11) | (green << 5) | blue);
                 }
@@ -692,19 +718,17 @@ void drawNonOpenGL(const void *data, unsigned width, unsigned height, size_t pit
                     unsigned red = (pixel >> 16) & 0xff;
                     unsigned green = (pixel >> 8) & 0xff;
                     unsigned blue = pixel & 0xff;
-                    const unsigned mask = px % 3;
-                    red = scale_channel(red, factor * (crt && mask != 0 ? 0.88f : 1.0f), 0xff);
-                    green = scale_channel(green, factor * (crt && mask != 1 ? 0.88f : 1.0f), 0xff);
-                    blue = scale_channel(blue, factor * (crt && mask != 2 ? 0.88f : 1.0f), 0xff);
+                    red = scale_channel(red, crt && mask != 0 ? dim_gain : gain, 0xff);
+                    green = scale_channel(green, crt && mask != 1 ? dim_gain : gain, 0xff);
+                    blue = scale_channel(blue, crt && mask != 2 ? dim_gain : gain, 0xff);
                     pixel = (pixel & 0xff000000U) | (red << 16) | (green << 8) | blue;
                 }
                 else if (format == RR_PIXEL_FORMAT_RGB888)
                 {
                     uint8_t *pixel = row + px * 3;
-                    const unsigned mask = px % 3;
-                    pixel[0] = static_cast<uint8_t>(scale_channel(pixel[0], factor * (crt && mask != 0 ? 0.88f : 1.0f), 0xff));
-                    pixel[1] = static_cast<uint8_t>(scale_channel(pixel[1], factor * (crt && mask != 1 ? 0.88f : 1.0f), 0xff));
-                    pixel[2] = static_cast<uint8_t>(scale_channel(pixel[2], factor * (crt && mask != 2 ? 0.88f : 1.0f), 0xff));
+                    pixel[0] = static_cast<uint8_t>(scale_channel(pixel[0], crt && mask != 0 ? dim_gain : gain, 0xff));
+                    pixel[1] = static_cast<uint8_t>(scale_channel(pixel[1], crt && mask != 1 ? dim_gain : gain, 0xff));
+                    pixel[2] = static_cast<uint8_t>(scale_channel(pixel[2], crt && mask != 2 ? dim_gain : gain, 0xff));
                 }
             }
         }
@@ -836,6 +860,31 @@ size_t lastPitch;
 void core_video_refresh(const void *data, unsigned width, unsigned height, size_t pitch)
 {
 
+#ifndef RR_PLATFORM_SDL
+    // Fixed presentation-only frameskip, equivalent to the strategy used by
+    // many emulators: value 1 presents one frame out of two, value 2 one out
+    // of three, and so on. The display keeps scanning out the last submitted
+    // framebuffer, while retro_run(), audio and input continue normally.
+    static int fixedFramesRemaining = 0;
+    const bool forcePresentation = showLoading || input_info_requested ||
+        input_message || input_credits_requested || screenshot_requested ||
+        input_ffwd_requested;
+
+    if (fixedFrameSkip <= 0 || forcePresentation)
+    {
+        fixedFramesRemaining = 0;
+    }
+    else if (fixedFramesRemaining > 0)
+    {
+        --fixedFramesRemaining;
+        return;
+    }
+    else
+    {
+        fixedFramesRemaining = fixedFrameSkip;
+    }
+#endif
+
   
     if (input_info_requested)
     {
@@ -856,7 +905,10 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
 
         lastData = data;
         lastPitch = pitch;
-        processVideoInAnotherThread = (isRG552() /*|| isRG503()*/) ? true : false;
+        // Preserve the RG552/Flycast2021 performance workaround and keep an
+        // explicit override for other combinations.
+        processVideoInAnotherThread =
+            (isRG552() && isFlycast2021()) || forceVideoMultithread;
 
         if (isPPSSPP() && width < 1)
         {
@@ -866,6 +918,15 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
             height = 272;
         }
     }
+
+#ifndef RR_PLATFORM_SDL
+    if (skipNextVideoFrame && !showLoading && !input_info_requested &&
+        !input_message && !input_ffwd_requested)
+    {
+        skipNextVideoFrame = false;
+        return;
+    }
+#endif
 
     frameCounter++;
     // the following is for Fast Forwarding

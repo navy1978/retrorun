@@ -43,6 +43,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include <stdbool.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <poll.h>
 
 #include <rga/RgaApi.h>
 
@@ -217,12 +218,74 @@ int go2_display_height_get(go2_display_t *display)
     return display->height;
 }
 
+static void go2_page_flip_handler(int, unsigned int, unsigned int, unsigned int,
+                                  void *data)
+{
+    *static_cast<bool *>(data) = false;
+}
+
 void go2_display_present(go2_display_t *display, go2_frame_buffer_t *frame_buffer)
 {
-    int ret = drmModeSetCrtc(display->fd, display->crtc_id, frame_buffer->fb_id, 0, 0, &display->connector_id, 1, &display->mode);
-    if (ret)
+    if (!display->modeset_complete)
     {
-        logger.log(Logger::ERR,"drmModeSetCrtc failed.\n");
+        int ret = drmModeSetCrtc(display->fd, display->crtc_id, frame_buffer->fb_id,
+                                 0, 0, &display->connector_id, 1, &display->mode);
+        if (ret)
+            logger.log(Logger::ERR, "drmModeSetCrtc failed: %s\n", strerror(errno));
+        else
+            display->modeset_complete = true;
+        return;
+    }
+
+    if (display->page_flip_disabled)
+    {
+        int ret = drmModeSetCrtc(display->fd, display->crtc_id, frame_buffer->fb_id,
+                                 0, 0, &display->connector_id, 1, &display->mode);
+        if (ret)
+            logger.log(Logger::ERR, "drmModeSetCrtc fallback failed: %s\n", strerror(errno));
+        return;
+    }
+
+    bool waiting_for_flip = true;
+    if (drmModePageFlip(display->fd, display->crtc_id, frame_buffer->fb_id,
+                        DRM_MODE_PAGE_FLIP_EVENT, &waiting_for_flip) != 0)
+    {
+        // Some older vendor DRM drivers do not expose page flips reliably.
+        // Preserve compatibility by falling back to the historical modeset.
+        logger.log(Logger::WARN, "drmModePageFlip failed; using SetCrtc fallback: %s\n",
+                   strerror(errno));
+        display->page_flip_disabled = true;
+        int ret = drmModeSetCrtc(display->fd, display->crtc_id, frame_buffer->fb_id,
+                                 0, 0, &display->connector_id, 1, &display->mode);
+        if (ret)
+            logger.log(Logger::ERR, "drmModeSetCrtc fallback failed: %s\n", strerror(errno));
+        return;
+    }
+
+    drmEventContext event = {};
+    event.version = DRM_EVENT_CONTEXT_VERSION;
+    event.page_flip_handler = go2_page_flip_handler;
+    while (waiting_for_flip)
+    {
+        pollfd descriptor = {display->fd, POLLIN, 0};
+        int ready = poll(&descriptor, 1, 1000);
+        if (ready > 0 && (descriptor.revents & POLLIN))
+            drmHandleEvent(display->fd, &event);
+        else if (ready < 0 && errno == EINTR)
+            continue;
+        else if (ready == 0)
+        {
+            // Do not recycle the previous scanout buffer until the kernel has
+            // confirmed the flip. Keep waiting; log once per delayed flip.
+            logger.log(Logger::WARN, "DRM page flip is taking longer than one second\n");
+            continue;
+        }
+        else
+        {
+            logger.log(Logger::ERR, "error waiting for DRM page flip: %s\n",
+                       strerror(errno));
+            break;
+        }
     }
 }
 
@@ -904,6 +967,16 @@ static void *go2_presenter_renderloop(void *arg)
         prevFrameBuffer = dstFrameBuffer;
     }
 
+    // The currently scanned-out buffer is owned by the render loop. Return it
+    // before shutdown so presenter destruction releases every DRM framebuffer.
+    if (prevFrameBuffer)
+    {
+        pthread_mutex_lock(&presenter->queueMutex);
+        go2_queue_push(presenter->freeFrameBuffers, prevFrameBuffer);
+        pthread_mutex_unlock(&presenter->queueMutex);
+        sem_post(&presenter->freeSem);
+    }
+
     return NULL;
 }
 
@@ -982,14 +1055,13 @@ void go2_presenter_destroy(go2_presenter_t *presenter)
 void go2_presenter_post(go2_presenter_t *presenter, go2_surface_t *surface, int srcX, int srcY, int srcWidth, int srcHeight, int dstX, int dstY, int dstWidth, int dstHeight, go2_rotation_t rotation)
 {
     sem_wait(&presenter->freeSem);
-    go2_frame_buffer_t *dstFrameBuffer = NULL;
-    while (dstFrameBuffer == NULL)
-    {
-        if (go2_queue_try_pop(presenter->freeFrameBuffers, (void **)&dstFrameBuffer) != 0)
-        {
-            // printf("sleeping\n");
-            usleep(0);
-        }
+    pthread_mutex_lock(&presenter->queueMutex);
+    go2_frame_buffer_t *dstFrameBuffer =
+        (go2_frame_buffer_t *)go2_queue_pop(presenter->freeFrameBuffers);
+    pthread_mutex_unlock(&presenter->queueMutex);
+    if (!dstFrameBuffer) {
+        logger.log(Logger::ERR, "free framebuffer semaphore/queue mismatch.\n");
+        return;
     }
 
     go2_surface_t *dstSurface = go2_frame_buffer_surface_get(dstFrameBuffer);
@@ -1010,14 +1082,13 @@ void go2_presenter_post(go2_presenter_t *presenter, go2_surface_t *surface, int 
 void go2_presenter_black(go2_presenter_t *presenter, int dstX, int dstY, int dstWidth, int dstHeight, go2_rotation_t rotation)
 {
     sem_wait(&presenter->freeSem);
-    go2_frame_buffer_t *dstFrameBuffer = NULL;
-    while (dstFrameBuffer == NULL)
-    {
-        if (go2_queue_try_pop(presenter->freeFrameBuffers, (void **)&dstFrameBuffer) != 0)
-        {
-            // printf("sleeping\n");
-            usleep(0);
-        }
+    pthread_mutex_lock(&presenter->queueMutex);
+    go2_frame_buffer_t *dstFrameBuffer =
+        (go2_frame_buffer_t *)go2_queue_pop(presenter->freeFrameBuffers);
+    pthread_mutex_unlock(&presenter->queueMutex);
+    if (!dstFrameBuffer) {
+        logger.log(Logger::ERR, "free framebuffer semaphore/queue mismatch.\n");
+        return;
     }
 
     
@@ -1212,15 +1283,15 @@ void go2_presenter_post_multiple(go2_presenter_t *presenter, go2_surface_t *surf
 
     pthread_mutex_lock(&presenter->queueMutex);
 
-    if (go2_queue_count_get(presenter->freeFrameBuffers) < 1)
-    {
-        printf("no framebuffer available.\n");
-        exit(1);
-    }
-
     go2_frame_buffer_t *dstFrameBuffer = (go2_frame_buffer_t *)go2_queue_pop(presenter->freeFrameBuffers);
 
     pthread_mutex_unlock(&presenter->queueMutex);
+
+    if (!dstFrameBuffer)
+    {
+        logger.log(Logger::ERR, "free framebuffer semaphore/queue mismatch.\n");
+        return;
+    }
 
     go2_surface_t *dstSurface = go2_frame_buffer_surface_get(dstFrameBuffer);
     
