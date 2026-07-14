@@ -11,7 +11,7 @@ PLATFORM ?= auto
 
 PROJECTS := retrorun
 
-.PHONY: all clean help sdl2 go2 $(PROJECTS)
+.PHONY: all build clean help sdl2 go2 $(PROJECTS)
 
 # Run a sub-build, preserve its exit status, and always report the elapsed time.
 # Usage: $(call timed_build,<make arguments>)
@@ -29,6 +29,10 @@ define timed_build
 endef
 
 all: $(PROJECTS)
+
+# Explicit alias: without a phony target, `make ... build` sees the existing
+# build/ directory and incorrectly reports that there is nothing to do.
+build: retrorun
 
 ifeq ($(PLATFORM),sdl2)
 retrorun:

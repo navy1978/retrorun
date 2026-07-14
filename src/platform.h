@@ -158,6 +158,9 @@ uintptr_t rr_context_framebuffer_get(rr_context_t* context);
 rr_surface_t* rr_context_surface_lock(rr_context_t* context);
 void rr_context_surface_unlock(rr_context_t* context, rr_surface_t* surface);
 void* rr_context_get_proc_address(const char* symbol);
+// Wait for platform graphics commands that must complete before core state is
+// restored. Backends without this requirement may implement this as a no-op.
+void rr_video_sync();
 bool rr_video_vsync_set(bool enabled);
 bool rr_video_vsync_get();
 void rr_video_filter_set(rr_video_filter_t filter);

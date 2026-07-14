@@ -341,7 +341,8 @@ void rr_surface_blit(rr_surface_t* source, int sx, int sy, int sw, int sh,
                      rr_surface_t* dest, int dx, int dy, int dw, int dh, rr_rotation_t) {
     SDL_Surface* src = wrap_surface(source); SDL_Surface* dst = wrap_surface(dest);
     if (src && dst) { SDL_Rect sr = {sx,sy,sw,sh}; SDL_Rect dr = {dx,dy,dw,dh}; SDL_BlitScaled(src,&sr,dst,&dr); }
-    if (src) SDL_FreeSurface(src); if (dst) SDL_FreeSurface(dst);
+    if (src) SDL_FreeSurface(src);
+    if (dst) SDL_FreeSurface(dst);
 }
 int rr_surface_save_as_png(rr_surface_t* surface, const char* filename) {
     SDL_Surface* wrapped = wrap_surface(surface);
@@ -420,8 +421,11 @@ void rr_presenter_wait_for_loading_screen(rr_presenter_t* presenter, unsigned mi
     presenter->loading_wait_completed = true;
     SDL_ShowWindow(presenter->display->window);
     SDL_RaiseWindow(presenter->display->window);
-    const Uint64 started = SDL_GetTicks64();
-    while (SDL_GetTicks64() - started < milliseconds) {
+    // SDL_GetTicks64 was introduced after SDL 2.0.10, which is the version
+    // shipped by Ubuntu 20.04. Unsigned subtraction also handles the 32-bit
+    // SDL_GetTicks rollover correctly for this short wait.
+    const Uint32 started = SDL_GetTicks();
+    while (static_cast<Uint32>(SDL_GetTicks() - started) < milliseconds) {
         // Cocoa needs its event queue serviced before a newly created window's
         // first rendered frame is guaranteed to reach the compositor.
         SDL_PumpEvents();
@@ -883,6 +887,11 @@ rr_surface_t* rr_context_surface_lock(rr_context_t* context) {
 }
 void rr_context_surface_unlock(rr_context_t*, rr_surface_t* surface) { delete surface; }
 void* rr_context_get_proc_address(const char* symbol) { return SDL_GL_GetProcAddress(symbol); }
+void rr_video_sync() {
+    // State loading did not require an explicit GPU synchronization on the
+    // SDL backend. Preserve that behaviour while keeping GL calls out of the
+    // shared frontend code.
+}
 bool rr_video_vsync_set(bool enabled) {
     vsync_enabled = enabled;
     bool applied = true;

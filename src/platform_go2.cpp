@@ -313,6 +313,10 @@ uintptr_t rr_context_framebuffer_get(rr_context_t* context) { return context ? c
 rr_surface_t* rr_context_surface_lock(rr_context_t* context) { go2_surface_t* native = go2_context_surface_lock(context->native); if (!native) return NULL; rr_surface_t* s = new rr_surface_t; s->native=native; return s; }
 void rr_context_surface_unlock(rr_context_t* context, rr_surface_t* surface) { go2_context_surface_unlock(context->native, surface->native); delete surface; }
 void* rr_context_get_proc_address(const char* symbol) { return reinterpret_cast<void*>(eglGetProcAddress(symbol)); }
+void rr_video_sync() {
+    glFinish();
+    glFlush();
+}
 bool rr_video_vsync_set(bool) { return false; }
 bool rr_video_vsync_get() { return false; }
 void rr_video_filter_set(rr_video_filter_t filter) { video_filter = filter; }

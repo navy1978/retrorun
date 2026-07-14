@@ -61,6 +61,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <fstream>
 #include <sstream>
 #include <cstring>
+#include <atomic>
 #include <chrono>
 #include <thread>
 #include <time.h>
@@ -338,6 +339,30 @@ static retro_proc_address_t get_proc_address(const char *sym)
 {
     return regex_replace(str, std::regex("(^[ ]+)|([ ]+$)"), "");
 }*/
+
+static void log_unhandled_environment_once(unsigned cmd)
+{
+    // Libretro commands use an 8-bit command number plus the EXPERIMENTAL and
+    // PRIVATE qualifier bits. A fixed atomic bitset avoids locks and dynamic
+    // allocation even when a core sends the same unsupported request per frame.
+    static std::atomic<uint64_t> logged_commands[16] = {};
+    constexpr unsigned qualifier_mask =
+        RETRO_ENVIRONMENT_EXPERIMENTAL | RETRO_ENVIRONMENT_PRIVATE;
+    const unsigned command = cmd & ~qualifier_mask;
+    const unsigned qualifier = (cmd & qualifier_mask) >> 16;
+    const unsigned bit_index = qualifier * 256u + command;
+
+    if (command >= 256u) {
+        logger.log(Logger::DEB, "Unhandled env #%u", cmd);
+        return;
+    }
+
+    const uint64_t mask = uint64_t{1} << (bit_index % 64u);
+    const uint64_t previous = logged_commands[bit_index / 64u].fetch_or(
+        mask, std::memory_order_relaxed);
+    if ((previous & mask) == 0)
+        logger.log(Logger::DEB, "Unhandled env #%u (further occurrences suppressed)", cmd);
+}
 
 static bool core_environment(unsigned cmd, void *data)
 {
@@ -688,7 +713,7 @@ static bool core_environment(unsigned cmd, void *data)
     }
 
     default:
-        logger.log(Logger::DEB, "Unhandled env #%u", cmd);
+        log_unhandled_environment_once(cmd);
 
         return false;
     }
@@ -944,6 +969,7 @@ static int LoadState(const char *saveName)
    
     if (pthread_self() != main_thread_id) {
         logger.log(Logger::ERR, "Error: retro_unserialize() doesn't run in the main thread!");
+        free(ptr);
         return -1;
     }
     
@@ -951,10 +977,7 @@ static int LoadState(const char *saveName)
     main_thread_id = pthread_self();
     fflush(stdout);
     pthread_mutex_lock(&stateMutex);
-#ifdef RR_PLATFORM_GO2
-    glFinish();
-    glFlush();
-#endif
+    rr_video_sync();
     mprotect(ptr, size, PROT_READ);
     bool result = g_retro.retro_unserialize(ptr, size);
     mprotect(ptr, size, PROT_READ | PROT_WRITE);

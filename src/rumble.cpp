@@ -125,7 +125,12 @@ bool retrorun_input_set_rumble(unsigned port, enum retro_rumble_effect effect, u
             play.code = rumble_id;
             play.value = 0; // Stop effect
 
-            write(rumble_fd, &play, sizeof(play));
+            const ssize_t written = write(rumble_fd, &play, sizeof(play));
+            if (written != static_cast<ssize_t>(sizeof(play)))
+            {
+                perror("Error stopping rumble effect");
+                return false;
+            }
 
             ioctl(rumble_fd, EVIOCRMFF, rumble_id); // Remove effect
             rumble_id = -1;
