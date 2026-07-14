@@ -1,6 +1,6 @@
 CXX ?= clang++
 ROOT := ../..
-OBJDIR := obj
+OBJDIR := obj/$(config)
 TARGET := $(ROOT)/retrorun
 
 SDL_CFLAGS := $(shell sdl2-config --cflags)
@@ -8,9 +8,15 @@ SDL_LIBS := $(shell sdl2-config --libs)
 PNG_CFLAGS := $(shell pkg-config --cflags libpng)
 PNG_LIBS := $(shell pkg-config --libs libpng)
 
-CXXFLAGS := -std=c++20 -Wall -Wextra -g -DRR_PLATFORM_SDL \
-            -I$(ROOT)/src -I$(ROOT)/src/menu $(SDL_CFLAGS) $(PNG_CFLAGS)
-LDFLAGS := $(SDL_LIBS) $(PNG_LIBS) -framework OpenGL
+COMMON_FLAGS := -std=c++20 -Wall -Wextra -DRR_PLATFORM_SDL \
+                -I$(ROOT)/src -I$(ROOT)/src/menu $(SDL_CFLAGS) $(PNG_CFLAGS)
+ifeq ($(config),release)
+  CXXFLAGS := $(COMMON_FLAGS) -O3 -DNDEBUG -flto
+  LDFLAGS_EXTRA := -flto
+else
+  CXXFLAGS := $(COMMON_FLAGS) -g -DDEBUG
+endif
+LDFLAGS := $(SDL_LIBS) $(PNG_LIBS) -framework OpenGL $(LDFLAGS_EXTRA)
 
 SOURCES := \
   src/logger.cpp \
@@ -43,6 +49,6 @@ $(OBJDIR)/%.o: $(ROOT)/src/%.cpp
 	$(CXX) $(CXXFLAGS) -MMD -MP -c $< -o $@
 
 clean:
-	rm -rf $(OBJDIR) $(TARGET)
+	rm -rf obj $(TARGET)
 
 -include $(OBJECTS:.o=.d)

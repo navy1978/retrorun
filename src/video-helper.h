@@ -53,6 +53,7 @@ extern int ah;
 
 extern bool isGameVertical;
 extern bool isOpenGL;
+extern bool first_video_refresh;
 extern unsigned currentWidth;
 extern unsigned currentHeight;
 
@@ -122,4 +123,3 @@ bool continueToShowScreenshotImage();
 bool continueToShowSaveLoadStateImage();
 bool continueToShowSaveLoadStateDoneImage();
 void checkPaused();
-

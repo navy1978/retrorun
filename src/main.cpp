@@ -1839,6 +1839,9 @@ auto setTateMode = [](int button) -> std::function<void(int)>
     {
         tateState = static_cast<TateState>((tateState - 1) < DISABLED ? AUTO : (tateState - 1));
     }
+    // Tate changes both orientation and the aspect-ratio fitting rectangle.
+    // Recompute it on the next frame instead of retaining startup geometry.
+    first_video_refresh = true;
     return std::function<void(int)>();
 };
 

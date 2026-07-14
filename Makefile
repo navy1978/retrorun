@@ -51,7 +51,7 @@ clean:
 else ifeq ($(UNAME_S),Darwin)
 retrorun:
 	@echo "==== Building retrorun SDL2 for macOS ===="
-	$(call timed_build,-C build/macos -f Makefile)
+	$(call timed_build,-C build/macos -f Makefile config=$(config))
 
 clean:
 	@${MAKE} --no-print-directory -C build/macos -f Makefile clean

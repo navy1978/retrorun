@@ -17,6 +17,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 struct rr_input { SDL_GameController* controller; };
@@ -24,7 +25,12 @@ struct rr_input_state {
     rr_button_state_t buttons[RRInputButton_Quit + 1];
     rr_thumb_t sticks[2];
 };
-struct rr_audio { SDL_AudioDeviceID device; int volume; int frequency; };
+struct rr_audio {
+    SDL_AudioDeviceID device;
+    int volume;
+    int frequency;
+    std::vector<short> mix_buffer;
+};
 struct rr_display { SDL_Window* window; int width; int height; int brightness; };
 struct rr_surface {
     rr_display_t* display;
@@ -37,6 +43,13 @@ struct rr_presenter {
     SDL_Renderer* renderer;
     uint32_t background;
     bool loading_wait_completed;
+    struct texture_entry {
+        SDL_Texture* texture;
+        int width;
+        int height;
+        Uint32 format;
+    };
+    std::unordered_map<const rr_surface_t*, texture_entry> textures;
 };
 struct rr_context {
     rr_display_t* display;
@@ -53,6 +66,17 @@ struct rr_context {
     GLuint post_program;
     GLuint post_vao;
     GLuint post_vbo;
+    GLint uniform_frame_texture;
+    GLint uniform_source_size;
+    GLint uniform_texture_scale;
+    GLint uniform_shader_mode;
+    GLint uniform_rotation;
+    GLuint overlay_texture;
+    int overlay_texture_width;
+    int overlay_texture_height;
+    GLenum overlay_texture_format;
+    std::vector<uint8_t> overlay_upload;
+    GLint post_texture_filter;
     bool post_pipeline_failed;
     bool default_framebuffer;
 };
@@ -65,7 +89,6 @@ static rr_video_shader_t video_shader = RR_VIDEO_SHADER_OFF;
 static rr_presenter_t* active_presenter = NULL;
 static rr_context_t* active_context = NULL;
 static bool controller_mappings_loaded = false;
-static bool overlay_gl_error_logged = false;
 
 static void refresh_display_size(rr_display_t* display) {
     if (!display || !display->window) return;
@@ -315,7 +338,6 @@ void rr_input_state_read(rr_input_t* input, rr_input_state_t* state) {
             std::fprintf(stderr, "RetroRun SDL controller reconnect failed: no compatible gamepad\n");
     }
 
-    SDL_PumpEvents();
     const Uint8* keys = SDL_GetKeyboardState(NULL);
     set_key(state, keys, SDL_SCANCODE_UP, RRInputButton_DPadUp);
     set_key(state, keys, SDL_SCANCODE_DOWN, RRInputButton_DPadDown);
@@ -387,6 +409,9 @@ bool rr_input_set_rumble(uint16_t low, uint16_t high, uint32_t duration) {
 rr_audio_t* rr_audio_create(int frequency) {
     ensure_sdl(SDL_INIT_AUDIO);
     SDL_AudioSpec wanted = {};
+    // 1024 is intentionally retained for ALSA/KMSDRM handhelds: a 512-sample
+    // device period is too easy to underrun when a demanding core has a long
+    // frame. Queue latency is controlled independently below.
     wanted.freq = frequency; wanted.format = AUDIO_S16SYS; wanted.channels = 2; wanted.samples = 1024;
     rr_audio_t* audio = new rr_audio_t();
     audio->device = SDL_OpenAudioDevice(NULL, 0, &wanted, NULL, 0);
@@ -404,17 +429,23 @@ void rr_audio_submit(rr_audio_t* audio, const short* data, int frames) {
     // seconds of audible latency. Use the audio clock as a small secondary
     // pacing source and retain only a short queue.
     const Uint32 bytes_per_ms = static_cast<Uint32>(audio->frequency * 2 * sizeof(short) / 1000);
-    const Uint32 target_queue = bytes_per_ms * 60;
+    // Keep enough queued audio to survive occasional long Flycast frames on
+    // RK3326. This is also the effective clock during boot screens where some
+    // cores do not yet expose stable video timing.
+    const Uint32 target_queue = bytes_per_ms * 80;
     const Uint32 recovery_limit = bytes_per_ms * 250;
     Uint32 queued = SDL_GetQueuedAudioSize(audio->device);
     if (queued > recovery_limit) {
         SDL_ClearQueuedAudio(audio->device);
     } else {
-        // Keep this bounded: a suspended or disconnected audio device must
-        // never be able to stall the emulation thread indefinitely.
-        for (int attempt = 0; queued > target_queue && attempt < 4; ++attempt) {
-            const Uint32 excess_ms = (queued - target_queue) / std::max<Uint32>(bytes_per_ms, 1);
-            SDL_Delay(std::min<Uint32>(excess_ms + 1, 5));
+        // Never discard a complete audio block: that creates an audible
+        // discontinuity. A short adaptive wait keeps audio/video clocks
+        // together and also prevents old Flycast cores from racing through
+        // startup screens. Cap it below a typical scheduler time slice.
+        for (int attempt = 0; queued > target_queue && attempt < 3; ++attempt) {
+            const Uint32 excess_ms =
+                (queued - target_queue) / std::max<Uint32>(bytes_per_ms, 1);
+            SDL_Delay(std::min<Uint32>(excess_ms + 1, 8));
             queued = SDL_GetQueuedAudioSize(audio->device);
         }
     }
@@ -422,9 +453,11 @@ void rr_audio_submit(rr_audio_t* audio, const short* data, int frames) {
     if (audio->volume >= 100) {
         SDL_QueueAudio(audio->device, data, static_cast<Uint32>(samples * sizeof(short)));
     } else {
-        std::vector<short> adjusted(samples);
-        for (size_t i = 0; i < samples; ++i) adjusted[i] = static_cast<short>((data[i] * audio->volume) / 100);
-        SDL_QueueAudio(audio->device, adjusted.data(), static_cast<Uint32>(adjusted.size() * sizeof(short)));
+        audio->mix_buffer.resize(samples);
+        for (size_t i = 0; i < samples; ++i)
+            audio->mix_buffer[i] = static_cast<short>((data[i] * audio->volume) / 100);
+        SDL_QueueAudio(audio->device, audio->mix_buffer.data(),
+                       static_cast<Uint32>(audio->mix_buffer.size() * sizeof(short)));
     }
 }
 uint32_t rr_audio_volume_get(rr_audio_t* audio, const char*) { return audio ? audio->volume : 0; }
@@ -516,26 +549,29 @@ int rr_surface_save_as_png(rr_surface_t* surface, const char* filename) {
 static void render_surface(rr_presenter_t* presenter, rr_surface_t* surface, const SDL_Rect* src,
                            const SDL_Rect* dst, rr_rotation_t rotation) {
     if (!presenter || !presenter->renderer || !surface) return;
-    SDL_Surface* wrapped = wrap_surface(surface);
-    // Some macOS SDL renderers do not reliably upload RGB565 surfaces. The
-    // game frames normally use XRGB8888, while menus and loading artwork use
-    // RGB565, so convert those overlays explicitly before creating a texture.
-    SDL_Surface* upload = wrapped;
-    if (wrapped && surface->format == RR_PIXEL_FORMAT_RGB565)
-        upload = SDL_ConvertSurfaceFormat(wrapped, SDL_PIXELFORMAT_ARGB8888, 0);
-    SDL_Texture* texture = upload ? SDL_CreateTextureFromSurface(presenter->renderer, upload) : NULL;
-    if (upload && upload != wrapped) SDL_FreeSurface(upload);
-    if (wrapped) SDL_FreeSurface(wrapped);
-    if (!texture) {
-        std::fprintf(stderr, "RetroRun SDL texture upload failed: %s\n", SDL_GetError());
+    const Uint32 format = sdl_pixel_format(surface->format);
+    auto& entry = presenter->textures[surface];
+    if (!entry.texture || entry.width != surface->width ||
+        entry.height != surface->height || entry.format != format) {
+        if (entry.texture) SDL_DestroyTexture(entry.texture);
+        entry.texture = SDL_CreateTexture(presenter->renderer, format,
+                                          SDL_TEXTUREACCESS_STREAMING,
+                                          surface->width, surface->height);
+        entry.width = surface->width;
+        entry.height = surface->height;
+        entry.format = format;
+        if (entry.texture)
+            SDL_SetTextureBlendMode(entry.texture,
+                                    surface->format == RR_PIXEL_FORMAT_RGBA8888
+                                        ? SDL_BLENDMODE_BLEND : SDL_BLENDMODE_NONE);
+    }
+    if (!entry.texture ||
+        SDL_UpdateTexture(entry.texture, NULL, surface->pixels.data(), surface->stride) != 0) {
+        std::fprintf(stderr, "RetroRun SDL streaming texture upload failed: %s\n", SDL_GetError());
         return;
     }
-    SDL_SetTextureBlendMode(texture, surface->format == RR_PIXEL_FORMAT_RGBA8888
-                                         ? SDL_BLENDMODE_BLEND
-                                         : SDL_BLENDMODE_NONE);
-    SDL_RenderCopyEx(presenter->renderer, texture, src, dst,
+    SDL_RenderCopyEx(presenter->renderer, entry.texture, src, dst,
                      90.0 * static_cast<int>(rotation), NULL, SDL_FLIP_NONE);
-    SDL_DestroyTexture(texture);
 }
 
 rr_presenter_t* rr_presenter_create(rr_display_t* display, uint32_t, uint32_t background) {
@@ -558,7 +594,15 @@ rr_presenter_t* rr_presenter_create(rr_display_t* display, uint32_t, uint32_t ba
     active_presenter = presenter;
     return presenter;
 }
-void rr_presenter_destroy(rr_presenter_t* presenter) { if (presenter) { if (active_presenter == presenter) active_presenter = NULL; if (presenter->renderer) SDL_DestroyRenderer(presenter->renderer); delete presenter; } }
+void rr_presenter_destroy(rr_presenter_t* presenter) {
+    if (!presenter) return;
+    if (active_presenter == presenter) active_presenter = NULL;
+    for (auto& item : presenter->textures)
+        if (item.second.texture) SDL_DestroyTexture(item.second.texture);
+    presenter->textures.clear();
+    if (presenter->renderer) SDL_DestroyRenderer(presenter->renderer);
+    delete presenter;
+}
 static void clear_presenter(rr_presenter_t* p) { SDL_SetRenderDrawColor(p->renderer, 8, 8, 8, 255); SDL_RenderClear(p->renderer); }
 void rr_presenter_post(rr_presenter_t* p, rr_surface_t* s, int sx, int sy, int sw, int sh,
                        int dx, int dy, int dw, int dh, rr_rotation_t r) {
@@ -634,17 +678,21 @@ uniform sampler2D frame_texture;
 uniform vec2 source_size;
 uniform vec2 texture_scale;
 uniform int shader_mode;
+uniform int rotation_mode;
 in vec2 uv;
 out vec4 output_color;
 void main() {
-    vec2 sample_uv = uv;
+    vec2 sample_uv = rotation_mode == 1 ? vec2(uv.y, 1.0 - uv.x) :
+                     (rotation_mode == 3 ? vec2(1.0 - uv.y, uv.x) :
+                     (rotation_mode == 2 ? vec2(1.0 - uv.x, 1.0 - uv.y) : uv));
     vec2 centered = sample_uv * 2.0 - 1.0;
     if (shader_mode == 2) {
+        // A single dot product gives both the inexpensive barrel distortion
+        // and vignette term. Keep this mediump-friendly for Mali-G31.
         float radius2 = dot(centered, centered);
-        centered *= 1.0 + radius2 * 0.055;
+        centered *= 1.0 + radius2 * 0.05;
         sample_uv = centered * 0.5 + 0.5;
-        if (any(lessThan(sample_uv, vec2(0.0))) ||
-            any(greaterThan(sample_uv, vec2(1.0)))) {
+        if (max(abs(centered.x), abs(centered.y)) > 1.0) {
             output_color = vec4(0.0, 0.0, 0.0, 1.0);
             return;
         }
@@ -652,15 +700,18 @@ void main() {
 
     vec3 color = texture(frame_texture, sample_uv * texture_scale).rgb;
     if (shader_mode > 0) {
-        float scanline = 0.82 + 0.18 * sin(sample_uv.y * source_size.y * 3.14159265);
-        color *= scanline;
+        // gl_FragCoord already advances by one for every physical output row.
+        // This replaces the previous per-fragment sine with one cheap step.
+        color *= mix(0.70, 1.0, step(1.0, mod(gl_FragCoord.y, 2.0)));
     }
     if (shader_mode == 2) {
-        float vignette = 1.0 - 0.24 * dot(centered, centered);
-        float mask = mod(floor(gl_FragCoord.x), 3.0);
-        vec3 grille = mask < 1.0 ? vec3(1.00, 0.92, 0.92) :
-                      (mask < 2.0 ? vec3(0.92, 1.00, 0.92) : vec3(0.92, 0.92, 1.00));
-        color *= max(vignette, 0.55) * grille;
+        float vignette = max(1.0 - 0.22 * dot(centered, centered), 0.58);
+        float mask = mod(gl_FragCoord.x, 3.0);
+        vec3 grille = vec3(0.93);
+        grille.r += 0.07 * (1.0 - step(1.0, mask));
+        grille.g += 0.07 * step(1.0, mask) * (1.0 - step(2.0, mask));
+        grille.b += 0.07 * step(2.0, mask);
+        color *= vignette * grille;
     }
     output_color = vec4(color, 1.0);
 }
@@ -680,10 +731,13 @@ uniform sampler2D frame_texture;
 uniform vec2 source_size;
 uniform vec2 texture_scale;
 uniform int shader_mode;
+uniform int rotation_mode;
 in vec2 uv;
 out vec4 output_color;
 void main() {
-    vec2 sample_uv = uv;
+    vec2 sample_uv = rotation_mode == 1 ? vec2(uv.y, 1.0 - uv.x) :
+                     (rotation_mode == 3 ? vec2(1.0 - uv.y, uv.x) :
+                     (rotation_mode == 2 ? vec2(1.0 - uv.x, 1.0 - uv.y) : uv));
     vec2 centered = sample_uv * 2.0 - 1.0;
     if (shader_mode == 2) {
         float radius2 = dot(centered, centered);
@@ -764,12 +818,19 @@ void main() {
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat),
                           (void*)(2 * sizeof(GLfloat)));
     glBindVertexArray(0);
+    context->uniform_frame_texture = glGetUniformLocation(context->post_program, "frame_texture");
+    context->uniform_source_size = glGetUniformLocation(context->post_program, "source_size");
+    context->uniform_texture_scale = glGetUniformLocation(context->post_program, "texture_scale");
+    context->uniform_shader_mode = glGetUniformLocation(context->post_program, "shader_mode");
+    context->uniform_rotation = glGetUniformLocation(context->post_program, "rotation_mode");
     return true;
 }
 
 static bool draw_post_processed_frame(rr_context_t* context, int source_width, int source_height,
-                                      int left, int bottom, int right, int top) {
-    if (video_shader == RR_VIDEO_SHADER_OFF || !ensure_post_pipeline(context)) return false;
+                                      int left, int bottom, int right, int top,
+                                      rr_rotation_t rotation) {
+    if ((video_shader == RR_VIDEO_SHADER_OFF && rotation == RR_ROTATION_DEGREES_0) ||
+        !ensure_post_pipeline(context)) return false;
 
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glViewport(left, bottom, right - left, top - bottom);
@@ -777,16 +838,22 @@ static bool draw_post_processed_frame(rr_context_t* context, int source_width, i
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, context->color_texture);
     const GLint filtering = video_filter == RR_VIDEO_FILTER_NEAREST ? GL_NEAREST : GL_LINEAR;
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filtering);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filtering);
-    glUniform1i(glGetUniformLocation(context->post_program, "frame_texture"), 0);
-    glUniform2f(glGetUniformLocation(context->post_program, "source_size"),
+    if (context->post_texture_filter != filtering) {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filtering);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filtering);
+        context->post_texture_filter = filtering;
+    }
+    glUniform1i(context->uniform_frame_texture, 0);
+    glUniform2f(context->uniform_source_size,
                 static_cast<float>(source_width), static_cast<float>(source_height));
-    glUniform2f(glGetUniformLocation(context->post_program, "texture_scale"),
+    glUniform2f(context->uniform_texture_scale,
                 static_cast<float>(source_width) / context->framebuffer_width,
                 static_cast<float>(source_height) / context->framebuffer_height);
-    glUniform1i(glGetUniformLocation(context->post_program, "shader_mode"),
+    glUniform1i(context->uniform_shader_mode,
                 video_shader == RR_VIDEO_SHADER_CRT ? 2 : 1);
+    if (video_shader == RR_VIDEO_SHADER_OFF)
+        glUniform1i(context->uniform_shader_mode, 0);
+    glUniform1i(context->uniform_rotation, static_cast<int>(rotation));
     glBindVertexArray(context->post_vao);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glBindVertexArray(0);
@@ -829,6 +896,16 @@ rr_context_t* rr_context_create(rr_display_t* display, int width, int height,
     context->post_program = 0;
     context->post_vao = 0;
     context->post_vbo = 0;
+    context->uniform_frame_texture = -1;
+    context->uniform_source_size = -1;
+    context->uniform_texture_scale = -1;
+    context->uniform_shader_mode = -1;
+    context->uniform_rotation = -1;
+    context->overlay_texture = 0;
+    context->overlay_texture_width = 0;
+    context->overlay_texture_height = 0;
+    context->overlay_texture_format = 0;
+    context->post_texture_filter = -1;
     context->post_pipeline_failed = false;
     const char* default_framebuffer_env = std::getenv("RETRORUN_SDL_DEFAULT_FRAMEBUFFER");
     context->default_framebuffer = default_framebuffer_env &&
@@ -860,9 +937,25 @@ rr_context_t* rr_context_create(rr_display_t* display, int width, int height,
 
     // Compatibility path for older hardware-rendered cores which assume the
     // default framebuffer used by the historical GO2 backend. It is opt-in:
-    // the frontend FBO remains the normal path because it is required for
-    // arbitrary aspect-ratio scaling and post-processing.
+    // the frontend FBO remains the normal path. Keep a GPU-side capture
+    // texture even in compatibility mode so post-processing can copy the
+    // completed default framebuffer without a slow CPU readback.
     if (context->default_framebuffer) {
+        glGenTextures(1, &context->color_texture);
+        glBindTexture(GL_TEXTURE_2D, context->color_texture);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+#ifdef RR_SDL_GLES
+        // The RG351MP display and Flycast output do not benefit from an
+        // 8-bit alpha channel here. RGB565 halves capture-texture bandwidth.
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB565, width, height, 0, GL_RGB,
+                     GL_UNSIGNED_SHORT_5_6_5, NULL);
+#else
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA,
+                     GL_UNSIGNED_BYTE, NULL);
+#endif
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         return context;
     }
@@ -899,6 +992,7 @@ void rr_context_destroy(rr_context_t* context) {
     if (context->post_vbo) glDeleteBuffers(1, &context->post_vbo);
     if (context->post_vao) glDeleteVertexArrays(1, &context->post_vao);
     if (context->post_program) glDeleteProgram(context->post_program);
+    if (context->overlay_texture) glDeleteTextures(1, &context->overlay_texture);
     if (context->depth_stencil) glDeleteRenderbuffers(1, &context->depth_stencil);
     if (context->color_texture) glDeleteTextures(1, &context->color_texture);
     if (context->framebuffer) glDeleteFramebuffers(1, &context->framebuffer);
@@ -907,17 +1001,15 @@ void rr_context_destroy(rr_context_t* context) {
     delete context;
 }
 void rr_context_make_current(rr_context_t* context) {
-    if (context) SDL_GL_MakeCurrent(context->window, context->gl);
+    if (context && SDL_GL_GetCurrentContext() != context->gl)
+        SDL_GL_MakeCurrent(context->window, context->gl);
 }
 
 static void blit_overlay(rr_context_t* context, rr_surface_t* surface,
                          int x, int y, int width, int height,
-                         int drawable_width, int drawable_height) {
+                         int drawable_width, int drawable_height,
+                         rr_rotation_t rotation) {
     if (!surface || width <= 0 || height <= 0) return;
-
-    // Hardware cores share this context and may leave an error pending. Do
-    // not report a core error as an overlay failure.
-    while (glGetError() != GL_NO_ERROR) {}
 
     GLint previous_draw = 0;
     GLint previous_program = 0;
@@ -942,36 +1034,49 @@ static void blit_overlay(rr_context_t* context, rr_surface_t* surface,
         return;
     }
 
-    GLuint texture = 0;
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     const bool rgb565 = surface->format == RR_PIXEL_FORMAT_RGB565;
     const GLenum internal_format = rgb565 ? GL_RGB565 : GL_RGBA8;
     const GLenum source_format = rgb565 ? GL_RGB : GL_RGBA;
     const GLenum source_type = rgb565 ? GL_UNSIGNED_SHORT_5_6_5 : GL_UNSIGNED_BYTE;
 
+    if (!context->overlay_texture) {
+        glGenTextures(1, &context->overlay_texture);
+        glBindTexture(GL_TEXTURE_2D, context->overlay_texture);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    } else {
+        glBindTexture(GL_TEXTURE_2D, context->overlay_texture);
+    }
+
     // CPU surfaces are top-down while OpenGL textures are sampled bottom-up.
     // Flip the upload once so the same shader path works reliably on Mali,
     // where blitting a temporary FBO into the KMSDRM default framebuffer is
     // not consistently presented.
-    std::vector<uint8_t> flipped(surface->pixels.size());
+    context->overlay_upload.resize(surface->pixels.size());
     for (int row = 0; row < surface->height; ++row) {
-        std::memcpy(flipped.data() + static_cast<size_t>(row) * surface->stride,
+        std::memcpy(context->overlay_upload.data() +
+                        static_cast<size_t>(row) * surface->stride,
                     surface->pixels.data() +
                         static_cast<size_t>(surface->height - 1 - row) * surface->stride,
                     surface->stride);
     }
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    glTexImage2D(GL_TEXTURE_2D, 0, internal_format,
-                 surface->width, surface->height, 0,
-                 source_format, source_type, flipped.data());
-    GLenum overlay_error = glGetError();
-    const char* overlay_error_stage = overlay_error == GL_NO_ERROR ? nullptr : "texture upload";
-
+    if (context->overlay_texture_width != surface->width ||
+        context->overlay_texture_height != surface->height ||
+        context->overlay_texture_format != internal_format) {
+        glTexImage2D(GL_TEXTURE_2D, 0, internal_format,
+                     surface->width, surface->height, 0,
+                     source_format, source_type, context->overlay_upload.data());
+        context->overlay_texture_width = surface->width;
+        context->overlay_texture_height = surface->height;
+        context->overlay_texture_format = internal_format;
+    } else {
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0,
+                        surface->width, surface->height,
+                        source_format, source_type, context->overlay_upload.data());
+    }
     const float scale_x = static_cast<float>(drawable_width) / context->display->width;
     const float scale_y = static_cast<float>(drawable_height) / context->display->height;
     const int left = static_cast<int>(x * scale_x);
@@ -982,31 +1087,19 @@ static void blit_overlay(rr_context_t* context, rr_surface_t* surface,
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glViewport(left, bottom, right - left, top - bottom);
     glUseProgram(context->post_program);
-    glUniform1i(glGetUniformLocation(context->post_program, "frame_texture"), 0);
-    glUniform2f(glGetUniformLocation(context->post_program, "source_size"),
+    glUniform1i(context->uniform_frame_texture, 0);
+    glUniform2f(context->uniform_source_size,
                 static_cast<float>(surface->width), static_cast<float>(surface->height));
-    glUniform2f(glGetUniformLocation(context->post_program, "texture_scale"), 1.0f, 1.0f);
-    glUniform1i(glGetUniformLocation(context->post_program, "shader_mode"), 0);
+    glUniform2f(context->uniform_texture_scale, 1.0f, 1.0f);
+    glUniform1i(context->uniform_shader_mode, 0);
+    glUniform1i(context->uniform_rotation, static_cast<int>(rotation));
     glBindVertexArray(context->post_vao);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
-    if (overlay_error == GL_NO_ERROR) {
-        overlay_error = glGetError();
-        if (overlay_error != GL_NO_ERROR)
-            overlay_error_stage = "shader draw";
-    }
-    if (overlay_error != GL_NO_ERROR && !overlay_gl_error_logged) {
-        std::fprintf(stderr, "RetroRun SDL overlay OpenGL error during %s: 0x%x\n",
-                     overlay_error_stage ? overlay_error_stage : "unknown stage",
-                     overlay_error);
-        overlay_gl_error_logged = true;
-    }
 
     glBindVertexArray(static_cast<GLuint>(previous_vao));
     glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(previous_array_buffer));
     glUseProgram(static_cast<GLuint>(previous_program));
     glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(previous_texture));
-    glDeleteTextures(1, &texture);
     glPixelStorei(GL_UNPACK_ALIGNMENT, previous_unpack_alignment);
     glActiveTexture(static_cast<GLenum>(previous_active_texture));
     glViewport(previous_viewport[0], previous_viewport[1],
@@ -1016,11 +1109,13 @@ static void blit_overlay(rr_context_t* context, rr_surface_t* surface,
 
 static void draw_overlays(rr_context_t* context, status* overlays,
                           int game_x, int game_y, int game_width, int game_height,
-                          int drawable_width, int drawable_height) {
+                          int drawable_width, int drawable_height,
+                          rr_rotation_t rotation) {
     if (!overlays) return;
     const float scale = std::max(1.0f, context->display->width / 640.0f);
     auto draw = [&](rr_surface_t* surface, int x, int y, int width, int height) {
-        blit_overlay(context, surface, x, y, width, height, drawable_width, drawable_height);
+        blit_overlay(context, surface, x, y, width, height,
+                     drawable_width, drawable_height, rotation);
     };
     if (overlays->show_full && overlays->full)
         draw(overlays->full, game_x, game_y, game_width, game_height);
@@ -1048,7 +1143,7 @@ static void draw_overlays(rr_context_t* context, status* overlays,
 
 void rr_context_swap_buffers(rr_context_t* context, int source_width, int source_height,
                              int dest_x, int dest_y, int dest_width, int dest_height,
-                             status* overlays) {
+                             status* overlays, rr_rotation_t rotation) {
     if (!context) return;
     rr_context_make_current(context);
 
@@ -1057,8 +1152,38 @@ void rr_context_swap_buffers(rr_context_t* context, int source_width, int source
         int drawable_width = context->display->width;
         int drawable_height = context->display->height;
         SDL_GL_GetDrawableSize(context->window, &drawable_width, &drawable_height);
+
+        if ((video_shader != RR_VIDEO_SHADER_OFF || rotation != RR_ROTATION_DEGREES_0) &&
+            context->color_texture &&
+            ensure_post_pipeline(context) &&
+            source_width > 0 && source_height > 0 &&
+            source_width <= context->framebuffer_width &&
+            source_height <= context->framebuffer_height) {
+            const float scale_x = static_cast<float>(drawable_width) /
+                                  context->display->width;
+            const float scale_y = static_cast<float>(drawable_height) /
+                                  context->display->height;
+            const int left = static_cast<int>(dest_x * scale_x);
+            const int right = static_cast<int>((dest_x + dest_width) * scale_x);
+            const int bottom = drawable_height -
+                               static_cast<int>((dest_y + dest_height) * scale_y);
+            const int top = drawable_height - static_cast<int>(dest_y * scale_y);
+
+            // Flycast has completed rendering into framebuffer 0. Snapshot it
+            // entirely on the GPU, then render the texture back through the
+            // same Scanlines/CRT program used by the frontend-FBO path.
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, context->color_texture);
+            glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0,
+                                source_width, source_height);
+            glViewport(0, 0, drawable_width, drawable_height);
+            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT);
+            draw_post_processed_frame(context, source_width, source_height,
+                                      left, bottom, right, top, rotation);
+        }
         draw_overlays(context, overlays, dest_x, dest_y, dest_width, dest_height,
-                      drawable_width, drawable_height);
+                      drawable_width, drawable_height, rotation);
         SDL_GL_SwapWindow(context->window);
         return;
     }
@@ -1095,14 +1220,14 @@ void rr_context_swap_buffers(rr_context_t* context, int source_width, int source
     glBindFramebuffer(GL_READ_FRAMEBUFFER, context->framebuffer);
     const GLenum filtering = video_filter == RR_VIDEO_FILTER_NEAREST ? GL_NEAREST : GL_LINEAR;
     if (!draw_post_processed_frame(context, source_width, source_height,
-                                   left, bottom, right, top)) {
+                                   left, bottom, right, top, rotation)) {
         glBindFramebuffer(GL_READ_FRAMEBUFFER, context->framebuffer);
         glBlitFramebuffer(0, 0, source_width, source_height,
                           left, bottom, right, top, GL_COLOR_BUFFER_BIT, filtering);
     }
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     draw_overlays(context, overlays, dest_x, dest_y, dest_width, dest_height,
-                  drawable_width, drawable_height);
+                  drawable_width, drawable_height, rotation);
     SDL_GL_SwapWindow(context->window);
     glUseProgram(static_cast<GLuint>(previous_program));
     glBindVertexArray(static_cast<GLuint>(previous_vao));

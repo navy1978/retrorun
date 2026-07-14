@@ -949,12 +949,14 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         }
         const bool overlays_visible = uiRenderOverlays(data, width, height, pitch);
         rr_context_swap_buffers(context3D, width, height, x, y, w, h,
-                                overlays_visible ? uiCurrentOverlays() : nullptr);
+                                overlays_visible ? uiCurrentOverlays() : nullptr,
+                                getRotation());
         if (overlays_visible && showLoading)
             uiNotifyLoadingPresented();
         return;
 #else
-        rr_context_swap_buffers(context3D, width, height, x, y, w, h, nullptr);
+        rr_context_swap_buffers(context3D, width, height, x, y, w, h, nullptr,
+                                getRotation());
 
         gles_surface = rr_context_surface_lock(context3D);
         if (processVideoInAnotherThread)

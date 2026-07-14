@@ -165,7 +165,9 @@ bool cmpf(float A, float B, float epsilon)
 rr_rotation_t getBlitRotation()
 {
 #ifdef RR_PLATFORM_SDL
-    return isTate() ? RR_ROTATION_DEGREES_90 : RR_ROTATION_DEGREES_0;
+    if (!isTate()) return RR_ROTATION_DEGREES_0;
+    return tateState == REVERSED ? RR_ROTATION_DEGREES_270
+                                 : RR_ROTATION_DEGREES_90;
 #endif
     
     if (isGameVertical) // portrait
@@ -205,7 +207,9 @@ rr_rotation_t getBlitRotation()
 rr_rotation_t getRotation()
 {
 #ifdef RR_PLATFORM_SDL
-    return isTate() ? RR_ROTATION_DEGREES_90 : RR_ROTATION_DEGREES_0;
+    if (!isTate()) return RR_ROTATION_DEGREES_0;
+    return tateState == REVERSED ? RR_ROTATION_DEGREES_270
+                                 : RR_ROTATION_DEGREES_90;
 #endif
 
     if (isGameVertical) // portrait

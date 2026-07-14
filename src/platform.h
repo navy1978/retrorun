@@ -157,7 +157,7 @@ void rr_context_destroy(rr_context_t* context);
 void rr_context_make_current(rr_context_t* context);
 void rr_context_swap_buffers(rr_context_t* context, int source_width, int source_height,
                              int dest_x, int dest_y, int dest_width, int dest_height,
-                             status* overlays);
+                             status* overlays, rr_rotation_t rotation);
 uintptr_t rr_context_framebuffer_get(rr_context_t* context);
 rr_surface_t* rr_context_surface_lock(rr_context_t* context);
 void rr_context_surface_unlock(rr_context_t* context, rr_surface_t* surface);

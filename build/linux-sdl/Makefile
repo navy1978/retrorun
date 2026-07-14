@@ -21,8 +21,8 @@ COMMON_FLAGS := -std=c++2a -Wall -Wextra -DRR_PLATFORM_SDL -DRR_SDL_GLES \
                 -I$(ROOT)/src -I$(ROOT)/src/menu \
                 $(SDL_CFLAGS) $(PNG_CFLAGS) $(GLES_CFLAGS)
 ifeq ($(config),release)
-  CXXFLAGS := $(COMMON_FLAGS) -O3 -DNDEBUG
-  LDFLAGS_EXTRA := -s
+  CXXFLAGS := $(COMMON_FLAGS) -O3 -DNDEBUG -flto
+  LDFLAGS_EXTRA := -s -flto
 else
   CXXFLAGS := $(COMMON_FLAGS) -g -DDEBUG
 endif

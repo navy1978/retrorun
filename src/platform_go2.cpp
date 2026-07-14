@@ -254,7 +254,7 @@ void rr_context_destroy(rr_context_t* context) {
     delete context;
 }
 void rr_context_make_current(rr_context_t* context) { go2_context_make_current(context->native); }
-void rr_context_swap_buffers(rr_context_t* context, int source_width, int source_height, int, int, int, int, status*) {
+void rr_context_swap_buffers(rr_context_t* context, int source_width, int source_height, int, int, int, int, status*, rr_rotation_t) {
     if (!context->framebuffer || !context->post_program) {
         go2_context_swap_buffers(context->native);
         return;
