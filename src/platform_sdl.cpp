@@ -608,6 +608,9 @@ void rr_presenter_post(rr_presenter_t* p, rr_surface_t* s, int sx, int sy, int s
                        int dx, int dy, int dw, int dh, rr_rotation_t r) {
     clear_presenter(p); SDL_Rect src={sx,sy,sw,sh}, dst={dx,dy,dw,dh}; render_surface(p,s,&src,&dst,r); SDL_RenderPresent(p->renderer);
 }
+bool rr_presenter_post_direct(rr_presenter_t*, rr_surface_t*, int, int, int, int,
+                              int, int, int, int, rr_rotation_t) { return false; }
+void rr_presenter_direct_disable(rr_presenter_t*) {}
 void rr_presenter_black(rr_presenter_t* p, int, int, int, int, rr_rotation_t) { clear_presenter(p); SDL_RenderPresent(p->renderer); }
 void rr_presenter_wait_for_loading_screen(rr_presenter_t* presenter, unsigned milliseconds) {
     if (!presenter || !presenter->display || !presenter->display->window ||

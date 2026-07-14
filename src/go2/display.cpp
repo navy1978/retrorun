@@ -184,6 +184,15 @@ go2_display_t *go2_display_create()
     }
 
     result->crtc_id = encoder->crtc_id;
+    result->crtc_index = -1;
+    for (i = 0; i < resources->count_crtcs; ++i)
+    {
+        if (resources->crtcs[i] == result->crtc_id)
+        {
+            result->crtc_index = i;
+            break;
+        }
+    }
 
     if (false)
     { // this are for vertical sync
@@ -287,6 +296,190 @@ void go2_display_present(go2_display_t *display, go2_frame_buffer_t *frame_buffe
             break;
         }
     }
+}
+
+static bool go2_plane_supports_format(const drmModePlane *plane, uint32_t format)
+{
+    for (uint32_t i = 0; i < plane->count_formats; ++i)
+        if (plane->formats[i] == format)
+            return true;
+    return false;
+}
+
+static uint64_t go2_plane_type(go2_display_t *display, uint32_t plane_id)
+{
+    drmModeObjectProperties *properties = drmModeObjectGetProperties(
+        display->fd, plane_id, DRM_MODE_OBJECT_PLANE);
+    if (!properties)
+        return UINT64_MAX;
+    uint64_t type = UINT64_MAX;
+    for (uint32_t i = 0; i < properties->count_props; ++i)
+    {
+        drmModePropertyRes *property = drmModeGetProperty(display->fd,
+                                                          properties->props[i]);
+        if (property && strcmp(property->name, "type") == 0)
+            type = properties->prop_values[i];
+        if (property)
+            drmModeFreeProperty(property);
+        if (type != UINT64_MAX)
+            break;
+    }
+    drmModeFreeObjectProperties(properties);
+    return type;
+}
+
+static uint32_t go2_find_direct_plane(go2_display_t *display, uint32_t format)
+{
+    if (display->crtc_index < 0)
+        return 0;
+
+    drmSetClientCap(display->fd, DRM_CLIENT_CAP_UNIVERSAL_PLANES, 1);
+    drmModePlaneRes *resources = drmModeGetPlaneResources(display->fd);
+    if (!resources)
+        return 0;
+
+    uint32_t result = 0;
+    uint32_t fallback = 0;
+    const uint32_t crtc_mask = 1U << display->crtc_index;
+    for (uint32_t i = 0; i < resources->count_planes; ++i)
+    {
+        drmModePlane *plane = drmModeGetPlane(display->fd, resources->planes[i]);
+        if (!plane)
+            continue;
+        if ((plane->possible_crtcs & crtc_mask) &&
+            go2_plane_supports_format(plane, format))
+        {
+            // Kernel plane type values are overlay=0, primary=1, cursor=2.
+            // Prefer an overlay so the modeset framebuffer can remain as the
+            // black background and as the seamless RGA fallback.
+            const uint64_t type = go2_plane_type(display, plane->plane_id);
+            if (type == 0)
+                result = plane->plane_id;
+            else if (type != 2 && !fallback)
+                fallback = plane->plane_id;
+        }
+        drmModeFreePlane(plane);
+        if (result)
+            break;
+    }
+    drmModeFreePlaneResources(resources);
+    return result ? result : fallback;
+}
+
+static uint64_t go2_rotation_property_value(go2_rotation_t rotation)
+{
+    switch (rotation)
+    {
+    case GO2_ROTATION_DEGREES_0: return DRM_MODE_ROTATE_0;
+    case GO2_ROTATION_DEGREES_90: return DRM_MODE_ROTATE_90;
+    case GO2_ROTATION_DEGREES_180: return DRM_MODE_ROTATE_180;
+    case GO2_ROTATION_DEGREES_270: return DRM_MODE_ROTATE_270;
+    case GO2_ROTATION_HORIZONTAL: return DRM_MODE_ROTATE_0 | DRM_MODE_REFLECT_X;
+    case GO2_ROTATION_VERTICAL: return DRM_MODE_ROTATE_0 | DRM_MODE_REFLECT_Y;
+    default: return DRM_MODE_ROTATE_0;
+    }
+}
+
+static bool go2_set_plane_rotation(go2_display_t *display, uint32_t plane_id,
+                                   go2_rotation_t rotation)
+{
+    drmModeObjectProperties *properties = drmModeObjectGetProperties(
+        display->fd, plane_id, DRM_MODE_OBJECT_PLANE);
+    if (!properties)
+        return rotation == GO2_ROTATION_DEGREES_0;
+
+    bool found = false;
+    bool success = rotation == GO2_ROTATION_DEGREES_0;
+    for (uint32_t i = 0; i < properties->count_props; ++i)
+    {
+        drmModePropertyRes *property = drmModeGetProperty(display->fd,
+                                                          properties->props[i]);
+        if (property && strcmp(property->name, "rotation") == 0)
+        {
+            found = true;
+            success = drmModeObjectSetProperty(display->fd, plane_id,
+                                                DRM_MODE_OBJECT_PLANE,
+                                                property->prop_id,
+                                                go2_rotation_property_value(rotation)) == 0;
+        }
+        if (property)
+            drmModeFreeProperty(property);
+        if (found)
+            break;
+    }
+    drmModeFreeObjectProperties(properties);
+    return success;
+}
+
+bool go2_display_present_surface(go2_display_t *display, go2_surface_t *surface,
+                                 int srcX, int srcY, int srcWidth, int srcHeight,
+                                 int dstX, int dstY, int dstWidth, int dstHeight,
+                                 go2_rotation_t rotation)
+{
+    if (!display || !surface || display->direct_plane_disabled ||
+        !display->modeset_complete || srcWidth <= 0 || srcHeight <= 0 ||
+        dstWidth <= 0 || dstHeight <= 0)
+        return false;
+
+    if (!display->direct_plane_id || display->direct_plane_format != surface->format)
+    {
+        display->direct_plane_id = go2_find_direct_plane(display, surface->format);
+        display->direct_plane_format = surface->format;
+        if (!display->direct_plane_id)
+        {
+            if (!display->direct_plane_logged)
+                logger.log(Logger::WARN,
+                           "DRM direct scanout unavailable for format %.4s; using RGA fallback.",
+                           reinterpret_cast<const char *>(&surface->format));
+            display->direct_plane_logged = true;
+            return false;
+        }
+    }
+
+    if (!surface->direct_fb_id)
+    {
+        const uint32_t handles[4] = {surface->gem_handle, 0, 0, 0};
+        const uint32_t pitches[4] = {static_cast<uint32_t>(surface->stride), 0, 0, 0};
+        const uint32_t offsets[4] = {0, 0, 0, 0};
+        if (drmModeAddFB2(display->fd, surface->width, surface->height,
+                          surface->format, handles, pitches, offsets,
+                          &surface->direct_fb_id, 0) != 0)
+            return false;
+    }
+
+    if (!go2_set_plane_rotation(display, display->direct_plane_id, rotation))
+        return false;
+
+    if (drmModeSetPlane(display->fd, display->direct_plane_id, display->crtc_id,
+                        surface->direct_fb_id, 0, dstX, dstY, dstWidth, dstHeight,
+                        static_cast<uint32_t>(srcX) << 16,
+                        static_cast<uint32_t>(srcY) << 16,
+                        static_cast<uint32_t>(srcWidth) << 16,
+                        static_cast<uint32_t>(srcHeight) << 16) != 0)
+    {
+        logger.log(Logger::WARN,
+                   "DRM direct scanout rejected by plane; using RGA fallback: %s",
+                   strerror(errno));
+        display->direct_plane_disabled = true;
+        return false;
+    }
+
+    drmVBlank vblank = {};
+    vblank.request.type = DRM_VBLANK_RELATIVE;
+    vblank.request.sequence = 1;
+    drmWaitVBlank(display->fd, &vblank);
+    if (!display->direct_plane_logged)
+        logger.log(Logger::INF, "DRM direct scanout enabled (zero-copy GBM to plane).");
+    display->direct_plane_logged = true;
+    return true;
+}
+
+void go2_display_direct_disable(go2_display_t *display)
+{
+    if (!display || !display->direct_plane_id)
+        return;
+    drmModeSetPlane(display->fd, display->direct_plane_id, display->crtc_id,
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 }
 
 const char *BACKLIGHT_BRIGHTNESS_NAME = "/sys/class/backlight/backlight/brightness";
@@ -492,6 +685,10 @@ go2_surface_t *go2_surface_create(go2_display_t *display, int width, int height,
 
 void go2_surface_destroy(go2_surface_t *surface)
 {
+    if (surface->direct_fb_id)
+        drmModeRmFB(surface->display->fd, surface->direct_fb_id);
+    if (surface->prime_fd > 0)
+        close(surface->prime_fd);
     struct drm_mode_destroy_dumb args = {0};
     args.handle = surface->gem_handle;
 
@@ -1079,6 +1276,24 @@ void go2_presenter_post(go2_presenter_t *presenter, go2_surface_t *surface, int 
     sem_post(&presenter->usedSem);
 }
 
+bool go2_presenter_post_direct(go2_presenter_t *presenter, go2_surface_t *surface,
+                               int srcX, int srcY, int srcWidth, int srcHeight,
+                               int dstX, int dstY, int dstWidth, int dstHeight,
+                               go2_rotation_t rotation)
+{
+    if (!presenter)
+        return false;
+    return go2_display_present_surface(presenter->display, surface, srcX, srcY,
+                                       srcWidth, srcHeight, dstX, dstY,
+                                       dstWidth, dstHeight, rotation);
+}
+
+void go2_presenter_direct_disable(go2_presenter_t *presenter)
+{
+    if (presenter)
+        go2_display_direct_disable(presenter->display);
+}
+
 void go2_presenter_black(go2_presenter_t *presenter, int dstX, int dstY, int dstWidth, int dstHeight, go2_rotation_t rotation)
 {
     sem_wait(&presenter->freeSem);
@@ -1572,16 +1787,24 @@ go2_context_t *go2_context_create(go2_display_t *display, int width, int height,
 
 void go2_context_destroy(go2_context_t *context)
 {
+    // Remove DRM framebuffer registrations while their GBM objects are still
+    // alive. Destroying the GBM surface first may invalidate GEM handles on
+    // vendor kernels before drmModeRmFB gets a chance to release them.
+    for (int i = 0; i < context->bufferCount; ++i)
+    {
+        if (context->bufferMap[i].surface->direct_fb_id)
+            drmModeRmFB(context->display->fd,
+                        context->bufferMap[i].surface->direct_fb_id);
+        if (context->bufferMap[i].surface->prime_fd > 0)
+            close(context->bufferMap[i].surface->prime_fd);
+        free(context->bufferMap[i].surface);
+    }
+
     eglDestroyContext(context->eglDisplay, context->eglContext);
     eglDestroySurface(context->eglDisplay, context->eglSurface);
     gbm_surface_destroy(context->gbmSurface);
     eglTerminate(context->eglDisplay);
     gbm_device_destroy(context->gbmDevice);
-
-    for (int i = 0; i < context->bufferCount; ++i)
-    {
-        free(context->bufferMap[i].surface);
-    }
 
     free(context);
 }

@@ -104,6 +104,13 @@ rr_rotation_t last351Rotation;
 rr_rotation_t last351BlitRotation;
 bool drawOneFrame;
 
+#ifndef RR_PLATFORM_SDL
+// A GBM front buffer used by a DRM plane must remain locked for as long as the
+// display controller scans it out. It is released only after the following
+// plane update has crossed a vblank.
+static rr_surface_t *directScanoutSurface = nullptr;
+#endif
+
 
 
 
@@ -312,6 +319,14 @@ void video_prepare_core_unload()
 
 void video_deinit()
 {
+#ifndef RR_PLATFORM_SDL
+    if (directScanoutSurface && context3D)
+    {
+        rr_presenter_direct_disable(presenter);
+        rr_context_surface_unlock(context3D, directScanoutSurface);
+        directScanoutSurface = nullptr;
+    }
+#endif
 
     if (status_surface_bottom_right != NULL)
         rr_surface_destroy(status_surface_bottom_right);
@@ -1020,6 +1035,32 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
                                 getRotation());
 
         gles_surface = rr_context_surface_lock(context3D);
+
+        // Hardware-rendered cores already produce a scanout-capable GBM/GEM
+        // buffer. With no frontend overlay or shader required, hand that
+        // buffer directly to a DRM plane and bypass the fullscreen RGA blit.
+        const bool directScanoutCandidate =
+            data == RETRO_HW_FRAME_BUFFER_VALID && !showLoading &&
+            !input_info_requested && !input_message &&
+            !input_credits_requested && !input_fps_requested &&
+            !screenshot_requested && videoShader == RR_VIDEO_SHADER_OFF;
+        if (directScanoutCandidate &&
+            rr_presenter_post_direct(presenter, gles_surface,
+                                     0, rr_surface_height_get(gles_surface) - height,
+                                     width, height, x, y, w, h, getRotation()))
+        {
+            if (directScanoutSurface)
+                rr_context_surface_unlock(context3D, directScanoutSurface);
+            directScanoutSurface = gles_surface;
+            return;
+        }
+
+        if (directScanoutSurface)
+        {
+            rr_presenter_direct_disable(presenter);
+            rr_context_surface_unlock(context3D, directScanoutSurface);
+            directScanoutSurface = nullptr;
+        }
         if (processVideoInAnotherThread)
         {
             std::thread th(core_video_refresh_OPENGL, data, width, height, pitch);

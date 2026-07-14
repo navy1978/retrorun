@@ -64,6 +64,11 @@ void go2_display_destroy(go2_display_t* display);
 int go2_display_width_get(go2_display_t* display);
 int go2_display_height_get(go2_display_t* display);
 void go2_display_present(go2_display_t* display, go2_frame_buffer_t* frame_buffer);
+bool go2_display_present_surface(go2_display_t* display, go2_surface_t* surface,
+                                 int srcX, int srcY, int srcWidth, int srcHeight,
+                                 int dstX, int dstY, int dstWidth, int dstHeight,
+                                 go2_rotation_t rotation);
+void go2_display_direct_disable(go2_display_t* display);
 uint32_t go2_display_backlight_get(go2_display_t* display);
 void go2_display_backlight_set(go2_display_t* display, uint32_t value);
 
@@ -95,6 +100,11 @@ go2_surface_t* go2_frame_buffer_surface_get(go2_frame_buffer_t* frame_buffer);
 go2_presenter_t* go2_presenter_create(go2_display_t* display, uint32_t format, uint32_t background_color);
 void go2_presenter_destroy(go2_presenter_t* presenter);
 void go2_presenter_post(go2_presenter_t* presenter, go2_surface_t* surface, int srcX, int srcY, int srcWidth, int srcHeight, int dstX, int dstY, int dstWidth, int dstHeight, go2_rotation_t rotation);
+bool go2_presenter_post_direct(go2_presenter_t* presenter, go2_surface_t* surface,
+                               int srcX, int srcY, int srcWidth, int srcHeight,
+                               int dstX, int dstY, int dstWidth, int dstHeight,
+                               go2_rotation_t rotation);
+void go2_presenter_direct_disable(go2_presenter_t* presenter);
 void go2_presenter_black(go2_presenter_t* presenter, int dstX, int dstY, int dstWidth, int dstHeight, go2_rotation_t rotation);
 //void go2_presenter_post_double(go2_presenter_t* presenter, go2_surface_t* surface1, go2_surface_t* surface2, int srcX, int srcY, int srcWidth, int srcHeight, int dstX, int dstY, int dstWidth, int dstHeight, go2_rotation_t rotation);
 void go2_presenter_post_multiple(go2_presenter_t* presenter, go2_surface_t* surface, go2_status_t* status, int srcX, int srcY, int srcWidth, int srcHeight, int dstX, int dstY, int dstWidth, int dstHeight, go2_rotation_t rotation,go2_rotation_t blitRotation, bool isWidescreen);

@@ -8,6 +8,10 @@
 #include <GLES2/gl2.h>
 #include <cstdio>
 
+#ifndef GL_DEPTH24_STENCIL8
+#define GL_DEPTH24_STENCIL8 0x88F0
+#endif
+
 struct rr_audio { go2_audio_t* native; };
 struct rr_input { go2_input_t* native; };
 struct rr_input_state { go2_input_state_t* native; };
@@ -29,6 +33,7 @@ struct rr_context {
     GLint uniform_texture_scale;
     GLint uniform_shader_mode;
     GLint texture_filter;
+    bool post_framebuffer_failed;
 };
 
 static rr_video_filter_t video_filter = RR_VIDEO_FILTER_DEFAULT;
@@ -105,6 +110,15 @@ int rr_surface_save_as_png(rr_surface_t* surface, const char* filename) { return
 rr_presenter_t* rr_presenter_create(rr_display_t* display, uint32_t format, uint32_t background) { go2_presenter_t* native = go2_presenter_create(display->native, format, background); if (!native) return NULL; rr_presenter_t* p = new rr_presenter_t; p->native = native; return p; }
 void rr_presenter_destroy(rr_presenter_t* presenter) { if (presenter) { go2_presenter_destroy(presenter->native); delete presenter; } }
 void rr_presenter_post(rr_presenter_t* p, rr_surface_t* s, int sx, int sy, int sw, int sh, int dx, int dy, int dw, int dh, rr_rotation_t r) { go2_presenter_post(p->native, s->native, sx, sy, sw, sh, dx, dy, dw, dh, native_rotation(r)); }
+bool rr_presenter_post_direct(rr_presenter_t* p, rr_surface_t* s, int sx, int sy,
+                              int sw, int sh, int dx, int dy, int dw, int dh,
+                              rr_rotation_t r) {
+    return go2_presenter_post_direct(p->native, s->native, sx, sy, sw, sh,
+                                     dx, dy, dw, dh, native_rotation(r));
+}
+void rr_presenter_direct_disable(rr_presenter_t* p) {
+    go2_presenter_direct_disable(p->native);
+}
 void rr_presenter_black(rr_presenter_t* p, int x, int y, int w, int h, rr_rotation_t r) { go2_presenter_black(p->native, x, y, w, h, native_rotation(r)); }
 void rr_presenter_wait_for_loading_screen(rr_presenter_t*, unsigned) {}
 void rr_presenter_post_multiple(rr_presenter_t* p, rr_surface_t* s, status* o, int sx, int sy, int sw, int sh, int dx, int dy, int dw, int dh, rr_rotation_t r, rr_rotation_t br, bool wide) {
@@ -204,18 +218,23 @@ static bool create_go2_post_framebuffer(rr_context_t* context) {
     glBindFramebuffer(GL_FRAMEBUFFER, context->framebuffer);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
                            context->color_texture, 0);
+    // Mali's GLES driver rejects separate depth and stencil renderbuffers for
+    // this color target. A single packed allocation is also what hardware
+    // cores requesting 24-bit depth plus 8-bit stencil expect.
     glGenRenderbuffers(1, &context->depth_buffer);
     glBindRenderbuffer(GL_RENDERBUFFER, context->depth_buffer);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, context->width, context->height);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER,
-                              context->depth_buffer);
-    glGenRenderbuffers(1, &context->stencil_buffer);
-    glBindRenderbuffer(GL_RENDERBUFFER, context->stencil_buffer);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_STENCIL_INDEX8, context->width, context->height);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER,
-                              context->stencil_buffer);
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        std::fprintf(stderr, "RetroRun GO2 post-processing framebuffer is incomplete; shader disabled\n");
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8,
+                          context->width, context->height);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
+                              GL_RENDERBUFFER, context->depth_buffer);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT,
+                              GL_RENDERBUFFER, context->depth_buffer);
+    const GLenum framebuffer_status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (framebuffer_status != GL_FRAMEBUFFER_COMPLETE) {
+        std::fprintf(stderr,
+                     "RetroRun GO2 post-processing framebuffer is incomplete "
+                     "(status=0x%04x); shader disabled\n",
+                     static_cast<unsigned>(framebuffer_status));
         return false;
     }
     context->post_program = create_go2_post_program();
@@ -241,6 +260,21 @@ static bool create_go2_post_framebuffer(rr_context_t* context) {
     return true;
 }
 
+static void destroy_go2_post_framebuffer(rr_context_t* context) {
+    if (context->post_program) glDeleteProgram(context->post_program);
+    if (context->post_vbo) glDeleteBuffers(1, &context->post_vbo);
+    if (context->stencil_buffer) glDeleteRenderbuffers(1, &context->stencil_buffer);
+    if (context->depth_buffer) glDeleteRenderbuffers(1, &context->depth_buffer);
+    if (context->framebuffer) glDeleteFramebuffers(1, &context->framebuffer);
+    if (context->color_texture) glDeleteTextures(1, &context->color_texture);
+    context->post_program = 0;
+    context->post_vbo = 0;
+    context->stencil_buffer = 0;
+    context->depth_buffer = 0;
+    context->framebuffer = 0;
+    context->color_texture = 0;
+}
+
 rr_context_t* rr_context_create(rr_display_t* display, int width, int height,
                                 const rr_context_attributes_t* attributes) {
     go2_context_attributes_t native = {
@@ -255,15 +289,8 @@ rr_context_t* rr_context_create(rr_display_t* display, int width, int height,
     context->width = width;
     context->height = height;
     if (video_shader != RR_VIDEO_SHADER_OFF && !create_go2_post_framebuffer(context)) {
-        if (context->stencil_buffer) glDeleteRenderbuffers(1, &context->stencil_buffer);
-        if (context->depth_buffer) glDeleteRenderbuffers(1, &context->depth_buffer);
-        if (context->framebuffer) glDeleteFramebuffers(1, &context->framebuffer);
-        if (context->color_texture) glDeleteTextures(1, &context->color_texture);
-        context->stencil_buffer = 0;
-        context->depth_buffer = 0;
-        context->framebuffer = 0;
-        context->color_texture = 0;
-        context->post_program = 0;
+        context->post_framebuffer_failed = true;
+        destroy_go2_post_framebuffer(context);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
     return context;
@@ -272,17 +299,24 @@ rr_context_t* rr_context_create(rr_display_t* display, int width, int height,
 void rr_context_destroy(rr_context_t* context) {
     if (!context) return;
     go2_context_make_current(context->native);
-    if (context->post_program) glDeleteProgram(context->post_program);
-    if (context->post_vbo) glDeleteBuffers(1, &context->post_vbo);
-    if (context->stencil_buffer) glDeleteRenderbuffers(1, &context->stencil_buffer);
-    if (context->depth_buffer) glDeleteRenderbuffers(1, &context->depth_buffer);
-    if (context->framebuffer) glDeleteFramebuffers(1, &context->framebuffer);
-    if (context->color_texture) glDeleteTextures(1, &context->color_texture);
+    destroy_go2_post_framebuffer(context);
     go2_context_destroy(context->native);
     delete context;
 }
 void rr_context_make_current(rr_context_t* context) { go2_context_make_current(context->native); }
 void rr_context_swap_buffers(rr_context_t* context, int source_width, int source_height, int, int, int, int, status*, rr_rotation_t) {
+    // Shader selection can change from the RetroRun menu after the core
+    // context has already been created. Lazily allocate the off-screen target
+    // so scanlines/CRT become effective without restarting the frontend.
+    if (video_shader != RR_VIDEO_SHADER_OFF && !context->post_framebuffer_failed &&
+        (!context->framebuffer || !context->post_program)) {
+        destroy_go2_post_framebuffer(context);
+        if (!create_go2_post_framebuffer(context)) {
+            context->post_framebuffer_failed = true;
+            destroy_go2_post_framebuffer(context);
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        }
+    }
     if (!context->framebuffer || !context->post_program) {
         go2_context_swap_buffers(context->native);
         return;

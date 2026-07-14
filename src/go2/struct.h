@@ -14,8 +14,13 @@ typedef struct go2_display
     uint32_t width;
     uint32_t height;
     uint32_t crtc_id;
+    int crtc_index;
     bool modeset_complete;
     bool page_flip_disabled;
+    uint32_t direct_plane_id;
+    uint32_t direct_plane_format;
+    bool direct_plane_disabled;
+    bool direct_plane_logged;
 } go2_display_t;
 
 typedef struct go2_surface
@@ -30,6 +35,7 @@ typedef struct go2_surface
     int prime_fd;
     bool is_mapped;
     uint8_t* map;
+    uint32_t direct_fb_id;
 } go2_surface_t;
 
 typedef struct go2_frame_buffer

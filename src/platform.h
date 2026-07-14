@@ -142,6 +142,11 @@ void rr_presenter_destroy(rr_presenter_t* presenter);
 void rr_presenter_post(rr_presenter_t* presenter, rr_surface_t* surface,
                        int src_x, int src_y, int src_w, int src_h,
                        int dst_x, int dst_y, int dst_w, int dst_h, rr_rotation_t rotation);
+bool rr_presenter_post_direct(rr_presenter_t* presenter, rr_surface_t* surface,
+                              int src_x, int src_y, int src_w, int src_h,
+                              int dst_x, int dst_y, int dst_w, int dst_h,
+                              rr_rotation_t rotation);
+void rr_presenter_direct_disable(rr_presenter_t* presenter);
 void rr_presenter_black(rr_presenter_t* presenter, int x, int y, int width, int height,
                         rr_rotation_t rotation);
 void rr_presenter_wait_for_loading_screen(rr_presenter_t* presenter, unsigned milliseconds);
