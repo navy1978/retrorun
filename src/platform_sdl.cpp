@@ -13,8 +13,10 @@
 #include <png.h>
 
 #include <algorithm>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <string>
 #include <vector>
 
 struct rr_input { SDL_GameController* controller; };
@@ -51,6 +53,8 @@ struct rr_context {
     GLuint post_program;
     GLuint post_vao;
     GLuint post_vbo;
+    bool post_pipeline_failed;
+    bool default_framebuffer;
 };
 
 static SDL_GameController* active_controller = NULL;
@@ -60,6 +64,8 @@ static rr_video_filter_t video_filter = RR_VIDEO_FILTER_DEFAULT;
 static rr_video_shader_t video_shader = RR_VIDEO_SHADER_OFF;
 static rr_presenter_t* active_presenter = NULL;
 static rr_context_t* active_context = NULL;
+static bool controller_mappings_loaded = false;
+static bool overlay_gl_error_logged = false;
 
 static void refresh_display_size(rr_display_t* display) {
     if (!display || !display->window) return;
@@ -82,11 +88,136 @@ static void ensure_sdl(uint32_t flags) {
         std::fprintf(stderr, "RetroRun SDL initialization failed (0x%x): %s\n", flags, SDL_GetError());
 }
 
+static void load_controller_mapping_file(const char* path) {
+    if (!path || !*path) return;
+
+    std::FILE* file = std::fopen(path, "rb");
+    if (!file) return;
+    std::fclose(file);
+
+    const int added = SDL_GameControllerAddMappingsFromFile(path);
+    if (added >= 0)
+        std::fprintf(stderr, "RetroRun SDL controller DB: loaded %d mapping(s) from %s\n",
+                     added, path);
+    else
+        std::fprintf(stderr, "RetroRun SDL controller DB: could not read %s: %s\n",
+                     path, SDL_GetError());
+}
+
+static void load_controller_mappings() {
+    if (controller_mappings_loaded) return;
+    controller_mappings_loaded = true;
+
+    // Allow distributions and launch scripts to select their own database.
+    load_controller_mapping_file(std::getenv("RETRORUN_SDL_CONTROLLER_DB"));
+
+    // Locations used by AmberELEC/ArkOS and common Linux packages.
+    static const char* paths[] = {
+        "/storage/.config/SDL-GameControllerDB/gamecontrollerdb.txt",
+        "/home/ark/.config/SDL-GameControllerDB/gamecontrollerdb.txt",
+        "/usr/share/games/SDL_GameControllerDB/gamecontrollerdb.txt",
+        "/usr/share/SDL_GameControllerDB/gamecontrollerdb.txt",
+    };
+    for (const char* path : paths) load_controller_mapping_file(path);
+}
+
+static void add_handheld_controller_fallback(int device_index) {
+    const char* name = SDL_JoystickNameForIndex(device_index);
+    if (!name || std::strcmp(name, "GO-Super Gamepad") != 0) return;
+
+    const SDL_JoystickGUID device_guid = SDL_JoystickGetDeviceGUID(device_index);
+    char guid[33] = {};
+    SDL_JoystickGetGUIDString(device_guid, guid, static_cast<int>(sizeof(guid)));
+
+    // Some SDL versions used by ArkOS already recognize this controller, but
+    // ship an incomplete mapping without Start/Back/stick clicks. In that
+    // case SDL_IsGameController() is true, so checking recognition alone is
+    // not sufficient.
+    char* existing_mapping = SDL_GameControllerMappingForGUID(device_guid);
+    const bool has_start = existing_mapping &&
+                           std::strstr(existing_mapping, ",start:") != NULL;
+    if (has_start) {
+        SDL_free(existing_mapping);
+        return;
+    }
+    if (existing_mapping)
+        std::fprintf(stderr,
+                     "RetroRun SDL controller: replacing incomplete RG351 mapping: %s\n",
+                     existing_mapping);
+    SDL_free(existing_mapping);
+
+    // RG351/RK3326 layout. Keep ArkOS' working ABXY ordering and add the
+    // missing system buttons using the layout published for this gamepad.
+    // The GUID is obtained from the device to support SDL builds whose GUID
+    // contains a kernel-dependent CRC component.
+    const std::string mapping =
+        std::string(guid) +
+        ",GO-Super Gamepad,"
+        "a:b0,b:b1,x:b2,y:b3,back:b12,start:b13,"
+        "dpleft:b10,dpdown:b9,dpright:b11,dpup:b8,"
+        "leftshoulder:b4,lefttrigger:b6,rightshoulder:b5,righttrigger:b7,"
+        "leftstick:b14,rightstick:b15,leftx:a0,lefty:a1,rightx:a2,righty:a3,"
+        "platform:Linux,";
+    const int result = SDL_GameControllerAddMapping(mapping.c_str());
+    std::fprintf(stderr,
+                 "RetroRun SDL controller: complete RG351 mapping %s for GUID %s\n",
+                 result >= 0 ? "enabled" : "failed", guid);
+    if (result < 0)
+        std::fprintf(stderr, "RetroRun SDL controller mapping error: %s\n", SDL_GetError());
+}
+
+static SDL_GameController* open_controller(int device_index) {
+    const char* name = SDL_JoystickNameForIndex(device_index);
+    char guid[33] = {};
+    SDL_JoystickGetGUIDString(SDL_JoystickGetDeviceGUID(device_index), guid,
+                              static_cast<int>(sizeof(guid)));
+
+    add_handheld_controller_fallback(device_index);
+    const bool recognized = SDL_IsGameController(device_index) == SDL_TRUE;
+    std::fprintf(stderr,
+                 "RetroRun SDL joystick[%d]: name='%s', GUID=%s, gamecontroller=%s\n",
+                 device_index, name ? name : "unknown", guid,
+                 recognized ? "yes" : "no");
+    if (!recognized) return NULL;
+
+    SDL_GameController* controller = SDL_GameControllerOpen(device_index);
+    if (!controller) {
+        std::fprintf(stderr, "RetroRun SDL controller open failed: %s\n", SDL_GetError());
+        return NULL;
+    }
+
+    char* mapping = SDL_GameControllerMapping(controller);
+    const char* controller_name = SDL_GameControllerName(controller);
+    std::fprintf(stderr, "RetroRun SDL controller opened: %s%s%s\n",
+                 controller_name ? controller_name : "unknown",
+                 mapping ? ", mapping=" : "",
+                 mapping ? mapping : "");
+    SDL_free(mapping);
+    return controller;
+}
+
+static SDL_GameController* open_first_controller() {
+    for (int i = 0; i < SDL_NumJoysticks(); ++i) {
+        SDL_GameController* controller = open_controller(i);
+        if (controller) return controller;
+    }
+    return NULL;
+}
+
 static int env_dimension(const char* name, int fallback) {
     const char* value = std::getenv(name);
     if (!value) return fallback;
     const int parsed = std::atoi(value);
     return parsed > 0 ? parsed : fallback;
+}
+
+void rr_platform_preinit() {
+    // KMSDRM may load GBM/DRM driver state and create address-space mappings.
+    // Do this before a core such as Flycast reserves its 4 GB fast-memory
+    // region and installs its fault handler.
+    ensure_sdl(SDL_INIT_VIDEO);
+    std::fprintf(stderr, "RetroRun SDL video preinitialized: driver=%s\n",
+                 SDL_GetCurrentVideoDriver() ? SDL_GetCurrentVideoDriver() : "unknown");
 }
 
 static Uint32 sdl_pixel_format(uint32_t format) {
@@ -110,14 +241,11 @@ static SDL_Surface* wrap_surface(rr_surface_t* surface) {
 
 rr_input_t* rr_input_create(const char*) {
     ensure_sdl(SDL_INIT_EVENTS | SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC);
+    load_controller_mappings();
     rr_input_t* input = new rr_input_t();
-    input->controller = NULL;
-    for (int i = 0; i < SDL_NumJoysticks(); ++i) {
-        if (SDL_IsGameController(i)) {
-            input->controller = SDL_GameControllerOpen(i);
-            if (input->controller) break;
-        }
-    }
+    input->controller = open_first_controller();
+    if (!input->controller)
+        std::fprintf(stderr, "RetroRun SDL controller: no compatible gamepad opened\n");
     active_controller = input->controller;
     return input;
 }
@@ -148,19 +276,43 @@ static float normalized_axis(Sint16 value) {
 
 void rr_input_state_read(rr_input_t* input, rr_input_state_t* state) {
     std::memset(state, 0, sizeof(*state));
+    bool controller_change = false;
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         if (event.type == SDL_QUIT)
             state->buttons[RRInputButton_Quit] = RRButtonState_Pressed;
-        else if (event.type == SDL_CONTROLLERDEVICEADDED && !input->controller) {
-            input->controller = SDL_GameControllerOpen(event.cdevice.which);
-            active_controller = input->controller;
+        else if (event.type == SDL_CONTROLLERDEVICEADDED) {
+            std::fprintf(stderr, "RetroRun SDL controller added: device index=%d\n",
+                         event.cdevice.which);
+            controller_change = true;
         } else if (event.type == SDL_CONTROLLERDEVICEREMOVED && input->controller &&
                    SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(input->controller)) == event.cdevice.which) {
+            std::fprintf(stderr, "RetroRun SDL controller removed: instance=%d\n",
+                         event.cdevice.which);
             SDL_GameControllerClose(input->controller);
             input->controller = NULL;
             active_controller = NULL;
+            controller_change = true;
         }
+    }
+
+    // KMSDRM can report a controller refresh as ADDED followed by REMOVED in
+    // the same event batch. Opening immediately on ADDED loses the new device
+    // when REMOVED is processed afterwards, so reconnect only after draining
+    // the complete queue. Also recover if SDL invalidated the old handle
+    // without delivering the expected event order.
+    if (input->controller && SDL_GameControllerGetAttached(input->controller) == SDL_FALSE) {
+        std::fprintf(stderr, "RetroRun SDL controller detached; reopening input device\n");
+        SDL_GameControllerClose(input->controller);
+        input->controller = NULL;
+        active_controller = NULL;
+        controller_change = true;
+    }
+    if (!input->controller && controller_change) {
+        input->controller = open_first_controller();
+        active_controller = input->controller;
+        if (!input->controller)
+            std::fprintf(stderr, "RetroRun SDL controller reconnect failed: no compatible gamepad\n");
     }
 
     SDL_PumpEvents();
@@ -464,9 +616,9 @@ static GLuint compile_post_shader(GLenum type, const char* source) {
 
 static bool ensure_post_pipeline(rr_context_t* context) {
     if (context->post_program) return true;
+    if (context->post_pipeline_failed) return false;
 #ifdef RR_SDL_GLES
-    static const char* vertex_source = R"GLSL(
-#version 300 es
+    static const char* vertex_source = R"GLSL(#version 300 es
 precision mediump float;
 in vec2 position;
 in vec2 texcoord;
@@ -476,8 +628,7 @@ void main() {
     gl_Position = vec4(position, 0.0, 1.0);
 }
 )GLSL";
-    static const char* fragment_source = R"GLSL(
-#version 300 es
+    static const char* fragment_source = R"GLSL(#version 300 es
 precision mediump float;
 uniform sampler2D frame_texture;
 uniform vec2 source_size;
@@ -515,8 +666,7 @@ void main() {
 }
 )GLSL";
 #else
-    static const char* vertex_source = R"GLSL(
-#version 150
+    static const char* vertex_source = R"GLSL(#version 150
 in vec2 position;
 in vec2 texcoord;
 out vec2 uv;
@@ -525,8 +675,7 @@ void main() {
     gl_Position = vec4(position, 0.0, 1.0);
 }
 )GLSL";
-    static const char* fragment_source = R"GLSL(
-#version 150
+    static const char* fragment_source = R"GLSL(#version 150
 uniform sampler2D frame_texture;
 uniform vec2 source_size;
 uniform vec2 texture_scale;
@@ -570,6 +719,7 @@ void main() {
     if (!vertex || !fragment) {
         if (vertex) glDeleteShader(vertex);
         if (fragment) glDeleteShader(fragment);
+        context->post_pipeline_failed = true;
         return false;
     }
 
@@ -593,6 +743,7 @@ void main() {
         std::fprintf(stderr, "RetroRun SDL post-processing program failed: %s\n", log);
         glDeleteProgram(context->post_program);
         context->post_program = 0;
+        context->post_pipeline_failed = true;
         return false;
     }
 
@@ -675,6 +826,13 @@ rr_context_t* rr_context_create(rr_display_t* display, int width, int height,
     context->framebuffer = 0;
     context->color_texture = 0;
     context->depth_stencil = 0;
+    context->post_program = 0;
+    context->post_vao = 0;
+    context->post_vbo = 0;
+    context->post_pipeline_failed = false;
+    const char* default_framebuffer_env = std::getenv("RETRORUN_SDL_DEFAULT_FRAMEBUFFER");
+    context->default_framebuffer = default_framebuffer_env &&
+                                   std::atoi(default_framebuffer_env) != 0;
     context->gl = SDL_GL_CreateContext(context->window);
     if (!context->window || !context->gl) {
         std::fprintf(stderr, "RetroRun SDL OpenGL context creation failed: %s\n", SDL_GetError());
@@ -690,6 +848,24 @@ rr_context_t* rr_context_create(rr_display_t* display, int width, int height,
     if (SDL_GL_SetSwapInterval(vsync_enabled ? 1 : 0) != 0 && vsync_enabled)
         std::fprintf(stderr, "RetroRun SDL could not enable OpenGL VSync: %s\n", SDL_GetError());
     active_context = context;
+
+    const GLubyte* gl_version = glGetString(GL_VERSION);
+    const GLubyte* gl_renderer = glGetString(GL_RENDERER);
+    std::fprintf(stderr,
+                 "RetroRun SDL video: driver=%s, GL=%s, renderer=%s, framebuffer=%s\n",
+                 SDL_GetCurrentVideoDriver() ? SDL_GetCurrentVideoDriver() : "unknown",
+                 gl_version ? reinterpret_cast<const char*>(gl_version) : "unknown",
+                 gl_renderer ? reinterpret_cast<const char*>(gl_renderer) : "unknown",
+                 context->default_framebuffer ? "default (0)" : "frontend FBO");
+
+    // Compatibility path for older hardware-rendered cores which assume the
+    // default framebuffer used by the historical GO2 backend. It is opt-in:
+    // the frontend FBO remains the normal path because it is required for
+    // arbitrary aspect-ratio scaling and post-processing.
+    if (context->default_framebuffer) {
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        return context;
+    }
 
     glGenFramebuffers(1, &context->framebuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, context->framebuffer);
@@ -739,21 +915,62 @@ static void blit_overlay(rr_context_t* context, rr_surface_t* surface,
                          int drawable_width, int drawable_height) {
     if (!surface || width <= 0 || height <= 0) return;
 
+    // Hardware cores share this context and may leave an error pending. Do
+    // not report a core error as an overlay failure.
+    while (glGetError() != GL_NO_ERROR) {}
+
+    GLint previous_draw = 0;
+    GLint previous_program = 0;
+    GLint previous_vao = 0;
+    GLint previous_array_buffer = 0;
+    GLint previous_active_texture = 0;
+    GLint previous_texture = 0;
+    GLint previous_unpack_alignment = 0;
+    GLint previous_viewport[4] = {};
+    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &previous_draw);
+    glGetIntegerv(GL_CURRENT_PROGRAM, &previous_program);
+    glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &previous_vao);
+    glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &previous_array_buffer);
+    glGetIntegerv(GL_ACTIVE_TEXTURE, &previous_active_texture);
+    glGetIntegerv(GL_UNPACK_ALIGNMENT, &previous_unpack_alignment);
+    glGetIntegerv(GL_VIEWPORT, previous_viewport);
+    glActiveTexture(GL_TEXTURE0);
+    glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous_texture);
+
+    if (!ensure_post_pipeline(context)) {
+        glActiveTexture(static_cast<GLenum>(previous_active_texture));
+        return;
+    }
+
     GLuint texture = 0;
-    GLuint framebuffer = 0;
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    const GLenum source_format = surface->format == RR_PIXEL_FORMAT_RGB565 ? GL_RGB : GL_RGBA;
-    const GLenum source_type = surface->format == RR_PIXEL_FORMAT_RGB565
-                                   ? GL_UNSIGNED_SHORT_5_6_5 : GL_UNSIGNED_BYTE;
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, surface->width, surface->height, 0,
-                 source_format, source_type, surface->pixels.data());
-    glGenFramebuffers(1, &framebuffer);
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, framebuffer);
-    glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                           GL_TEXTURE_2D, texture, 0);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    const bool rgb565 = surface->format == RR_PIXEL_FORMAT_RGB565;
+    const GLenum internal_format = rgb565 ? GL_RGB565 : GL_RGBA8;
+    const GLenum source_format = rgb565 ? GL_RGB : GL_RGBA;
+    const GLenum source_type = rgb565 ? GL_UNSIGNED_SHORT_5_6_5 : GL_UNSIGNED_BYTE;
+
+    // CPU surfaces are top-down while OpenGL textures are sampled bottom-up.
+    // Flip the upload once so the same shader path works reliably on Mali,
+    // where blitting a temporary FBO into the KMSDRM default framebuffer is
+    // not consistently presented.
+    std::vector<uint8_t> flipped(surface->pixels.size());
+    for (int row = 0; row < surface->height; ++row) {
+        std::memcpy(flipped.data() + static_cast<size_t>(row) * surface->stride,
+                    surface->pixels.data() +
+                        static_cast<size_t>(surface->height - 1 - row) * surface->stride,
+                    surface->stride);
+    }
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glTexImage2D(GL_TEXTURE_2D, 0, internal_format,
+                 surface->width, surface->height, 0,
+                 source_format, source_type, flipped.data());
+    GLenum overlay_error = glGetError();
+    const char* overlay_error_stage = overlay_error == GL_NO_ERROR ? nullptr : "texture upload";
 
     const float scale_x = static_cast<float>(drawable_width) / context->display->width;
     const float scale_y = static_cast<float>(drawable_height) / context->display->height;
@@ -761,10 +978,40 @@ static void blit_overlay(rr_context_t* context, rr_surface_t* surface,
     const int right = static_cast<int>((x + width) * scale_x);
     const int bottom = drawable_height - static_cast<int>((y + height) * scale_y);
     const int top = drawable_height - static_cast<int>(y * scale_y);
-    glBlitFramebuffer(0, surface->height, surface->width, 0,
-                      left, bottom, right, top, GL_COLOR_BUFFER_BIT, GL_LINEAR);
-    glDeleteFramebuffers(1, &framebuffer);
+
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    glViewport(left, bottom, right - left, top - bottom);
+    glUseProgram(context->post_program);
+    glUniform1i(glGetUniformLocation(context->post_program, "frame_texture"), 0);
+    glUniform2f(glGetUniformLocation(context->post_program, "source_size"),
+                static_cast<float>(surface->width), static_cast<float>(surface->height));
+    glUniform2f(glGetUniformLocation(context->post_program, "texture_scale"), 1.0f, 1.0f);
+    glUniform1i(glGetUniformLocation(context->post_program, "shader_mode"), 0);
+    glBindVertexArray(context->post_vao);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+    if (overlay_error == GL_NO_ERROR) {
+        overlay_error = glGetError();
+        if (overlay_error != GL_NO_ERROR)
+            overlay_error_stage = "shader draw";
+    }
+    if (overlay_error != GL_NO_ERROR && !overlay_gl_error_logged) {
+        std::fprintf(stderr, "RetroRun SDL overlay OpenGL error during %s: 0x%x\n",
+                     overlay_error_stage ? overlay_error_stage : "unknown stage",
+                     overlay_error);
+        overlay_gl_error_logged = true;
+    }
+
+    glBindVertexArray(static_cast<GLuint>(previous_vao));
+    glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(previous_array_buffer));
+    glUseProgram(static_cast<GLuint>(previous_program));
+    glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(previous_texture));
     glDeleteTextures(1, &texture);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, previous_unpack_alignment);
+    glActiveTexture(static_cast<GLenum>(previous_active_texture));
+    glViewport(previous_viewport[0], previous_viewport[1],
+               previous_viewport[2], previous_viewport[3]);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, static_cast<GLuint>(previous_draw));
 }
 
 static void draw_overlays(rr_context_t* context, status* overlays,
@@ -804,6 +1051,17 @@ void rr_context_swap_buffers(rr_context_t* context, int source_width, int source
                              status* overlays) {
     if (!context) return;
     rr_context_make_current(context);
+
+    if (context->default_framebuffer) {
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        int drawable_width = context->display->width;
+        int drawable_height = context->display->height;
+        SDL_GL_GetDrawableSize(context->window, &drawable_width, &drawable_height);
+        draw_overlays(context, overlays, dest_x, dest_y, dest_width, dest_height,
+                      drawable_width, drawable_height);
+        SDL_GL_SwapWindow(context->window);
+        return;
+    }
 
     int drawable_width = context->display->width;
     int drawable_height = context->display->height;
@@ -870,14 +1128,26 @@ rr_surface_t* rr_context_surface_lock(rr_context_t* context) {
     surface->pixels.resize(static_cast<size_t>(surface->stride) * surface->height);
 
     std::vector<uint8_t> bottom_up(surface->pixels.size());
-#ifdef RR_SDL_GLES
-    glReadBuffer(GL_BACK);
-#else
-    glReadBuffer(GL_FRONT);
-#endif
+    GLint previous_read_framebuffer = 0;
+    GLint previous_read_buffer = 0;
+    GLint previous_pack_alignment = 0;
+    glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &previous_read_framebuffer);
+    glGetIntegerv(GL_READ_BUFFER, &previous_read_buffer);
+    glGetIntegerv(GL_PACK_ALIGNMENT, &previous_pack_alignment);
+    if (context->default_framebuffer) {
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+        glReadBuffer(GL_BACK);
+    } else {
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, context->framebuffer);
+        glReadBuffer(GL_COLOR_ATTACHMENT0);
+    }
     glPixelStorei(GL_PACK_ALIGNMENT, 1);
     glReadPixels(0, 0, context->width, context->height, GL_RGBA, GL_UNSIGNED_BYTE,
                  bottom_up.data());
+    glPixelStorei(GL_PACK_ALIGNMENT, previous_pack_alignment);
+    glReadBuffer(static_cast<GLenum>(previous_read_buffer));
+    glBindFramebuffer(GL_READ_FRAMEBUFFER,
+                      static_cast<GLuint>(previous_read_framebuffer));
     for (int row = 0; row < context->height; ++row) {
         std::memcpy(surface->pixels.data() + static_cast<size_t>(row) * surface->stride,
                     bottom_up.data() + static_cast<size_t>(context->height - 1 - row) * surface->stride,

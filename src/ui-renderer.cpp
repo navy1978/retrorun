@@ -170,7 +170,15 @@ bool uiRenderOverlays(const void* frame, unsigned width, unsigned height, size_t
     renderStateMessage();
     visible = visible || overlays.show_bottom_left || overlays.show_bottom_center;
 
-    if (visible && presenter) {
+    bool use_software_presenter = presenter != nullptr;
+#ifdef RR_PLATFORM_SDL
+    // SDL_Renderer and OpenGL cannot safely present alternately to the same
+    // KMSDRM window. Hardware cores compose these surfaces in
+    // rr_context_swap_buffers() immediately after this function returns.
+    if (isOpenGL)
+        use_software_presenter = false;
+#endif
+    if (visible && use_software_presenter) {
         bindOverlaySurfaces();
         if (showLoading) {
             // Software cores do not need the game frame beneath the opaque

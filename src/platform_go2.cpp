@@ -39,6 +39,11 @@ static go2_rotation_t native_rotation(rr_rotation_t value) {
     return static_cast<go2_rotation_t>(value);
 }
 
+void rr_platform_preinit() {
+    // The native backend links its DRM/GBM/EGL dependencies directly and
+    // preserves the historical initialization order.
+}
+
 rr_input_t* rr_input_create(const char* device) {
     go2_input_t* native = go2_input_create(device);
     if (!native) return NULL;

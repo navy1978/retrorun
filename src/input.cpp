@@ -535,12 +535,15 @@ void core_input_poll(void)
 // Store button states to avoid multiple function calls
 bool isL3Pressed = rr_input_state_button_get(gamepadState, l3Button) == RRButtonState_Pressed;
 bool isR3Pressed = rr_input_state_button_get(gamepadState, r3Button) == RRButtonState_Pressed;
+bool wasL3Released = rr_input_state_button_get(prevGamepadState, l3Button) == RRButtonState_Released;
+bool wasR3Released = rr_input_state_button_get(prevGamepadState, r3Button) == RRButtonState_Released;
 bool isSelectPressed = rr_input_state_button_get(gamepadState, selectButton) == RRButtonState_Pressed;
 bool isStartPressed = rr_input_state_button_get(gamepadState, startButton) == RRButtonState_Pressed;
 bool isXPressed = rr_input_state_button_get(gamepadState, xButton) == RRButtonState_Pressed;
 bool isYPressed = rr_input_state_button_get(gamepadState, yButton) == RRButtonState_Pressed;
 bool isBPressed = rr_input_state_button_get(gamepadState, bButton) == RRButtonState_Pressed;
 bool isAPressed = rr_input_state_button_get(gamepadState, aButton) == RRButtonState_Pressed;
+bool wasBReleased = rr_input_state_button_get(prevGamepadState, bButton) == RRButtonState_Released;
 //bool isF1Pressed = rr_input_state_button_get(gamepadState, f1Button) == RRButtonState_Pressed;
 bool isF2Pressed = ignoreF2 ? false: rr_input_state_button_get(gamepadState, f2Button) == RRButtonState_Pressed;
 bool isR2Pressed = rr_input_state_button_get(gamepadState, r2Button) == RRButtonState_Pressed;
@@ -553,7 +556,10 @@ double currentTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
 // Handle input_info_requested_alternative condition
 if (input_info_requested_alternative) { // this are the alternative combinations used by ArkOs
     // Handle emntering in Menu request
-    if (!showLoading && ((isSelectPressed && isXPressed) || (isF2Pressed && isXPressed))) {
+    const bool sticksMenuPressed = isL3Pressed && isR3Pressed &&
+                                   (wasL3Released || wasR3Released);
+    if (!showLoading && ((isSelectPressed && isXPressed) ||
+                         (isF2Pressed && isXPressed) || sticksMenuPressed)) {
         double elapsed = currentTime - lastInforequestTime;
         logger.log(Logger::DEB, "Input: Info requested");
         if (elapsed >= 0.5) {
@@ -584,7 +590,8 @@ if (input_info_requested_alternative) { // this are the alternative combinations
             }
         }
         // Handle screenshot request
-        if (!showLoading && ((isF2Pressed && isBPressed)|| (isSelectPressed && isBPressed))) {
+        if (!showLoading && wasBReleased &&
+            ((isF2Pressed && isBPressed)|| (isSelectPressed && isBPressed))) {
             screenshot_requested = true;
             lastScreenhotrequestTime = currentTime;
             logger.log(Logger::DEB, "Input: Screenshot requested");
@@ -608,7 +615,8 @@ if (input_info_requested_alternative) { // this are the alternative combinations
 } else { // this is the oermal behaviour used in AmberElec
 
     // Handle emntering in Menu request
-    if (!showLoading && isL3Pressed && isR3Pressed) {
+    if (!showLoading && isL3Pressed && isR3Pressed &&
+        (wasL3Released || wasR3Released)) {
         double elapsed = currentTime - lastInforequestTime;
         logger.log(Logger::DEB, "Input: Info requested");
         if (elapsed >= 0.5) {
@@ -638,7 +646,7 @@ if (input_info_requested_alternative) { // this are the alternative combinations
             }
         }
         // Handle screenshot request
-        if (!showLoading && isSelectPressed && isBPressed) {
+        if (!showLoading && isSelectPressed && isBPressed && wasBReleased) {
             screenshot_requested = true;
             lastScreenhotrequestTime = currentTime;
             logger.log(Logger::DEB, "Input: Screenshot requested");

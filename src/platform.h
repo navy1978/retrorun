@@ -112,6 +112,10 @@ typedef enum {
     RR_VIDEO_SHADER_CRT
 } rr_video_shader_t;
 
+// Initialize platform subsystems whose libraries or address-space mappings
+// must exist before a libretro core reserves memory for its dynarec.
+void rr_platform_preinit();
+
 rr_display_t* rr_display_create();
 void rr_display_destroy(rr_display_t* display);
 int rr_display_width_get(rr_display_t* display);

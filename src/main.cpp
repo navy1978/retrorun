@@ -2478,6 +2478,7 @@ int main(int argc, char *argv[])
     arg_core = argv[remaining_index++];
     arg_rom = argv[remaining_index++];
 
+    rr_platform_preinit();
     input_gamepad_read();
 
     core_load(arg_core);
@@ -2818,7 +2819,10 @@ int main(int argc, char *argv[])
             // must poll to unpause
             totalFrames = 0; // reset total frames otherwise in next loop FPS are not accurate anymore
             core_input_poll();
-            core_video_refresh(nullptr, 0, 0, 0);
+            // The input poll may close the menu. Do not pass a synthetic 0x0
+            // frame to the core video path in that case.
+            if (input_info_requested)
+                core_video_refresh(nullptr, 0, 0, 0);
 #ifdef RR_PLATFORM_SDL
             // Menu animations are frame based. Keep the menu on the same
             // clock as gameplay instead of spinning as fast as the CPU allows.

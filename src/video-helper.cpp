@@ -982,20 +982,48 @@ void showImage(Image img, rr_surface_t **surface)
 void takeScreenshot(int w, int h)
 {
     logger.log(Logger::DEB, "Taking a screenshot!");
-    w = isOpenGL ? rr_surface_width_get(gles_surface) : rr_surface_width_get(surface);
-    h = isOpenGL ? rr_surface_height_get(gles_surface) : rr_surface_height_get(surface);
+    rr_surface_t *source = surface;
+#ifdef RR_PLATFORM_SDL
+    rr_surface_t *captured_surface = nullptr;
+    if (isOpenGL)
+    {
+        captured_surface = rr_context_surface_lock(context3D);
+        source = captured_surface;
+    }
+#else
+    if (isOpenGL)
+        source = gles_surface;
+#endif
+    if (!source)
+    {
+        logger.log(Logger::ERR, "Screenshot capture failed: video surface is not available.");
+        screenshot_requested = false;
+        return;
+    }
+
+    w = rr_surface_width_get(source);
+    h = rr_surface_height_get(source);
     rr_surface_t *screenshot = rr_surface_create(display, w, h, RR_PIXEL_FORMAT_RGB888);
     if (!screenshot)
     {
         logger.log(Logger::ERR, "rr_surface_create for screenshot failed.");
-        throw std::exception();
+#ifdef RR_PLATFORM_SDL
+        if (captured_surface)
+            rr_context_surface_unlock(context3D, captured_surface);
+#endif
+        screenshot_requested = false;
+        return;
     }
 
-    rr_surface_blit(isOpenGL ? gles_surface : surface,
+    rr_surface_blit(source,
                      0, 0, w, h,
                      screenshot,
                      0, 0, w, h,
                      getBlitRotation());
+#ifdef RR_PLATFORM_SDL
+    if (captured_surface)
+        rr_context_surface_unlock(context3D, captured_surface);
+#endif
 
     // snap in screenshot directory
     std::string fullPath = screenShotFolder + "/" + romName + "-" + getCurrentTimeForFileName() + ".png";
