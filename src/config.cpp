@@ -201,14 +201,14 @@ bool persistVideoSetting(const std::string &setting, const std::string &value)
         std::string key = line.substr(0, line.find('='));
         trim(key);
         if (key == setting) {
-            line = setting + " = " + value;
+            line = setting + (value.empty() ? " =" : " = " + value);
             replaced = true;
         }
         lines.push_back(line);
     }
     input.close();
     if (!replaced)
-        lines.push_back(setting + " = " + value);
+        lines.push_back(setting + (value.empty() ? " =" : " = " + value));
 
     std::ofstream output(activeConfigFile, std::ios::trunc);
     if (!output.good()) return false;

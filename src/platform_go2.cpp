@@ -392,3 +392,10 @@ rr_video_shader_t rr_video_shader_get() { return video_shader; }
 
 const char* rr_platform_backend_name() { return "go2"; }
 const char* rr_platform_renderer_name() { return "GO2 / DRM"; }
+
+// --- Platform capabilities ---
+// GO2 handhelds typically have no physical keyboard. A future evdev keyboard
+// source or virtual keyboard could set this flag dynamically.
+uint32_t rr_platform_capabilities() {
+    return 0; // No optional capabilities by default
+}

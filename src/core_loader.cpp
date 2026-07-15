@@ -7,6 +7,9 @@ Copyright (C) 2021-present  navy1978
 #include "core_loader.h"
 #include "globals.h"
 #include "config.h"
+#include "keyboard.h"
+#include "disk_control.h"
+#include "achievements.h"
 #include "video.h"
 #include "audio.h"
 #include "input.h"
@@ -380,8 +383,9 @@ bool core_environment(unsigned cmd, void *data)
 
     case RETRO_ENVIRONMENT_GET_DISK_CONTROL_INTERFACE_VERSION:
     {
-        logger.log(Logger::DEB, "RETRO_ENVIRONMENT_GET_DISK_CONTROL_INTERFACE_VERSION not implemented");
-        return false;
+        if (!data) return false;
+        *static_cast<unsigned*>(data) = 1;
+        return true;
     }
 
     case RETRO_ENVIRONMENT_GET_PERF_INTERFACE:
@@ -406,14 +410,34 @@ bool core_environment(unsigned cmd, void *data)
 
     case RETRO_ENVIRONMENT_SET_KEYBOARD_CALLBACK:
     {
-        logger.log(Logger::DEB, "RETRO_ENVIRONMENT_SET_KEYBOARD_CALLBACK not implemented");
-        return false;
+        const struct retro_keyboard_callback *cb =
+            static_cast<const struct retro_keyboard_callback *>(data);
+        if (cb && cb->callback)
+        {
+            rr_keyboard_set_callback(cb->callback);
+            logger.log(Logger::DEB, "RETRO_ENVIRONMENT_SET_KEYBOARD_CALLBACK: registered");
+        }
+        return true;
+    }
+
+    case RETRO_ENVIRONMENT_SET_MEMORY_MAPS:
+    {
+        achievements_set_memory_map(static_cast<const retro_memory_map*>(data));
+        return true;
     }
 
     case RETRO_ENVIRONMENT_SET_DISK_CONTROL_INTERFACE:
     {
-        logger.log(Logger::DEB, "RETRO_ENVIRONMENT_SET_DISK_CONTROL_INTERFACE not implemented");
-        return false;
+        rr_disk_control_set(static_cast<const retro_disk_control_callback*>(data));
+        logger.log(Logger::DEB, "RETRO_ENVIRONMENT_SET_DISK_CONTROL_INTERFACE: registered");
+        return true;
+    }
+
+    case RETRO_ENVIRONMENT_SET_DISK_CONTROL_EXT_INTERFACE:
+    {
+        rr_disk_control_set_ext(static_cast<const retro_disk_control_ext_callback*>(data));
+        logger.log(Logger::DEB, "RETRO_ENVIRONMENT_SET_DISK_CONTROL_EXT_INTERFACE: registered");
+        return true;
     }
 
     case RETRO_ENVIRONMENT_SET_CONTROLLER_INFO:
@@ -641,6 +665,8 @@ libc_error:
 
 void *core_unload(void *)
 {
+    rr_keyboard_clear_callback();
+    rr_disk_control_clear();
     if (g_retro.initialized)
     {
         g_retro.retro_deinit();

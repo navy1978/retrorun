@@ -29,6 +29,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "input.h"
 #include "rumble.h"
 #include "platform.h"
+#include "keyboard.h"
+#include "file_browser.h"
+#include "achievements.h"
 #include "menu/menu.h"
 #include "menu/menu_item.h"
 #include "menu/menu_manager.h"
@@ -183,6 +186,7 @@ int main(int argc, char *argv[])
         opt_aspect = 0.75f;
 
     core_load_game(arg_rom);
+    achievements_init(arg_rom);
 
     rr_input_state_t *gamepadState = input_gampad_current_get();
     if (rr_input_state_button_get(gamepadState, RRInputButton_F1) == RRButtonState_Pressed)
@@ -331,6 +335,13 @@ int main(int argc, char *argv[])
         MenuItem("Audio disabled", getAudioDisabled, setAudioDisabled, "bool")};
     Menu menuAudio = Menu("Audio", itemsAudio);
 
+    std::vector<MenuItem> itemsAchievements = {
+        MenuItem("Enabled",
+                 []() { return achievements_enabled() ? 1 : 0; },
+                 [](int value) { achievements_set_enabled(value != 0, arg_rom); },
+                 "bool")};
+    Menu menuAchievements = Menu("RetroAchievements", itemsAchievements);
+
     std::vector<MenuItem> itemsVideo = {
         MenuItem("Aspect ratio", getAspectRatioSettings, setAspectRatioSettings, "aspect-ratio"),
         MenuItem("Pixel perfect", getPixelPerfect, setPixelPerfect, "bool"),
@@ -356,6 +367,7 @@ int main(int argc, char *argv[])
         MenuItem("Control", &menuControl, fake),
         MenuItem("Video", &menuVideo, fake),
         MenuItem("Audio", &menuAudio, fake),
+        MenuItem("RetroAchievements", &menuAchievements, fake),
         MenuItem("Reset Core", &menuResetCore, fake)};
     Menu menuSettings = Menu("Settings", itemsSettings);
 
@@ -384,6 +396,9 @@ int main(int argc, char *argv[])
     Menu menuInfo = Menu("Info", itemsInfo);
     std::vector<MenuItem> items = {
         MenuItem("Resume", resume),
+        MenuItem("Virtual keyboard", [](int button) { if (button == A_BUTTON) rr_keyboard_virtual_open(); }),
+        MenuItem("Change disk", [](int button) { if (button == A_BUTTON) rr_file_browser_open(arg_rom); }),
+        MenuItem("Achievements", [](int button) { if (button == A_BUTTON) achievements_view_open(); }),
         MenuItem("Info", &menuInfo, fake),
         MenuItem("Settings", &menuSettings, fake),
         MenuItem("Load/Save", &menuState, fake),
@@ -404,6 +419,10 @@ int main(int argc, char *argv[])
         auto loopStart = steady_clock::now();
 #endif
         input_message = false;
+        if (pause_requested)
+            achievements_idle();
+        else
+            achievements_frame();
         auto nextClock = high_resolution_clock::now();
         bool realPause = pause_requested && input_pause_requested;
         bool showInfo = pause_requested && input_info_requested;
@@ -444,6 +463,7 @@ int main(int argc, char *argv[])
         {
             input_reset_requested = false;
             g_retro.retro_reset();
+            achievements_reset();
         }
         else if (input_slot_memory_load_requested && !continueToShowSaveLoadStateImage())
         {
@@ -600,6 +620,7 @@ int main(int argc, char *argv[])
     }
 
     logger.log(Logger::DEB, "Unloading core and deinit audio and video...");
+    achievements_shutdown();
 
 #ifdef RR_PLATFORM_SDL
     video_prepare_core_unload();

@@ -5,6 +5,9 @@
 #include "status.h"
 #include "video.h"
 #include "video-helper.h"
+#include "keyboard.h"
+#include "file_browser.h"
+#include "achievements.h"
 
 #include "imgs/imgs_fast_forwarding.h"
 #include "imgs/imgs_numbers.h"
@@ -51,7 +54,13 @@ void renderFullOverlay(int width, int height) {
     if (!status_surface_full)
         status_surface_full = rr_surface_create(display, width, height, format_565);
 
-    if (input_credits_requested && !showLoading) {
+    if (rr_keyboard_virtual_visible()) {
+        rr_keyboard_virtual_render(status_surface_full, width, height);
+    } else if (rr_file_browser_visible()) {
+        rr_file_browser_render(status_surface_full, width, height);
+    } else if (achievements_view_visible()) {
+        achievements_view_render(status_surface_full, width, height);
+    } else if (input_credits_requested && !showLoading) {
         makeScreenBlackCredits(status_surface_full, width, height);
         showCredits(&status_surface_full);
     } else if (last_menu_frame && !input_info_requested && clear_frames_left > 0) {
@@ -118,7 +127,8 @@ bool uiRenderOverlays(const void* frame, unsigned width, unsigned height, size_t
     int overlay_width = static_cast<int>(width);
     int overlay_height = static_cast<int>(height);
 
-    if (input_info_requested || input_credits_requested || last_menu_frame || showLoading) {
+    if (input_info_requested || input_credits_requested || rr_keyboard_virtual_visible() ||
+        rr_file_browser_visible() || achievements_view_visible() || last_menu_frame || showLoading) {
         if (!showLoading)
             updateUIMenuDimensions(w, h);
         overlay_width = INFO_MENU_WIDTH;
@@ -147,9 +157,23 @@ bool uiRenderOverlays(const void* frame, unsigned width, unsigned height, size_t
         visible = true;
     }
 
-    overlays.show_top_left = input_ffwd_requested || input_message;
+    const bool achievement_notification = achievements_notification_visible();
+    overlays.show_top_left = input_ffwd_requested || input_message || achievement_notification;
     if (overlays.show_top_left) {
-        if (input_message)
+        if (achievement_notification) {
+            constexpr int notification_width = 300;
+            constexpr int notification_height = 58;
+            if (status_surface_top_left &&
+                (rr_surface_width_get(status_surface_top_left) != notification_width ||
+                 rr_surface_height_get(status_surface_top_left) != notification_height)) {
+                rr_surface_destroy(status_surface_top_left);
+                status_surface_top_left = nullptr;
+            }
+            if (!status_surface_top_left)
+                status_surface_top_left = rr_surface_create(display, notification_width,
+                                                            notification_height, format_565);
+            achievements_render_notification(status_surface_top_left);
+        } else if (input_message)
             showText(10, 10, status_message.c_str(), WHITE, &status_surface_top_left);
         else
             showImage(fast, &status_surface_top_left);
@@ -198,7 +222,9 @@ bool uiRenderOverlays(const void* frame, unsigned width, unsigned height, size_t
         }
     }
 
-    last_menu_frame = input_info_requested || clear_frames_left != clear_frame_count;
+    last_menu_frame = input_info_requested || rr_keyboard_virtual_visible() ||
+                      rr_file_browser_visible() || achievements_view_visible() ||
+                      clear_frames_left != clear_frame_count;
     return visible;
 }
 

@@ -23,6 +23,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "globals.h"
 #include "video.h"
 #include "libretro.h"
+#include "keyboard.h"
+#include "file_browser.h"
+#include "achievements.h"
 
 #include "platform.h"
 #include <stdio.h>
@@ -522,7 +525,9 @@ void core_input_poll(void)
 
 
     // if we are in the menu info we have to manage the input for that
-    if (input_credits_requested) {
+    if (rr_keyboard_virtual_visible() || rr_file_browser_visible() || achievements_view_visible()) {
+        // Modal frontend screens consume input below.
+    } else if (input_credits_requested) {
         manageCredits();
     }else
     if (input_info_requested)
@@ -548,6 +553,31 @@ bool wasBReleased = rr_input_state_button_get(prevGamepadState, bButton) == RRBu
 bool isF2Pressed = ignoreF2 ? false: rr_input_state_button_get(gamepadState, f2Button) == RRButtonState_Pressed;
 bool isR2Pressed = rr_input_state_button_get(gamepadState, r2Button) == RRButtonState_Pressed;
 bool wasR2Released = rr_input_state_button_get(prevGamepadState, r2Button) == RRButtonState_Released;
+
+const bool upEdge = rr_input_state_button_get(gamepadState, upButton) == RRButtonState_Pressed &&
+                    rr_input_state_button_get(prevGamepadState, upButton) == RRButtonState_Released;
+const bool downEdge = rr_input_state_button_get(gamepadState, downButton) == RRButtonState_Pressed &&
+                      rr_input_state_button_get(prevGamepadState, downButton) == RRButtonState_Released;
+const bool leftEdge = rr_input_state_button_get(gamepadState, leftButton) == RRButtonState_Pressed &&
+                      rr_input_state_button_get(prevGamepadState, leftButton) == RRButtonState_Released;
+const bool rightEdge = rr_input_state_button_get(gamepadState, rightButton) == RRButtonState_Pressed &&
+                       rr_input_state_button_get(prevGamepadState, rightButton) == RRButtonState_Released;
+const bool aEdge = isAPressed && rr_input_state_button_get(prevGamepadState, aButton) == RRButtonState_Released;
+const bool bEdge = isBPressed && wasBReleased;
+const bool xEdge = isXPressed && rr_input_state_button_get(prevGamepadState, xButton) == RRButtonState_Released;
+
+if (rr_keyboard_virtual_visible()) {
+    rr_keyboard_virtual_input(upEdge, downEdge, leftEdge, rightEdge, aEdge, bEdge, xEdge);
+    return;
+}
+if (rr_file_browser_visible()) {
+    rr_file_browser_input(upEdge, downEdge, aEdge, bEdge);
+    return;
+}
+if (achievements_view_visible()) {
+    achievements_view_input(upEdge, downEdge, leftEdge, rightEdge, aEdge, bEdge);
+    return;
+}
 
 // Get current time once
 struct timeval valTime;
@@ -1047,6 +1077,8 @@ if(isTate()){
 
 int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigned id)
 {
+    if (rr_keyboard_virtual_visible() || rr_file_browser_visible() || achievements_view_visible())
+        return 0;
 
 
     rr_input_button_t realL1 =  gpio_joypad ? l1Button : RRInputButton_TopLeft;

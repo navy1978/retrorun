@@ -1,7 +1,9 @@
 #include "platform.h"
+#include "keyboard.h"
 #include "status.h"
 
 #include <SDL.h>
+#include <bitset>
 #ifdef __APPLE__
 #define GL_SILENCE_DEPRECATION
 #include <OpenGL/gl3.h>
@@ -264,6 +266,7 @@ static SDL_Surface* wrap_surface(rr_surface_t* surface) {
 
 rr_input_t* rr_input_create(const char*) {
     ensure_sdl(SDL_INIT_EVENTS | SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC);
+    SDL_StartTextInput();
     load_controller_mappings();
     rr_input_t* input = new rr_input_t();
     input->controller = open_first_controller();
@@ -297,6 +300,10 @@ static float normalized_axis(Sint16 value) {
     return value < 0 ? value / 32768.0f : value / 32767.0f;
 }
 
+// Forward declaration — defined at end of file
+static void rr_sdl_dispatch_key_event(const SDL_KeyboardEvent* ev);
+static void rr_sdl_dispatch_text_event(const SDL_TextInputEvent* ev);
+
 void rr_input_state_read(rr_input_t* input, rr_input_state_t* state) {
     std::memset(state, 0, sizeof(*state));
     bool controller_change = false;
@@ -304,6 +311,10 @@ void rr_input_state_read(rr_input_t* input, rr_input_state_t* state) {
     while (SDL_PollEvent(&event)) {
         if (event.type == SDL_QUIT)
             state->buttons[RRInputButton_Quit] = RRButtonState_Pressed;
+        else if (event.type == SDL_KEYDOWN || event.type == SDL_KEYUP)
+            rr_sdl_dispatch_key_event(&event.key);
+        else if (event.type == SDL_TEXTINPUT)
+            rr_sdl_dispatch_text_event(&event.text);
         else if (event.type == SDL_CONTROLLERDEVICEADDED) {
             std::fprintf(stderr, "RetroRun SDL controller added: device index=%d\n",
                          event.cdevice.which);
@@ -1310,3 +1321,198 @@ void rr_video_shader_set(rr_video_shader_t shader) { video_shader = shader; }
 rr_video_shader_t rr_video_shader_get() { return video_shader; }
 const char* rr_platform_backend_name() { return "sdl2"; }
 const char* rr_platform_renderer_name() { return renderer_name; }
+
+// --- Platform capabilities ---
+
+uint32_t rr_platform_capabilities() {
+    return RRPlatformCapability_PhysicalKeyboard;
+}
+
+// --- SDL keyboard-to-libretro translation ---
+
+// Scancodes used as frontend gamepad emulation — these are NOT forwarded to
+// the core as keyboard events because they represent joypad buttons.
+static bool is_frontend_hotkey(SDL_Scancode sc) {
+    switch (sc) {
+    case SDL_SCANCODE_UP: case SDL_SCANCODE_DOWN:
+    case SDL_SCANCODE_LEFT: case SDL_SCANCODE_RIGHT:
+    case SDL_SCANCODE_X: case SDL_SCANCODE_Z:
+    case SDL_SCANCODE_S: case SDL_SCANCODE_A:
+    case SDL_SCANCODE_BACKSPACE: case SDL_SCANCODE_RETURN:
+    case SDL_SCANCODE_Q: case SDL_SCANCODE_W:
+    case SDL_SCANCODE_1: case SDL_SCANCODE_2:
+    case SDL_SCANCODE_3: case SDL_SCANCODE_4:
+    case SDL_SCANCODE_ESCAPE:
+        return true;
+    default:
+        return false;
+    }
+}
+
+// Map SDL scancode to libretro RETROK_* keycode.
+static unsigned sdl_scancode_to_retrok(SDL_Scancode sc) {
+    switch (sc) {
+    case SDL_SCANCODE_BACKSPACE:    return 8;   // RETROK_BACKSPACE
+    case SDL_SCANCODE_TAB:         return 9;   // RETROK_TAB
+    case SDL_SCANCODE_RETURN:      return 13;  // RETROK_RETURN
+    case SDL_SCANCODE_ESCAPE:      return 27;  // RETROK_ESCAPE
+    case SDL_SCANCODE_SPACE:       return 32;  // RETROK_SPACE
+    case SDL_SCANCODE_COMMA:       return 44;  // RETROK_COMMA
+    case SDL_SCANCODE_MINUS:       return 45;  // RETROK_MINUS
+    case SDL_SCANCODE_PERIOD:      return 46;  // RETROK_PERIOD
+    case SDL_SCANCODE_SLASH:       return 47;  // RETROK_SLASH
+    case SDL_SCANCODE_0:           return 48;
+    case SDL_SCANCODE_1:           return 49;
+    case SDL_SCANCODE_2:           return 50;
+    case SDL_SCANCODE_3:           return 51;
+    case SDL_SCANCODE_4:           return 52;
+    case SDL_SCANCODE_5:           return 53;
+    case SDL_SCANCODE_6:           return 54;
+    case SDL_SCANCODE_7:           return 55;
+    case SDL_SCANCODE_8:           return 56;
+    case SDL_SCANCODE_9:           return 57;
+    case SDL_SCANCODE_SEMICOLON:   return 59;  // RETROK_SEMICOLON
+    case SDL_SCANCODE_EQUALS:      return 61;  // RETROK_EQUALS
+    case SDL_SCANCODE_LEFTBRACKET: return 91;  // RETROK_LEFTBRACKET
+    case SDL_SCANCODE_BACKSLASH:   return 92;  // RETROK_BACKSLASH
+    case SDL_SCANCODE_RIGHTBRACKET:return 93;  // RETROK_RIGHTBRACKET
+    case SDL_SCANCODE_GRAVE:       return 96;  // RETROK_BACKQUOTE
+    case SDL_SCANCODE_A:           return 97;
+    case SDL_SCANCODE_B:           return 98;
+    case SDL_SCANCODE_C:           return 99;
+    case SDL_SCANCODE_D:           return 100;
+    case SDL_SCANCODE_E:           return 101;
+    case SDL_SCANCODE_F:           return 102;
+    case SDL_SCANCODE_G:           return 103;
+    case SDL_SCANCODE_H:           return 104;
+    case SDL_SCANCODE_I:           return 105;
+    case SDL_SCANCODE_J:           return 106;
+    case SDL_SCANCODE_K:           return 107;
+    case SDL_SCANCODE_L:           return 108;
+    case SDL_SCANCODE_M:           return 109;
+    case SDL_SCANCODE_N:           return 110;
+    case SDL_SCANCODE_O:           return 111;
+    case SDL_SCANCODE_P:           return 112;
+    case SDL_SCANCODE_Q:           return 113;
+    case SDL_SCANCODE_R:           return 114;
+    case SDL_SCANCODE_S:           return 115;
+    case SDL_SCANCODE_T:           return 116;
+    case SDL_SCANCODE_U:           return 117;
+    case SDL_SCANCODE_V:           return 118;
+    case SDL_SCANCODE_W:           return 119;
+    case SDL_SCANCODE_X:           return 120;
+    case SDL_SCANCODE_Y:           return 121;
+    case SDL_SCANCODE_Z:           return 122;
+    case SDL_SCANCODE_DELETE:      return 127; // RETROK_DELETE
+    case SDL_SCANCODE_KP_0:        return 256; // RETROK_KP0
+    case SDL_SCANCODE_KP_1:        return 257;
+    case SDL_SCANCODE_KP_2:        return 258;
+    case SDL_SCANCODE_KP_3:        return 259;
+    case SDL_SCANCODE_KP_4:        return 260;
+    case SDL_SCANCODE_KP_5:        return 261;
+    case SDL_SCANCODE_KP_6:        return 262;
+    case SDL_SCANCODE_KP_7:        return 263;
+    case SDL_SCANCODE_KP_8:        return 264;
+    case SDL_SCANCODE_KP_9:        return 265;
+    case SDL_SCANCODE_KP_PERIOD:   return 266;
+    case SDL_SCANCODE_KP_DIVIDE:   return 267;
+    case SDL_SCANCODE_KP_MULTIPLY: return 268;
+    case SDL_SCANCODE_KP_MINUS:    return 269;
+    case SDL_SCANCODE_KP_PLUS:     return 270;
+    case SDL_SCANCODE_KP_ENTER:    return 271;
+    case SDL_SCANCODE_KP_EQUALS:   return 272;
+    case SDL_SCANCODE_UP:          return 273;
+    case SDL_SCANCODE_DOWN:        return 274;
+    case SDL_SCANCODE_RIGHT:       return 275;
+    case SDL_SCANCODE_LEFT:        return 276;
+    case SDL_SCANCODE_INSERT:      return 277;
+    case SDL_SCANCODE_HOME:        return 278;
+    case SDL_SCANCODE_END:         return 279;
+    case SDL_SCANCODE_PAGEUP:      return 280;
+    case SDL_SCANCODE_PAGEDOWN:    return 281;
+    case SDL_SCANCODE_F1:          return 282;
+    case SDL_SCANCODE_F2:          return 283;
+    case SDL_SCANCODE_F3:          return 284;
+    case SDL_SCANCODE_F4:          return 285;
+    case SDL_SCANCODE_F5:          return 286;
+    case SDL_SCANCODE_F6:          return 287;
+    case SDL_SCANCODE_F7:          return 288;
+    case SDL_SCANCODE_F8:          return 289;
+    case SDL_SCANCODE_F9:          return 290;
+    case SDL_SCANCODE_F10:         return 291;
+    case SDL_SCANCODE_F11:         return 292;
+    case SDL_SCANCODE_F12:         return 293;
+    case SDL_SCANCODE_NUMLOCKCLEAR:return 300;
+    case SDL_SCANCODE_CAPSLOCK:    return 301;
+    case SDL_SCANCODE_SCROLLLOCK:  return 302;
+    case SDL_SCANCODE_RSHIFT:      return 303;
+    case SDL_SCANCODE_LSHIFT:      return 304;
+    case SDL_SCANCODE_RCTRL:       return 305;
+    case SDL_SCANCODE_LCTRL:       return 306;
+    case SDL_SCANCODE_RALT:        return 307;
+    case SDL_SCANCODE_LALT:        return 308;
+    case SDL_SCANCODE_LGUI:        return 311; // RETROK_LSUPER
+    case SDL_SCANCODE_RGUI:        return 312; // RETROK_RSUPER
+    default:                       return 0;   // RETROK_UNKNOWN
+    }
+}
+
+// Map SDL key modifier bitmask to libretro RETROKMOD bitmask.
+static uint16_t sdl_mod_to_retrokmod(Uint16 sdl_mod) {
+    uint16_t mod = 0;
+    if (sdl_mod & KMOD_SHIFT) mod |= 0x01; // RETROKMOD_SHIFT
+    if (sdl_mod & KMOD_CTRL)  mod |= 0x02; // RETROKMOD_CTRL
+    if (sdl_mod & KMOD_ALT)   mod |= 0x04; // RETROKMOD_ALT
+    if (sdl_mod & KMOD_GUI)   mod |= 0x08; // RETROKMOD_META
+    return mod;
+}
+
+// Dispatch an SDL keyboard event to the core. Called from the event loop.
+static void rr_sdl_dispatch_key_event(const SDL_KeyboardEvent* ev) {
+    static std::bitset<SDL_NUM_SCANCODES> forwarded_keys;
+
+    SDL_Scancode sc = ev->keysym.scancode;
+    const bool down = ev->type == SDL_KEYDOWN;
+
+    // A release is forwarded only if its matching press reached the core.
+    // This prevents both frontend shortcuts leaking into the core and keys
+    // becoming stuck when a frontend screen opens while a key is held.
+    if (down && (!rr_keyboard_has_callback() || is_frontend_hotkey(sc))) return;
+    if (!down && !forwarded_keys.test(sc)) return;
+
+    unsigned keycode = sdl_scancode_to_retrok(sc);
+    if (keycode == 0) return; // Unknown key, don't send garbage
+
+    RRKeyEvent rr_ev;
+    rr_ev.down = down;
+    rr_ev.keycode = keycode;
+    rr_ev.character = 0; // Will be filled by SDL_TEXTINPUT if available
+    rr_ev.modifiers = sdl_mod_to_retrokmod(ev->keysym.mod);
+
+    rr_keyboard_event(&rr_ev);
+    forwarded_keys.set(sc, down);
+}
+
+static uint32_t decode_first_utf8_codepoint(const char* text) {
+    const unsigned char* s = reinterpret_cast<const unsigned char*>(text);
+    if (!s[0]) return 0;
+    if (s[0] < 0x80) return s[0];
+    if ((s[0] & 0xe0) == 0xc0 && s[1])
+        return ((s[0] & 0x1f) << 6) | (s[1] & 0x3f);
+    if ((s[0] & 0xf0) == 0xe0 && s[1] && s[2])
+        return ((s[0] & 0x0f) << 12) | ((s[1] & 0x3f) << 6) | (s[2] & 0x3f);
+    if ((s[0] & 0xf8) == 0xf0 && s[1] && s[2] && s[3])
+        return ((s[0] & 0x07) << 18) | ((s[1] & 0x3f) << 12) |
+               ((s[2] & 0x3f) << 6) | (s[3] & 0x3f);
+    return 0;
+}
+
+static void rr_sdl_dispatch_text_event(const SDL_TextInputEvent* ev) {
+    if (!rr_keyboard_has_callback()) return;
+    const uint32_t character = decode_first_utf8_codepoint(ev->text);
+    if (!character) return;
+    RRKeyEvent event = {true, RETROK_UNKNOWN, character, 0};
+    rr_keyboard_event(&event);
+    event.down = false;
+    rr_keyboard_event(&event);
+}
