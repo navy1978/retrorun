@@ -24,7 +24,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "video.h"
 #include "libretro.h"
 
-#include <go2/input.h>
+#include "platform.h"
 #include <stdio.h>
 #include <sys/time.h>
 
@@ -65,39 +65,39 @@ bool input_pause_requested = false;
 
 bool input_credits_requested= false;
 //bool input_ffwd_requested = false;
-go2_battery_state_t batteryState;
-go2_brightness_state_t brightnessState;
+rr_battery_state_t batteryState;
+rr_brightness_state_t brightnessState;
 
-static go2_input_state_t *gamepadState;
-static go2_input_state_t *prevGamepadState;
-static go2_input_t *input;
+static rr_input_state_t *gamepadState;
+static rr_input_state_t *prevGamepadState;
+static rr_input_t *input;
 static bool has_triggers = false;
 static bool has_right_analog = false;
 //static bool isTate = false;
 // static unsigned lastId = 0;
 
 
-static go2_input_button_t upButton;
-static go2_input_button_t downButton;
-static go2_input_button_t leftButton;
-static go2_input_button_t rightButton;
+static rr_input_button_t upButton;
+static rr_input_button_t downButton;
+static rr_input_button_t leftButton;
+static rr_input_button_t rightButton;
 
-static go2_input_button_t aButton;
-static go2_input_button_t bButton;
-static go2_input_button_t xButton;
-static go2_input_button_t yButton;
+static rr_input_button_t aButton;
+static rr_input_button_t bButton;
+static rr_input_button_t xButton;
+static rr_input_button_t yButton;
 
-static go2_input_button_t selectButton;
-static go2_input_button_t startButton;
-static go2_input_button_t l1Button;
-static go2_input_button_t r1Button;
-static go2_input_button_t l2Button;
-static go2_input_button_t r2Button;
-static go2_input_button_t l3Button;
-static go2_input_button_t r3Button;
+static rr_input_button_t selectButton;
+static rr_input_button_t startButton;
+static rr_input_button_t l1Button;
+static rr_input_button_t r1Button;
+static rr_input_button_t l2Button;
+static rr_input_button_t r2Button;
+static rr_input_button_t l3Button;
+static rr_input_button_t r3Button;
 // these are special:
-static go2_input_button_t f1Button;
-static go2_input_button_t f2Button;
+static rr_input_button_t f1Button;
+static rr_input_button_t f2Button;
 bool ignoreF2=true;
 
 
@@ -120,37 +120,37 @@ bool input_slot_memory_reset_done=false;
 bool lastLoadSaveStateDoneOk =true;
 
 
-go2_input_button_t stringToGo2Button(const std::string& str) {
-    if (str == "DPadUp") return Go2InputButton_DPadUp;
-    if (str == "DPadDown") return Go2InputButton_DPadDown;
-    if (str == "DPadLeft") return Go2InputButton_DPadLeft;
-    if (str == "DPadRight") return Go2InputButton_DPadRight;
-    if (str == "A") return Go2InputButton_A;
-    if (str == "B") return Go2InputButton_B;
-    if (str == "X") return Go2InputButton_X;
-    if (str == "Y") return Go2InputButton_Y;
-    if (str == "F1") return Go2InputButton_F1;
-    if (str == "F2") return Go2InputButton_F2;
-    if (str == "F3") return Go2InputButton_F3;
-    if (str == "F4") return Go2InputButton_F4;
-    if (str == "F5") return Go2InputButton_F5;
-    if (str == "F6") return Go2InputButton_F6;
-    if (str == "F7") return Go2InputButton_F7;
-    if (str == "F8") return Go2InputButton_F8;
-    if (str == "F9") return Go2InputButton_F9;
-    if (str == "F10") return Go2InputButton_F10;
-    if (str == "F11") return Go2InputButton_F11;
-    if (str == "F12") return Go2InputButton_F12;
-    if (str == "START") return Go2InputButton_START;
-    if (str == "SELECT") return Go2InputButton_SELECT;
-    if (str == "TopLeft") return Go2InputButton_TopLeft;
-    if (str == "TopRight") return Go2InputButton_TopRight;
-    if (str == "TriggerLeft") return Go2InputButton_TriggerLeft;
-    if (str == "TriggerRight") return Go2InputButton_TriggerRight;
-    if (str == "THUMBL") return Go2InputButton_THUMBL;
-    if (str == "THUMBR") return Go2InputButton_THUMBR;
+rr_input_button_t stringToGo2Button(const std::string& str) {
+    if (str == "DPadUp") return RRInputButton_DPadUp;
+    if (str == "DPadDown") return RRInputButton_DPadDown;
+    if (str == "DPadLeft") return RRInputButton_DPadLeft;
+    if (str == "DPadRight") return RRInputButton_DPadRight;
+    if (str == "A") return RRInputButton_A;
+    if (str == "B") return RRInputButton_B;
+    if (str == "X") return RRInputButton_X;
+    if (str == "Y") return RRInputButton_Y;
+    if (str == "F1") return RRInputButton_F1;
+    if (str == "F2") return RRInputButton_F2;
+    if (str == "F3") return RRInputButton_F3;
+    if (str == "F4") return RRInputButton_F4;
+    if (str == "F5") return RRInputButton_F5;
+    if (str == "F6") return RRInputButton_F6;
+    if (str == "F7") return RRInputButton_F7;
+    if (str == "F8") return RRInputButton_F8;
+    if (str == "F9") return RRInputButton_F9;
+    if (str == "F10") return RRInputButton_F10;
+    if (str == "F11") return RRInputButton_F11;
+    if (str == "F12") return RRInputButton_F12;
+    if (str == "START") return RRInputButton_START;
+    if (str == "SELECT") return RRInputButton_SELECT;
+    if (str == "TopLeft") return RRInputButton_TopLeft;
+    if (str == "TopRight") return RRInputButton_TopRight;
+    if (str == "TriggerLeft") return RRInputButton_TriggerLeft;
+    if (str == "TriggerRight") return RRInputButton_TriggerRight;
+    if (str == "THUMBL") return RRInputButton_THUMBL;
+    if (str == "THUMBR") return RRInputButton_THUMBR;
 
-    return Go2InputButton_A; // fallback
+    return RRInputButton_A; // fallback
 }
 
 
@@ -161,7 +161,7 @@ void applyButtonRemapping()
     
     for (const auto& [key, value] : conf_map)
     {
-        go2_input_button_t button = stringToGo2Button(value);
+        rr_input_button_t button = stringToGo2Button(value);
 
         if (key == "retrorun_mapping_button_up") {
             upButton = button;
@@ -242,55 +242,70 @@ void applyButtonRemapping()
 
 void initButtons(){
     logger.log(Logger::DEB, "Default buttons initialization...");
-    upButton =Go2InputButton_DPadUp;
-    downButton =Go2InputButton_DPadDown;
-    leftButton =Go2InputButton_DPadLeft;
-    rightButton =Go2InputButton_DPadRight;
+    upButton =RRInputButton_DPadUp;
+    downButton =RRInputButton_DPadDown;
+    leftButton =RRInputButton_DPadLeft;
+    rightButton =RRInputButton_DPadRight;
 
-    aButton = Go2InputButton_A;
-    bButton = Go2InputButton_B;
-    xButton = Go2InputButton_X;
-    yButton = Go2InputButton_Y;
+    aButton = RRInputButton_A;
+    bButton = RRInputButton_B;
+    xButton = RRInputButton_X;
+    yButton = RRInputButton_Y;
 
-    selectButton = Go2InputButton_F1;
-    startButton = Go2InputButton_F6;
-    l1Button = Go2InputButton_TopLeft;
-    r1Button = Go2InputButton_TopRight;
-    l2Button = Go2InputButton_F4;
-    r2Button = Go2InputButton_F3;
-    l3Button = Go2InputButton_F2;
-    r3Button = Go2InputButton_F5;
+    selectButton = RRInputButton_F1;
+    startButton = RRInputButton_F6;
+    l1Button = RRInputButton_TopLeft;
+    r1Button = RRInputButton_TopRight;
+    l2Button = RRInputButton_F4;
+    r2Button = RRInputButton_F3;
+    l3Button = RRInputButton_F2;
+    r3Button = RRInputButton_F5;
     // these are special:
-    //f1Button = Go2InputButton_F1;
+    //f1Button = RRInputButton_F1;
     // this is problematic! ask why F2 is needed in alternative stuff
 
      // if the device has a gpio_joypad (RG351MP) some buttons are reverted
      if (gpio_joypad == true){
-         startButton = Go2InputButton_F2;
-         l2Button = Go2InputButton_TriggerLeft;
-         r2Button = Go2InputButton_TriggerRight;
-         l3Button = Go2InputButton_F3;
-         r3Button = Go2InputButton_F4;
+         startButton = RRInputButton_F2;
+         l2Button = RRInputButton_TriggerLeft;
+         r2Button = RRInputButton_TriggerRight;
+         l3Button = RRInputButton_F3;
+         r3Button = RRInputButton_F4;
          logger.log(Logger::DEB, "gpio_joypad type detected");
      }else{
-        f2Button = Go2InputButton_F2;
+        f2Button = RRInputButton_F2;
         ignoreF2 = false;
      }
  
      if ( isRG503()||isRG353V() || isRG353M() )
      {
-         l2Button = Go2InputButton_TriggerLeft;
-         r2Button = Go2InputButton_TriggerRight;
-         selectButton = Go2InputButton_SELECT; // check if this is ok!
-         startButton = Go2InputButton_START;
-         l3Button = Go2InputButton_THUMBL;
-         r3Button = Go2InputButton_THUMBR;   
-         f2Button = Go2InputButton_F2;
+         l2Button = RRInputButton_TriggerLeft;
+         r2Button = RRInputButton_TriggerRight;
+         selectButton = RRInputButton_SELECT; // check if this is ok!
+         startButton = RRInputButton_START;
+         l3Button = RRInputButton_THUMBL;
+         r3Button = RRInputButton_THUMBR;
+         f2Button = RRInputButton_F2;
          ignoreF2 = false;
          logger.log(Logger::DEB, "RG503/RG353 joypad configuration detected.");
      }else{
         logger.log(Logger::DEB, "RG351 joypad configuration detected.");
      }
+
+#ifdef RR_PLATFORM_SDL
+     // SDL already reports logical controller buttons. Do not reuse the
+     // BTN_TRIGGER_HAPPY layout required by the original Anbernic devices.
+     selectButton = RRInputButton_SELECT;
+     startButton = RRInputButton_START;
+     l1Button = RRInputButton_TopLeft;
+     r1Button = RRInputButton_TopRight;
+     l2Button = RRInputButton_TriggerLeft;
+     r2Button = RRInputButton_TriggerRight;
+     l3Button = RRInputButton_THUMBL;
+     r3Button = RRInputButton_THUMBR;
+     ignoreF2 = true;
+     logger.log(Logger::DEB, "SDL2 logical joypad configuration detected.");
+#endif
  
      applyButtonRemapping();
  
@@ -306,11 +321,11 @@ void input_gamepad_read()
     {
         if (firstExecution){
             initButtons();
-            input = go2_input_create(getDeviceName());
+            input = rr_input_create(getDeviceName());
             firstExecution = false;
         }
         // I think this part has no sense: the has_triggered it's false even when should be true...
-        if (go2_input_features_get(input) & Go2InputFeatureFlags_Triggers)
+        if (rr_input_features_get(input) & RRInputFeatureFlags_Triggers)
         {
             has_triggers = true;
             logger.log(Logger::DEB, "input: Hardware triggers enabled.");
@@ -318,7 +333,7 @@ void input_gamepad_read()
             logger.log(Logger::DEB, "input: Hardware triggers disabled.");
         }
 
-        if (go2_input_features_get(input) & Go2InputFeatureFlags_RightAnalog)
+        if (rr_input_features_get(input) & RRInputFeatureFlags_RightAnalog)
         {
             has_right_analog = true;
             logger.log(Logger::DEB, "input: Right analog enabled.");
@@ -326,29 +341,29 @@ void input_gamepad_read()
             logger.log(Logger::DEB, "input: Right analog disabled.");
         }
 
-        gamepadState = go2_input_state_create();
-        prevGamepadState = go2_input_state_create();
+        gamepadState = rr_input_state_create();
+        prevGamepadState = rr_input_state_create();
     }
 
     // Swap current/previous state
-    go2_input_state_t *tempState = prevGamepadState;
+    rr_input_state_t *tempState = prevGamepadState;
     prevGamepadState = gamepadState;
     gamepadState = tempState;
 
-    go2_input_state_read(input, gamepadState);
+    rr_input_state_read(input, gamepadState);
 }
 
-go2_input_state_t *input_gampad_current_get()
+rr_input_state_t *input_gampad_current_get()
 {
     return gamepadState;
 }
 
 void manageCredits(){
-if (go2_input_state_button_get(gamepadState, bButton) == ButtonState_Pressed)
+if (rr_input_state_button_get(gamepadState, bButton) == RRButtonState_Pressed)
     {
         menuManager.handle_input_credits(B_BUTTON);
     }
-    if (go2_input_state_button_get(gamepadState, aButton) == ButtonState_Pressed)
+    if (rr_input_state_button_get(gamepadState, aButton) == RRButtonState_Pressed)
     {
         menuManager.handle_input_credits(A_BUTTON);
     }
@@ -357,27 +372,27 @@ if (go2_input_state_button_get(gamepadState, bButton) == ButtonState_Pressed)
 void manageMenu()
 {
     // mutexInput.lock();
-    if (go2_input_state_button_get(gamepadState, bButton) == ButtonState_Pressed)
+    if (rr_input_state_button_get(gamepadState, bButton) == RRButtonState_Pressed)
     {
         menuManager.handle_input(B_BUTTON);
     }
-    if (go2_input_state_button_get(gamepadState, aButton) == ButtonState_Pressed)
+    if (rr_input_state_button_get(gamepadState, aButton) == RRButtonState_Pressed)
     {
         menuManager.handle_input(A_BUTTON);
     }
-    if (go2_input_state_button_get(gamepadState, upButton) == ButtonState_Pressed)
+    if (rr_input_state_button_get(gamepadState, upButton) == RRButtonState_Pressed)
     {
         menuManager.handle_input(UP);
     }
-    if (go2_input_state_button_get(gamepadState, downButton) == ButtonState_Pressed)
+    if (rr_input_state_button_get(gamepadState, downButton) == RRButtonState_Pressed)
     {
         menuManager.handle_input(DOWN);
     }
-    if (go2_input_state_button_get(gamepadState, leftButton) == ButtonState_Pressed)
+    if (rr_input_state_button_get(gamepadState, leftButton) == RRButtonState_Pressed)
     {
         menuManager.handle_input(LEFT);
     }
-    if (go2_input_state_button_get(gamepadState, rightButton) == ButtonState_Pressed)
+    if (rr_input_state_button_get(gamepadState, rightButton) == RRButtonState_Pressed)
     {
         menuManager.handle_input(RIGHT);
     }
@@ -391,13 +406,17 @@ void core_input_poll(void)
 
     if (!input)
     {
-        input = go2_input_create(getDeviceName());
+        input = rr_input_create(getDeviceName());
     }
 
     // Read inputs
     input_gamepad_read();
-    go2_input_battery_read(input, &batteryState);
-    go2_input_brightness_read(input, &brightnessState);
+    if (rr_input_state_button_get(gamepadState, RRInputButton_Quit) == RRButtonState_Pressed)
+    {
+        input_exit_requested = true;
+    }
+    rr_input_battery_read(input, &batteryState);
+    rr_input_brightness_read(input, &brightnessState);
     gettimeofday(&exitTimeStop, NULL);
     //double now = exitTime.tv_sec + (exitTime.tv_usec / 1000000.0);
     double now_seconds = (exitTimeStop.tv_sec - exitTimeStart.tv_sec);
@@ -412,88 +431,88 @@ void core_input_poll(void)
     if (enable_key_log)
     {
         
-            if (go2_input_state_button_get(gamepadState, Go2InputButton_F1) == ButtonState_Pressed) {
+            if (rr_input_state_button_get(gamepadState, RRInputButton_F1) == RRButtonState_Pressed) {
                 logger.log(Logger::INF, "Joypad button pressed: [BTN_TRIGGER_HAPPY1] - [F1]");
             }
-            if (go2_input_state_button_get(gamepadState, Go2InputButton_F2) == ButtonState_Pressed) {
+            if (rr_input_state_button_get(gamepadState, RRInputButton_F2) == RRButtonState_Pressed) {
                 logger.log(Logger::INF, "Joypad button pressed: [BTN_TRIGGER_HAPPY2] - [F2]");
             }
-            if (go2_input_state_button_get(gamepadState, Go2InputButton_F3) == ButtonState_Pressed) {
+            if (rr_input_state_button_get(gamepadState, RRInputButton_F3) == RRButtonState_Pressed) {
                 logger.log(Logger::INF, "Joypad button pressed: [BTN_TRIGGER_HAPPY3] - [F3]");
             }
-            if (go2_input_state_button_get(gamepadState, Go2InputButton_F4) == ButtonState_Pressed) {
+            if (rr_input_state_button_get(gamepadState, RRInputButton_F4) == RRButtonState_Pressed) {
                 logger.log(Logger::INF, "Joypad button pressed: [BTN_TRIGGER_HAPPY4] - [F4]");
             }
-            if (go2_input_state_button_get(gamepadState, Go2InputButton_F5) == ButtonState_Pressed) {
+            if (rr_input_state_button_get(gamepadState, RRInputButton_F5) == RRButtonState_Pressed) {
                 logger.log(Logger::INF, "Joypad button pressed: [BTN_TRIGGER_HAPPY5] - [F5]");
             }
-            if (go2_input_state_button_get(gamepadState, Go2InputButton_F6) == ButtonState_Pressed) {
+            if (rr_input_state_button_get(gamepadState, RRInputButton_F6) == RRButtonState_Pressed) {
                 logger.log(Logger::INF, "Joypad button pressed: [BTN_TRIGGER_HAPPY6] - [F6]");
             }
-            if (go2_input_state_button_get(gamepadState, Go2InputButton_F7) == ButtonState_Pressed) {
+            if (rr_input_state_button_get(gamepadState, RRInputButton_F7) == RRButtonState_Pressed) {
                 logger.log(Logger::INF, "Joypad button pressed: [BTN_TRIGGER_HAPPY7] - [F7]");
             }
-            if (go2_input_state_button_get(gamepadState, Go2InputButton_F8) == ButtonState_Pressed) {
+            if (rr_input_state_button_get(gamepadState, RRInputButton_F8) == RRButtonState_Pressed) {
                 logger.log(Logger::INF, "Joypad button pressed: [BTN_TRIGGER_HAPPY8] - [F8]");
             }
-            if (go2_input_state_button_get(gamepadState, Go2InputButton_F9) == ButtonState_Pressed) {
+            if (rr_input_state_button_get(gamepadState, RRInputButton_F9) == RRButtonState_Pressed) {
                 logger.log(Logger::INF, "Joypad button pressed: [BTN_TRIGGER_HAPPY9] - [F9]");
             }
-            if (go2_input_state_button_get(gamepadState, Go2InputButton_F10) == ButtonState_Pressed) {
+            if (rr_input_state_button_get(gamepadState, RRInputButton_F10) == RRButtonState_Pressed) {
                 logger.log(Logger::INF, "Joypad button pressed: [BTN_TRIGGER_HAPPY10[] - [F10]");
             }
-            if (go2_input_state_button_get(gamepadState, Go2InputButton_F11) == ButtonState_Pressed) {
+            if (rr_input_state_button_get(gamepadState, RRInputButton_F11) == RRButtonState_Pressed) {
                 logger.log(Logger::INF, "Joypad button pressed: [BTN_TRIGGER_HAPPY11] - [F11]");
             }
-            if (go2_input_state_button_get(gamepadState, Go2InputButton_F12) == ButtonState_Pressed) {
+            if (rr_input_state_button_get(gamepadState, RRInputButton_F12) == RRButtonState_Pressed) {
                 logger.log(Logger::INF, "Joypad button pressed: [BTN_TRIGGER_HAPPY12] - [F12]");
             }
-            if (go2_input_state_button_get(gamepadState, Go2InputButton_SELECT) == ButtonState_Pressed) {
+            if (rr_input_state_button_get(gamepadState, RRInputButton_SELECT) == RRButtonState_Pressed) {
                 logger.log(Logger::INF, "Joypad button pressed: [BTN_SELECT] - [SELECT]");
             }
-            if (go2_input_state_button_get(gamepadState, Go2InputButton_START) == ButtonState_Pressed) {
+            if (rr_input_state_button_get(gamepadState, RRInputButton_START) == RRButtonState_Pressed) {
                 logger.log(Logger::INF, "Joypad button pressed: [BTN_START] - [START]");
             }
-            if (go2_input_state_button_get(gamepadState, Go2InputButton_THUMBR) == ButtonState_Pressed) {
+            if (rr_input_state_button_get(gamepadState, RRInputButton_THUMBR) == RRButtonState_Pressed) {
                 logger.log(Logger::INF, "Joypad button pressed: [BTN_THUMBR] - [THUMBR]");
             }
-            if (go2_input_state_button_get(gamepadState, Go2InputButton_THUMBL) == ButtonState_Pressed) {
+            if (rr_input_state_button_get(gamepadState, RRInputButton_THUMBL) == RRButtonState_Pressed) {
                 logger.log(Logger::INF, "Joypad button pressed: [BTN_THUMBL] - [THUMBL]");
             }
-            if (go2_input_state_button_get(gamepadState, Go2InputButton_A) == ButtonState_Pressed) {
+            if (rr_input_state_button_get(gamepadState, RRInputButton_A) == RRButtonState_Pressed) {
                 logger.log(Logger::INF, "Joypad button pressed: [BTN_EAST] - [A]");
             }
-            if (go2_input_state_button_get(gamepadState, Go2InputButton_B) == ButtonState_Pressed) {
+            if (rr_input_state_button_get(gamepadState, RRInputButton_B) == RRButtonState_Pressed) {
                 logger.log(Logger::INF, "Joypad button pressed: [BTN_SOUTH] - [B]");
             }
-            if (go2_input_state_button_get(gamepadState, Go2InputButton_X) == ButtonState_Pressed) {
+            if (rr_input_state_button_get(gamepadState, RRInputButton_X) == RRButtonState_Pressed) {
                 logger.log(Logger::INF, "Joypad button pressed: [BTN_NORTH] - [X]");
             }
-            if (go2_input_state_button_get(gamepadState, Go2InputButton_Y) == ButtonState_Pressed) {
+            if (rr_input_state_button_get(gamepadState, RRInputButton_Y) == RRButtonState_Pressed) {
                 logger.log(Logger::INF, "Joypad button pressed: [BTN_WEST] - [Y]");
             }
-            if (go2_input_state_button_get(gamepadState, Go2InputButton_DPadUp) == ButtonState_Pressed) {
+            if (rr_input_state_button_get(gamepadState, RRInputButton_DPadUp) == RRButtonState_Pressed) {
                 logger.log(Logger::INF, "Joypad button pressed: [BTN_DPAD_UP] - [UP]");
             }
-            if (go2_input_state_button_get(gamepadState, Go2InputButton_DPadDown) == ButtonState_Pressed) {
+            if (rr_input_state_button_get(gamepadState, RRInputButton_DPadDown) == RRButtonState_Pressed) {
                 logger.log(Logger::INF, "Joypad button pressed: [BTN_DPAD_DOWN] - [DOWN]");
             }
-            if (go2_input_state_button_get(gamepadState, Go2InputButton_DPadLeft) == ButtonState_Pressed) {
+            if (rr_input_state_button_get(gamepadState, RRInputButton_DPadLeft) == RRButtonState_Pressed) {
                 logger.log(Logger::INF, "Joypad button pressed: [BTN_DPAD_LEFT] - [LEFT]");
             }
-            if (go2_input_state_button_get(gamepadState, Go2InputButton_DPadRight) == ButtonState_Pressed) {
+            if (rr_input_state_button_get(gamepadState, RRInputButton_DPadRight) == RRButtonState_Pressed) {
                 logger.log(Logger::INF, "Joypad button pressed: [BTN_DPAD_RIGHT] - [RIGHT]");
             }
-            if (go2_input_state_button_get(gamepadState, Go2InputButton_TopLeft) == ButtonState_Pressed) {
+            if (rr_input_state_button_get(gamepadState, RRInputButton_TopLeft) == RRButtonState_Pressed) {
                 logger.log(Logger::INF, "Joypad button pressed: [BTN_TL] - [TopLeft]");
             }
-            if (go2_input_state_button_get(gamepadState, Go2InputButton_TopRight) == ButtonState_Pressed) {
+            if (rr_input_state_button_get(gamepadState, RRInputButton_TopRight) == RRButtonState_Pressed) {
                 logger.log(Logger::INF, "Joypad button pressed: [BTN_TR] - [TopRight]");
             }
-            if (go2_input_state_button_get(gamepadState, Go2InputButton_TriggerLeft) == ButtonState_Pressed) {
+            if (rr_input_state_button_get(gamepadState, RRInputButton_TriggerLeft) == RRButtonState_Pressed) {
                 logger.log(Logger::INF, "Joypad button pressed: [BTN_TL2] - [TriggerLeft]");
             }
-            if (go2_input_state_button_get(gamepadState, Go2InputButton_TriggerRight) == ButtonState_Pressed) {
+            if (rr_input_state_button_get(gamepadState, RRInputButton_TriggerRight) == RRButtonState_Pressed) {
                 logger.log(Logger::INF, "Joypad button pressed: [BTN_TR2] - [TriggerRight]");
             }
         
@@ -514,18 +533,21 @@ void core_input_poll(void)
        
     }
 // Store button states to avoid multiple function calls
-bool isL3Pressed = go2_input_state_button_get(gamepadState, l3Button) == ButtonState_Pressed;
-bool isR3Pressed = go2_input_state_button_get(gamepadState, r3Button) == ButtonState_Pressed;
-bool isSelectPressed = go2_input_state_button_get(gamepadState, selectButton) == ButtonState_Pressed;
-bool isStartPressed = go2_input_state_button_get(gamepadState, startButton) == ButtonState_Pressed;
-bool isXPressed = go2_input_state_button_get(gamepadState, xButton) == ButtonState_Pressed;
-bool isYPressed = go2_input_state_button_get(gamepadState, yButton) == ButtonState_Pressed;
-bool isBPressed = go2_input_state_button_get(gamepadState, bButton) == ButtonState_Pressed;
-bool isAPressed = go2_input_state_button_get(gamepadState, aButton) == ButtonState_Pressed;
-//bool isF1Pressed = go2_input_state_button_get(gamepadState, f1Button) == ButtonState_Pressed;
-bool isF2Pressed = ignoreF2 ? false: go2_input_state_button_get(gamepadState, f2Button) == ButtonState_Pressed;
-bool isR2Pressed = go2_input_state_button_get(gamepadState, r2Button) == ButtonState_Pressed;
-bool wasR2Released = go2_input_state_button_get(prevGamepadState, r2Button) == ButtonState_Released;
+bool isL3Pressed = rr_input_state_button_get(gamepadState, l3Button) == RRButtonState_Pressed;
+bool isR3Pressed = rr_input_state_button_get(gamepadState, r3Button) == RRButtonState_Pressed;
+bool wasL3Released = rr_input_state_button_get(prevGamepadState, l3Button) == RRButtonState_Released;
+bool wasR3Released = rr_input_state_button_get(prevGamepadState, r3Button) == RRButtonState_Released;
+bool isSelectPressed = rr_input_state_button_get(gamepadState, selectButton) == RRButtonState_Pressed;
+bool isStartPressed = rr_input_state_button_get(gamepadState, startButton) == RRButtonState_Pressed;
+bool isXPressed = rr_input_state_button_get(gamepadState, xButton) == RRButtonState_Pressed;
+bool isYPressed = rr_input_state_button_get(gamepadState, yButton) == RRButtonState_Pressed;
+bool isBPressed = rr_input_state_button_get(gamepadState, bButton) == RRButtonState_Pressed;
+bool isAPressed = rr_input_state_button_get(gamepadState, aButton) == RRButtonState_Pressed;
+bool wasBReleased = rr_input_state_button_get(prevGamepadState, bButton) == RRButtonState_Released;
+//bool isF1Pressed = rr_input_state_button_get(gamepadState, f1Button) == RRButtonState_Pressed;
+bool isF2Pressed = ignoreF2 ? false: rr_input_state_button_get(gamepadState, f2Button) == RRButtonState_Pressed;
+bool isR2Pressed = rr_input_state_button_get(gamepadState, r2Button) == RRButtonState_Pressed;
+bool wasR2Released = rr_input_state_button_get(prevGamepadState, r2Button) == RRButtonState_Released;
 
 // Get current time once
 struct timeval valTime;
@@ -534,7 +556,10 @@ double currentTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
 // Handle input_info_requested_alternative condition
 if (input_info_requested_alternative) { // this are the alternative combinations used by ArkOs
     // Handle emntering in Menu request
-    if (!showLoading && ((isSelectPressed && isXPressed) || (isF2Pressed && isXPressed))) {
+    const bool sticksMenuPressed = isL3Pressed && isR3Pressed &&
+                                   (wasL3Released || wasR3Released);
+    if (!showLoading && ((isSelectPressed && isXPressed) ||
+                         (isF2Pressed && isXPressed) || sticksMenuPressed)) {
         double elapsed = currentTime - lastInforequestTime;
         logger.log(Logger::DEB, "Input: Info requested");
         if (elapsed >= 0.5) {
@@ -565,7 +590,8 @@ if (input_info_requested_alternative) { // this are the alternative combinations
             }
         }
         // Handle screenshot request
-        if (!showLoading && ((isF2Pressed && isBPressed)|| (isSelectPressed && isBPressed))) {
+        if (!showLoading && wasBReleased &&
+            ((isF2Pressed && isBPressed)|| (isSelectPressed && isBPressed))) {
             screenshot_requested = true;
             lastScreenhotrequestTime = currentTime;
             logger.log(Logger::DEB, "Input: Screenshot requested");
@@ -589,7 +615,8 @@ if (input_info_requested_alternative) { // this are the alternative combinations
 } else { // this is the oermal behaviour used in AmberElec
 
     // Handle emntering in Menu request
-    if (!showLoading && isL3Pressed && isR3Pressed) {
+    if (!showLoading && isL3Pressed && isR3Pressed &&
+        (wasL3Released || wasR3Released)) {
         double elapsed = currentTime - lastInforequestTime;
         logger.log(Logger::DEB, "Input: Info requested");
         if (elapsed >= 0.5) {
@@ -619,7 +646,7 @@ if (input_info_requested_alternative) { // this are the alternative combinations
             }
         }
         // Handle screenshot request
-        if (!showLoading && isSelectPressed && isBPressed) {
+        if (!showLoading && isSelectPressed && isBPressed && wasBReleased) {
             screenshot_requested = true;
             lastScreenhotrequestTime = currentTime;
             logger.log(Logger::DEB, "Input: Screenshot requested");
@@ -651,8 +678,8 @@ if (input_info_requested_alternative) { // this are the alternative combinations
 
 
 // new
-if (!showLoading && (go2_input_state_button_get(gamepadState, selectButton) == ButtonState_Pressed) &&
-(go2_input_state_button_get(gamepadState, r1Button) == ButtonState_Pressed))
+if (!showLoading && (rr_input_state_button_get(gamepadState, selectButton) == RRButtonState_Pressed) &&
+(rr_input_state_button_get(gamepadState, r1Button) == RRButtonState_Pressed))
 {
 gettimeofday(&valTime, NULL);
 double currentTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
@@ -666,8 +693,8 @@ if (elapsed >= 0.5)
 }  
 }
 
-if (!showLoading && (go2_input_state_button_get(gamepadState, selectButton) == ButtonState_Pressed) &&
-(go2_input_state_button_get(gamepadState, upButton) == ButtonState_Pressed))
+if (!showLoading && (rr_input_state_button_get(gamepadState, selectButton) == RRButtonState_Pressed) &&
+(rr_input_state_button_get(gamepadState, upButton) == RRButtonState_Pressed))
 {
 gettimeofday(&valTime, NULL);
 double currentTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
@@ -684,8 +711,8 @@ if (elapsed >= 0.5)
 
 }
 
-if (!showLoading && (go2_input_state_button_get(gamepadState, selectButton) == ButtonState_Pressed) &&
-(go2_input_state_button_get(gamepadState, downButton) == ButtonState_Pressed))
+if (!showLoading && (rr_input_state_button_get(gamepadState, selectButton) == RRButtonState_Pressed) &&
+(rr_input_state_button_get(gamepadState, downButton) == RRButtonState_Pressed))
 {
 gettimeofday(&valTime, NULL);
 double currentTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
@@ -700,8 +727,8 @@ if (elapsed >= 0.5)
 } 
 }
 
-if (!showLoading && (go2_input_state_button_get(gamepadState, selectButton) == ButtonState_Pressed) &&
-(go2_input_state_button_get(gamepadState, l1Button) == ButtonState_Pressed))
+if (!showLoading && (rr_input_state_button_get(gamepadState, selectButton) == RRButtonState_Pressed) &&
+(rr_input_state_button_get(gamepadState, l1Button) == RRButtonState_Pressed))
 {
 gettimeofday(&valTime, NULL);
 double currentTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
@@ -718,92 +745,92 @@ if (elapsed >= 0.5)
 }
 
 
-go2_button_state_t getInputUp(){
+rr_button_state_t getInputUp(){
     if (!isTate()){
-       return  go2_input_state_button_get(gamepadState, upButton);
+       return  rr_input_state_button_get(gamepadState, upButton);
     }
     if (tateState== REVERSED){
-        return go2_input_state_button_get(gamepadState, rightButton);
+        return rr_input_state_button_get(gamepadState, rightButton);
     }else{
-        return go2_input_state_button_get(gamepadState, leftButton);
+        return rr_input_state_button_get(gamepadState, leftButton);
     }
 }
 
-go2_button_state_t getInputDown(){
+rr_button_state_t getInputDown(){
     if (!isTate()){
-       return  go2_input_state_button_get(gamepadState, downButton);
+       return  rr_input_state_button_get(gamepadState, downButton);
     }
     if (tateState== REVERSED){
-        return go2_input_state_button_get(gamepadState, leftButton);
+        return rr_input_state_button_get(gamepadState, leftButton);
     }else{
-        return go2_input_state_button_get(gamepadState, rightButton);
+        return rr_input_state_button_get(gamepadState, rightButton);
     }
 }
 
 
-go2_button_state_t getInputLeft(){
+rr_button_state_t getInputLeft(){
     if (!isTate()){
-       return  go2_input_state_button_get(gamepadState, leftButton);
+       return  rr_input_state_button_get(gamepadState, leftButton);
     }
     if (tateState== REVERSED){
-        return go2_input_state_button_get(gamepadState, upButton);
+        return rr_input_state_button_get(gamepadState, upButton);
     }else{
-        return go2_input_state_button_get(gamepadState, downButton);
+        return rr_input_state_button_get(gamepadState, downButton);
     }
 }
 
-go2_button_state_t getInputRight(){
+rr_button_state_t getInputRight(){
     if (!isTate()){
-       return  go2_input_state_button_get(gamepadState, rightButton);
+       return  rr_input_state_button_get(gamepadState, rightButton);
     }
     if (tateState== REVERSED){
-        return go2_input_state_button_get(gamepadState, downButton);
+        return rr_input_state_button_get(gamepadState, downButton);
     }else{
-        return go2_input_state_button_get(gamepadState, upButton);
+        return rr_input_state_button_get(gamepadState, upButton);
     }
 }
 
-go2_button_state_t getInputA(){
+rr_button_state_t getInputA(){
     if (!isTate()){
-       return go2_input_state_button_get(gamepadState, aButton);
+       return rr_input_state_button_get(gamepadState, aButton);
     }
     if (tateState== REVERSED){
-        return go2_input_state_button_get(gamepadState, bButton);
+        return rr_input_state_button_get(gamepadState, bButton);
     }else{
-        return go2_input_state_button_get(gamepadState, xButton);
+        return rr_input_state_button_get(gamepadState, xButton);
     }
 }
 
-go2_button_state_t getInputB(){
+rr_button_state_t getInputB(){
     if (!isTate()){
-       return go2_input_state_button_get(gamepadState, bButton);
+       return rr_input_state_button_get(gamepadState, bButton);
     }
     if (tateState== REVERSED){
-        return go2_input_state_button_get(gamepadState, yButton);
+        return rr_input_state_button_get(gamepadState, yButton);
     }else{
-        return go2_input_state_button_get(gamepadState, aButton);
+        return rr_input_state_button_get(gamepadState, aButton);
     }
 }
 
-go2_button_state_t getInputX(){
+rr_button_state_t getInputX(){
     if (!isTate()){
-       return go2_input_state_button_get(gamepadState, xButton);
+       return rr_input_state_button_get(gamepadState, xButton);
     }
     if (tateState== REVERSED){
-        return go2_input_state_button_get(gamepadState, aButton);
+        return rr_input_state_button_get(gamepadState, aButton);
     }else{
-        return go2_input_state_button_get(gamepadState, yButton);
+        return rr_input_state_button_get(gamepadState, yButton);
     }
 }
 
-go2_button_state_t getInputY(){
+rr_button_state_t getInputY(){
     if (!isTate()){
-       return go2_input_state_button_get(gamepadState, yButton);
+       return rr_input_state_button_get(gamepadState, yButton);
     }
     if (tateState== REVERSED){
-        return go2_input_state_button_get(gamepadState, xButton);
+        return rr_input_state_button_get(gamepadState, xButton);
     }else{
-        return go2_input_state_button_get(gamepadState, bButton);
+        return rr_input_state_button_get(gamepadState, bButton);
     }
 }
 
@@ -818,8 +845,8 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
 {
     //logger.log(Logger::DEB, "core_input_state called: port=%d, device=%d, index=%d, id=%d", port, device, index, id);
 
-    go2_input_button_t realL1 = gpio_joypad ? l1Button : Go2InputButton_TopLeft;
-    go2_input_button_t realR1 = gpio_joypad ? r1Button : Go2InputButton_TopRight;
+    rr_input_button_t realL1 = gpio_joypad ? l1Button : RRInputButton_TopLeft;
+    rr_input_button_t realR1 = gpio_joypad ? r1Button : RRInputButton_TopRight;
 
     
     //logger.log(Logger::DEB, "Core supports analog input: %s", core_support_analog ? "YES" : "NO");
@@ -829,28 +856,28 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
     
     {
         const float TRIM = 0.35f;
-        go2_thumb_t thumbL = go2_input_state_thumbstick_get(gamepadState, Go2InputThumbstick_Left);
-        go2_thumb_t thumbR = go2_input_state_thumbstick_get(gamepadState, Go2InputThumbstick_Right);
+        rr_thumb_t thumbL = rr_input_state_thumbstick_get(gamepadState, RRInputThumbstick_Left);
+        rr_thumb_t thumbR = rr_input_state_thumbstick_get(gamepadState, RRInputThumbstick_Right);
 
         // Mappatura degli analogici in base alla modalità selezionata
         if (analogToDigital == LEFT_ANALOG || analogToDigital == LEFT_ANALOG_FORCED)
         {
             //logger.log(Logger::DEB, "Mapping LEFT Analog to D-pad.");
-            go2_input_state_thumbstick_setNul(gamepadState, Go2InputThumbstick_Right);
-            if (thumbL.y < -TRIM) go2_input_state_button_set(gamepadState, Go2InputButton_DPadUp, ButtonState_Pressed);
-            if (thumbL.y > TRIM) go2_input_state_button_set(gamepadState, Go2InputButton_DPadDown, ButtonState_Pressed);
-            if (thumbL.x < -TRIM) go2_input_state_button_set(gamepadState, Go2InputButton_DPadLeft, ButtonState_Pressed);
-            if (thumbL.x > TRIM) go2_input_state_button_set(gamepadState, Go2InputButton_DPadRight, ButtonState_Pressed);
+            rr_input_state_thumbstick_set_null(gamepadState, RRInputThumbstick_Right);
+            if (thumbL.y < -TRIM) rr_input_state_button_set(gamepadState, RRInputButton_DPadUp, RRButtonState_Pressed);
+            if (thumbL.y > TRIM) rr_input_state_button_set(gamepadState, RRInputButton_DPadDown, RRButtonState_Pressed);
+            if (thumbL.x < -TRIM) rr_input_state_button_set(gamepadState, RRInputButton_DPadLeft, RRButtonState_Pressed);
+            if (thumbL.x > TRIM) rr_input_state_button_set(gamepadState, RRInputButton_DPadRight, RRButtonState_Pressed);
         }
 
         if (analogToDigital == RIGHT_ANALOG || analogToDigital == RIGHT_ANALOG_FORCED)
         {
             //logger.log(Logger::DEB, "Mapping RIGHT Analog to D-pad.");
-            go2_input_state_thumbstick_setNul(gamepadState, Go2InputThumbstick_Left);
-            if (thumbR.y < -TRIM) go2_input_state_button_set(gamepadState, Go2InputButton_DPadUp, ButtonState_Pressed);
-            if (thumbR.y > TRIM) go2_input_state_button_set(gamepadState, Go2InputButton_DPadDown, ButtonState_Pressed);
-            if (thumbR.x < -TRIM) go2_input_state_button_set(gamepadState, Go2InputButton_DPadLeft, ButtonState_Pressed);
-            if (thumbR.x > TRIM) go2_input_state_button_set(gamepadState, Go2InputButton_DPadRight, ButtonState_Pressed);
+            rr_input_state_thumbstick_set_null(gamepadState, RRInputThumbstick_Left);
+            if (thumbR.y < -TRIM) rr_input_state_button_set(gamepadState, RRInputButton_DPadUp, RRButtonState_Pressed);
+            if (thumbR.y > TRIM) rr_input_state_button_set(gamepadState, RRInputButton_DPadDown, RRButtonState_Pressed);
+            if (thumbR.x < -TRIM) rr_input_state_button_set(gamepadState, RRInputButton_DPadLeft, RRButtonState_Pressed);
+            if (thumbR.x > TRIM) rr_input_state_button_set(gamepadState, RRInputButton_DPadRight, RRButtonState_Pressed);
         }
 
         
@@ -861,27 +888,27 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
     {
 
         const float TRIM = 0.35f;
-        go2_thumb_t thumb = go2_input_state_thumbstick_get(gamepadState, Go2InputThumbstick_Right);
+        rr_thumb_t thumb = rr_input_state_thumbstick_get(gamepadState, RRInputThumbstick_Right);
 
         if (thumb.y < -TRIM) // UP
         {
-            go2_input_state_button_set(gamepadState, r2Button, ButtonState_Pressed);
-            go2_input_state_button_set(gamepadState, Go2InputButton_X, ButtonState_Pressed);
+            rr_input_state_button_set(gamepadState, r2Button, RRButtonState_Pressed);
+            rr_input_state_button_set(gamepadState, RRInputButton_X, RRButtonState_Pressed);
         }
         if (thumb.y > TRIM) //DOWN
         {
-            go2_input_state_button_set(gamepadState, r2Button, ButtonState_Pressed);
-            go2_input_state_button_set(gamepadState, Go2InputButton_B, ButtonState_Pressed);
+            rr_input_state_button_set(gamepadState, r2Button, RRButtonState_Pressed);
+            rr_input_state_button_set(gamepadState, RRInputButton_B, RRButtonState_Pressed);
         }
         if (thumb.x < -TRIM)//LEFT
         {
-            go2_input_state_button_set(gamepadState, r2Button, ButtonState_Pressed);
-            go2_input_state_button_set(gamepadState, Go2InputButton_Y, ButtonState_Pressed);
+            rr_input_state_button_set(gamepadState, r2Button, RRButtonState_Pressed);
+            rr_input_state_button_set(gamepadState, RRInputButton_Y, RRButtonState_Pressed);
         }
         if (thumb.x > TRIM)// RIGHT
         {
-            go2_input_state_button_set(gamepadState, r2Button, ButtonState_Pressed);
-            go2_input_state_button_set(gamepadState, Go2InputButton_A, ButtonState_Pressed);
+            rr_input_state_button_set(gamepadState, r2Button, RRButtonState_Pressed);
+            rr_input_state_button_set(gamepadState, RRInputButton_A, RRButtonState_Pressed);
         }
         thumb.x = 0;
         thumb.y = 0;    
@@ -894,7 +921,7 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
         // manage mouse ( for certain cores like dosbox)
         if (device == RETRO_DEVICE_MOUSE)
         {
-            go2_thumb_t thumb = go2_input_state_thumbstick_get(gamepadState, Go2InputThumbstick_Right);
+            rr_thumb_t thumb = rr_input_state_thumbstick_get(gamepadState, RRInputThumbstick_Right);
             switch (id)
             {
             case RETRO_DEVICE_ID_ANALOG_X:
@@ -928,9 +955,9 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
         if (analogToDigital == LEFT_ANALOG_FORCED || analogToDigital == RIGHT_ANALOG_FORCED) return 0;
                 return getInputRight();
         case RETRO_DEVICE_ID_JOYPAD_SELECT:
-            return go2_input_state_button_get(gamepadState, selectButton);
+            return rr_input_state_button_get(gamepadState, selectButton);
         case RETRO_DEVICE_ID_JOYPAD_START:
-            return go2_input_state_button_get(gamepadState, startButton);
+            return rr_input_state_button_get(gamepadState, startButton);
         case RETRO_DEVICE_ID_JOYPAD_A:
             return getInputA();
         case RETRO_DEVICE_ID_JOYPAD_B:
@@ -940,25 +967,25 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
         case RETRO_DEVICE_ID_JOYPAD_Y:
             return getInputY();
         case RETRO_DEVICE_ID_JOYPAD_L:
-            return go2_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? l2Button : realL1);
+            return rr_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? l2Button : realL1);
         case RETRO_DEVICE_ID_JOYPAD_R:
-            return go2_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? r2Button : realR1);
+            return rr_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? r2Button : realR1);
         case RETRO_DEVICE_ID_JOYPAD_L2:
         if (isRG503()||isRG353V() || isRG353M()){
-            return go2_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? l2Button : realL1);
+            return rr_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? l2Button : realL1);
         }else{
-            return go2_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? realL1 : l2Button);
+            return rr_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? realL1 : l2Button);
         }
         case RETRO_DEVICE_ID_JOYPAD_R2:
         if (isRG503()||isRG353V() || isRG353M()){
-            return go2_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? r2Button : realR1);
+            return rr_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? r2Button : realR1);
         }else{
-            return go2_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? realR1 : r2Button);
+            return rr_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? realR1 : r2Button);
         }
         case RETRO_DEVICE_ID_JOYPAD_L3:
-            return go2_input_state_button_get(gamepadState, l3Button);
+            return rr_input_state_button_get(gamepadState, l3Button);
         case RETRO_DEVICE_ID_JOYPAD_R3:
-            return go2_input_state_button_get(gamepadState, r3Button);
+            return rr_input_state_button_get(gamepadState, r3Button);
         
         
         
@@ -972,24 +999,24 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
 
     
        
-        go2_thumb_t thumb;
+        rr_thumb_t thumb;
 
 // Se un analogico è forzato, usiamo quello corrispondente
 if (analogToDigital == LEFT_ANALOG_FORCED)
 {
-    thumb = go2_input_state_thumbstick_get(gamepadState, Go2InputThumbstick_Left);
+    thumb = rr_input_state_thumbstick_get(gamepadState, RRInputThumbstick_Left);
     //thumb.y = -thumb.y;
 }
 else if (analogToDigital == RIGHT_ANALOG_FORCED)
 {
-    thumb = go2_input_state_thumbstick_get(gamepadState, Go2InputThumbstick_Right);
+    thumb = rr_input_state_thumbstick_get(gamepadState, RRInputThumbstick_Right);
     //thumb.y = -thumb.y;
 }
 else
 {
     // Se non è forzato, selezioniamo in base all'index
-    thumb = go2_input_state_thumbstick_get(gamepadState,
-                                           index == RETRO_DEVICE_INDEX_ANALOG_LEFT ? Go2InputThumbstick_Left: Go2InputThumbstick_Right);
+    thumb = rr_input_state_thumbstick_get(gamepadState,
+                                           index == RETRO_DEVICE_INDEX_ANALOG_LEFT ? RRInputThumbstick_Left: RRInputThumbstick_Right);
        thumb.y = -thumb.y;                                    
 }
 if(isTate()){
@@ -1022,24 +1049,24 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
 {
 
 
-    go2_input_button_t realL1 =  gpio_joypad ? l1Button : Go2InputButton_TopLeft;
-    go2_input_button_t realR1 = gpio_joypad ? r1Button : Go2InputButton_TopRight ;
+    rr_input_button_t realL1 =  gpio_joypad ? l1Button : RRInputButton_TopLeft;
+    rr_input_button_t realR1 = gpio_joypad ? r1Button : RRInputButton_TopRight ;
 // for set we dont need to take care of tate mode
     
     if (force_left_analog_stick)
     {
         // Map thumbstick to dpad (force to enable the left analog stick mapping to it the DPAD)
         const float TRIM = 0.35f;
-        go2_thumb_t thumb = go2_input_state_thumbstick_get(gamepadState, Go2InputThumbstick_Left);
+        rr_thumb_t thumb = rr_input_state_thumbstick_get(gamepadState, RRInputThumbstick_Left);
 
         if (thumb.y < -TRIM)
-            go2_input_state_button_set(gamepadState, upButton, ButtonState_Pressed);
+            rr_input_state_button_set(gamepadState, upButton, RRButtonState_Pressed);
         if (thumb.y > TRIM)
-            go2_input_state_button_set(gamepadState, downButton, ButtonState_Pressed);
+            rr_input_state_button_set(gamepadState, downButton, RRButtonState_Pressed);
         if (thumb.x < -TRIM)
-            go2_input_state_button_set(gamepadState, leftButton, ButtonState_Pressed);
+            rr_input_state_button_set(gamepadState, leftButton, RRButtonState_Pressed);
         if (thumb.x > TRIM)
-            go2_input_state_button_set(gamepadState, rightButton, ButtonState_Pressed);
+            rr_input_state_button_set(gamepadState, rightButton, RRButtonState_Pressed);
     }
 
 
@@ -1047,27 +1074,27 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
     {
 
         const float TRIM = 0.35f;
-        go2_thumb_t thumb = go2_input_state_thumbstick_get(gamepadState, Go2InputThumbstick_Right);
+        rr_thumb_t thumb = rr_input_state_thumbstick_get(gamepadState, RRInputThumbstick_Right);
 
         if (thumb.y < -TRIM) // UP
         {
-            go2_input_state_button_set(gamepadState, r2Button, ButtonState_Pressed);
-            go2_input_state_button_set(gamepadState, xButton, ButtonState_Pressed);
+            rr_input_state_button_set(gamepadState, r2Button, RRButtonState_Pressed);
+            rr_input_state_button_set(gamepadState, xButton, RRButtonState_Pressed);
         }
         if (thumb.y > TRIM) //DOWN
         {
-            go2_input_state_button_set(gamepadState, r2Button, ButtonState_Pressed);
-            go2_input_state_button_set(gamepadState, bButton, ButtonState_Pressed);
+            rr_input_state_button_set(gamepadState, r2Button, RRButtonState_Pressed);
+            rr_input_state_button_set(gamepadState, bButton, RRButtonState_Pressed);
         }
         if (thumb.x < -TRIM)//LEFT
         {
-            go2_input_state_button_set(gamepadState, r2Button, ButtonState_Pressed);
-            go2_input_state_button_set(gamepadState, yButton, ButtonState_Pressed);
+            rr_input_state_button_set(gamepadState, r2Button, RRButtonState_Pressed);
+            rr_input_state_button_set(gamepadState, yButton, RRButtonState_Pressed);
         }
         if (thumb.x > TRIM)// RIGHT
         {
-            go2_input_state_button_set(gamepadState, r2Button, ButtonState_Pressed);
-            go2_input_state_button_set(gamepadState, aButton, ButtonState_Pressed);
+            rr_input_state_button_set(gamepadState, r2Button, RRButtonState_Pressed);
+            rr_input_state_button_set(gamepadState, aButton, RRButtonState_Pressed);
         }
         thumb.x = 0;
         thumb.y = 0;    
@@ -1083,7 +1110,7 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
         if (device == RETRO_DEVICE_MOUSE)
         {
          
-            go2_thumb_t thumb = go2_input_state_thumbstick_get(gamepadState, Go2InputThumbstick_Right);
+            rr_thumb_t thumb = rr_input_state_thumbstick_get(gamepadState, RRInputThumbstick_Right);
 
           
 
@@ -1112,10 +1139,10 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
             {
                 
             case RETRO_DEVICE_ID_JOYPAD_SELECT:
-                return go2_input_state_button_get(gamepadState, selectButton);
+                return rr_input_state_button_get(gamepadState, selectButton);
                 break;
             case RETRO_DEVICE_ID_JOYPAD_START:
-                return go2_input_state_button_get(gamepadState, startButton);
+                return rr_input_state_button_get(gamepadState, startButton);
                 break;
             case RETRO_DEVICE_ID_JOYPAD_UP:
                 return getInputUp();
@@ -1142,22 +1169,22 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
                 return getInputY();
                 break;    
             case RETRO_DEVICE_ID_JOYPAD_L:
-                return go2_input_state_button_get(gamepadState,swapL1R1WithL2R2 ? l2Button: realL1);
+                return rr_input_state_button_get(gamepadState,swapL1R1WithL2R2 ? l2Button: realL1);
                 break;
             case RETRO_DEVICE_ID_JOYPAD_R:
-                return go2_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? r2Button : realR1);
+                return rr_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? r2Button : realR1);
                 break;
             case RETRO_DEVICE_ID_JOYPAD_L2:
-                return go2_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? realL1 : l2Button);
+                return rr_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? realL1 : l2Button);
                 break;
             case RETRO_DEVICE_ID_JOYPAD_R2:
-                return go2_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? realR1 : r2Button);
+                return rr_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? realR1 : r2Button);
                 break;
             case RETRO_DEVICE_ID_JOYPAD_L3:
-                return go2_input_state_button_get(gamepadState, l3Button);
+                return rr_input_state_button_get(gamepadState, l3Button);
                 break;
             case RETRO_DEVICE_ID_JOYPAD_R3:
-                return go2_input_state_button_get(gamepadState, r3Button);
+                return rr_input_state_button_get(gamepadState, r3Button);
                 break;
             default:
                 return 0;
@@ -1184,12 +1211,12 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
                 }
             }
 
-            go2_thumb_t thumb;
-            //go2_thumb_t thumb2;
+            rr_thumb_t thumb;
+            //rr_thumb_t thumb2;
             if (index == RETRO_DEVICE_INDEX_ANALOG_LEFT ){
-            thumb = go2_input_state_thumbstick_get(gamepadState, Go2InputThumbstick_Left);
+            thumb = rr_input_state_thumbstick_get(gamepadState, RRInputThumbstick_Left);
             }else{
-                thumb = go2_input_state_thumbstick_get(gamepadState, Go2InputThumbstick_Right);
+                thumb = rr_input_state_thumbstick_get(gamepadState, RRInputThumbstick_Right);
             }
 
             if (thumb.x > 1.0f)
@@ -1259,4 +1286,3 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
 
     return 0;
 }
-

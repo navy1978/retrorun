@@ -1,4 +1,5 @@
 #pragma once
+#include "display.h"
 #include "queue.h"
 #include <semaphore.h>
 #include <rga/RgaApi.h>
@@ -13,6 +14,13 @@ typedef struct go2_display
     uint32_t width;
     uint32_t height;
     uint32_t crtc_id;
+    int crtc_index;
+    bool modeset_complete;
+    bool page_flip_disabled;
+    uint32_t direct_plane_id;
+    uint32_t direct_plane_format;
+    bool direct_plane_disabled;
+    bool direct_plane_logged;
 } go2_display_t;
 
 typedef struct go2_surface
@@ -27,6 +35,7 @@ typedef struct go2_surface
     int prime_fd;
     bool is_mapped;
     uint8_t* map;
+    uint32_t direct_fb_id;
 } go2_surface_t;
 
 typedef struct go2_frame_buffer
@@ -48,26 +57,3 @@ typedef struct go2_presenter
     sem_t usedSem;
     volatile bool terminating;
 } go2_presenter_t;
-
-
-typedef enum go2_rotation
-{
-    GO2_ROTATION_DEGREES_0 = 0,
-    GO2_ROTATION_DEGREES_90,
-    GO2_ROTATION_DEGREES_180,
-    GO2_ROTATION_DEGREES_270,
-    GO2_ROTATION_HORIZONTAL,
-    GO2_ROTATION_VERTICAL
-} go2_rotation_t;
-
-typedef struct go2_context_attributes
-{
-    int major;
-    int minor;
-    int red_bits;
-    int green_bits;
-    int blue_bits;
-    int alpha_bits;
-    int depth_bits;
-    int stencil_bits;
-} go2_context_attributes_t;

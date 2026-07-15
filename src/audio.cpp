@@ -23,9 +23,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "globals.h"
 #include <unistd.h>
 #include <stdio.h>
-#include <string.h>
+#include <cstring>
 
-#include <go2/audio.h>
+#include "platform.h"
 #include <mutex> // std::mutex
 #include <chrono>
 #include <thread>
@@ -39,7 +39,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 extern int opt_volume;
 
-static go2_audio_t *audio;
+static rr_audio_t *audio;
 static u_int16_t audioBuffer[AUDIO_BUFFER_SIZE];
 
 static int audioFrameCount;
@@ -57,7 +57,7 @@ void audio_init(int freq)
     // Note: audio stutters in OpenAL unless the buffer frequency at upload
     // is the same as during creation.
     init_freq = freq;
-    audio = go2_audio_create(freq);
+    audio = rr_audio_create(freq);
     audioFrameCount = 0;
     bool is503AudioDeviceLike = isRG503() || isRG353M() || isRG353V();
     soundCardName = isRG552() ? "DAC" : is503AudioDeviceLike ? "Master"
@@ -65,11 +65,11 @@ void audio_init(int freq)
 
     if (opt_volume > -1)
     {
-        go2_audio_volume_set(audio, (uint32_t)opt_volume, soundCardName.c_str());
+        rr_audio_volume_set(audio, (uint32_t)opt_volume, soundCardName.c_str());
     }
     else
     {
-        opt_volume = go2_audio_volume_get(audio, soundCardName.c_str());
+        opt_volume = rr_audio_volume_get(audio, soundCardName.c_str());
     }
     prevVolume = opt_volume;
 }
@@ -77,27 +77,27 @@ void audio_init(int freq)
 void audio_deinit()
 {
     if (audio != NULL)
-        go2_audio_destroy(audio);
+        rr_audio_destroy(audio);
 }
 
 static void SetVolume()
 {
     if (opt_volume != prevVolume)
     {
-        go2_audio_volume_set(audio, (uint32_t)opt_volume, soundCardName.c_str());
+        rr_audio_volume_set(audio, (uint32_t)opt_volume, soundCardName.c_str());
         prevVolume = opt_volume;
     }
 }
 
 int getVolume()
 {
-    int value = go2_audio_volume_get(audio, soundCardName.c_str());
+    int value = rr_audio_volume_get(audio, soundCardName.c_str());
     return value;
 }
 
 void setVolume(int value)
 {
-    go2_audio_volume_set(audio, (uint32_t)value, soundCardName.c_str());
+    rr_audio_volume_set(audio, (uint32_t)value, soundCardName.c_str());
 }
 
 void core_audio_sample(int16_t left, int16_t right)
@@ -115,7 +115,7 @@ void core_audio_sample(int16_t left, int16_t right)
 
     if (audioFrameCount >= retrorun_audio_buffer)
     {
-        go2_audio_submit(audio, (const short *)audioBuffer, audioFrameCount);
+        rr_audio_submit(audio, (const short *)audioBuffer, audioFrameCount);
         audioFrameCount = 0;
         retrorun_audio_buffer = new_retrorun_audio_buffer==-1 ? audioFrameLimit:new_retrorun_audio_buffer;
     }
@@ -123,32 +123,6 @@ void core_audio_sample(int16_t left, int16_t right)
 
 #include <stdint.h>
 #include <string.h>
-
-static inline void newmemcpy(void *__restrict__ dstp,
-                             void *__restrict__ srcp,
-                             uint len)
-{
-    uint64_t *dst = (uint64_t *)dstp;
-    uint64_t *src = (uint64_t *)srcp;
-    size_t i, tail;
-
-    // Check if len is at least one 64-bit chunk in size
-    if (len >= sizeof(uint64_t))
-    {
-        // Copy 64-bit chunks
-        for (i = 0; i < (len / sizeof(uint64_t)); i++)
-            *dst++ = *src++;
-    }
-
-    // Copy remaining bytes (if any)
-    tail = len & (sizeof(uint64_t) - 1);
-    if (tail)
-    {
-        unsigned char *dstb = (unsigned char *)dst;
-        unsigned char *srcb = (unsigned char *)src;
-        memmove(dstb, srcb, tail);
-    }
-}
 
 size_t core_audio_sample_batch(const int16_t *data, size_t frames)
 {
@@ -204,13 +178,15 @@ size_t core_audio_sample_batch(const int16_t *data, size_t frames)
     if (audioFrameCount + frames > static_cast<size_t>(retrorun_audio_buffer))
     // if (audioFrameCount + frames > retrorun_audio_buffer)
     {
-        go2_audio_submit(audio, (const short *)audioBuffer, audioFrameCount);
+        rr_audio_submit(audio, (const short *)audioBuffer, audioFrameCount);
         audioFrameCount = 0;
         retrorun_audio_buffer = new_retrorun_audio_buffer==-1 ? audioFrameLimit :new_retrorun_audio_buffer;
     }
  
     size_t size = frames * sizeof(int16_t) * CHANNELS;
-    newmemcpy(audioBuffer + (audioFrameCount * CHANNELS), (void *)data, size);
+    // libc selects the best implementation for the active ARM/x86 CPU and
+    // safely handles alignment that the former uint64_t loop assumed.
+    std::memcpy(audioBuffer + (audioFrameCount * CHANNELS), data, size);
     audioFrameCount += frames;
     return frames;
 }

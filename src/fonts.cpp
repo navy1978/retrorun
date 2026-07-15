@@ -299,6 +299,49 @@ void basic_text_out16_nf_color(void *fb, int w, int x, int y, const char *text, 
 	}
 }
 
+void basic_text_out16_nf_color_clipped(void *fb, int stride, int width, int height,
+                                      int x, int y, const char *text, unsigned short color)
+{
+    if (!fb || !text || stride <= 0 || width <= 0 || height <= 0)
+        return;
+
+    unsigned short *pixels = static_cast<unsigned short *>(fb);
+    for (int i = 0; text[i] != '\0'; ++i)
+    {
+        const unsigned char c = static_cast<unsigned char>(text[i]);
+        const unsigned char glyph = c < 128 ? c : static_cast<unsigned char>('?');
+        if (glyph == ' ')
+            continue;
+
+        const int glyph_x = x + i * 8;
+        for (int row = 0; row < 8; ++row)
+        {
+            const int py = y + row;
+            if (py < 0 || py >= height)
+                continue;
+
+            const unsigned char bits = fontdata8x8[glyph * 8 + row];
+            const unsigned char previous = row > 0 ? fontdata8x8[glyph * 8 + row - 1] : 0;
+            for (int column = 0; column < 8; ++column)
+            {
+                const unsigned char mask = static_cast<unsigned char>(0x80 >> column);
+                const int px = glyph_x + column;
+                if ((bits & mask) && px >= 0 && px < width)
+                    pixels[py * stride + px] = color;
+
+                const int shadow_x = px + 1;
+                const unsigned char next_mask = static_cast<unsigned char>(mask >> 1);
+                if (!(bits & next_mask) && ((previous | bits) & mask) &&
+                    shadow_x >= 0 && shadow_x < width)
+                {
+                    unsigned short &shadow = pixels[py * stride + shadow_x];
+                    shadow = (shadow >> 1) & 0x39ef;
+                }
+            }
+        }
+    }
+}
+
 /* note: may use 1 extra pixel on the right */
 void basic_text_out16_nf(void *fb, int w, int x, int y, const char *text)
 {

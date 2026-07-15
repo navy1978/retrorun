@@ -21,8 +21,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 #include <stdint.h>
 #include <stdlib.h>
-#include "go2/display.h"
-#include "go2/struct.h"
+#include "platform.h"
+
 
 
 constexpr int PIXELS_PER_FRAME = 1; // Adjust the number of pixels scrolled per frame
@@ -34,6 +34,12 @@ extern int height_fixed;
 
 extern int INFO_MENU_WIDTH;  // 288;
 extern int INFO_MENU_HEIGHT; // 192;
+
+enum class UIProfile { Auto = 0, Handheld, Desktop };
+void setUIProfile(UIProfile profile);
+UIProfile getUIProfile();
+UIProfile getResolvedUIProfile();
+void updateUIMenuDimensions(int destination_width, int destination_height);
 
 extern int display_width, display_height;
 extern int base_width;
@@ -47,23 +53,24 @@ extern int ah;
 
 extern bool isGameVertical;
 extern bool isOpenGL;
+extern bool first_video_refresh;
 extern unsigned currentWidth;
 extern unsigned currentHeight;
 
-extern go2_display_t *display;
-extern go2_surface_t *surface;
-extern go2_surface_t *status_surface_bottom_right;
-extern go2_surface_t *status_surface_bottom_left;
-extern go2_surface_t *status_surface_bottom_center;
-extern go2_surface_t *status_surface_top_right;
-extern go2_surface_t *status_surface_top_left;
-extern go2_surface_t *status_surface_full;
+extern rr_display_t *display;
+extern rr_surface_t *surface;
+extern rr_surface_t *status_surface_bottom_right;
+extern rr_surface_t *status_surface_bottom_left;
+extern rr_surface_t *status_surface_bottom_center;
+extern rr_surface_t *status_surface_top_right;
+extern rr_surface_t *status_surface_top_left;
+extern rr_surface_t *status_surface_full;
 
-extern go2_surface_t *display_surface;
-extern go2_frame_buffer_t *frame_buffer;
-extern go2_presenter_t *presenter;
-extern go2_context_t *context3D;
-extern go2_surface_t *gles_surface;
+extern rr_surface_t *display_surface;
+extern rr_frame_buffer_t *frame_buffer;
+extern rr_presenter_t *presenter;
+extern rr_context_t *context3D;
+extern rr_surface_t *gles_surface;
 
 
 
@@ -71,8 +78,8 @@ extern go2_surface_t *gles_surface;
 
 
 bool cmpf(float A, float B, float epsilon = 0.005f);
-go2_rotation getBlitRotation();
-go2_rotation getRotation();
+rr_rotation_t getBlitRotation();
+rr_rotation_t getRotation();
 int getFixedWidth(int alternative);
 int getFixedHeight(int alternative);
 int getBase_width();
@@ -83,38 +90,36 @@ int getGeom_max_width(const struct retro_game_geometry *geom);
 int getGeom_max_height(const struct retro_game_geometry *geom);
 
 //
-void showText(int x, int y, const char *text, unsigned short color, go2_surface_t **surface);
-void showTextBigger(int x, int y, const char *text, unsigned short color, go2_surface_t **surface);
+void showText(int x, int y, const char *text, unsigned short color, rr_surface_t **surface);
+void showTextBigger(int x, int y, const char *text, unsigned short color, rr_surface_t **surface);
 int getRowForText();
 std::string stripReturnCarriage(std::string input);
 bool canCreditBeDrawn(int pos);
 void resetCredisPosition();
-void showCenteredText(int y, const char *text, unsigned short color, go2_surface_t **surface);
-void showLongCenteredText(int y, const char *text, unsigned short color, go2_surface_t **surface);
-void drawCreditLine(int y, const char *text, unsigned short color, go2_surface_t **surface);
-void showInfoDevice(int w, go2_surface_t **surface, int posX);
-void showInfoCore(int w, go2_surface_t **surface, int posX);
-void showInfoGame(int w, go2_surface_t **surface, int posX);
-void showCredits(go2_surface_t **surface);
-void showInfo(int w, go2_surface_t **surface);
+void showCenteredText(int y, const char *text, unsigned short color, rr_surface_t **surface);
+void showLongCenteredText(int y, const char *text, unsigned short color, rr_surface_t **surface);
+void drawCreditLine(int y, const char *text, unsigned short color, rr_surface_t **surface);
+void showInfoDevice(rr_surface_t **surface);
+void showInfoCore(rr_surface_t **surface);
+void showInfoGame(rr_surface_t **surface);
+void showInfoGraphics(int w, rr_surface_t **surface, int posX);
+void showCredits(rr_surface_t **surface);
+void showInfo(int w, rr_surface_t **surface);
 std::string getCurrentTimeForFileName();
 void showNumberSprite(int x, int y, int number, int width, int height, const uint8_t *src);
 int getDigit(int n, int position);
 int getWidthFPS();
 void showFPSImage();
-void showFullImage_888(int x, int y, int width, int height, const uint8_t *src, go2_surface_t **surface);
-void showFullImage(int x, int y, int width, int height, const uint8_t *src, go2_surface_t **surface);
+void showFullImage_888(int x, int y, int width, int height, const uint8_t *src, rr_surface_t **surface);
+void showFullImage(int x, int y, int width, int height, const uint8_t *src, rr_surface_t **surface);
 // refactor
-void showImage(Image img, go2_surface_t **surface);
+void showImage(Image img, rr_surface_t **surface);
 void takeScreenshot(int w, int h);
-void makeScreenBlackCredits(go2_surface_t *go2_surface, int res_width, int res_height);
-void makeScreenTotalBlack(go2_surface_t *go2_surface, int res_width, int res_height);
-void makeScreenBlack(go2_surface_t *go2_surface, int res_width, int res_height);
-void drawMenuInfoBackgroud(go2_surface_t *go2_surface, int res_width, int res_height);
+void makeScreenBlackCredits(rr_surface_t *rr_surface, int res_width, int res_height);
+void makeScreenTotalBlack(rr_surface_t *rr_surface, int res_width, int res_height);
+void makeScreenBlack(rr_surface_t *rr_surface, int res_width, int res_height);
+void drawMenuInfoBackgroud(rr_surface_t *rr_surface, int res_width, int res_height);
 bool continueToShowScreenshotImage();
 bool continueToShowSaveLoadStateImage();
 bool continueToShowSaveLoadStateDoneImage();
 void checkPaused();
-
-
-

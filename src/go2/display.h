@@ -21,21 +21,38 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 #include <stdint.h>
-//#include "../status.h"
-
-#include "struct.h"
-#include "../status.h"
-
 
 typedef struct go2_display go2_display_t;
 typedef struct go2_surface go2_surface_t;
 typedef struct go2_frame_buffer go2_frame_buffer_t;
 typedef struct go2_presenter go2_presenter_t;
-
-
-
-
 typedef struct go2_context go2_context_t;
+
+typedef enum go2_rotation
+{
+    GO2_ROTATION_DEGREES_0 = 0,
+    GO2_ROTATION_DEGREES_90,
+    GO2_ROTATION_DEGREES_180,
+    GO2_ROTATION_DEGREES_270,
+    GO2_ROTATION_HORIZONTAL,
+    GO2_ROTATION_VERTICAL
+} go2_rotation_t;
+
+typedef struct go2_context_attributes
+{
+    int major, minor;
+    int red_bits, green_bits, blue_bits, alpha_bits;
+    int depth_bits, stencil_bits;
+} go2_context_attributes_t;
+
+typedef struct go2_status {
+    go2_surface_t *top_right, *bottom_right, *bottom_center;
+    go2_surface_t *top_left, *bottom_left, *full;
+    bool show_top_right, show_bottom_right, show_bottom_center;
+    bool show_top_left, show_bottom_left, show_full;
+    bool clean_top_right, clean_bottom_right, clean_bottom_center;
+    bool clean_top_left, clean_bottom_left, clean_full;
+} go2_status_t;
 
 
 #ifdef __cplusplus
@@ -47,6 +64,11 @@ void go2_display_destroy(go2_display_t* display);
 int go2_display_width_get(go2_display_t* display);
 int go2_display_height_get(go2_display_t* display);
 void go2_display_present(go2_display_t* display, go2_frame_buffer_t* frame_buffer);
+bool go2_display_present_surface(go2_display_t* display, go2_surface_t* surface,
+                                 int srcX, int srcY, int srcWidth, int srcHeight,
+                                 int dstX, int dstY, int dstWidth, int dstHeight,
+                                 go2_rotation_t rotation);
+void go2_display_direct_disable(go2_display_t* display);
 uint32_t go2_display_backlight_get(go2_display_t* display);
 void go2_display_backlight_set(go2_display_t* display, uint32_t value);
 
@@ -78,9 +100,14 @@ go2_surface_t* go2_frame_buffer_surface_get(go2_frame_buffer_t* frame_buffer);
 go2_presenter_t* go2_presenter_create(go2_display_t* display, uint32_t format, uint32_t background_color);
 void go2_presenter_destroy(go2_presenter_t* presenter);
 void go2_presenter_post(go2_presenter_t* presenter, go2_surface_t* surface, int srcX, int srcY, int srcWidth, int srcHeight, int dstX, int dstY, int dstWidth, int dstHeight, go2_rotation_t rotation);
+bool go2_presenter_post_direct(go2_presenter_t* presenter, go2_surface_t* surface,
+                               int srcX, int srcY, int srcWidth, int srcHeight,
+                               int dstX, int dstY, int dstWidth, int dstHeight,
+                               go2_rotation_t rotation);
+void go2_presenter_direct_disable(go2_presenter_t* presenter);
 void go2_presenter_black(go2_presenter_t* presenter, int dstX, int dstY, int dstWidth, int dstHeight, go2_rotation_t rotation);
 //void go2_presenter_post_double(go2_presenter_t* presenter, go2_surface_t* surface1, go2_surface_t* surface2, int srcX, int srcY, int srcWidth, int srcHeight, int dstX, int dstY, int dstWidth, int dstHeight, go2_rotation_t rotation);
-void go2_presenter_post_multiple(go2_presenter_t* presenter, go2_surface_t* surface, status* status, int srcX, int srcY, int srcWidth, int srcHeight, int dstX, int dstY, int dstWidth, int dstHeight, go2_rotation_t rotation,go2_rotation_t blitRotation, bool isWidescreen);
+void go2_presenter_post_multiple(go2_presenter_t* presenter, go2_surface_t* surface, go2_status_t* status, int srcX, int srcY, int srcWidth, int srcHeight, int dstX, int dstY, int dstWidth, int dstHeight, go2_rotation_t rotation,go2_rotation_t blitRotation, bool isWidescreen);
 
 
 go2_context_t* go2_context_create(go2_display_t* display, int width, int height, const go2_context_attributes_t* attributes);

@@ -1,2 +1,8 @@
 build/gmake/obj/**/*.*
+build/linux-sdl/obj/
+build/macos/obj/
+saves/
+system/
 retrorun
+retrorun-sdl2
+.DS_Store

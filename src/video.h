@@ -34,8 +34,14 @@ extern int hasStencil;
 
 
 void video_configure(struct retro_game_geometry* geom);
+void video_prepare_core_unload();
 void video_deinit();
 void resetCredisPosition();
 uintptr_t core_video_get_current_framebuffer();
 void core_video_refresh(const void * data, unsigned width, unsigned height, size_t pitch);
 void prepareScreen(int width, int height);
+void drawNonOpenGL(const void* data, unsigned width, unsigned height, size_t pitch);
+
+extern int gs_w, gs_h;
+extern int x, y, w, h;
+extern bool isWideScreen;

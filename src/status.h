@@ -20,7 +20,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #pragma once
 
 
-#include <go2/display.h>
+#include "platform.h"
 
 
 
@@ -38,12 +38,12 @@ enum STATUS_POSITION
 class status  {
 
     public: 
-    go2_surface_t *top_right; 
-    go2_surface_t *bottom_right;
-    go2_surface_t *bottom_center;
-    go2_surface_t *top_left;
-    go2_surface_t *bottom_left;
-    go2_surface_t *full;
+    rr_surface_t *top_right;
+    rr_surface_t *bottom_right;
+    rr_surface_t *bottom_center;
+    rr_surface_t *top_left;
+    rr_surface_t *bottom_left;
+    rr_surface_t *full;
     bool show_top_right;
     bool show_bottom_right;
     bool show_bottom_center;

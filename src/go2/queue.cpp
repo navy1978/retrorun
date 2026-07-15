@@ -48,7 +48,7 @@ go2_queue_t* go2_queue_create(int capacity)
 
     result->capacity = capacity;
     result->data = (void**) malloc(capacity * sizeof(void*));
-    if (!result)
+    if (!result->data)
     {
         logger.log(Logger::ERR,"data malloc failed.\n");
         free(result);

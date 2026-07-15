@@ -35,15 +35,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include "../globals.h"
 
 #include <thread>
-#include <pthread.h>
+#include <chrono>
 #include <mutex>
 
 #define SOUND_SAMPLES_SIZE (2048)
 #define SOUND_CHANNEL_COUNT 2
 
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
-volatile bool processed = false;
+static constexpr int BUFFER_COUNT = 4;
 
 typedef struct go2_audio
 {
@@ -51,6 +49,7 @@ typedef struct go2_audio
     ALCdevice *device;
     ALCcontext *context;
     ALuint source;
+    ALuint buffers[BUFFER_COUNT];
     bool isAudioInitialized;
 } go2_audio_t;
 
@@ -94,13 +93,11 @@ go2_audio_t *go2_audio_create(int frequency)
     alSourcei(result->source, AL_LOOPING, AL_FALSE);
 
 
-    const int BUFFER_COUNT = 4;
     for (int i = 0; i < BUFFER_COUNT; ++i)
     {
-        ALuint buffer;
-        alGenBuffers((ALuint)1, &buffer);
-        alBufferData(buffer, AL_FORMAT_STEREO16, NULL, 0, frequency);
-        alSourceQueueBuffers(result->source, 1, &buffer);
+        alGenBuffers(1, &result->buffers[i]);
+        alBufferData(result->buffers[i], AL_FORMAT_STEREO16, NULL, 0, frequency);
+        alSourceQueueBuffers(result->source, 1, &result->buffers[i]);
     }
 
     alSourcePlay(result->source);
@@ -114,45 +111,18 @@ go2_audio_t *go2_audio_create(int frequency)
 
 void go2_audio_destroy(go2_audio_t *audio)
 {
+    if (!audio)
+        return;
+    if (alcGetCurrentContext() != audio->context)
+        alcMakeContextCurrent(audio->context);
+    alSourceStop(audio->source);
     alDeleteSources(1, &audio->source);
+    alDeleteBuffers(BUFFER_COUNT, audio->buffers);
+    alcMakeContextCurrent(NULL);
     alcDestroyContext(audio->context);
     alcCloseDevice(audio->device);
 
     free(audio);
-}
-
-void *audio_thread(void *arg)
-{
-    // play audio here
-    
-    go2_audio_t *audio = (go2_audio_t *)arg;
-    ALint processedA = 0;
-    
-    while (!processedA)
-    {
-        alGetSourceiv(audio->source, AL_BUFFERS_PROCESSED, &processedA);
-
-        struct timeval tv1;
-        tv1.tv_sec = 0;
-        tv1.tv_usec = 4000;
-        select(0, NULL, NULL, NULL, &tv1);
-        if (!processedA)
-        {
-            struct timeval tv;
-            tv.tv_sec = 0;
-            tv.tv_usec = 700;
-            select(0, NULL, NULL, NULL, &tv);
-            logger.log(Logger::ERR,"Audio waiting.\n");
-        }
-        
-    }
-    // Signal that the buffers have been processed
-    pthread_mutex_lock(&mutex);
-    processed = true;
-    pthread_cond_signal(&cond);
-    pthread_mutex_unlock(&mutex);
-
-    return NULL;
 }
 
 std::mutex myMutex;
@@ -160,11 +130,11 @@ std::mutex myMutex;
 inline void playAudio(go2_audio_t *audio, const short *data, int frames)
 {
 
-    processed = false;
     if (!audio || !audio->isAudioInitialized)
         return;
 
-    if (!alcMakeContextCurrent(audio->context))
+    if (alcGetCurrentContext() != audio->context &&
+        !alcMakeContextCurrent(audio->context))
     {
         //printf("alcMakeContextCurrent failed.\n");
         return;
@@ -176,17 +146,10 @@ inline void playAudio(go2_audio_t *audio, const short *data, int frames)
     while (!processedA)
     {
         alGetSourceiv(audio->source, AL_BUFFERS_PROCESSED, &processedA);
-
         if (!processedA)
-        {
-            // sched_yield();
-            /*struct timeval tv;
-            tv.tv_sec =0;
-            tv.tv_usec=15000;
-            select(0,NULL,NULL,NULL,&tv);*/
-            // printf("Audio overflow.\n");
-            // return;
-        }
+            // OpenAL has no processed-buffer event API. A short sleep keeps
+            // this producer paced without burning an entire RK3326 core.
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
     ALuint openALBufferID;
@@ -214,7 +177,7 @@ auto max_fps = originalFps;
 
 void go2_audio_submit(go2_audio_t *audio, const short *data, int frames)
 {
-    myMutex.lock(); // Acquire the lock before accessing shared resources
+    std::lock_guard<std::mutex> lock(myMutex);
     max_fps = originalFps < 20 ? 60 : originalFps;
     playAudio(audio, data, frames);
 
@@ -232,7 +195,6 @@ void go2_audio_submit(go2_audio_t *audio, const short *data, int frames)
     prevClock = nextClock;
     totClock = std::chrono::high_resolution_clock::now();
 
-    myMutex.unlock(); // Release the lock after accessing shared resources
 }
 
 uint32_t go2_audio_volume_get(go2_audio_t *audio, const char *selem_name)
