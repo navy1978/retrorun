@@ -862,7 +862,7 @@ libc_error:
     exit(1);
 }
 
-void *unload(void *arg)
+void *unload(void *)
 {
 
     if (g_retro.initialized)
@@ -1852,7 +1852,7 @@ void initConfig()
     infile.close();
 }
 
-void fake(int button)
+void fake(int)
 {
     // printf("fake function...");
 }
@@ -2233,30 +2233,6 @@ auto setDeviceType = [](int button) -> std::function<void(int)>
     return std::function<void(int)>();
 };
 
-int getAnalogToDigital()
-{
-    return analogToDigital;
-}
-
-auto setAnalogToDigital = [](int button) -> std::function<void(int)>
-{
-    if (button == LEFT)
-        {
-            if (analogToDigital == NONE)
-                analogToDigital = RIGHT_ANALOG_FORCED;
-            else
-                analogToDigital = static_cast<AnalogToDigital>(static_cast<int>(analogToDigital) - 1);
-        }
-        else if (button == RIGHT)
-        {
-            if (analogToDigital == RIGHT_ANALOG_FORCED)
-                analogToDigital = NONE;
-            else
-                analogToDigital = static_cast<AnalogToDigital>(static_cast<int>(analogToDigital) + 1);
-        }
-    return std::function<void(int)>();
-};
-
 void resume(int button)
 {
     if (button == A_BUTTON)
@@ -2379,7 +2355,7 @@ void showCredit(int button)
 
 // Global variable to track the last rumble activation time
 std::chrono::steady_clock::time_point last_rumble_time;
-int testRumble(int i)
+int testRumble(int)
 {
     auto now = std::chrono::steady_clock::now();
     
@@ -2732,7 +2708,6 @@ int main(int argc, char *argv[])
 
     std::vector<MenuItem> itemsControl = {
         deviceType,
-        //MenuItem("Analog to Digital Type", getAnalogToDigital, setAnalogToDigital, "analog-to-digital"),
         MenuItem("Swap triggers", getSwapTriggers, setSwapTriggers, "bool"),
         MenuItem("Swap analog sticks", getSwapSticks, setSwapSticks, "bool"),
         MenuItem("Rumble test", []() { return 0; }, [](int val) { testRumble(val); }, "test-rumble"),

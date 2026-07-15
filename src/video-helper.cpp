@@ -304,12 +304,12 @@ int getMax_height()
 
 int getGeom_max_width(const struct retro_game_geometry *geom)
 {
-    return getFixedWidth(max_width);
+    return getFixedWidth(static_cast<int>(geom->max_width));
 }
 
 int getGeom_max_height(const struct retro_game_geometry *geom)
 {
-    return getFixedHeight(max_height);
+    return getFixedHeight(static_cast<int>(geom->max_height));
 }
 
 
@@ -528,7 +528,7 @@ void drawCreditLine(int y, const char *text, unsigned short color, rr_surface_t 
 
 
 
-void showInfoDevice(int w, rr_surface_t **surface, int posX)
+void showInfoDevice(rr_surface_t **surface)
 {
 #ifdef RR_PLATFORM_SDL
     const SystemInfo info = querySystemInfo();
@@ -579,7 +579,7 @@ void showInfoDevice(int w, rr_surface_t **surface, int posX)
     // showCenteredText(getRowForText(), (procs).c_str(), DARKGREY, surface);
 }
 
-void showInfoCore(int w, rr_surface_t **surface, int posX)
+void showInfoCore(rr_surface_t **surface)
 {
     std::string core = tabSpaces + "Name: ";
     showCenteredText(getRowForText(), const_cast<char *>(core.append(coreName).c_str()), DARKGREY, surface);
@@ -592,7 +592,7 @@ void showInfoCore(int w, rr_surface_t **surface, int posX)
     showCenteredText(getRowForText(), const_cast<char *>(openGl.append(isOpenGL ? "true" : "false").c_str()), DARKGREY, surface);
 }
 
-void showInfoGame(int w, rr_surface_t **surface, int posX)
+void showInfoGame(rr_surface_t **surface)
 {
     std::string origFps = tabSpaces + "Orignal FPS: ";
     showCenteredText(getRowForText(), const_cast<char *>(origFps.append(std::to_string((int)originalFps)).c_str()), DARKGREY, surface);
@@ -762,15 +762,15 @@ void showInfo(int w, rr_surface_t **surface)
         MenuItem &mi = menu.getItems()[i];
         if (mi.get_name() == SHOW_DEVICE)
         {
-            showInfoDevice(w, surface, posX);
+            showInfoDevice(surface);
         }
         else if (mi.get_name() == SHOW_CORE)
         {
-            showInfoCore(w, surface, posX);
+            showInfoCore(surface);
         }
         else if (mi.get_name() == SHOW_GAME)
         {
-            showInfoGame(w, surface, posX);
+            showInfoGame(surface);
         }
         else if (mi.get_name() == SHOW_GRAPHICS)
         {

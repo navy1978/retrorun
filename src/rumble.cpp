@@ -41,7 +41,7 @@ std::string  PWM_RUMBLE_PATH = "";
 
 
 
-bool retrorun_input_set_rumble(unsigned port, enum retro_rumble_effect effect, uint16_t strength)
+bool retrorun_input_set_rumble(unsigned, enum retro_rumble_effect effect, uint16_t strength)
 {
 
     if (disableRumble) return true;

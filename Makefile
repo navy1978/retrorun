@@ -11,7 +11,7 @@ PLATFORM ?= auto
 
 PROJECTS := retrorun
 
-.PHONY: all build clean help sdl2 go2 $(PROJECTS)
+.PHONY: all build clean help macos macos-sdl2 linux-sdl2 linux-go2 sdl2 go2 $(PROJECTS)
 
 # Run a sub-build, preserve its exit status, and always report the elapsed time.
 # Usage: $(call timed_build,<make arguments>)
@@ -34,20 +34,27 @@ all: $(PROJECTS)
 # build/ directory and incorrectly reports that there is nothing to do.
 build: retrorun
 
-ifeq ($(PLATFORM),sdl2)
+ifneq ($(filter $(PLATFORM),linux-sdl2 sdl2),)
 retrorun:
 	@echo "==== Building retrorun SDL2 for Linux/OpenGL ES ===="
 	$(call timed_build,-C build/linux-sdl -f Makefile config=$(config))
 
 clean:
 	@${MAKE} --no-print-directory -C build/linux-sdl -f Makefile clean
-else ifeq ($(PLATFORM),go2)
+else ifneq ($(filter $(PLATFORM),linux-go2 go2),)
 retrorun:
 	@echo "==== Building retrorun GO2/DRM ($(config)) ===="
 	$(call timed_build,-C build/gmake -f Makefile)
 
 clean:
 	@${MAKE} --no-print-directory -C build/gmake -f Makefile clean
+else ifeq ($(PLATFORM),macos-sdl2)
+retrorun:
+	@echo "==== Building retrorun SDL2 for macOS ===="
+	$(call timed_build,-C build/macos -f Makefile config=$(config))
+
+clean:
+	@${MAKE} --no-print-directory -C build/macos -f Makefile clean
 else ifeq ($(UNAME_S),Darwin)
 retrorun:
 	@echo "==== Building retrorun SDL2 for macOS ===="
@@ -64,11 +71,21 @@ clean:
 	@${MAKE} --no-print-directory -C build/gmake -f Makefile clean
 endif
 
-sdl2:
-	@${MAKE} --no-print-directory PLATFORM=sdl2 config=$(config) retrorun
+macos-sdl2:
+	@${MAKE} --no-print-directory PLATFORM=macos-sdl2 config=$(config) retrorun
 
-go2:
-	@${MAKE} --no-print-directory PLATFORM=go2 config=$(config) retrorun
+linux-sdl2:
+	@${MAKE} --no-print-directory PLATFORM=linux-sdl2 config=$(config) retrorun
+
+linux-go2:
+	@${MAKE} --no-print-directory PLATFORM=linux-go2 config=$(config) retrorun
+
+# Short aliases retained for compatibility with existing scripts.
+macos: macos-sdl2
+
+sdl2: linux-sdl2
+
+go2: linux-go2
 
 help:
 	@echo "Usage: make [config=name] [target]"
@@ -81,7 +98,15 @@ help:
 	@echo "   all (default)"
 	@echo "   clean"
 	@echo "   retrorun"
-	@echo "   sdl2       Linux SDL2/KMSDRM/OpenGL ES alternative"
-	@echo "   go2        Native GO2/DRM backend (Linux default)"
+	@echo "   macos-sdl2  macOS with the SDL2/OpenGL backend"
+	@echo "   linux-sdl2  Linux with the SDL2/KMSDRM/OpenGL ES backend"
+	@echo "   linux-go2   Linux handhelds with the native GO2/DRM backend"
+	@echo ""
+	@echo "COMPATIBILITY ALIASES:"
+	@echo "   macos       Alias for macos-sdl2"
+	@echo "   sdl2        Alias for linux-sdl2"
+	@echo "   go2         Alias for linux-go2"
+	@echo ""
+	@echo "Future Windows builds should use the windows-sdl2 target name."
 	@echo ""
 	@echo "For more information, see http://industriousone.com/premake/quick-start"
