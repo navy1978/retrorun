@@ -27,7 +27,8 @@ const int clear_frame_count = 6;
 int clear_frames_left = clear_frame_count;
 int loading_frame = 0;
 bool loading_overlay_logged = false;
-bool previous_overlay_visible = false;
+unsigned previous_overlay_mask = 0;
+int overlay_cleanup_frames = 0;
 std::atomic<int64_t> loading_started_ns{0};
 
 int64_t steadyNowNs() {
@@ -87,6 +88,9 @@ void renderFullOverlay(int width, int height) {
 }
 
 void renderStateMessage() {
+    static rr_surface_t* rendered_surface = nullptr;
+    static std::string rendered_label;
+    static unsigned short rendered_color = 0;
     const bool completed = continueToShowSaveLoadStateDoneImage() ||
                            input_slot_memory_load_done || input_slot_memory_save_done ||
                            input_slot_memory_reset_done;
@@ -98,8 +102,6 @@ void renderStateMessage() {
 
     if (!status_surface_bottom_center)
         status_surface_bottom_center = rr_surface_create(display, 150, 20, format_565);
-    makeScreenBlack(status_surface_bottom_center, 150, 20);
-
     std::string label;
     unsigned short color = WHITE;
     if (input_slot_memory_load_done) {
@@ -119,7 +121,14 @@ void renderStateMessage() {
     } else {
         label = " SLOT:" + std::to_string(currentSlot) + " SELECTED.";
     }
-    showTextBigger(0, 5, label.c_str(), color, &status_surface_bottom_center);
+    if (rendered_surface != status_surface_bottom_center ||
+        rendered_label != label || rendered_color != color) {
+        makeScreenBlack(status_surface_bottom_center, 150, 20);
+        showTextBigger(0, 5, label.c_str(), color, &status_surface_bottom_center);
+        rendered_surface = status_surface_bottom_center;
+        rendered_label = label;
+        rendered_color = color;
+    }
 }
 } // namespace
 
@@ -152,9 +161,11 @@ bool uiRenderOverlays(const void* frame, unsigned width, unsigned height, size_t
 
     if (screenshot_requested && !input_info_requested && !input_credits_requested)
         takeScreenshot(overlay_width, overlay_height);
+    const bool previous_screenshot_visible = overlays.show_bottom_right;
     overlays.show_bottom_right = continueToShowScreenshotImage();
     if (overlays.show_bottom_right) {
-        showImage(screenshot, &status_surface_bottom_right);
+        if (!previous_screenshot_visible || !status_surface_bottom_right)
+            showImage(screenshot, &status_surface_bottom_right);
         visible = true;
     }
 
@@ -181,26 +192,45 @@ bool uiRenderOverlays(const void* frame, unsigned width, unsigned height, size_t
         visible = true;
     }
 
+    const bool previous_bottom_left_visible = overlays.show_bottom_left;
     overlays.show_bottom_left = false;
+    const Image* bottom_left_image = nullptr;
     if (input_exit_requested_firstTime && !input_info_requested && !input_credits_requested) {
-        showImage(quit, &status_surface_bottom_left);
+        bottom_left_image = &quit;
         overlays.show_bottom_left = true;
     }
     if (input_pause_requested && !input_info_requested) {
-        showImage(pause_img, &status_surface_bottom_left);
+        bottom_left_image = &pause_img;
         overlays.show_bottom_left = true;
+    }
+    static const uint8_t* rendered_bottom_left_pixels = nullptr;
+    static rr_surface_t* rendered_bottom_left_surface = nullptr;
+    if (bottom_left_image &&
+        (!previous_bottom_left_visible || rendered_bottom_left_surface != status_surface_bottom_left ||
+         rendered_bottom_left_pixels != bottom_left_image->pixel_data)) {
+        showImage(*bottom_left_image, &status_surface_bottom_left);
+        rendered_bottom_left_surface = status_surface_bottom_left;
+        rendered_bottom_left_pixels = bottom_left_image->pixel_data;
     }
     checkPaused();
 
     renderStateMessage();
     visible = visible || overlays.show_bottom_left || overlays.show_bottom_center;
-    const bool overlay_visible = overlays.show_full || overlays.show_top_left ||
-                                 overlays.show_top_right || overlays.show_bottom_left ||
-                                 overlays.show_bottom_right || overlays.show_bottom_center;
-    // Present one final composition after the last overlay disappears. GO2
-    // game frames may not cover the letterbox area where it was drawn.
-    const bool clean_disappeared_overlays = previous_overlay_visible && !overlay_visible;
-    visible = visible || clean_disappeared_overlays;
+    const unsigned overlay_mask = (overlays.show_full ? 1U : 0U) |
+                                  (overlays.show_top_left ? 2U : 0U) |
+                                  (overlays.show_top_right ? 4U : 0U) |
+                                  (overlays.show_bottom_left ? 8U : 0U) |
+                                  (overlays.show_bottom_right ? 16U : 0U) |
+                                  (overlays.show_bottom_center ? 32U : 0U);
+    // GO2 recycles three framebuffers. Clear each one only when the overlay
+    // layout changes, then leave the steady-state FPS/overlay path untouched.
+#ifndef RR_PLATFORM_SDL
+    if (overlay_mask != previous_overlay_mask) overlay_cleanup_frames = 3;
+    overlays.clean_full = overlay_cleanup_frames > 0;
+    visible = visible || overlays.clean_full;
+#else
+    overlays.clean_full = false;
+#endif
 
     bool use_software_presenter = presenter != nullptr;
 #ifdef RR_PLATFORM_SDL
@@ -228,12 +258,13 @@ bool uiRenderOverlays(const void* frame, unsigned width, unsigned height, size_t
                                        0, source_y, overlay_width, overlay_height,
                                        x, y, w, h, getRotation(), getBlitRotation(), isWideScreen);
         }
+        if (overlay_cleanup_frames > 0) --overlay_cleanup_frames;
     }
 
     last_menu_frame = input_info_requested || rr_keyboard_virtual_visible() ||
                       rr_file_browser_visible() || achievements_view_visible() ||
                       clear_frames_left != clear_frame_count;
-    previous_overlay_visible = overlay_visible;
+    previous_overlay_mask = overlay_mask;
     return visible;
 }
 

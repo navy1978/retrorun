@@ -38,6 +38,7 @@ struct rr_surface {
     rr_display_t* display;
     int width, height, stride;
     uint32_t format;
+    uint64_t generation;
     std::vector<uint8_t> pixels;
 };
 struct rr_presenter {
@@ -46,10 +47,11 @@ struct rr_presenter {
     uint32_t background;
     bool loading_wait_completed;
     struct texture_entry {
-        SDL_Texture* texture;
-        int width;
-        int height;
-        Uint32 format;
+        SDL_Texture* texture = NULL;
+        int width = 0;
+        int height = 0;
+        Uint32 format = SDL_PIXELFORMAT_UNKNOWN;
+        uint64_t generation = 0;
     };
     std::unordered_map<const rr_surface_t*, texture_entry> textures;
 };
@@ -77,6 +79,8 @@ struct rr_context {
     int overlay_texture_width;
     int overlay_texture_height;
     GLenum overlay_texture_format;
+    const rr_surface_t* overlay_uploaded_surface;
+    uint64_t overlay_uploaded_generation;
     std::vector<uint8_t> overlay_upload;
     GLint post_texture_filter;
     bool post_pipeline_failed;
@@ -91,6 +95,7 @@ static rr_video_shader_t video_shader = RR_VIDEO_SHADER_OFF;
 static rr_presenter_t* active_presenter = NULL;
 static rr_context_t* active_context = NULL;
 static bool controller_mappings_loaded = false;
+static uint64_t next_surface_generation = 1;
 
 static void refresh_display_size(rr_display_t* display) {
     if (!display || !display->window) return;
@@ -522,6 +527,7 @@ rr_surface_t* rr_surface_create(rr_display_t* display, int width, int height, ui
     if (width <= 0 || height <= 0 || sdl_pixel_format(format) == SDL_PIXELFORMAT_UNKNOWN) return NULL;
     rr_surface_t* surface = new rr_surface_t();
     surface->display = display; surface->width = width; surface->height = height; surface->format = format;
+    surface->generation = next_surface_generation++;
     surface->stride = width * (rr_pixel_format_bpp(format) / 8);
     surface->pixels.resize(static_cast<size_t>(surface->stride) * height);
     return surface;
@@ -531,12 +537,20 @@ int rr_surface_width_get(rr_surface_t* surface) { return surface->width; }
 int rr_surface_height_get(rr_surface_t* surface) { return surface->height; }
 uint32_t rr_surface_format_get(rr_surface_t* surface) { return surface->format; }
 int rr_surface_stride_get(rr_surface_t* surface) { return surface->stride; }
-void* rr_surface_map(rr_surface_t* surface) { return surface ? surface->pixels.data() : NULL; }
+void* rr_surface_map(rr_surface_t* surface) {
+    if (!surface) return NULL;
+    surface->generation = next_surface_generation++;
+    return surface->pixels.data();
+}
 void rr_surface_unmap(rr_surface_t*) {}
 void rr_surface_blit(rr_surface_t* source, int sx, int sy, int sw, int sh,
                      rr_surface_t* dest, int dx, int dy, int dw, int dh, rr_rotation_t) {
     SDL_Surface* src = wrap_surface(source); SDL_Surface* dst = wrap_surface(dest);
-    if (src && dst) { SDL_Rect sr = {sx,sy,sw,sh}; SDL_Rect dr = {dx,dy,dw,dh}; SDL_BlitScaled(src,&sr,dst,&dr); }
+    if (src && dst) {
+        SDL_Rect sr = {sx,sy,sw,sh}; SDL_Rect dr = {dx,dy,dw,dh};
+        SDL_BlitScaled(src,&sr,dst,&dr);
+        dest->generation = next_surface_generation++;
+    }
     if (src) SDL_FreeSurface(src);
     if (dst) SDL_FreeSurface(dst);
 }
@@ -571,16 +585,22 @@ static void render_surface(rr_presenter_t* presenter, rr_surface_t* surface, con
         entry.width = surface->width;
         entry.height = surface->height;
         entry.format = format;
+        entry.generation = 0;
         if (entry.texture)
             SDL_SetTextureBlendMode(entry.texture,
                                     surface->format == RR_PIXEL_FORMAT_RGBA8888
                                         ? SDL_BLENDMODE_BLEND : SDL_BLENDMODE_NONE);
     }
-    if (!entry.texture ||
+    if (!entry.texture) {
+        std::fprintf(stderr, "RetroRun SDL streaming texture creation failed: %s\n", SDL_GetError());
+        return;
+    }
+    if (entry.generation != surface->generation &&
         SDL_UpdateTexture(entry.texture, NULL, surface->pixels.data(), surface->stride) != 0) {
         std::fprintf(stderr, "RetroRun SDL streaming texture upload failed: %s\n", SDL_GetError());
         return;
     }
+    entry.generation = surface->generation;
     SDL_RenderCopyEx(presenter->renderer, entry.texture, src, dst,
                      90.0 * static_cast<int>(rotation), NULL, SDL_FLIP_NONE);
 }
@@ -919,6 +939,8 @@ rr_context_t* rr_context_create(rr_display_t* display, int width, int height,
     context->overlay_texture_width = 0;
     context->overlay_texture_height = 0;
     context->overlay_texture_format = 0;
+    context->overlay_uploaded_surface = NULL;
+    context->overlay_uploaded_generation = 0;
     context->post_texture_filter = -1;
     context->post_pipeline_failed = false;
     const char* default_framebuffer_env = std::getenv("RETRORUN_SDL_DEFAULT_FRAMEBUFFER");
@@ -1064,32 +1086,40 @@ static void blit_overlay(rr_context_t* context, rr_surface_t* surface,
         glBindTexture(GL_TEXTURE_2D, context->overlay_texture);
     }
 
-    // CPU surfaces are top-down while OpenGL textures are sampled bottom-up.
-    // Flip the upload once so the same shader path works reliably on Mali,
-    // where blitting a temporary FBO into the KMSDRM default framebuffer is
-    // not consistently presented.
-    context->overlay_upload.resize(surface->pixels.size());
-    for (int row = 0; row < surface->height; ++row) {
-        std::memcpy(context->overlay_upload.data() +
-                        static_cast<size_t>(row) * surface->stride,
-                    surface->pixels.data() +
-                        static_cast<size_t>(surface->height - 1 - row) * surface->stride,
-                    surface->stride);
-    }
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    if (context->overlay_texture_width != surface->width ||
+    const bool texture_changed =
+        context->overlay_uploaded_surface != surface ||
+        context->overlay_uploaded_generation != surface->generation ||
+        context->overlay_texture_width != surface->width ||
         context->overlay_texture_height != surface->height ||
-        context->overlay_texture_format != internal_format) {
-        glTexImage2D(GL_TEXTURE_2D, 0, internal_format,
-                     surface->width, surface->height, 0,
-                     source_format, source_type, context->overlay_upload.data());
+        context->overlay_texture_format != internal_format;
+    if (texture_changed) {
+        // CPU surfaces are top-down while OpenGL textures are sampled bottom-up.
+        // Only rebuild this copy when the overlay contents actually change.
+        context->overlay_upload.resize(surface->pixels.size());
+        for (int row = 0; row < surface->height; ++row) {
+            std::memcpy(context->overlay_upload.data() +
+                            static_cast<size_t>(row) * surface->stride,
+                        surface->pixels.data() +
+                            static_cast<size_t>(surface->height - 1 - row) * surface->stride,
+                        surface->stride);
+        }
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        if (context->overlay_texture_width != surface->width ||
+            context->overlay_texture_height != surface->height ||
+            context->overlay_texture_format != internal_format) {
+            glTexImage2D(GL_TEXTURE_2D, 0, internal_format,
+                         surface->width, surface->height, 0,
+                         source_format, source_type, context->overlay_upload.data());
+        } else {
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0,
+                            surface->width, surface->height,
+                            source_format, source_type, context->overlay_upload.data());
+        }
         context->overlay_texture_width = surface->width;
         context->overlay_texture_height = surface->height;
         context->overlay_texture_format = internal_format;
-    } else {
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0,
-                        surface->width, surface->height,
-                        source_format, source_type, context->overlay_upload.data());
+        context->overlay_uploaded_surface = surface;
+        context->overlay_uploaded_generation = surface->generation;
     }
     const float scale_x = static_cast<float>(drawable_width) / context->display->width;
     const float scale_y = static_cast<float>(drawable_height) / context->display->height;
@@ -1264,6 +1294,7 @@ rr_surface_t* rr_context_surface_lock(rr_context_t* context) {
     surface->height = context->height;
     surface->stride = context->width * 4;
     surface->format = RR_PIXEL_FORMAT_RGBA8888;
+    surface->generation = next_surface_generation++;
     surface->pixels.resize(static_cast<size_t>(surface->stride) * surface->height);
 
     std::vector<uint8_t> bottom_up(surface->pixels.size());

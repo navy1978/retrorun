@@ -887,50 +887,30 @@ std::string getCurrentTimeForFileName()
     return str;
 }
 
-void showNumberSprite(int x, int y, int number, int width, int height, const uint8_t *src)
-{
-    int height_sprite = height / 10; // 10 are the total number of sprites present in the image
-    int src_stride = width * sizeof(short);
-    uint8_t *dst = (uint8_t *)rr_surface_map(status_surface_top_right);
-    if (dst == nullptr)
-    {
-        return;
-    }
-    int dst_stride = rr_surface_stride_get(status_surface_top_right);
-    int brightnessIndex = number;
-    src += (brightnessIndex * height_sprite * src_stride); // 18
-    dst += x * sizeof(short) + y * dst_stride;
-    for (int y = 0; y < height_sprite; ++y) // 16
-    {
-        memcpy(dst, src, width * sizeof(short));
-        src += src_stride;
-        dst += dst_stride;
-    }
-}
-
-int getDigit(int n, int position)
-{
-    int res = (int)(n / pow(10, (position - 1))) % 10;
-    if (res > 9)
-        res = 9;
-    if (res < 0)
-        res = 0;
-    return res;
-}
-
-int getWidthFPS()
-{
-
-    return rr_surface_width_get(status_surface_top_right);
-}
-
 void showFPSImage()
 {
-    int x = getWidthFPS() - (numbers.width * 2); // depends on the width of the image
-    int y = 0;
-    int capFps = fps>99 ? 99: fps;
-    showNumberSprite(x, y, getDigit(capFps, 2), numbers.width, numbers.height, numbers.pixel_data);
-    showNumberSprite(x + numbers.width, y, getDigit(capFps, 1), numbers.width, numbers.height, numbers.pixel_data);
+    static rr_surface_t* rendered_surface = nullptr;
+    static int rendered_fps = -1;
+    const int cap_fps = std::clamp(static_cast<int>(fps), 0, 99);
+    if (rendered_surface == status_surface_top_right && rendered_fps == cap_fps) return;
+    rendered_surface = status_surface_top_right;
+    rendered_fps = cap_fps;
+
+    const int sprite_height = numbers.height / 10;
+    const int stride = rr_surface_stride_get(status_surface_top_right);
+    auto* destination = static_cast<uint8_t*>(rr_surface_map(status_surface_top_right));
+    if (!destination) return;
+    const int digits[2] = {cap_fps / 10, cap_fps % 10};
+    for (int digit = 0; digit < 2; ++digit) {
+        const uint8_t* source = numbers.pixel_data +
+            digits[digit] * sprite_height * numbers.width * sizeof(uint16_t);
+        for (int row = 0; row < sprite_height; ++row) {
+            std::memcpy(destination + row * stride + digit * numbers.width * sizeof(uint16_t),
+                        source + row * numbers.width * sizeof(uint16_t),
+                        numbers.width * sizeof(uint16_t));
+        }
+    }
+    rr_surface_unmap(status_surface_top_right);
 }
 
 void showFullImage_888(int x, int y, int width, int height, const uint8_t *src, rr_surface_t **surface)

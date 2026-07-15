@@ -18,6 +18,7 @@ extern "C" {
 #include <png.h>
 
 #include <chrono>
+#include <atomic>
 #include <cctype>
 #include <cstring>
 #include <deque>
@@ -44,6 +45,9 @@ std::string game_load_error;
 bool used_password_login = false;
 uint64_t frames_processed = 0;
 uint64_t memory_read_failures = 0;
+#ifdef DEBUG
+uint64_t achievement_frame_ns = 0;
+#endif
 std::chrono::steady_clock::time_point notification_until;
 std::string notification_text;
 std::string notification_badge_url;
@@ -79,6 +83,7 @@ struct BadgeDownload {
 std::unordered_map<std::string, BadgeImage> badge_cache;
 std::mutex badge_mutex;
 std::vector<std::unique_ptr<BadgeDownload>> badge_completed;
+std::atomic<unsigned> badge_results_pending{0};
 void request_badge(const std::string& url);
 std::vector<retro_memory_descriptor> descriptors;
 retro_memory_map memory_map = {};
@@ -90,6 +95,7 @@ struct HttpResult {
 };
 std::mutex http_mutex;
 std::vector<std::unique_ptr<HttpResult>> http_completed;
+std::atomic<unsigned> http_results_pending{0};
 std::vector<std::thread> http_workers;
 
 void RC_CCONV core_memory_info(uint32_t id, rc_libretro_core_memory_info_t* info);
@@ -158,6 +164,7 @@ void RC_CCONV server_call(const rc_api_request_t* request,
         if (!curl) {
             std::lock_guard<std::mutex> lock(http_mutex);
             http_completed.push_back(std::move(result));
+            ++http_results_pending;
             return;
         }
         curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
@@ -189,14 +196,17 @@ void RC_CCONV server_call(const rc_api_request_t* request,
         curl_easy_cleanup(curl);
         std::lock_guard<std::mutex> lock(http_mutex);
         http_completed.push_back(std::move(result));
+        ++http_results_pending;
     });
 }
 
 void pump_http() {
+    if (http_results_pending.load(std::memory_order_acquire) == 0) return;
     std::vector<std::unique_ptr<HttpResult>> completed;
     {
         std::lock_guard<std::mutex> lock(http_mutex);
         completed.swap(http_completed);
+        http_results_pending.store(0, std::memory_order_release);
     }
     for (const auto& result : completed) {
         const rc_api_server_response_t response = {
@@ -231,10 +241,12 @@ bool decode_badge_png(const std::vector<unsigned char>& data, BadgeImage& badge)
 }
 
 void pump_badges() {
+    if (badge_results_pending.load(std::memory_order_acquire) == 0) return;
     std::vector<std::unique_ptr<BadgeDownload>> completed;
     {
         std::lock_guard<std::mutex> lock(badge_mutex);
         completed.swap(badge_completed);
+        badge_results_pending.store(0, std::memory_order_release);
     }
     for (const auto& result : completed) {
         BadgeImage& badge = badge_cache[result->url];
@@ -299,6 +311,7 @@ void request_badge(const std::string& url) {
         }
         std::lock_guard<std::mutex> lock(badge_mutex);
         badge_completed.push_back(std::move(result));
+        ++badge_results_pending;
     });
 }
 
@@ -539,23 +552,53 @@ void achievements_init(const char* content_path) {
 }
 
 void achievements_frame() {
+    if (!enabled && notification_text.empty()) return;
+    if (!client && notification_text.empty() &&
+        http_results_pending.load(std::memory_order_relaxed) == 0 &&
+        badge_results_pending.load(std::memory_order_relaxed) == 0)
+        return;
     pump_http();
     pump_badges();
     if (client && rc_client_is_game_loaded(client)) {
+#ifdef DEBUG
+        const auto frame_started = std::chrono::steady_clock::now();
+#endif
         rc_client_do_frame(client);
+#ifdef DEBUG
+        achievement_frame_ns += static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+            std::chrono::steady_clock::now() - frame_started).count());
+#endif
         ++frames_processed;
         // Some cores allocate or replace their RAM shortly after the first
         // retro_run(). Refresh the pointers once the emulation is underway.
         if (frames_processed == 60) refresh_memory();
         if (frames_processed == 600 || (frames_processed > 0 && frames_processed % 18000 == 0))
             logger.log(Logger::DEB,
-                       "RetroAchievements runtime health: frames=%llu, memory_read_failures=%llu",
+                       "RetroAchievements runtime health: frames=%llu, memory_read_failures=%llu"
+#ifdef DEBUG
+                       ", average_frame_cost_us=%.1f"
+#endif
+                       ,
                        static_cast<unsigned long long>(frames_processed),
-                       static_cast<unsigned long long>(memory_read_failures));
+                       static_cast<unsigned long long>(memory_read_failures)
+#ifdef DEBUG
+                       , frames_processed ? achievement_frame_ns / 1000.0 / frames_processed : 0.0
+#endif
+                       );
     }
-    update_notification();
+    if (!notification_text.empty()) update_notification();
 }
-void achievements_idle() { pump_http(); pump_badges(); if (client) rc_client_idle(client); update_notification(); }
+void achievements_idle() {
+    if (!enabled && notification_text.empty()) return;
+    if (!client && notification_text.empty() &&
+        http_results_pending.load(std::memory_order_relaxed) == 0 &&
+        badge_results_pending.load(std::memory_order_relaxed) == 0)
+        return;
+    pump_http();
+    pump_badges();
+    if (client) rc_client_idle(client);
+    if (!notification_text.empty()) update_notification();
+}
 void achievements_reset() { if (client) { rc_client_reset(client); refresh_memory(); } }
 bool achievements_active() { return client && rc_client_is_game_loaded(client); }
 bool achievements_enabled() { return config_bool("retrorun_achievements_enabled"); }
@@ -835,16 +878,31 @@ void achievements_view_render(rr_surface_t* surface, int width, int height) {
 
 void achievements_render_notification(rr_surface_t* surface) {
     if (!surface || notification_text.empty()) return;
+    const bool has_badge = !notification_badge_url.empty();
+    const uint16_t* badge_pixels = nullptr;
+    if (has_badge) {
+        request_badge(notification_badge_url);
+        const auto badge_it = badge_cache.find(notification_badge_url);
+        if (badge_it != badge_cache.end() && !badge_it->second.pixels.empty())
+            badge_pixels = badge_it->second.pixels.data();
+    }
+    static rr_surface_t* rendered_surface = nullptr;
+    static std::string rendered_text;
+    static std::string rendered_badge_url;
+    static const uint16_t* rendered_badge_pixels = nullptr;
+    if (rendered_surface == surface && rendered_text == notification_text &&
+        rendered_badge_url == notification_badge_url &&
+        rendered_badge_pixels == badge_pixels)
+        return;
+
     uint16_t* pixels = static_cast<uint16_t*>(rr_surface_map(surface));
     if (!pixels) return;
     const int width = rr_surface_width_get(surface);
     const int height = rr_surface_height_get(surface);
     const int stride = rr_surface_stride_get(surface) / 2;
     std::fill(pixels, pixels + stride * height, static_cast<uint16_t>(0x0841));
-    const bool has_badge = !notification_badge_url.empty();
     const int text_x = has_badge ? 46 : 6;
     if (has_badge) {
-        request_badge(notification_badge_url);
         const auto badge_it = badge_cache.find(notification_badge_url);
         if (badge_it != badge_cache.end() && !badge_it->second.pixels.empty()) {
             const BadgeImage& badge = badge_it->second;
@@ -879,6 +937,10 @@ void achievements_render_notification(rr_surface_t* surface) {
         y += 10;
     }
     rr_surface_unmap(surface);
+    rendered_surface = surface;
+    rendered_text = notification_text;
+    rendered_badge_url = notification_badge_url;
+    rendered_badge_pixels = badge_pixels;
 }
 
 void achievements_set_memory_map(const retro_memory_map* map) {
@@ -898,6 +960,8 @@ void achievements_change_media(const char* path) {
 void achievements_shutdown() {
     for (std::thread& worker : http_workers) if (worker.joinable()) worker.join();
     http_workers.clear();
+    http_results_pending.store(0, std::memory_order_relaxed);
+    badge_results_pending.store(0, std::memory_order_relaxed);
     {
         std::lock_guard<std::mutex> lock(http_mutex);
         http_completed.clear();
@@ -911,6 +975,9 @@ void achievements_shutdown() {
     login_error.clear();
     game_load_error.clear();
     frames_processed = memory_read_failures = 0;
+#ifdef DEBUG
+    achievement_frame_ns = 0;
+#endif
     notification_text.clear();
     notification_badge_url.clear();
     notification_queue.clear();
