@@ -78,6 +78,10 @@ OBJECTS := \
 	$(OBJDIR)/video.o \
 	$(OBJDIR)/globals.o \
 	$(OBJDIR)/rumble.o \
+	$(OBJDIR)/config.o \
+	$(OBJDIR)/core_loader.o \
+	$(OBJDIR)/savestate.o \
+	$(OBJDIR)/menu_setup.o \
 	$(OBJDIR)/main.o \
   	$(OBJDIR)/go2/audio.o \
 	$(OBJDIR)/go2/display.o \
@@ -131,10 +135,10 @@ clean:
 	@echo Cleaning retrorun
 ifeq (posix,$(SHELLTYPE))
 	$(SILENT) rm -f  $(TARGET)
-	$(SILENT) rm -rf $(OBJDIR)
+	$(SILENT) rm -rf obj
 else
 	$(SILENT) if exist $(subst /,\\,$(TARGET)) del $(subst /,\\,$(TARGET))
-	$(SILENT) if exist $(subst /,\\,$(OBJDIR)) rmdir /s /q $(subst /,\\,$(OBJDIR))
+	$(SILENT) if exist obj rmdir /s /q obj
 endif
 
 prebuild:
@@ -191,6 +195,18 @@ $(OBJDIR)/globals.o: ../../src/globals.cpp
 $(OBJDIR)/rumble.o: ../../src/rumble.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"	
+$(OBJDIR)/config.o: ../../src/config.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/core_loader.o: ../../src/core_loader.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/savestate.o: ../../src/savestate.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/menu_setup.o: ../../src/menu_setup.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/main.o: ../../src/main.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"

@@ -38,12 +38,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include "platform.h"
 
-
-#include <chrono>
-#include "video-helper.h"
-
 #include <chrono>
 #include <thread>
+#include "video-helper.h"
 
 
 

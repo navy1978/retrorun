@@ -44,6 +44,10 @@ SOURCES := \
   src/globals.cpp \
   src/rumble.cpp \
   src/events_sdl.cpp \
+  src/config.cpp \
+  src/core_loader.cpp \
+  src/savestate.cpp \
+  src/menu_setup.cpp \
   src/main.cpp
 
 OBJECTS := $(patsubst src/%.cpp,$(OBJDIR)/%.o,$(SOURCES))
