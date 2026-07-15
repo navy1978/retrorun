@@ -489,6 +489,81 @@ void showCenteredText(int y, const char *text, unsigned short color, rr_surface_
     // showText(0, y, title.c_str(), color, surface);
 }
 
+static void drawSelectedMenuRow(int y, rr_surface_t **surface)
+{
+    if (!surface || !*surface) return;
+    auto *pixels = static_cast<uint16_t *>(rr_surface_map(*surface));
+    if (!pixels) return;
+
+    const int width = rr_surface_width_get(*surface);
+    const int height = rr_surface_height_get(*surface);
+    const int stride = rr_surface_stride_get(*surface) / sizeof(uint16_t);
+    const int row_height = getResolvedUIProfile() == UIProfile::Handheld ? 10 : 12;
+    const int top = std::max(0, y - 1);
+    const int bottom = std::min(height, top + row_height);
+    const int left = 4;
+    const int right = std::max(left, width - 4);
+#ifdef RR_PLATFORM_GO2
+    // The native handheld panels render very dark RGB565 blues close to black.
+    constexpr uint16_t selected_blue = 0x2b5f;
+#else
+    constexpr uint16_t selected_blue = 0x214a;
+#endif
+
+    for (int py = top; py < bottom; ++py)
+        std::fill(pixels + py * stride + left,
+                  pixels + py * stride + right,
+                  selected_blue);
+    rr_surface_unmap(*surface);
+}
+
+static void drawMenuRowColumns(int y, const std::string &label,
+                               const std::string &right_text,
+                               unsigned short color, rr_surface_t **surface)
+{
+    constexpr int margin = 12;
+    constexpr int glyph_width = 8;
+    const int right_edge = INFO_MENU_WIDTH - margin;
+    const int right_width = static_cast<int>(right_text.size()) * glyph_width;
+    const int right_x = right_edge - right_width;
+    const int gap = right_text.empty() ? 0 : glyph_width;
+    const int required_width = static_cast<int>(label.size()) * glyph_width +
+                               gap + right_width;
+    const int available_width = INFO_MENU_WIDTH - margin * 2;
+
+    if (required_width <= available_width) {
+        showText(margin, y, label.c_str(), color, surface);
+        if (!right_text.empty())
+            showText(right_x, y, right_text.c_str(), color, surface);
+    } else {
+        const std::string complete_row = right_text.empty()
+                                             ? label
+                                             : label + "  " + right_text;
+        showLongCenteredText(y, complete_row.c_str(), color, surface);
+    }
+}
+
+static void drawInfoRow(const std::string &label, const std::string &value,
+                        rr_surface_t **surface)
+{
+    constexpr int margin = 12;
+    constexpr int glyph_width = 8;
+    const int row = getRowForText();
+    const int value_width = static_cast<int>(value.size()) * glyph_width;
+    const int value_x = INFO_MENU_WIDTH - margin - value_width;
+    const int required_width = static_cast<int>(label.size()) * glyph_width +
+                               glyph_width + value_width;
+    const int available_width = INFO_MENU_WIDTH - margin * 2;
+
+    if (required_width <= available_width) {
+        showText(margin, row, label.c_str(), DARKGREY, surface);
+        showText(value_x, row, value.c_str(), LIGHTGREY, surface);
+    } else {
+        const std::string complete_row = label + ": " + value;
+        showLongCenteredText(row, complete_row.c_str(), LIGHTGREY, surface);
+    }
+}
+
 void showMovingHeaderText(int y, const char *text, unsigned short color, rr_surface_t **surface)
 {
     const std::string title(text ? text : "");
@@ -561,41 +636,38 @@ void showInfoDevice(rr_surface_t **surface)
 {
 #ifdef RR_PLATFORM_SDL
     const SystemInfo info = querySystemInfo();
-    showCenteredText(getRowForText(), ("Host: " + info.hostname).c_str(), DARKGREY, surface);
-    showCenteredText(getRowForText(), ("Model: " + info.model).c_str(), DARKGREY, surface);
-    showLongCenteredText(getRowForText(), ("OS: " + info.operating_system).c_str(), DARKGREY, surface);
-    showLongCenteredText(getRowForText(), ("CPU: " + info.cpu).c_str(), DARKGREY, surface);
-    showCenteredText(getRowForText(), ("CPU threads: " + std::to_string(info.logical_cpus)).c_str(), DARKGREY, surface);
-    showLongCenteredText(getRowForText(), ("Renderer: " + info.gpu).c_str(), DARKGREY, surface);
-    std::string memory = "RAM: " + std::to_string(info.total_memory_mb) + " MB";
+    drawInfoRow("Host", info.hostname, surface);
+    drawInfoRow("Model", info.model, surface);
+    drawInfoRow("OS", info.operating_system, surface);
+    drawInfoRow("CPU", info.cpu, surface);
+    drawInfoRow("CPU threads", std::to_string(info.logical_cpus), surface);
+    drawInfoRow("Renderer", info.gpu, surface);
+    std::string memory = std::to_string(info.total_memory_mb) + " MB";
     if (info.available_memory_mb)
         memory += " (free " + std::to_string(info.available_memory_mb) + " MB)";
-    showCenteredText(getRowForText(), memory.c_str(), DARKGREY, surface);
+    drawInfoRow("RAM", memory, surface);
     return;
 #endif
     std::string hostName(getDeviceName());
     hostName = stripReturnCarriage(hostName);
-    showCenteredText(getRowForText(), (tabSpaces + "Model: " + hostName).c_str(), DARKGREY, surface);
+    drawInfoRow("Model", hostName, surface);
 
     std::string tot_ram = "Total RAM: N/A";
-    std::string free_ram = "Free RAM: N/A";
 #ifdef RR_PLATFORM_GO2
     struct sysinfo sys_info;
     // std::string procs = "Number of processes: N/A";
     if (sysinfo(&sys_info) == 0)
     {
         long total_ram_val = sys_info.totalram / (1024 * 1024);
-        long free_ram_val = sys_info.freeram / (1024 * 1024);
         // long number_procs = sys_info.procs;
         tot_ram = std::to_string(total_ram_val) + " MB";
-        free_ram = std::to_string(free_ram_val) + " MB";
         // procs = "# of processes:" + std::to_string(number_procs);
     }
 #endif
 
     for (const auto &cpu_info : cpu_info_list)
     {
-        showCenteredText(getRowForText(), ("CPU(s): " + cpu_info.number_of_cpu + " " + cpu_info.cpu_name).c_str(), DARKGREY, surface);
+        drawInfoRow("CPU(s)", cpu_info.number_of_cpu + " " + cpu_info.cpu_name, surface);
         // showCenteredText(getRowForText(), ("CPU(s) Model:"+cpu_info.cpu_name).c_str(), DARKGREY, surface);
         // showCenteredText(getRowForText(), ("CPU(s) Thread per Core:"+cpu_info.thread_per_cpu).c_str(), DARKGREY, surface);
     }
@@ -603,54 +675,40 @@ void showInfoDevice(rr_surface_t **surface)
 
     // showCenteredText(getRowForText(), (tot_ram).c_str(), DARKGREY, surface);
 
-    showCenteredText(getRowForText(), ("GPU: " + gpu_name).c_str(), DARKGREY, surface);
-    showCenteredText(getRowForText(), ("RAM: " + tot_ram).c_str(), DARKGREY, surface);
+    drawInfoRow("GPU", gpu_name, surface);
+    drawInfoRow("RAM", tot_ram, surface);
     // showCenteredText(getRowForText(), (procs).c_str(), DARKGREY, surface);
 }
 
 void showInfoCore(rr_surface_t **surface)
 {
-    std::string core = tabSpaces + "Name: ";
-    showCenteredText(getRowForText(), const_cast<char *>(core.append(coreName).c_str()), DARKGREY, surface);
-    std::string version = tabSpaces + "Version: ";
-    showCenteredText(getRowForText(), const_cast<char *>(version.append(coreVersion).c_str()), DARKGREY, surface);
-    std::string canzip = tabSpaces + "Files .zip allowed: ";
-    showCenteredText(getRowForText(), const_cast<char *>(canzip.append(coreReadZippedFiles ? "true" : "false").c_str()), DARKGREY, surface);
-
-    std::string openGl = tabSpaces + "OpenGL: ";
-    showCenteredText(getRowForText(), const_cast<char *>(openGl.append(isOpenGL ? "true" : "false").c_str()), DARKGREY, surface);
+    drawInfoRow("Name", coreName, surface);
+    drawInfoRow("Version", coreVersion, surface);
+    drawInfoRow("ZIP files", coreReadZippedFiles ? "Allowed" : "Not allowed", surface);
+    drawInfoRow("OpenGL", isOpenGL ? "Yes" : "No", surface);
 }
 
 void showInfoGame(rr_surface_t **surface)
 {
-    std::string origFps = tabSpaces + "Orignal FPS: ";
-    showCenteredText(getRowForText(), const_cast<char *>(origFps.append(std::to_string((int)originalFps)).c_str()), DARKGREY, surface);
-
-    std::string averageFps = tabSpaces + "Average FPS: ";
-    showCenteredText(getRowForText(), const_cast<char *>(averageFps.append(std::to_string((int)avgFps)).c_str()), DARKGREY, surface);
-
-    std::string res2 = tabSpaces + "Resolution: ";
-    showCenteredText(getRowForText(), const_cast<char *>(res2.append(std::to_string(currentWidth)).append("x").append(std::to_string(currentHeight)).c_str()), DARKGREY, surface);
-    std::string orientation = tabSpaces + "Orientation: ";
-    showCenteredText(getRowForText(), const_cast<char *>(orientation.append(isGameVertical ? "Portrait" : "Landscape").c_str()), DARKGREY, surface);
+    drawInfoRow("Original FPS", std::to_string(static_cast<int>(originalFps)), surface);
+    drawInfoRow("Average FPS", std::to_string(static_cast<int>(avgFps)), surface);
+    drawInfoRow("Resolution", std::to_string(currentWidth) + "x" +
+                std::to_string(currentHeight), surface);
+    drawInfoRow("Orientation", isGameVertical ? "Portrait" : "Landscape", surface);
 }
 
 void showInfoGraphics(int, rr_surface_t **surface, int)
 {
     const std::string backend = std::string(rr_platform_backend_name()) == "sdl2"
                                     ? "SDL2" : "GO2 / DRM";
-    showCenteredText(getRowForText(), ("Backend: " + backend).c_str(), DARKGREY, surface);
-    showLongCenteredText(getRowForText(),
-                         ("Renderer: " + std::string(rr_platform_renderer_name())).c_str(),
-                         DARKGREY, surface);
-    showCenteredText(getRowForText(),
-                     isOpenGL ? "Core video: Hardware OpenGL" : "Core video: Software",
-                     DARKGREY, surface);
+    drawInfoRow("Backend", backend, surface);
+    drawInfoRow("Renderer", rr_platform_renderer_name(), surface);
+    drawInfoRow("Core video", isOpenGL ? "Hardware OpenGL" : "Software", surface);
 
-    const std::string output = "Output: " + std::to_string(rr_display_width_get(display)) + "x" +
-                               std::to_string(rr_display_height_get(display)) + " / Core: " +
+    const std::string output = std::to_string(rr_display_width_get(display)) + "x" +
+                               std::to_string(rr_display_height_get(display)) + " / Core " +
                                std::to_string(currentWidth) + "x" + std::to_string(currentHeight);
-    showLongCenteredText(getRowForText(), output.c_str(), DARKGREY, surface);
+    drawInfoRow("Output", output, surface);
 
     const char *pixel_format = "Unknown";
     if (color_format == RR_PIXEL_FORMAT_RGB565) pixel_format = "RGB565";
@@ -658,35 +716,34 @@ void showInfoGraphics(int, rr_surface_t **surface, int)
     else if (color_format == RR_PIXEL_FORMAT_XRGB8888) pixel_format = "XRGB8888";
     else if (color_format == RR_PIXEL_FORMAT_RGBA8888) pixel_format = "RGBA8888";
     else if (color_format == RR_PIXEL_FORMAT_RGBA5551) pixel_format = "RGBA5551";
-    showCenteredText(getRowForText(), ("Pixel format: " + std::string(pixel_format)).c_str(),
-                     DARKGREY, surface);
+    drawInfoRow("Pixel format", pixel_format, surface);
 
     char aspect[64] = {};
-    std::snprintf(aspect, sizeof(aspect), "Aspect ratio: %.3f", aspect_ratio);
-    showCenteredText(getRowForText(), aspect, DARKGREY, surface);
+    std::snprintf(aspect, sizeof(aspect), "%.3f", aspect_ratio);
+    drawInfoRow("Aspect ratio", aspect, surface);
 
     static const char *filter_names[] = {"Off", "Nearest", "Linear"};
     static const char *shader_names[] = {"Off", "Scanlines", "CRT"};
     const int filter = static_cast<int>(rr_video_filter_get());
     const int shader = static_cast<int>(rr_video_shader_get());
-    const std::string effects = "Filter: " + std::string(filter_names[filter]) +
-                                " / Shader: " + shader_names[shader];
-    showLongCenteredText(getRowForText(), effects.c_str(), DARKGREY, surface);
+    const std::string effects = std::string(filter_names[filter]) +
+                                " / Shader " + shader_names[shader];
+    drawInfoRow("Filter", effects, surface);
 
 #ifdef RR_PLATFORM_SDL
-    const std::string sync = std::string("VSync: ") + (rr_video_vsync_get() ? "On" : "Off") +
-                             " / Pixel perfect: " + (pixel_perfect ? "On" : "Off");
+    const std::string sync = std::string(rr_video_vsync_get() ? "On" : "Off") +
+                             " / Pixel " + (pixel_perfect ? "On" : "Off");
 #else
-    const std::string sync = std::string("VSync: Backend / Pixel perfect: ") +
+    const std::string sync = std::string("Backend / Pixel ") +
                              (pixel_perfect ? "On" : "Off");
 #endif
-    showLongCenteredText(getRowForText(), sync.c_str(), DARKGREY, surface);
+    drawInfoRow("VSync", sync, surface);
 
     static const char *profile_names[] = {"Auto", "Handheld", "Desktop"};
-    const std::string profile = "UI: " +
+    const std::string profile =
         std::string(profile_names[static_cast<int>(getUIProfile())]) + " -> " +
         profile_names[static_cast<int>(getResolvedUIProfile())];
-    showCenteredText(getRowForText(), profile.c_str(), DARKGREY, surface);
+    drawInfoRow("UI profile", profile, surface);
 }
 
 void showCredits(rr_surface_t **surface)
@@ -811,20 +868,31 @@ void showInfo(int w, rr_surface_t **surface)
 
         else if (mi.isQuit()|| mi.isQuestion())
         {
-            showCenteredText(getRowForText(), (tabSpaces + mi.get_name() + ": < " + mi.getValues()[mi.getValue()] + " >").c_str(), mi.isSelected() ? WHITE : DARKGREY, surface);
+            const int row = getRowForText();
+            if (mi.isSelected()) drawSelectedMenuRow(row, surface);
+            showCenteredText(row, (tabSpaces + mi.get_name() + ": < " + mi.getValues()[mi.getValue()] + " >").c_str(), mi.isSelected() ? WHITE : DARKGREY, surface);
         }
         else if (mi.getMenu() != NULL)
         {
-
-            showCenteredText(getRowForText(), (tabSpaces + mi.get_name()).c_str(), mi.isSelected() ? WHITE : DARKGREY, surface);
+            const int row = getRowForText();
+            if (mi.isSelected()) drawSelectedMenuRow(row, surface);
+            drawMenuRowColumns(row, mi.get_name(), ">",
+                               mi.isSelected() ? WHITE : DARKGREY, surface);
         }
         else if (mi.m_valueCalculator != NULL)
         {
-            showCenteredText(getRowForText(), (tabSpaces + mi.get_name() + ": < " + mi.getStringValue() + mi.getMisUnit() + " >").c_str(), mi.isSelected() ? WHITE : DARKGREY, surface);
+            const int row = getRowForText();
+            if (mi.isSelected()) drawSelectedMenuRow(row, surface);
+            const std::string value = "< " + mi.getStringValue() + mi.getMisUnit() + " >";
+            drawMenuRowColumns(row, mi.get_name(), value,
+                               mi.isSelected() ? WHITE : DARKGREY, surface);
         }
         else
         {
-            showCenteredText(getRowForText(), (tabSpaces + mi.get_name()).c_str(), mi.isSelected() ? WHITE : DARKGREY, surface);
+            const int row = getRowForText();
+            if (mi.isSelected()) drawSelectedMenuRow(row, surface);
+            drawMenuRowColumns(row, mi.get_name(), "",
+                               mi.isSelected() ? WHITE : DARKGREY, surface);
         }
     }
 
