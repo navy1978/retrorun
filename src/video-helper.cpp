@@ -38,11 +38,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include "fonts.h"
 #include "imgs/imgs_numbers.h"
+#include "imgs/imgs_retrorun.h"
 #include "input.h"
 #include "system-info.h"
 #include "video.h"
 
 #include <chrono>
+#include <cstring>
 #include <unordered_map>
 
 int size_char = 8;
@@ -53,7 +55,7 @@ int posRetro = 3;
 bool loop = true;
 std::string tabSpaces = "";
 int stepCredits = 15;
-int posYCredits = INFO_MENU_HEIGHT + 8 * 2;
+int posYCredits = 8;
 int time_credit = 2;
 int offset = 0;
 bool direction_forward = true;
@@ -107,7 +109,7 @@ void updateUIMenuDimensions(int destination_width, int destination_height)
     }
 
     if (INFO_MENU_WIDTH != previous_width || INFO_MENU_HEIGHT != previous_height)
-        posYCredits = INFO_MENU_HEIGHT + 16;
+        posYCredits = 8;
 }
 
 
@@ -397,7 +399,34 @@ bool canCreditBeDrawn(int pos)
 
 void resetCredisPosition()
 {
-    posYCredits = INFO_MENU_HEIGHT + 8 * 2;
+    posYCredits = 8;
+    time_credit = 2;
+}
+
+static void drawCreditLogo(int image_y, rr_surface_t **surface)
+{
+    if (!surface || !*surface) return;
+    const int image_x = (INFO_MENU_WIDTH - static_cast<int>(retrorun_logo.width)) / 2;
+    const int source_width = static_cast<int>(retrorun_logo.width);
+    const int source_height = static_cast<int>(retrorun_logo.height);
+    const int start_x = std::max(0, image_x);
+    const int end_x = std::min(INFO_MENU_WIDTH, image_x + source_width);
+    const int start_y = std::max(0, image_y);
+    const int end_y = std::min(INFO_MENU_HEIGHT, image_y + source_height);
+    if (start_x >= end_x || start_y >= end_y) return;
+
+    auto* destination = static_cast<uint8_t*>(rr_surface_map(*surface));
+    if (!destination) return;
+    const int destination_stride = rr_surface_stride_get(*surface);
+    const auto* source = reinterpret_cast<const uint16_t*>(retrorun_logo.pixel_data);
+    for (int y = start_y; y < end_y; ++y) {
+        const int source_y = y - image_y;
+        const int source_x = start_x - image_x;
+        std::memcpy(destination + y * destination_stride + start_x * sizeof(uint16_t),
+                    source + source_y * source_width + source_x,
+                    static_cast<size_t>(end_x - start_x) * sizeof(uint16_t));
+    }
+    rr_surface_unmap(*surface);
 }
 
 
@@ -675,6 +704,9 @@ void showCredits(rr_surface_t **surface)
 
     /// DEV
     int currentY = posYCredits;
+
+    drawCreditLogo(currentY, surface);
+    currentY += static_cast<int>(retrorun_logo.height) + stepCredits;
 
     drawCreditLine(currentY, "RetroRun", ORANGE, surface);
     currentY += stepCredits;

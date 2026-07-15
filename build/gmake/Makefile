@@ -86,6 +86,7 @@ OBJECTS := \
 	$(OBJDIR)/disk_control.o \
 	$(OBJDIR)/file_browser.o \
 	$(OBJDIR)/achievements.o \
+	$(OBJDIR)/network_status.o \
 	$(OBJDIR)/main.o \
   	$(OBJDIR)/go2/audio.o \
 	$(OBJDIR)/go2/display.o \
@@ -228,6 +229,9 @@ $(OBJDIR)/file_browser.o: ../../src/file_browser.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/achievements.o: ../../src/achievements.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/network_status.o: ../../src/network_status.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/rcheevos/%.o: ../../deps/rcheevos/src/%.c

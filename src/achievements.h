@@ -1,6 +1,7 @@
 #pragma once
 
 #include "platform.h"
+#include <string>
 
 // Minimal RetroAchievements lifecycle. Configuration is read from conf_map:
 //   retrorun_achievements_enabled = true
@@ -15,6 +16,10 @@ void achievements_change_media(const char* content_path);
 void achievements_shutdown();
 bool achievements_enabled();
 void achievements_set_enabled(bool value, const char* content_path);
+std::string achievements_status_label();
+std::string achievements_username_label();
+void achievements_edit_username(const char* content_path);
+void achievements_edit_password(const char* content_path);
 bool achievements_active();
 bool achievements_notification_visible();
 void achievements_render_notification(rr_surface_t* surface);

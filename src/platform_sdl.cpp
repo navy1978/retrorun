@@ -1474,6 +1474,16 @@ static void rr_sdl_dispatch_key_event(const SDL_KeyboardEvent* ev) {
     SDL_Scancode sc = ev->keysym.scancode;
     const bool down = ev->type == SDL_KEYDOWN;
 
+    if (rr_keyboard_text_editing()) {
+        if (!down) return;
+        const unsigned keycode = sdl_scancode_to_retrok(sc);
+        if (!keycode) return;
+        RRKeyEvent edit_event = {true, keycode, 0,
+                                 sdl_mod_to_retrokmod(ev->keysym.mod)};
+        rr_keyboard_event(&edit_event);
+        return;
+    }
+
     // A release is forwarded only if its matching press reached the core.
     // This prevents both frontend shortcuts leaking into the core and keys
     // becoming stuck when a frontend screen opens while a key is held.
@@ -1508,7 +1518,7 @@ static uint32_t decode_first_utf8_codepoint(const char* text) {
 }
 
 static void rr_sdl_dispatch_text_event(const SDL_TextInputEvent* ev) {
-    if (!rr_keyboard_has_callback()) return;
+    if (!rr_keyboard_has_callback() && !rr_keyboard_text_editing()) return;
     const uint32_t character = decode_first_utf8_codepoint(ev->text);
     if (!character) return;
     RRKeyEvent event = {true, RETROK_UNKNOWN, character, 0};

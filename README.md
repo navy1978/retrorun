@@ -331,6 +331,13 @@ notification when a game is identified or an achievement is unlocked.
 Hardcore mode is intentionally not enabled yet because it requires enforcing
 restrictions on save states, fast-forward and other frontend features.
 
+The service can also be configured at runtime under
+**Settings > RetroAchievements**. The status row reports whether it is
+disabled, waiting for credentials, signing in, or logged in. Username and
+password are entered with the physical keyboard on SDL2 or the shared virtual
+keyboard on GO2. Password text is masked; after a successful login it is
+replaced in the configuration file by the rcheevos login token.
+
 Set `retrorun_achievements_encore = true` to reactivate achievements already
 unlocked by the current user. This is useful for testing notifications; the
 server does not award the same achievement or its points twice.

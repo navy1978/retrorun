@@ -66,6 +66,20 @@ MenuItem::MenuItem(std::string name, std::function<void(int)> action)
     
 }
 
+MenuItem::MenuItem(NameCalculator nameCalculator, std::function<void(int)> action)
+{
+    name_ = "";
+    valueSelected_ = -1;
+    action_ = action;
+    is_menu_ = false;
+    menu_ = nullptr;
+    mis_unit_ = "";
+    is_quit_item = false;
+    is_question_item = false;
+    m_valueCalculator = nullptr;
+    m_nameCalculator = nameCalculator;
+}
+
 
 MenuItem::MenuItem(std::string name, Menu *menu, std::function<void(int)> action)
 {

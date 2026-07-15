@@ -53,6 +53,7 @@ SOURCES := \
   src/disk_control.cpp \
   src/file_browser.cpp \
   src/achievements.cpp \
+  src/network_status.cpp \
   src/main.cpp
 
 RCHEEVOS_SOURCES := deps/rcheevos/src/rc_client.c deps/rcheevos/src/rc_compat.c \

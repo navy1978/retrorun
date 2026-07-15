@@ -32,6 +32,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "keyboard.h"
 #include "file_browser.h"
 #include "achievements.h"
+#include "network_status.h"
 #include "menu/menu.h"
 #include "menu/menu_item.h"
 #include "menu/menu_manager.h"
@@ -187,6 +188,7 @@ int main(int argc, char *argv[])
 
     core_load_game(arg_rom);
     achievements_init(arg_rom);
+    network_status_refresh();
 
     rr_input_state_t *gamepadState = input_gampad_current_get();
     if (rr_input_state_button_get(gamepadState, RRInputButton_F1) == RRButtonState_Pressed)
@@ -336,6 +338,11 @@ int main(int argc, char *argv[])
     Menu menuAudio = Menu("Audio", itemsAudio);
 
     std::vector<MenuItem> itemsAchievements = {
+        MenuItem(achievements_status_label, [](int) {}),
+        MenuItem(achievements_username_label,
+                 [](int button) { if (button == A_BUTTON) achievements_edit_username(arg_rom); }),
+        MenuItem("Set password",
+                 [](int button) { if (button == A_BUTTON) achievements_edit_password(arg_rom); }),
         MenuItem("Enabled",
                  []() { return achievements_enabled() ? 1 : 0; },
                  [](int value) { achievements_set_enabled(value != 0, arg_rom); },
@@ -379,12 +386,21 @@ int main(int argc, char *argv[])
     Menu menuInfoGame = Menu("Current game", game);
     std::vector<MenuItem> graphics = {MenuItem(SHOW_GRAPHICS, NULL)};
     Menu menuInfoGraphics = Menu("Graphics", graphics);
+    std::vector<MenuItem> network = {
+        MenuItem(network_status_connection_label, [](int) {}),
+        MenuItem(network_status_interface_label, [](int) {}),
+        MenuItem(network_status_address_label, [](int) {}),
+        MenuItem(network_status_latency_label, [](int) {}),
+        MenuItem(network_status_checked_label, [](int) {}),
+        MenuItem("Refresh", [](int button) { if (button == A_BUTTON) network_status_refresh(); })};
+    Menu menuInfoNetwork = Menu("Network", network);
 
     std::vector<MenuItem> itemsInfo = {
         MenuItem("Device", &menuInfoDevice, fake),
         MenuItem("Libretro core", &menuInfoCore, fake),
         MenuItem("Current game", &menuInfoGame, fake),
-        MenuItem("Graphics", &menuInfoGraphics, fake)};
+        MenuItem("Graphics", &menuInfoGraphics, fake),
+        MenuItem("Network", &menuInfoNetwork, fake)};
 
     MenuItem menuItem_q = MenuItem("Are you sure?", [](int button) {
         if (button == A_BUTTON) { isRunning = false; }
@@ -396,7 +412,6 @@ int main(int argc, char *argv[])
     Menu menuInfo = Menu("Info", itemsInfo);
     std::vector<MenuItem> items = {
         MenuItem("Resume", resume),
-        MenuItem("Virtual keyboard", [](int button) { if (button == A_BUTTON) rr_keyboard_virtual_open(); }),
         MenuItem("Change disk", [](int button) { if (button == A_BUTTON) rr_file_browser_open(arg_rom); }),
         MenuItem("Achievements", [](int button) { if (button == A_BUTTON) achievements_view_open(); }),
         MenuItem("Info", &menuInfo, fake),
@@ -620,6 +635,7 @@ int main(int argc, char *argv[])
     }
 
     logger.log(Logger::DEB, "Unloading core and deinit audio and video...");
+    network_status_shutdown();
     achievements_shutdown();
 
 #ifdef RR_PLATFORM_SDL

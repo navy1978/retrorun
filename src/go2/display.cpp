@@ -1509,7 +1509,15 @@ void go2_presenter_post_multiple(go2_presenter_t *presenter, go2_surface_t *surf
     }
 
     go2_surface_t *dstSurface = go2_frame_buffer_surface_get(dstFrameBuffer);
-    
+
+    // Framebuffers are recycled. Clear the entire destination before drawing
+    // the game and overlays so pixels in letterbox areas cannot survive after
+    // a notification disappears.
+    void* dstPixels = go2_surface_map(dstSurface);
+    if (dstPixels) {
+        memset(dstPixels, 0, dstSurface->stride * dstSurface->height);
+        go2_surface_unmap(dstSurface);
+    }
 
     go2_surface_blit(surface1, srcX, srcY, srcWidth, srcHeight, dstSurface, dstX, dstY, dstWidth, dstHeight, rotation);
 

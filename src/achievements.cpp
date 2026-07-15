@@ -6,6 +6,7 @@
 #include "input.h"
 #include "logger.h"
 #include "fonts.h"
+#include "keyboard.h"
 
 extern "C" {
 #include "rc_client.h"
@@ -17,6 +18,7 @@ extern "C" {
 #include <png.h>
 
 #include <chrono>
+#include <cctype>
 #include <cstring>
 #include <deque>
 #include <filesystem>
@@ -27,7 +29,6 @@ extern "C" {
 #include <thread>
 #include <unordered_map>
 #include <vector>
-#include <vector>
 
 extern const char* opt_savedir;
 
@@ -37,6 +38,9 @@ rc_libretro_memory_regions_t memory = {};
 std::string content;
 std::vector<uint8_t> content_data;
 bool enabled = false;
+bool login_pending = false;
+std::string login_error;
+std::string game_load_error;
 bool used_password_login = false;
 uint64_t frames_processed = 0;
 uint64_t memory_read_failures = 0;
@@ -102,6 +106,13 @@ std::string config_string(const char* key) {
 }
 
 void notify(const std::string& text, const std::string& badge_url = {}) {
+    if (notification_text == text ||
+        std::any_of(notification_queue.begin(), notification_queue.end(),
+                    [&](const PendingNotification& item) { return item.text == text; })) {
+        logger.log(Logger::DEB, "RetroAchievements: duplicate notification suppressed: %s",
+                   text.c_str());
+        return;
+    }
     if (notification_text.empty()) {
         notification_text = text;
         notification_badge_url = badge_url;
@@ -365,9 +376,11 @@ void RC_CCONV event_handler(const rc_client_event_t* event, rc_client_t*) {
 
 void RC_CCONV game_loaded(int result, const char* error, rc_client_t* active_client, void*) {
     if (result != RC_OK) {
-        notify(std::string("Achievements unavailable: ") + (error ? error : rc_error_str(result)));
+        game_load_error = error ? error : rc_error_str(result);
+        notify(std::string("Achievements unavailable: ") + game_load_error);
         return;
     }
+    game_load_error.clear();
     const rc_client_game_t* game = rc_client_get_game_info(active_client);
     if (!game) return;
     if (!refresh_memory()) {
@@ -390,16 +403,20 @@ void identify_game() {
     logger.log(Logger::INF,
                "RetroAchievements identify: path='%s', source=%s, bytes=%zu",
                content.c_str(), data ? "memory" : "file", content_data.size());
+    game_load_error.clear();
     rc_client_begin_identify_and_load_game(client, 0, content.c_str(), data, content_data.size(),
                                            game_loaded, nullptr);
 }
 
 void RC_CCONV login_complete(int result, const char* error, rc_client_t*, void*) {
+    login_pending = false;
     if (result != RC_OK) {
+        login_error = error ? error : rc_error_str(result);
         notify(std::string("RetroAchievements login failed: ") +
-               (error ? error : rc_error_str(result)));
+               login_error);
         return;
     }
+    login_error.clear();
     if (used_password_login) {
         const rc_client_user_t* user = rc_client_get_user_info(client);
         if (user && user->token && *user->token) {
@@ -452,10 +469,19 @@ void achievements_init(const char* content_path) {
     }
     // Hash cartridge-sized content from memory. This avoids platform-specific
     // stdio/file-reader behavior in rcheevos and matches cores that receive a
-    // buffered retro_game_info. Large optical media remains file-backed.
+    // buffered retro_game_info. Disc descriptors must remain file-backed even
+    // when tiny: rcheevos has to follow their references to track files.
     constexpr uintmax_t maximum_buffered_content = 64U * 1024U * 1024U;
     const uintmax_t content_size = std::filesystem::file_size(content, path_error);
-    if (!path_error && content_size > 0 && content_size <= maximum_buffered_content) {
+    std::string extension = std::filesystem::path(content).extension().string();
+    std::transform(extension.begin(), extension.end(), extension.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    const bool file_backed_content = extension == ".cue" || extension == ".gdi" ||
+                                     extension == ".m3u" || extension == ".ccd" ||
+                                     extension == ".toc" || extension == ".chd" ||
+                                     extension == ".iso" || extension == ".pbp";
+    if (!path_error && !file_backed_content && content_size > 0 &&
+        content_size <= maximum_buffered_content) {
         std::ifstream input(content, std::ios::binary);
         if (input.good()) {
             content_data.assign(std::istreambuf_iterator<char>(input),
@@ -479,6 +505,10 @@ void achievements_init(const char* content_path) {
                    content.c_str(), path_error.message().c_str());
         enabled = false;
         return;
+    } else if (file_backed_content) {
+        logger.log(Logger::INF,
+                   "RetroAchievements: optical content '%s', using file-backed hashing",
+                   extension.c_str());
     } else {
         logger.log(Logger::INF,
                    "RetroAchievements: large content (%llu bytes), using file-backed hashing",
@@ -497,9 +527,13 @@ void achievements_init(const char* content_path) {
     rc_client_set_unofficial_enabled(client,
         config_bool("retrorun_achievements_unofficial") ? 1 : 0);
     if (!token.empty())
+    {
+        login_pending = true;
         rc_client_begin_login_with_token(client, username.c_str(), token.c_str(), login_complete, nullptr);
+    }
     else {
         used_password_login = true;
+        login_pending = true;
         rc_client_begin_login_with_password(client, username.c_str(), password.c_str(), login_complete, nullptr);
     }
 }
@@ -524,7 +558,60 @@ void achievements_frame() {
 void achievements_idle() { pump_http(); pump_badges(); if (client) rc_client_idle(client); update_notification(); }
 void achievements_reset() { if (client) { rc_client_reset(client); refresh_memory(); } }
 bool achievements_active() { return client && rc_client_is_game_loaded(client); }
-bool achievements_enabled() { return enabled; }
+bool achievements_enabled() { return config_bool("retrorun_achievements_enabled"); }
+
+std::string achievements_status_label() {
+    if (!achievements_enabled()) return "Status: Disabled";
+    if (!login_error.empty()) return "Status: Login failed";
+    if (client) {
+        const rc_client_user_t* user = rc_client_get_user_info(client);
+        if (user && user->username)
+            return std::string("Status: Logged in as ") + user->username;
+        if (login_pending) return "Status: Signing in...";
+    }
+    const std::string username = config_string("retrorun_achievements_username");
+    const std::string token = config_string("retrorun_achievements_token");
+    const std::string password = config_string("retrorun_achievements_password");
+    if (!username.empty() && (!token.empty() || !password.empty()))
+        return "Status: Configured";
+    return "Status: Credentials required";
+}
+
+std::string achievements_username_label() {
+    const std::string username = config_string("retrorun_achievements_username");
+    return username.empty() ? "Username: Not set" : "Username: " + username;
+}
+
+static void save_credential(const char* key, const std::string& value) {
+    conf_map[key] = value;
+    if (!persistVideoSetting(key, value))
+        logger.log(Logger::WARN, "Could not save RetroAchievements credential setting");
+}
+
+void achievements_edit_username(const char* content_path) {
+    const std::string current = config_string("retrorun_achievements_username");
+    const std::string path = content_path ? content_path : "";
+    rr_keyboard_text_open("RETROACHIEVEMENTS USERNAME", current, false,
+        [path, current](const std::string& value) {
+            if (value.empty() || value == current) return;
+            save_credential("retrorun_achievements_username", value);
+            // Login tokens belong to a specific account. Require the password
+            // when the username changes instead of trying an unrelated token.
+            save_credential("retrorun_achievements_token", "");
+            achievements_init(path.c_str());
+        });
+}
+
+void achievements_edit_password(const char* content_path) {
+    const std::string path = content_path ? content_path : "";
+    rr_keyboard_text_open("RETROACHIEVEMENTS PASSWORD", "", true,
+        [path](const std::string& value) {
+            if (value.empty()) return;
+            save_credential("retrorun_achievements_password", value);
+            save_credential("retrorun_achievements_token", "");
+            achievements_init(path.c_str());
+        });
+}
 
 void achievements_set_enabled(bool value, const char* content_path) {
     conf_map["retrorun_achievements_enabled"] = value ? "true" : "false";
@@ -554,7 +641,17 @@ std::vector<size_t> filtered_achievement_indices() {
 
 void achievements_view_open() {
     if (!client || !rc_client_is_game_loaded(client)) {
-        notify("No achievement set is loaded");
+        const int state = client ? rc_client_get_load_game_state(client)
+                                 : RC_CLIENT_LOAD_GAME_STATE_NONE;
+        logger.log(Logger::INF,
+                   "RetroAchievements view: no set loaded, load_state=%d, error='%s'",
+                   state, game_load_error.c_str());
+        achievement_entries.clear();
+        achievement_view_selected = 0;
+        achievement_view_filter = 0;
+        achievement_view_detail = false;
+        achievement_view_visible = true;
+        achievement_view_just_opened = true;
         return;
     }
     achievement_entries.clear();
@@ -634,6 +731,31 @@ void achievements_view_render(rr_surface_t* surface, int width, int height) {
     const int stride = rr_surface_stride_get(surface) / 2;
     std::fill(pixels, pixels + stride * height, static_cast<uint16_t>(0x0841));
     const rc_client_game_t* game = client ? rc_client_get_game_info(client) : nullptr;
+    if (!client || !rc_client_is_game_loaded(client)) {
+        basic_text_out16_nf_color_clipped(pixels, stride, width, height, 8, 7,
+                                         "ACHIEVEMENTS", 0xffe0);
+        int y = 29;
+        draw_wrapped(pixels, stride, width, height, 8, y,
+                     "No achievement set is loaded.", 0xffff, 2);
+        static const char* states[] = {"Not started", "Waiting for login", "Identifying game",
+                                      "Fetching game data", "Starting session", "Loaded", "Aborted"};
+        const int state = client ? rc_client_get_load_game_state(client)
+                                 : RC_CLIENT_LOAD_GAME_STATE_NONE;
+        const std::string state_text = std::string("State: ") +
+            ((state >= 0 && state <= RC_CLIENT_LOAD_GAME_STATE_ABORTED) ? states[state] : "Unknown");
+        draw_wrapped(pixels, stride, width, height, 8, y, state_text, 0xbdf7, 2);
+        if (!game_load_error.empty())
+            draw_wrapped(pixels, stride, width, height, 8, y,
+                         "Error: " + game_load_error, 0xf800,
+                         std::max(1, (height - y - 24) / 10));
+        else
+            draw_wrapped(pixels, stride, width, height, 8, y,
+                         "Check the startup log for identification details.", 0x7bef, 3);
+        basic_text_out16_nf_color_clipped(pixels, stride, width, height, 8, height - 13,
+                                         "B Back", 0xffff);
+        rr_surface_unmap(surface);
+        return;
+    }
     std::string game_title = game && game->title ? game->title : "ACHIEVEMENTS";
     unsigned unlocked_count = 0;
     for (const AchievementEntry& item : achievement_entries)
@@ -785,6 +907,9 @@ void achievements_shutdown() {
     content.clear(); enabled = false;
     content_data.clear();
     used_password_login = false;
+    login_pending = false;
+    login_error.clear();
+    game_load_error.clear();
     frames_processed = memory_read_failures = 0;
     notification_text.clear();
     notification_badge_url.clear();

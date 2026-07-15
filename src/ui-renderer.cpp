@@ -27,6 +27,7 @@ const int clear_frame_count = 6;
 int clear_frames_left = clear_frame_count;
 int loading_frame = 0;
 bool loading_overlay_logged = false;
+bool previous_overlay_visible = false;
 std::atomic<int64_t> loading_started_ns{0};
 
 int64_t steadyNowNs() {
@@ -193,6 +194,13 @@ bool uiRenderOverlays(const void* frame, unsigned width, unsigned height, size_t
 
     renderStateMessage();
     visible = visible || overlays.show_bottom_left || overlays.show_bottom_center;
+    const bool overlay_visible = overlays.show_full || overlays.show_top_left ||
+                                 overlays.show_top_right || overlays.show_bottom_left ||
+                                 overlays.show_bottom_right || overlays.show_bottom_center;
+    // Present one final composition after the last overlay disappears. GO2
+    // game frames may not cover the letterbox area where it was drawn.
+    const bool clean_disappeared_overlays = previous_overlay_visible && !overlay_visible;
+    visible = visible || clean_disappeared_overlays;
 
     bool use_software_presenter = presenter != nullptr;
 #ifdef RR_PLATFORM_SDL
@@ -225,6 +233,7 @@ bool uiRenderOverlays(const void* frame, unsigned width, unsigned height, size_t
     last_menu_frame = input_info_requested || rr_keyboard_virtual_visible() ||
                       rr_file_browser_visible() || achievements_view_visible() ||
                       clear_frames_left != clear_frame_count;
+    previous_overlay_visible = overlay_visible;
     return visible;
 }
 

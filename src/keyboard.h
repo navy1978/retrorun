@@ -7,6 +7,8 @@ Copyright (C) 2021-present navy1978
 
 #include "platform.h"
 #include "libretro.h"
+#include <functional>
+#include <string>
 
 // Register the core's keyboard callback (called from core_environment when
 // the core issues RETRO_ENVIRONMENT_SET_KEYBOARD_CALLBACK).
@@ -21,6 +23,11 @@ bool rr_keyboard_has_callback();
 // Backend-independent on-screen keyboard, driven by frontend actions.
 bool rr_keyboard_virtual_visible();
 void rr_keyboard_virtual_open();
+void rr_keyboard_text_open(const std::string& title, const std::string& initial_value,
+                           bool secret,
+                           std::function<void(const std::string&)> on_accept);
+bool rr_keyboard_text_editing();
+bool rr_keyboard_virtual_controller_input_enabled();
 void rr_keyboard_virtual_close();
 void rr_keyboard_virtual_input(bool up, bool down, bool left, bool right,
                                bool accept, bool cancel, bool shift);

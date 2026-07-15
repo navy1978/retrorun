@@ -362,11 +362,13 @@ rr_input_state_t *input_gampad_current_get()
 }
 
 void manageCredits(){
-if (rr_input_state_button_get(gamepadState, bButton) == RRButtonState_Pressed)
+if (rr_input_state_button_get(gamepadState, bButton) == RRButtonState_Pressed &&
+    rr_input_state_button_get(prevGamepadState, bButton) == RRButtonState_Released)
     {
         menuManager.handle_input_credits(B_BUTTON);
     }
-    if (rr_input_state_button_get(gamepadState, aButton) == RRButtonState_Pressed)
+    if (rr_input_state_button_get(gamepadState, aButton) == RRButtonState_Pressed &&
+        rr_input_state_button_get(prevGamepadState, aButton) == RRButtonState_Released)
     {
         menuManager.handle_input_credits(A_BUTTON);
     }
@@ -374,32 +376,38 @@ if (rr_input_state_button_get(gamepadState, bButton) == RRButtonState_Pressed)
 
 void manageMenu()
 {
-    // mutexInput.lock();
-    if (rr_input_state_button_get(gamepadState, bButton) == RRButtonState_Pressed)
-    {
-        menuManager.handle_input(B_BUTTON);
-    }
-    if (rr_input_state_button_get(gamepadState, aButton) == RRButtonState_Pressed)
-    {
-        menuManager.handle_input(A_BUTTON);
-    }
-    if (rr_input_state_button_get(gamepadState, upButton) == RRButtonState_Pressed)
-    {
-        menuManager.handle_input(UP);
-    }
-    if (rr_input_state_button_get(gamepadState, downButton) == RRButtonState_Pressed)
-    {
-        menuManager.handle_input(DOWN);
-    }
-    if (rr_input_state_button_get(gamepadState, leftButton) == RRButtonState_Pressed)
-    {
-        menuManager.handle_input(LEFT);
-    }
-    if (rr_input_state_button_get(gamepadState, rightButton) == RRButtonState_Pressed)
-    {
-        menuManager.handle_input(RIGHT);
-    }
-    // mutexInput.unlock();
+    struct RepeatState {
+        bool held = false;
+        std::chrono::steady_clock::time_point next;
+    };
+    static RepeatState up_repeat, down_repeat, left_repeat, right_repeat;
+    const auto now = std::chrono::steady_clock::now();
+
+    auto pressed_edge = [](rr_input_button_t button) {
+        return rr_input_state_button_get(gamepadState, button) == RRButtonState_Pressed &&
+               rr_input_state_button_get(prevGamepadState, button) == RRButtonState_Released;
+    };
+    auto direction_trigger = [&](rr_input_button_t button, RepeatState& repeat) {
+        const bool pressed = rr_input_state_button_get(gamepadState, button) == RRButtonState_Pressed;
+        if (!pressed) { repeat.held = false; return false; }
+        if (!repeat.held) {
+            repeat.held = true;
+            repeat.next = now + std::chrono::milliseconds(350);
+            return true;
+        }
+        if (now >= repeat.next) {
+            repeat.next = now + std::chrono::milliseconds(90);
+            return true;
+        }
+        return false;
+    };
+
+    if (pressed_edge(bButton)) { menuManager.handle_input(B_BUTTON); return; }
+    if (pressed_edge(aButton)) { menuManager.handle_input(A_BUTTON); return; }
+    if (direction_trigger(upButton, up_repeat)) menuManager.handle_input(UP);
+    if (direction_trigger(downButton, down_repeat)) menuManager.handle_input(DOWN);
+    if (direction_trigger(leftButton, left_repeat)) menuManager.handle_input(LEFT);
+    if (direction_trigger(rightButton, right_repeat)) menuManager.handle_input(RIGHT);
 }
 
 
@@ -567,7 +575,8 @@ const bool bEdge = isBPressed && wasBReleased;
 const bool xEdge = isXPressed && rr_input_state_button_get(prevGamepadState, xButton) == RRButtonState_Released;
 
 if (rr_keyboard_virtual_visible()) {
-    rr_keyboard_virtual_input(upEdge, downEdge, leftEdge, rightEdge, aEdge, bEdge, xEdge);
+    if (rr_keyboard_virtual_controller_input_enabled())
+        rr_keyboard_virtual_input(upEdge, downEdge, leftEdge, rightEdge, aEdge, bEdge, xEdge);
     return;
 }
 if (rr_file_browser_visible()) {

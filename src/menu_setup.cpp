@@ -25,6 +25,7 @@ Copyright (C) 2021-present  navy1978
 #include <limits>
 #include <ctime>
 #include <cstdlib>
+#include <sys/stat.h>
 
 // --- Constants ---
 
@@ -481,35 +482,28 @@ std::function<void(int)> setDeviceType = [](int button)
 
 // --- Save/Load slot ---
 
-std::string getSlotNameStr(int slotNumber, std::string type)
+std::string getSlotNameStr(int slotNumber, std::string)
 {
-    std::string result = "<empty>";
+    std::string result = "Empty";
     char *savePath = createSavePath(arg_rom, opt_savedir);
     std::string savePath1 = savePath;
     savePath1 += slotNumber == 1 ? "" : "" + std::to_string(slotNumber - 1);
     if (fileExists(savePath1.c_str()))
     {
-        result = getLastModifiedTime(savePath1.c_str());
+        struct stat info = {};
+        if (stat(savePath1.c_str(), &info) == 0) {
+            char date[32] = {};
+            const std::tm* modified = std::localtime(&info.st_mtime);
+            if (modified) std::strftime(date, sizeof(date), "%d %b %H:%M", modified);
+            result = date;
+        }
     }
     std::free(savePath);
-    if (type == "Load")
-        return "<- " + std::to_string(slotNumber) + " " + result;
-    else
-        return "-> " + std::to_string(slotNumber) + " " + result;
+    return "Slot " + std::to_string(slotNumber) + "  " + result;
 }
 
 void loadSaveSlotWrapper(int button, int slotNumber, std::string type)
 {
-    static time_t lastSlotWrapperTime = 0;
-    time_t currentTime = time(NULL);
-
-    if (difftime(currentTime, lastSlotWrapperTime) < 1.0)
-    {
-        logger.log(Logger::WARN, "loadSaveSlotWrapper called too quickly; skipping execution.");
-        return;
-    }
-    lastSlotWrapperTime = currentTime;
-
     // Inline the slot logic
     if (button == A_BUTTON)
     {
@@ -532,7 +526,6 @@ void loadSaveSlotWrapper(int button, int slotNumber, std::string type)
             SaveState(savePath1.c_str());
         }
         free(savePath);
-        sleep(1);
     }
 
     input_info_requested = false;
