@@ -31,6 +31,8 @@ SOURCES := \
   src/input.cpp \
   src/audio.cpp \
   src/video-helper.cpp \
+  src/decoration.cpp \
+  src/decoration_catalog.cpp \
   src/video.cpp \
   src/globals.cpp \
   src/rumble.cpp \

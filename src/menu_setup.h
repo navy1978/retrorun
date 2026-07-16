@@ -36,6 +36,8 @@ int getLockDeclaredFPS();
 extern std::function<void(int)> setLockDeclaredFPS;
 
 // Video filter / shader / pixel perfect
+int getDecorationSetting();
+extern std::function<void(int)> setDecorationSetting;
 int getVideoFilter();
 extern std::function<void(int)> setVideoFilter;
 int getVideoShader();

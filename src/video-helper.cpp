@@ -586,26 +586,18 @@ void showMovingHeaderText(int y, const char *text, unsigned short color, rr_surf
     }
 
     constexpr double speed_pixels_per_second = 30.0;
-    constexpr double endpoint_pause_seconds = 0.7;
     const int maximum_x = INFO_MENU_WIDTH - text_width;
     const double travel_seconds = maximum_x / speed_pixels_per_second;
-    const double cycle_seconds = endpoint_pause_seconds * 2.0 + travel_seconds * 2.0;
+    const double cycle_seconds = travel_seconds * 2.0;
     double elapsed = std::chrono::duration<double>(
                          std::chrono::steady_clock::now() - state.started).count();
     elapsed = std::fmod(elapsed, cycle_seconds);
 
-    double position = 0.0;
-    if (elapsed < endpoint_pause_seconds) {
-        position = 0.0;
-    } else if (elapsed < endpoint_pause_seconds + travel_seconds) {
-        position = (elapsed - endpoint_pause_seconds) * speed_pixels_per_second;
-    } else if (elapsed < endpoint_pause_seconds * 2.0 + travel_seconds) {
-        position = maximum_x;
-    } else {
-        position = maximum_x -
-                   (elapsed - endpoint_pause_seconds * 2.0 - travel_seconds) *
-                       speed_pixels_per_second;
-    }
+    // Bounce as soon as the text touches either edge. The previous endpoint
+    // pause made the header appear unresponsive before changing direction.
+    const double position = elapsed < travel_seconds
+        ? elapsed * speed_pixels_per_second
+        : maximum_x - (elapsed - travel_seconds) * speed_pixels_per_second;
 
     showText(static_cast<int>(position), y, title.c_str(), color, surface);
 }

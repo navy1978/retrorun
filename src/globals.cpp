@@ -77,7 +77,6 @@ int frameCounterSkip = 4;
 int audioCounter = 0;
 int audioCounterSkip = 6;
 
-bool processVideoInAnotherThread = true;
 bool forceVideoMultithread = false;
 // Frame duplication is perceptible on handheld displays. Keep adaptive
 // skipping opt-in until backend-specific timings can exclude vblank waits.
@@ -93,6 +92,7 @@ bool runLoopAtDeclaredfps = true;
 
 int retrorun_audio_buffer = -1; // means it will be fixed to a value related with the original FPS of the game
 int new_retrorun_audio_buffer = -1;
+bool retrorun_audio_stable_buffer = false;
 int retrorun_mouse_speed_factor = 5;
 std::string retrorun_device_name;
 std::vector<CpuInfo> cpu_info_list;

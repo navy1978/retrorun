@@ -305,6 +305,7 @@ retrorun_vsync = false
 # All video backends
 retrorun_video_filter = off
 retrorun_video_shader = off
+retrorun_decorations = off
 ```
 
 ### RetroAchievements
@@ -342,6 +343,103 @@ Set `retrorun_achievements_encore = true` to reactivate achievements already
 unlocked by the current user. This is useful for testing notifications; the
 server does not award the same achievement or its points twice.
 
+RetroAchievements configuration reference:
+
+| Setting | Description |
+| --- | --- |
+| `retrorun_achievements_enabled` | Enables the service; default is `false`. |
+| `retrorun_achievements_username` | RetroAchievements account name. |
+| `retrorun_achievements_password` | Plaintext password used only for the first login; removed after a token is obtained. |
+| `retrorun_achievements_token` | Login token saved after authentication. This is not the Web API Key. |
+| `retrorun_achievements_unofficial` | Includes unofficial achievements when `true`; default is `false`. |
+| `retrorun_achievements_encore` | Reactivates already unlocked achievements for local testing; default is `false`. |
+
+### Screen decorations
+
+Static PNG decorations can fill the unused area around the game without
+stretching the emulated image. Enable them under **Settings > Video > Screen
+decorations** or with:
+
+```ini
+retrorun_decorations = auto
+# Optional. The default is a decorations directory next to retrorun.cfg.
+retrorun_decorations_path = /storage/.config/retrorun/decorations
+```
+
+RetroRun loads the first matching file and keeps the converted RGB565 surface
+in memory. Explicit RetroRun files take priority; after them it can reuse a
+bezel already installed by the host distribution:
+
+```text
+decorations/games/<system>/<rom name>.png
+decorations/games/<rom name>.png
+decorations/systems/<system>.png
+decorations/default.png
+```
+
+AmberELEC packs are detected in `/tmp/overlays/bezels` and
+`/storage/roms/bezels`. RetroRun reads the active pack and optional system
+override from `distribution.conf`, supports its full-name, short-name,
+numbered and default per-game `.cfg` files, then falls back to the system PNG.
+Compatible packs in `/roms/bezels` or `/roms2/bezels` are also detected for
+ArkOS and user installations, either below a named pack such as `default` or
+with `systems` directly below `bezels`. If AmberELEC has generated
+`/tmp/raappend.cfg`, its custom viewport is reused. Detection and parsing occur
+once when the game starts; no distribution-specific work is done per frame.
+RetroRun only reads artwork already installed by the distribution and does not
+redistribute it.
+
+An optional `.info` file beside a PNG can define the exact game viewport using
+Batocera-style `width`, `height`, `top`, `left`, `bottom` and `right` values.
+For example, `default.png` can be accompanied by `default.info`:
+
+```json
+{
+  "width": 1920,
+  "height": 1080,
+  "top": 0,
+  "left": 240,
+  "bottom": 0,
+  "right": 240
+}
+```
+
+The values describe the artwork's reference resolution and border sizes;
+RetroRun scales the resulting viewport to the current display and fits the
+game inside it without changing the game's aspect ratio. The viewport never
+affects menus or other frontend pages. Parsing happens only when the decoration
+is loaded, not during normal frame rendering.
+
+The **Settings > Video > Decorations** menu can download a small selection of
+static borders directly from `libretro/common-overlays`. RetroRun downloads
+only the selected PNG, converts its libretro viewport to a local `.info` file
+and stores attribution beside it under `downloads/libretro`. It never downloads
+or extracts the complete repository. Installed artwork is licensed under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) and can be updated or
+removed from the same menu. Downloads run in the background while the menu
+remains responsive.
+
+The same menu separates the configured source from the artwork currently in
+use. `Source: Automatic` follows an installed distribution pack, while
+`Source: RetroRun`, `Source: AmberELEC: <pack>` and `Source: ArkOS: <pack>`
+select one explicitly. `Using:` reports the source that actually matched the
+current game. Distribution choices appear only when their directories are
+present; the scan runs during menu initialization and never per frame.
+
+`<system>` is the first directory after `roms` or `roms2` (falling back to the
+ROM's parent directory), and `<rom name>` is the filename without its
+extension. This also works when games are grouped in subdirectories. The local
+layout is compatible with the core of Batocera's decoration naming scheme.
+Images are installed separately and no third-party artwork is bundled with
+RetroRun. If no PNG matches, RetroRun
+generates a small generic decoration directly in memory, so `Auto` also works
+without downloading an asset pack. PNG alpha is preserved and the artwork is
+composited over the game, allowing curved frames to mask the rectangular core
+image correctly. On GO2 this source-over operation is handled by RGA hardware;
+the full artwork is cached in all three presenter framebuffers and normally
+only the game-damaged rectangle is blended again. The generated opaque
+fallback remains an inexpensive cached background.
+
 Frontend video settings:
 
 | Setting | Values and behaviour |
@@ -354,7 +452,13 @@ Frontend video settings:
 | `retrorun_ui_profile` | `auto`, `handheld` or `desktop`; default is `auto`. It can also be changed at runtime under **Settings > Video**. |
 | `retrorun_video_filter` | `off`, `nearest` or `linear`; default is `off`. |
 | `retrorun_video_shader` | `off`, `scanlines` or `crt`; default is `off`. |
+| `retrorun_decorations` | `off` or `auto`; loads a matching local PNG or uses the generated fallback. |
+| `retrorun_decorations_path` | Optional root directory for locally installed decoration sets. |
+| `retrorun_decoration_source` | `auto`, `retrorun` or the identifier of an installed AmberELEC/ArkOS pack. Normally managed from the Decorations menu. |
+| `retrorun_decoration_pack` | Identifier of the selected downloadable RetroRun/libretro pack. Normally managed from the Decorations menu. |
 | `retrorun_loop_declared_fps` | Paces the frontend using the frame rate declared by the core. |
+| `retrorun_adaptive_frameskip` | Enables adaptive presentation skipping; experimental and `false` by default. |
+| `retrorun_frameskip` | Fixed number of video callbacks skipped after each presented frame, from `0` to `5`; default is `0` and takes precedence over adaptive frameskip. |
 | `retrorun_video_renderer` | SDL2 only: `auto`, `software`, `opengl` or `vulkan`. Requires restart. Vulkan is not implemented yet. On Linux `opengl` means OpenGL ES. |
 | `retrorun_vsync` | SDL2 only; default is `false` and can also be changed from the menu. |
 
@@ -366,6 +470,7 @@ General and input settings:
 | `retrorun_device_name` | Overrides automatic device identification. |
 | `retrorun_screenshot_folder` | Destination for screenshots. |
 | `retrorun_audio_buffer` | Audio buffer value such as `-1`, `256`, `512` or `1024`. |
+| `retrorun_audio_stable_buffer` | Optional extra audio buffering for difficult cores on SDL2 and GO2 (`false` by default). |
 | `retrorun_auto_save` | Saves automatically during shutdown. |
 | `retrorun_auto_load` | Loads the automatic save at startup. |
 | `retrorun_force_left_analog_stick` | Maps the left analog stick to the D-pad. |
@@ -373,7 +478,7 @@ General and input settings:
 | `retrorun_swap_sticks` | Exchanges left and right analog sticks. |
 | `retrorun_alternative_input_mode` | Uses the ArkOS-style Select/F2 hotkeys. |
 | `retrorun_mouse_speed_factor` | Mouse emulation speed; default is `5`. |
-| `retrorun_force_video_multithread` | Overrides the device-specific video-threading choice. |
+| `retrorun_force_video_multithread` | Legacy RG552 hint. Ignored with a warning on other devices, where detached presentation can be unsafe. |
 | `retrorun_enable_key_log` | Logs logical button names at `DEBUG` level. |
 
 Native-device overrides:
@@ -443,9 +548,13 @@ Logical controls can be assigned in `retrorun.cfg`:
 ```ini
 retrorun_mapping_button_up = DPadUp
 retrorun_mapping_button_down = DPadDown
+retrorun_mapping_button_left = DPadLeft
+retrorun_mapping_button_right = DPadRight
 retrorun_mapping_button_a = A
 retrorun_mapping_button_b = B
 retrorun_mapping_button_x = SELECT
+retrorun_mapping_button_y = Y
+retrorun_mapping_button_select = SELECT
 retrorun_mapping_button_start = START
 retrorun_mapping_button_l1 = TopLeft
 retrorun_mapping_button_r1 = TopRight
@@ -453,6 +562,8 @@ retrorun_mapping_button_l2 = TriggerLeft
 retrorun_mapping_button_r2 = TriggerRight
 retrorun_mapping_button_l3 = F1
 retrorun_mapping_button_r3 = F2
+retrorun_mapping_button_f1 = F1
+retrorun_mapping_button_f2 = F2
 ```
 
 To discover the logical name generated by a device, enable:

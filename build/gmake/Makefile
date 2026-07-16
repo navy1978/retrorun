@@ -75,6 +75,8 @@ OBJECTS := \
 	$(OBJDIR)/input.o \
 	$(OBJDIR)/audio.o \
 	$(OBJDIR)/video-helper.o \
+	$(OBJDIR)/decoration.o \
+	$(OBJDIR)/decoration_catalog.o \
 	$(OBJDIR)/video.o \
 	$(OBJDIR)/globals.o \
 	$(OBJDIR)/rumble.o \
@@ -196,6 +198,12 @@ $(OBJDIR)/audio.o: ../../src/audio.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/video-helper.o: ../../src/video-helper.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/decoration.o: ../../src/decoration.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/decoration_catalog.o: ../../src/decoration_catalog.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/video.o: ../../src/video.cpp

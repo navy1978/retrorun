@@ -56,6 +56,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <png.h>
 
+#include <algorithm>
+
 go2_display_t *go2_display_create()
 {
     int i;
@@ -816,9 +818,10 @@ static uint32_t go2_rkformat_get(uint32_t drm_fourcc)
     }
 }
 
-void go2_surface_blit(go2_surface_t *srcSurface, int srcX, int srcY, int srcWidth, int srcHeight,
-                      go2_surface_t *dstSurface, int dstX, int dstY, int dstWidth, int dstHeight,
-                      go2_rotation_t rotation)
+static void go2_surface_blit_internal(go2_surface_t *srcSurface, int srcX, int srcY,
+                      int srcWidth, int srcHeight, go2_surface_t *dstSurface,
+                      int dstX, int dstY, int dstWidth, int dstHeight,
+                      go2_rotation_t rotation, bool alpha_blend)
 {
     rga_info_t dst = {0};
     dst.fd = go2_surface_prime_fd(dstSurface);
@@ -875,6 +878,8 @@ void go2_surface_blit(go2_surface_t *srcSurface, int srcX, int srcY, int srcWidt
     src.rect.wstride = srcSurface->stride / (go2_drm_format_get_bpp(srcSurface->format) / 8);
     src.rect.hstride = srcSurface->height;
     src.rect.format = go2_rkformat_get(srcSurface->format);
+    if (alpha_blend)
+        src.blend = 0xff0105; // Porter-Duff source-over with per-pixel alpha.
 
 #if 0
     enum
@@ -892,6 +897,26 @@ void go2_surface_blit(go2_surface_t *srcSurface, int srcX, int srcY, int srcWidt
     {
         logger.log(Logger::ERR,"c_RkRgaBlit failed.\n");
     }
+}
+
+void go2_surface_blit(go2_surface_t *srcSurface, int srcX, int srcY,
+                      int srcWidth, int srcHeight, go2_surface_t *dstSurface,
+                      int dstX, int dstY, int dstWidth, int dstHeight,
+                      go2_rotation_t rotation)
+{
+    go2_surface_blit_internal(srcSurface, srcX, srcY, srcWidth, srcHeight,
+                              dstSurface, dstX, dstY, dstWidth, dstHeight,
+                              rotation, false);
+}
+
+void go2_surface_blit_alpha(go2_surface_t *srcSurface, int srcX, int srcY,
+                            int srcWidth, int srcHeight, go2_surface_t *dstSurface,
+                            int dstX, int dstY, int dstWidth, int dstHeight,
+                            go2_rotation_t rotation)
+{
+    go2_surface_blit_internal(srcSurface, srcX, srcY, srcWidth, srcHeight,
+                              dstSurface, dstX, dstY, dstWidth, dstHeight,
+                              rotation, true);
 }
 
 int go2_surface_save_as_png(go2_surface_t *surface, const char *filename)
@@ -1516,9 +1541,56 @@ void go2_presenter_post_multiple(go2_presenter_t *presenter, go2_surface_t *surf
             memset(dstPixels, 0, dstSurface->stride * dstSurface->height);
             go2_surface_unmap(dstSurface);
         }
+        if (status_obj->show_decoration && status_obj->decoration &&
+            status_obj->decoration->format != DRM_FORMAT_RGBA8888) {
+            go2_surface_blit(status_obj->decoration, 0, 0,
+                             status_obj->decoration->width, status_obj->decoration->height,
+                             dstSurface, 0, 0, dstSurface->width, dstSurface->height,
+                             GO2_ROTATION_DEGREES_0);
+        }
     }
 
     go2_surface_blit(surface1, srcX, srcY, srcWidth, srcHeight, dstSurface, dstX, dstY, dstWidth, dstHeight, rotation);
+
+    // PNG bezels are true foreground overlays: their transparent opening
+    // reveals the game while opaque curved edges mask its rectangular frame.
+    // RGA performs this source-over blend in hardware.
+    if (status_obj->show_decoration && status_obj->decoration &&
+        status_obj->decoration->format == DRM_FORMAT_RGBA8888) {
+        // Each presenter framebuffer keeps the static artwork outside the
+        // core's destination rectangle. A complete blend is only required
+        // while all three recycled buffers are being cleaned (menu close,
+        // decoration change, viewport change). During steady gameplay the
+        // core can only damage its own rectangle, so restore that intersection
+        // instead of reading and writing the full screen every frame.
+        int blend_x = status_obj->clean_full ? 0 : dstX;
+        int blend_y = status_obj->clean_full ? 0 : dstY;
+        int blend_width = status_obj->clean_full ? dstSurface->width : dstWidth;
+        int blend_height = status_obj->clean_full ? dstSurface->height : dstHeight;
+        if (blend_x < 0) { blend_width += blend_x; blend_x = 0; }
+        if (blend_y < 0) { blend_height += blend_y; blend_y = 0; }
+        blend_width = std::min(blend_width, dstSurface->width - blend_x);
+        blend_height = std::min(blend_height, dstSurface->height - blend_y);
+        if (blend_width > 0 && blend_height > 0) {
+            const int source_x = blend_x * status_obj->decoration->width /
+                                 dstSurface->width;
+            const int source_y = blend_y * status_obj->decoration->height /
+                                 dstSurface->height;
+            const int source_right = (blend_x + blend_width) *
+                                     status_obj->decoration->width /
+                                     dstSurface->width;
+            const int source_bottom = (blend_y + blend_height) *
+                                      status_obj->decoration->height /
+                                      dstSurface->height;
+            go2_surface_blit_alpha(status_obj->decoration,
+                                   source_x, source_y,
+                                   std::max(1, source_right - source_x),
+                                   std::max(1, source_bottom - source_y),
+                                   dstSurface, blend_x, blend_y,
+                                   blend_width, blend_height,
+                                   GO2_ROTATION_DEGREES_0);
+        }
+    }
 
     go2_surface_t *surface = NULL;
 

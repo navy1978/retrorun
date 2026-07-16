@@ -416,6 +416,19 @@ void initConfig()
 
         try
         {
+            const std::string &value = conf_map.at("retrorun_audio_stable_buffer");
+            retrorun_audio_stable_buffer = value == "true";
+            logger.log(Logger::DEB, "retrorun_audio_stable_buffer: %s.",
+                       retrorun_audio_stable_buffer ? "true" : "false");
+        }
+        catch (...)
+        {
+            logger.log(Logger::DEB,
+                       "retrorun_audio_stable_buffer parameter not found; using false.");
+        }
+
+        try
+        {
             const std::string &mouseSpeedValue = conf_map.at("retrorun_mouse_speed_factor");
             if (!mouseSpeedValue.empty())
             {
@@ -575,8 +588,6 @@ void initConfig()
         }
         catch (...) { logger.log(Logger::DEB, "retrorun_pixel_perfect parameter not found in retrorun.cfg using default value (%s)", pixel_perfect ? "true" : "false"); }
 
-        processVideoInAnotherThread =
-            (isRG552() && isFlycast2021()) || forceVideoMultithread;
         pwm = rumble_type_pwm;
 
         adaptiveFps = false;

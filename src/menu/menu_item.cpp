@@ -211,6 +211,7 @@ std::string MenuItem::getMisUnit()
     || mis_unit_ == "video-filter"
     || mis_unit_ == "video-shader"
     || mis_unit_ == "ui-profile"
+    || mis_unit_ == "decoration"
     )
     {
         return "";
@@ -313,6 +314,10 @@ std::string MenuItem::getStringValue()
     else if (mis_unit_ == "ui-profile")
     {
         return ui_profile_names[getValue()];
+    }
+    else if (mis_unit_ == "decoration")
+    {
+        return getValue() == 1 ? "Auto" : "Off";
     }
     else if (mis_unit_ == "device-type")
     {

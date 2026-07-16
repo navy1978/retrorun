@@ -44,12 +44,14 @@ class status  {
     rr_surface_t *top_left;
     rr_surface_t *bottom_left;
     rr_surface_t *full;
+    rr_surface_t *decoration;
     bool show_top_right;
     bool show_bottom_right;
     bool show_bottom_center;
     bool show_top_left;
     bool show_bottom_left;
     bool show_full;
+    bool show_decoration;
 
     bool clean_top_right;
     bool clean_bottom_right;

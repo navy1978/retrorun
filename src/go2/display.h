@@ -47,9 +47,9 @@ typedef struct go2_context_attributes
 
 typedef struct go2_status {
     go2_surface_t *top_right, *bottom_right, *bottom_center;
-    go2_surface_t *top_left, *bottom_left, *full;
+    go2_surface_t *top_left, *bottom_left, *full, *decoration;
     bool show_top_right, show_bottom_right, show_bottom_center;
-    bool show_top_left, show_bottom_left, show_full;
+    bool show_top_left, show_bottom_left, show_full, show_decoration;
     bool clean_top_right, clean_bottom_right, clean_bottom_center;
     bool clean_top_left, clean_bottom_left, clean_full;
 } go2_status_t;
@@ -89,6 +89,10 @@ void go2_surface_unmap(go2_surface_t* surface);
 void go2_surface_blit(go2_surface_t* srcSurface, int srcX, int srcY, int srcWidth, int srcHeight,
                       go2_surface_t* dstSurface, int dstX, int dstY, int dstWidth, int dstHeight,
                       go2_rotation_t rotation);
+void go2_surface_blit_alpha(go2_surface_t* srcSurface, int srcX, int srcY,
+                            int srcWidth, int srcHeight, go2_surface_t* dstSurface,
+                            int dstX, int dstY, int dstWidth, int dstHeight,
+                            go2_rotation_t rotation);
 int go2_surface_save_as_png(go2_surface_t* surface, const char* filename);
 
 

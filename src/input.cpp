@@ -296,18 +296,32 @@ void initButtons(){
      }
 
 #ifdef RR_PLATFORM_SDL
-     // SDL already reports logical controller buttons. Do not reuse the
-     // BTN_TRIGGER_HAPPY layout required by the original Anbernic devices.
-     selectButton = RRInputButton_SELECT;
-     startButton = RRInputButton_START;
-     l1Button = RRInputButton_TopLeft;
-     r1Button = RRInputButton_TopRight;
-     l2Button = RRInputButton_TriggerLeft;
-     r2Button = RRInputButton_TriggerRight;
-     l3Button = RRInputButton_THUMBL;
-     r3Button = RRInputButton_THUMBR;
-     ignoreF2 = true;
-     logger.log(Logger::DEB, "SDL2 logical joypad configuration detected.");
+     if (isRG351V()) {
+         // Keep exactly the same portable layout produced by GO2/js2xbox.
+         selectButton = RRInputButton_F1;
+         startButton = RRInputButton_F6;
+         l1Button = RRInputButton_TopLeft;
+         r1Button = RRInputButton_TopRight;
+         l2Button = RRInputButton_F4;
+         r2Button = RRInputButton_F3;
+         l3Button = RRInputButton_F2;
+         r3Button = RRInputButton_F5;
+         f2Button = RRInputButton_F2;
+         ignoreF2 = false;
+         logger.log(Logger::DEB, "SDL2 RG351V uses the GO2 F1-F6 physical layout.");
+     } else {
+         // Standard SDL controller layout for desktop and newer handhelds.
+         selectButton = RRInputButton_SELECT;
+         startButton = RRInputButton_START;
+         l1Button = RRInputButton_TopLeft;
+         r1Button = RRInputButton_TopRight;
+         l2Button = RRInputButton_TriggerLeft;
+         r2Button = RRInputButton_TriggerRight;
+         l3Button = RRInputButton_THUMBL;
+         r3Button = RRInputButton_THUMBR;
+         ignoreF2 = true;
+         logger.log(Logger::DEB, "SDL2 logical joypad configuration detected.");
+     }
 #endif
  
      applyButtonRemapping();

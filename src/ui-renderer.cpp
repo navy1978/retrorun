@@ -8,6 +8,7 @@
 #include "keyboard.h"
 #include "file_browser.h"
 #include "achievements.h"
+#include "decoration.h"
 
 #include "imgs/imgs_fast_forwarding.h"
 #include "imgs/imgs_numbers.h"
@@ -43,6 +44,7 @@ void bindOverlaySurfaces() {
     overlays.top_right = status_surface_top_right;
     overlays.top_left = status_surface_top_left;
     overlays.full = status_surface_full;
+    overlays.decoration = decoration_surface();
 }
 
 void renderFullOverlay(int width, int height) {
@@ -136,6 +138,9 @@ bool uiRenderOverlays(const void* frame, unsigned width, unsigned height, size_t
     bool visible = false;
     int overlay_width = static_cast<int>(width);
     int overlay_height = static_cast<int>(height);
+    overlays.decoration = decoration_surface();
+    overlays.show_decoration = overlays.decoration != nullptr;
+    visible = overlays.show_decoration;
 
     if (input_info_requested || input_credits_requested || rr_keyboard_virtual_visible() ||
         rr_file_browser_visible() || achievements_view_visible() || last_menu_frame || showLoading) {
@@ -222,10 +227,16 @@ bool uiRenderOverlays(const void* frame, unsigned width, unsigned height, size_t
                                   (overlays.show_bottom_left ? 8U : 0U) |
                                   (overlays.show_bottom_right ? 16U : 0U) |
                                   (overlays.show_bottom_center ? 32U : 0U);
+    const unsigned complete_overlay_mask = overlay_mask |
+                                           (overlays.show_decoration ? 64U : 0U);
     // GO2 recycles three framebuffers. Clear each one only when the overlay
     // layout changes, then leave the steady-state FPS/overlay path untouched.
 #ifndef RR_PLATFORM_SDL
-    if (overlay_mask != previous_overlay_mask) overlay_cleanup_frames = 3;
+    static int previous_game_x = -1, previous_game_y = -1;
+    static int previous_game_w = -1, previous_game_h = -1;
+    if (complete_overlay_mask != previous_overlay_mask || x != previous_game_x ||
+        y != previous_game_y || w != previous_game_w || h != previous_game_h)
+        overlay_cleanup_frames = 3;
     overlays.clean_full = overlay_cleanup_frames > 0;
     visible = visible || overlays.clean_full;
 #else
@@ -264,7 +275,11 @@ bool uiRenderOverlays(const void* frame, unsigned width, unsigned height, size_t
     last_menu_frame = input_info_requested || rr_keyboard_virtual_visible() ||
                       rr_file_browser_visible() || achievements_view_visible() ||
                       clear_frames_left != clear_frame_count;
-    previous_overlay_mask = overlay_mask;
+    previous_overlay_mask = complete_overlay_mask;
+#ifndef RR_PLATFORM_SDL
+    previous_game_x = x; previous_game_y = y;
+    previous_game_w = w; previous_game_h = h;
+#endif
     return visible;
 }
 

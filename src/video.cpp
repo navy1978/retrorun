@@ -21,6 +21,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "globals.h"
 #include "video.h"
 #include "ui-renderer.h"
+#include "decoration.h"
+#include "keyboard.h"
+#include "file_browser.h"
+#include "achievements.h"
 
 #include "input.h"
 #include "libretro.h"
@@ -813,7 +817,8 @@ inline void core_video_refresh_NON_OPENGL(const void *data, unsigned width, unsi
     }
 }
 
-inline void core_video_refresh_OPENGL(const void *data, unsigned width, unsigned height, size_t pitch)
+inline void core_video_refresh_OPENGL(rr_surface_t *frame_surface, const void *data,
+                                      unsigned width, unsigned height, size_t pitch)
 {
     static std::vector<uint16_t> black_frame;
     // eglSwapInterval(display, 0);
@@ -850,15 +855,15 @@ inline void core_video_refresh_OPENGL(const void *data, unsigned width, unsigned
     }
 
     
-    gs_w = rr_surface_width_get(gles_surface);
-    gs_h = rr_surface_height_get(gles_surface);
+    gs_w = rr_surface_width_get(frame_surface);
+    gs_h = rr_surface_height_get(frame_surface);
 
     bool showStatus = uiRenderOverlays(data, width, height, pitch);
 
     if (!showStatus)
     {
         rr_presenter_post(presenter,
-                           gles_surface,
+                           frame_surface,
                            0, (gs_h - height), width, height,
                            x, y, w, h,
                            getRotation());
@@ -904,23 +909,25 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         height = currentHeight;
         data = lastData;
         pitch = lastPitch;
-        processVideoInAnotherThread = false;
     }
     else if (input_message)
     {
         width = INFO_MENU_WIDTH;
         height = INFO_MENU_HEIGHT;
-        processVideoInAnotherThread = false;
     }
     else
     {
 
         lastData = data;
         lastPitch = pitch;
-        // Preserve the RG552/Flycast2021 performance workaround and keep an
-        // explicit override for other combinations.
-        processVideoInAnotherThread =
-            (isRG552() && isFlycast2021()) || forceVideoMultithread;
+        if (forceVideoMultithread && !isRG552()) {
+            static bool warned = false;
+            if (!warned) {
+                logger.log(Logger::WARN,
+                           "retrorun_force_video_multithread ignored: supported only on RG552; it may crash other devices");
+                warned = true;
+            }
+        }
 
         if (isPPSSPP() && width < 1)
         {
@@ -958,6 +965,15 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
     {*/
         
         prepareScreen(width, height);
+        // Decoration metadata positions only emulated video. Frontend pages
+        // keep their normal dimensions so opening the menu cannot change its
+        // proportions depending on the selected bezel.
+        const bool frontend_page = input_info_requested || input_credits_requested ||
+                                   rr_keyboard_virtual_visible() ||
+                                   rr_file_browser_visible() ||
+                                   achievements_view_visible() || showLoading;
+        if (!frontend_page)
+            decoration_game_viewport(&x, &y, &w, &h);
         if (first_video_refresh){
         logger.log(Logger::DEB, "Real aspect_ratio=%f", aspect_ratio);
         logger.log(Logger::DEB, "Screen aspect_ratio=%f\n", screen_aspect_ratio);
@@ -1041,7 +1057,8 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
             !input_info_requested && !input_message &&
             !input_credits_requested && !input_fps_requested &&
             !screenshot_requested && videoShader == RR_VIDEO_SHADER_OFF;
-        if (directScanoutCandidate &&
+        const bool allowDirectScanout = directScanoutCandidate && decoration_surface() == nullptr;
+        if (allowDirectScanout &&
             rr_presenter_post_direct(presenter, gles_surface,
                                      0, rr_surface_height_get(gles_surface) - height,
                                      width, height, x, y, w, h, getRotation()))
@@ -1058,17 +1075,26 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
             rr_context_surface_unlock(context3D, directScanoutSurface);
             directScanoutSurface = nullptr;
         }
-        if (processVideoInAnotherThread)
-        {
-            std::thread th(core_video_refresh_OPENGL, data, width, height, pitch);
-            th.detach();
+        // Keep the historical RG552 pipeline used by demanding Dreamcast
+        // cores. The worker owns this specific locked surface and releases it
+        // only after the presenter has consumed it; never read the mutable
+        // global gles_surface from the detached thread.
+        const bool rg552_async = isRG552() && !input_info_requested &&
+            !input_message && !input_credits_requested && !input_fps_requested &&
+            !screenshot_requested && !input_pause_requested &&
+            !input_ffwd_requested && !rr_keyboard_virtual_visible() &&
+            !rr_file_browser_visible() && !achievements_view_visible() &&
+            !achievements_notification_visible() && !showLoading;
+        if (rg552_async) {
+            rr_surface_t *frame_surface = gles_surface;
+            std::thread([frame_surface, data, width, height, pitch]() {
+                core_video_refresh_OPENGL(frame_surface, data, width, height, pitch);
+                rr_context_surface_unlock(context3D, frame_surface);
+            }).detach();
+        } else {
+            core_video_refresh_OPENGL(gles_surface, data, width, height, pitch);
+            rr_context_surface_unlock(context3D, gles_surface);
         }
-        else
-        {
-            core_video_refresh_OPENGL(data, width, height, pitch);
-        }
-
-        rr_context_surface_unlock(context3D, gles_surface);
 #endif
     }
     else
@@ -1076,14 +1102,6 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
 
         // non-OpenGL
 
-        if (processVideoInAnotherThread)
-        {
-            std::thread th(core_video_refresh_NON_OPENGL, data, width, height, pitch);
-            th.detach();
-        }
-        else
-        {
-            core_video_refresh_NON_OPENGL(data, width, height, pitch);
-        }
+        core_video_refresh_NON_OPENGL(data, width, height, pitch);
     }
 }

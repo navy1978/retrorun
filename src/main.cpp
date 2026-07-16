@@ -33,6 +33,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "file_browser.h"
 #include "achievements.h"
 #include "network_status.h"
+#include "decoration.h"
+#include "decoration_catalog.h"
 #include "menu/menu.h"
 #include "menu/menu_item.h"
 #include "menu/menu_manager.h"
@@ -188,6 +190,8 @@ int main(int argc, char *argv[])
 
     core_load_game(arg_rom);
     achievements_init(arg_rom);
+    decoration_init(arg_rom);
+    decoration_catalog_init();
     network_status_refresh();
 
     rr_input_state_t *gamepadState = input_gampad_current_get();
@@ -349,11 +353,33 @@ int main(int argc, char *argv[])
                  "bool")};
     Menu menuAchievements = Menu("RetroAchievements", itemsAchievements);
 
+    MenuItem removeDecorationQuestion("Are you sure?", [](int button) {
+        if (button == A_BUTTON) decoration_catalog_remove();
+    });
+    removeDecorationQuestion.setQuestionItem();
+    std::vector<MenuItem> removeDecorationItems = {removeDecorationQuestion};
+    Menu menuRemoveDecoration = Menu("Remove decoration", removeDecorationItems);
+
+    std::vector<MenuItem> itemsDecorations = {
+        MenuItem("Enabled", getDecorationSetting, setDecorationSetting, "decoration"),
+        MenuItem(decoration_catalog_source_label, decoration_catalog_select_source),
+        MenuItem(decoration_catalog_active_label, [](int) {}),
+        MenuItem(decoration_catalog_pack_label, decoration_catalog_select),
+        MenuItem(decoration_catalog_status_label, [](int) {}),
+        MenuItem("Download / update", [](int button) {
+            if (button == A_BUTTON) decoration_catalog_install();
+        }),
+        MenuItem("Remove RetroRun pack", &menuRemoveDecoration, fake),
+        MenuItem("Downloads: libretro", [](int) {}),
+        MenuItem("License: CC BY 4.0", [](int) {})};
+    Menu menuDecorations = Menu("Decorations", itemsDecorations);
+
     std::vector<MenuItem> itemsVideo = {
         MenuItem("Aspect ratio", getAspectRatioSettings, setAspectRatioSettings, "aspect-ratio"),
         MenuItem("Pixel perfect", getPixelPerfect, setPixelPerfect, "bool"),
         MenuItem("Lock FPS", getLockDeclaredFPS, setLockDeclaredFPS, "bool"),
         MenuItem("UI profile", getUIProfileSetting, setUIProfileSetting, "ui-profile"),
+        MenuItem("Decorations", &menuDecorations, fake),
 #ifdef RR_PLATFORM_SDL
         MenuItem("Renderer (restart)", getSDLVideoRenderer, setSDLVideoRenderer, "video-renderer"),
         MenuItem("VSync", getSDLVsync, setSDLVsync, "bool"),
@@ -430,6 +456,7 @@ int main(int argc, char *argv[])
 
     while (isRunning)
     {
+        decoration_catalog_update();
 #ifndef RR_PLATFORM_SDL
         auto loopStart = steady_clock::now();
 #endif
@@ -636,7 +663,9 @@ int main(int argc, char *argv[])
 
     logger.log(Logger::DEB, "Unloading core and deinit audio and video...");
     network_status_shutdown();
+    decoration_catalog_shutdown();
     achievements_shutdown();
+    decoration_shutdown();
 
 #ifdef RR_PLATFORM_SDL
     video_prepare_core_unload();

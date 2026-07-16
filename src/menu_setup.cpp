@@ -15,6 +15,7 @@ Copyright (C) 2021-present  navy1978
 #include "input.h"
 #include "rumble.h"
 #include "platform.h"
+#include "decoration.h"
 
 #include "menu/menu_manager.h"
 
@@ -263,6 +264,17 @@ std::function<void(int)> setSDLVsync = [](int button)
 #endif
 
 // --- Video filter ---
+
+int getDecorationSetting()
+{
+    return decoration_enabled() ? 1 : 0;
+}
+
+std::function<void(int)> setDecorationSetting = [](int button)
+{
+    if (button == LEFT || button == RIGHT)
+        decoration_set_enabled(!decoration_enabled());
+};
 
 int getVideoFilter()
 {

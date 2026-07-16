@@ -88,8 +88,10 @@ void rr_keyboard_text_open(const std::string& title, const std::string& initial_
 }
 bool rr_keyboard_text_editing() { return s_text_editing; }
 bool rr_keyboard_virtual_controller_input_enabled() {
-    return !s_text_editing ||
-           !(rr_platform_capabilities() & RRPlatformCapability_PhysicalKeyboard);
+    // A physical keyboard and the on-screen controller keyboard may coexist.
+    // SDL handhelds still need D-pad navigation even though the backend also
+    // supports SDL_KEYDOWN/SDL_TEXTINPUT from an optional USB keyboard.
+    return true;
 }
 void rr_keyboard_virtual_close() {
     s_virtual_visible = false;
