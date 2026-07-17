@@ -348,6 +348,11 @@ std::function<void(int)> setPixelPerfect = [](int button)
 {
     if (button == LEFT || button == RIGHT)
     {
+        // Decorations require an integer-scaled viewport. Keep the effective
+        // setting enabled until the decoration is turned off, at which point
+        // decoration_set_enabled() restores the user's previous preference.
+        if (decoration_enabled())
+            return;
         pixel_perfect = !pixel_perfect;
         prepareScreen(currentWidth, currentHeight);
         persistVideoSetting("retrorun_pixel_perfect", pixel_perfect ? "true" : "false");

@@ -1534,6 +1534,10 @@ void go2_presenter_post_multiple(go2_presenter_t *presenter, go2_surface_t *surf
     }
 
     go2_surface_t *dstSurface = go2_frame_buffer_surface_get(dstFrameBuffer);
+    const bool rotated_canvas = rotation == GO2_ROTATION_DEGREES_90 ||
+                                rotation == GO2_ROTATION_DEGREES_270;
+    const int canvas_width = rotated_canvas ? dstSurface->height : dstSurface->width;
+    const int canvas_height = rotated_canvas ? dstSurface->width : dstSurface->height;
 
     if (status_obj->clean_full) {
         void* dstPixels = go2_surface_map(dstSurface);
@@ -1545,17 +1549,22 @@ void go2_presenter_post_multiple(go2_presenter_t *presenter, go2_surface_t *surf
             status_obj->decoration->format != DRM_FORMAT_RGBA8888) {
             go2_surface_blit(status_obj->decoration, 0, 0,
                              status_obj->decoration->width, status_obj->decoration->height,
-                             dstSurface, 0, 0, dstSurface->width, dstSurface->height,
-                             GO2_ROTATION_DEGREES_0);
+                             dstSurface, 0, 0, canvas_width, canvas_height,
+                             rotation);
         }
     }
 
-    go2_surface_blit(surface1, srcX, srcY, srcWidth, srcHeight, dstSurface, dstX, dstY, dstWidth, dstHeight, rotation);
+    // Full frontend pages are opaque. Do not blit the core underneath them:
+    // besides wasting an RGA operation, menu dimensions may differ from the
+    // core allocation (for example 320x240 over mGBA's 256x160 surface).
+    if (!status_obj->show_full)
+        go2_surface_blit(surface1, srcX, srcY, srcWidth, srcHeight,
+                         dstSurface, dstX, dstY, dstWidth, dstHeight, rotation);
 
     // PNG bezels are true foreground overlays: their transparent opening
     // reveals the game while opaque curved edges mask its rectangular frame.
     // RGA performs this source-over blend in hardware.
-    if (status_obj->show_decoration && status_obj->decoration &&
+    if (!status_obj->show_full && status_obj->show_decoration && status_obj->decoration &&
         status_obj->decoration->format == DRM_FORMAT_RGBA8888) {
         // Each presenter framebuffer keeps the static artwork outside the
         // core's destination rectangle. A complete blend is only required
@@ -1565,30 +1574,30 @@ void go2_presenter_post_multiple(go2_presenter_t *presenter, go2_surface_t *surf
         // instead of reading and writing the full screen every frame.
         int blend_x = status_obj->clean_full ? 0 : dstX;
         int blend_y = status_obj->clean_full ? 0 : dstY;
-        int blend_width = status_obj->clean_full ? dstSurface->width : dstWidth;
-        int blend_height = status_obj->clean_full ? dstSurface->height : dstHeight;
+        int blend_width = status_obj->clean_full ? canvas_width : dstWidth;
+        int blend_height = status_obj->clean_full ? canvas_height : dstHeight;
         if (blend_x < 0) { blend_width += blend_x; blend_x = 0; }
         if (blend_y < 0) { blend_height += blend_y; blend_y = 0; }
-        blend_width = std::min(blend_width, dstSurface->width - blend_x);
-        blend_height = std::min(blend_height, dstSurface->height - blend_y);
+        blend_width = std::min(blend_width, canvas_width - blend_x);
+        blend_height = std::min(blend_height, canvas_height - blend_y);
         if (blend_width > 0 && blend_height > 0) {
             const int source_x = blend_x * status_obj->decoration->width /
-                                 dstSurface->width;
+                                 canvas_width;
             const int source_y = blend_y * status_obj->decoration->height /
-                                 dstSurface->height;
+                                 canvas_height;
             const int source_right = (blend_x + blend_width) *
                                      status_obj->decoration->width /
-                                     dstSurface->width;
+                                     canvas_width;
             const int source_bottom = (blend_y + blend_height) *
                                       status_obj->decoration->height /
-                                      dstSurface->height;
+                                      canvas_height;
             go2_surface_blit_alpha(status_obj->decoration,
                                    source_x, source_y,
                                    std::max(1, source_right - source_x),
                                    std::max(1, source_bottom - source_y),
                                    dstSurface, blend_x, blend_y,
                                    blend_width, blend_height,
-                                   GO2_ROTATION_DEGREES_0);
+                                   rotation);
         }
     }
 

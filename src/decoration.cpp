@@ -2,6 +2,7 @@
 
 #include "config.h"
 #include "globals.h"
+#include "video.h"
 #include "video-helper.h"
 
 #include <png.h>
@@ -19,6 +20,7 @@
 namespace {
 bool enabled = false;
 bool load_attempted = false;
+bool pixel_perfect_before_enable = false;
 std::string content;
 std::string loaded_path;
 rr_surface_t* cached_surface = nullptr;
@@ -41,6 +43,17 @@ int viewport_x = 0;
 int viewport_y = 0;
 int viewport_width = 0;
 int viewport_height = 0;
+
+void decoration_canvas_size(int* width, int* height) {
+    *width = rr_display_width_get(display);
+    *height = rr_display_height_get(display);
+#ifndef RR_PLATFORM_SDL
+    const rr_rotation_t rotation = getRotation();
+    if (rotation == RR_ROTATION_DEGREES_90 ||
+        rotation == RR_ROTATION_DEGREES_270)
+        std::swap(*width, *height);
+#endif
+}
 
 bool value_true(const std::string& value) {
     return value == "true" || value == "enabled" || value == "1" || value == "auto";
@@ -292,8 +305,9 @@ void load_distribution_viewport() {
     if (!value("custom_viewport_x", &x) || !value("custom_viewport_y", &y) ||
         !value("custom_viewport_width", &width) ||
         !value("custom_viewport_height", &height)) return;
-    const int display_width = rr_display_width_get(display);
-    const int display_height = rr_display_height_get(display);
+    int display_width = 0;
+    int display_height = 0;
+    decoration_canvas_size(&display_width, &display_height);
     if (display_width <= 0 || display_height <= 0 || x < 0 || y < 0 ||
         width <= 0 || height <= 0 || x + width > display_width ||
         y + height > display_height) {
@@ -323,8 +337,9 @@ bool load_png(const std::filesystem::path& path, bool distribution) {
         png_image_free(&image);
         return false;
     }
-    const int output_width = rr_display_width_get(display);
-    const int output_height = rr_display_height_get(display);
+    int output_width = 0;
+    int output_height = 0;
+    decoration_canvas_size(&output_width, &output_height);
     if (output_width <= 0 || output_height <= 0) return false;
     rr_surface_t* loaded = rr_surface_create(display, output_width, output_height,
                                               RR_PIXEL_FORMAT_RGBA8888);
@@ -380,8 +395,9 @@ bool load_png(const std::filesystem::path& path, bool distribution) {
 }
 
 bool create_builtin_decoration() {
-    const int width = rr_display_width_get(display);
-    const int height = rr_display_height_get(display);
+    int width = 0;
+    int height = 0;
+    decoration_canvas_size(&width, &height);
     if (width <= 0 || height <= 0) return false;
     rr_surface_t* generated = rr_surface_create(display, width, height,
                                                 RR_PIXEL_FORMAT_RGB565);
@@ -424,6 +440,9 @@ void decoration_init(const char* content_path) {
     content = content_path ? content_path : "";
     const auto setting = conf_map.find("retrorun_decorations");
     enabled = setting != conf_map.end() && value_true(setting->second);
+    pixel_perfect_before_enable = pixel_perfect;
+    if (enabled)
+        pixel_perfect = true;
     load_attempted = false;
 }
 
@@ -442,6 +461,14 @@ void decoration_shutdown() {
 bool decoration_enabled() { return enabled; }
 
 void decoration_set_enabled(bool value) {
+    if (value == enabled)
+        return;
+    if (value) {
+        pixel_perfect_before_enable = pixel_perfect;
+        pixel_perfect = true;
+    } else {
+        pixel_perfect = pixel_perfect_before_enable;
+    }
     enabled = value;
     load_attempted = false;
     if (!enabled && cached_surface) {
@@ -459,6 +486,7 @@ void decoration_set_enabled(bool value) {
     }
     conf_map["retrorun_decorations"] = enabled ? "auto" : "off";
     persistVideoSetting("retrorun_decorations", enabled ? "auto" : "off");
+    prepareScreen(currentWidth, currentHeight);
 }
 
 rr_surface_t* decoration_surface() {
@@ -517,8 +545,9 @@ void decoration_reload() {
 bool decoration_game_viewport(int* x, int* y, int* width, int* height) {
     if (!x || !y || !width || !height || !decoration_surface() || !layout.valid)
         return false;
-    const int display_width = rr_display_width_get(display);
-    const int display_height = rr_display_height_get(display);
+    int display_width = 0;
+    int display_height = 0;
+    decoration_canvas_size(&display_width, &display_height);
     if (display_width <= 0 || display_height <= 0) return false;
 
     if (display_width != viewport_display_width || display_height != viewport_display_height) {
