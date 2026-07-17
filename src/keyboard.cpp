@@ -36,7 +36,7 @@ static const VirtualKey alpha_rows[][12] = {
     {{"Q",RETROK_q,'q','Q'},{"W",RETROK_w,'w','W'},{"E",RETROK_e,'e','E'},{"R",RETROK_r,'r','R'},{"T",RETROK_t,'t','T'},{"Y",RETROK_y,'y','Y'},{"U",RETROK_u,'u','U'},{"I",RETROK_i,'i','I'},{"O",RETROK_o,'o','O'},{"P",RETROK_p,'p','P'}},
     {{"A",RETROK_a,'a','A'},{"S",RETROK_s,'s','S'},{"D",RETROK_d,'d','D'},{"F",RETROK_f,'f','F'},{"G",RETROK_g,'g','G'},{"H",RETROK_h,'h','H'},{"J",RETROK_j,'j','J'},{"K",RETROK_k,'k','K'},{"L",RETROK_l,'l','L'}},
     {{"Z",RETROK_z,'z','Z'},{"X",RETROK_x,'x','X'},{"C",RETROK_c,'c','C'},{"V",RETROK_v,'v','V'},{"B",RETROK_b,'b','B'},{"N",RETROK_n,'n','N'},{"M",RETROK_m,'m','M'},{"BS",RETROK_BACKSPACE,0,0},{"ENT",RETROK_RETURN,0,0}},
-    {{"SPACE",RETROK_SPACE,' ',' '},{"TAB",RETROK_TAB,0,0},{"ESC",RETROK_ESCAPE,0,0},{"SYM",RETROK_UNKNOWN,0,0}}
+    {{"SPACE",RETROK_SPACE,' ',' '},{"TAB",RETROK_TAB,0,0},{"ESC",RETROK_ESCAPE,0,0},{"CASE",RETROK_UNKNOWN,0,0},{"SYM",RETROK_UNKNOWN,0,0}}
 };
 static const VirtualKey symbol_rows[][12] = {
     {{"1",RETROK_1,'1','1'},{"2",RETROK_2,'2','2'},{"3",RETROK_3,'3','3'},{"4",RETROK_4,'4','4'},{"5",RETROK_5,'5','5'},{"6",RETROK_6,'6','6'},{"7",RETROK_7,'7','7'},{"8",RETROK_8,'8','8'},{"9",RETROK_9,'9','9'},{"0",RETROK_0,'0','0'}},
@@ -45,7 +45,7 @@ static const VirtualKey symbol_rows[][12] = {
     {{";",RETROK_SEMICOLON,';',';'},{":",RETROK_COLON,':',':'},{"'",RETROK_QUOTE,'\'','\''},{"\"",RETROK_QUOTEDBL,'\"','\"'},{",",RETROK_COMMA,',',','},{".",RETROK_PERIOD,'.','.'},{"/",RETROK_SLASH,'/','/'},{"?",RETROK_QUESTION,'?','?'},{"`",RETROK_BACKQUOTE,'`','`'},{"|",RETROK_UNKNOWN,'|','|'},{"~",RETROK_UNKNOWN,'~','~'}},
     {{"SPACE",RETROK_SPACE,' ',' '},{"BS",RETROK_BACKSPACE,0,0},{"ENT",RETROK_RETURN,0,0},{"ABC",RETROK_UNKNOWN,0,0}}
 };
-static const int alpha_row_sizes[] = {10,10,9,9,4};
+static const int alpha_row_sizes[] = {10,10,9,9,5};
 static const int symbol_row_sizes[] = {10,10,11,11,4};
 
 static int row_size(int row) {
@@ -54,6 +54,31 @@ static int row_size(int row) {
 
 static const VirtualKey& selected_key(int row, int column) {
     return s_symbols ? symbol_rows[row][column] : alpha_rows[row][column];
+}
+
+static void fill_rect(uint16_t* pixels, int stride, int width, int height,
+                      int x, int y, int w, int h, uint16_t color)
+{
+    const int left = std::max(0, x);
+    const int top = std::max(0, y);
+    const int right = std::min(width, x + w);
+    const int bottom = std::min(height, y + h);
+    if (left >= right || top >= bottom) return;
+    for (int yy = top; yy < bottom; ++yy)
+        std::fill(pixels + yy * stride + left,
+                  pixels + yy * stride + right, color);
+}
+
+static void draw_key_rect(uint16_t* pixels, int stride, int width, int height,
+                          int x, int y, int w, int h, bool selected)
+{
+    constexpr int border_width = 2;
+    const uint16_t border = selected ? 0xffe0 : 0xffff;
+    const uint16_t background = selected ? 0x39e7 : 0x1082;
+    fill_rect(pixels, stride, width, height, x, y, w, h, border);
+    fill_rect(pixels, stride, width, height,
+              x + border_width, y + border_width,
+              w - border_width * 2, h - border_width * 2, background);
 }
 
 extern Logger logger;
@@ -139,6 +164,11 @@ void rr_keyboard_virtual_input(bool up, bool down, bool left, bool right,
     if (!accept) return;
     const VirtualKey& key = selected_key(s_row, s_column);
     if (key.code == RETROK_UNKNOWN && key.normal == 0 &&
+        !std::strcmp(key.label, "CASE")) {
+        s_shift = !s_shift;
+        return;
+    }
+    if (key.code == RETROK_UNKNOWN && key.normal == 0 &&
         (!std::strcmp(key.label, "SYM") || !std::strcmp(key.label, "ABC"))) {
         s_symbols = !s_symbols;
         s_shift = false;
@@ -162,8 +192,8 @@ void rr_keyboard_virtual_render(rr_surface_t* surface, int width, int height)
                                      s_text_editing ? s_text_title.c_str() : "VIRTUAL KEYBOARD", 0xffff);
     basic_text_out16_nf_color_clipped(pixels, stride, width, height, 8, 20,
                                      s_text_editing
-                                         ? "D-PAD Move  A Type  B Cancel  X Shift"
-                                         : "D-PAD Move  A Type  B Close  X Shift", 0xbdf7);
+                                         ? "D-PAD Move  A Type  B Cancel  X Case"
+                                         : "D-PAD Move  A Type  B Close  X Case", 0xbdf7);
     int top = 42;
     if (s_text_editing) {
         const size_t max_chars = static_cast<size_t>(std::max(1, (width - 16) / 8));
@@ -180,20 +210,29 @@ void rr_keyboard_virtual_render(rr_surface_t* surface, int width, int height)
             const int px = 8 + col * cell_w;
             const int py = top + row * 24;
             const bool selected = row == s_row && col == s_column;
-            if (selected) {
-                for (int yy = py - 3; yy < py + 13 && yy < height; ++yy)
-                    std::fill(pixels + yy * stride + px - 3,
-                              pixels + yy * stride + std::min(width, px + cell_w - 2),
-                              static_cast<uint16_t>(0x39e7));
+            const int key_x = px;
+            const int key_y = py - 5;
+            const int key_w = cell_w - 5;
+            constexpr int key_h = 20;
+            draw_key_rect(pixels, stride, width, height,
+                          key_x, key_y, key_w, key_h, selected);
+            const VirtualKey& key = selected_key(row, col);
+            char character_label[2] = {0, 0};
+            const char* label = key.label;
+            if (!s_symbols && key.normal != 0 && key.normal != ' ') {
+                character_label[0] = s_shift ? key.shifted : key.normal;
+                label = character_label;
             }
-            basic_text_out16_nf_color_clipped(pixels, stride, width, height, px, py,
-                                             selected_key(row, col).label,
+            const int label_width = static_cast<int>(std::strlen(label)) * 8;
+            const int label_x = key_x + std::max(2, (key_w - label_width) / 2);
+            basic_text_out16_nf_color_clipped(pixels, stride, width, height, label_x, py,
+                                             label,
                                              selected ? 0xffe0 : 0xffff);
         }
     }
     basic_text_out16_nf_color_clipped(pixels, stride, width, height, 8, height - 14,
                                      s_symbols ? "PAGE: SYMBOLS" :
-                                     (s_shift ? "SHIFT: ON" : "SHIFT: off"),
+                                     (s_shift ? "CASE: UPPERCASE" : "CASE: lowercase"),
                                      (s_symbols || s_shift) ? 0xffe0 : 0x7bef);
     rr_surface_unmap(surface);
 }

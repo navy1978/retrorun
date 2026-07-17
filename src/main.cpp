@@ -89,6 +89,7 @@ static struct option longopts[] = {
     {"restart", no_argument, NULL, 'r'},
     {"triggers", no_argument, NULL, 't'},
     {"analog", no_argument, NULL, 'n'},
+    {"analog-to-digital", required_argument, NULL, 'A'},
     {"fps", no_argument, NULL, 'f'},
     {0, 0, 0, 0}};
 
@@ -107,7 +108,8 @@ int main(int argc, char *argv[])
     int c;
     int option_index = 0;
 
-    while ((c = getopt_long(argc, argv, "s:d:a:b:v:grtnfc:", longopts, &option_index)) != -1)
+    std::string analogModeOverride;
+    while ((c = getopt_long(argc, argv, "s:d:a:b:v:grtnfc:A:", longopts, &option_index)) != -1)
     {
         switch (c)
         {
@@ -133,8 +135,10 @@ int main(int argc, char *argv[])
             opt_triggers = true;
             break;
         case 'n':
-            force_left_analog_stick = false;
-            logger.log(Logger::INF, "using '-n' as parameter, forces left analog stick to false!.");
+            analogModeOverride = "none";
+            break;
+        case 'A':
+            analogModeOverride = optarg;
             break;
         case 'f':
             opt_show_fps = true;
@@ -153,6 +157,19 @@ int main(int argc, char *argv[])
 
     getDeviceName();
     initConfig();
+
+    if (!analogModeOverride.empty())
+    {
+        if (!setAnalogToDigitalMode(analogModeOverride))
+        {
+            logger.log(Logger::ERR,
+                       "Invalid --analog-to-digital mode '%s' (expected none, left, right, left_forced or right_forced).",
+                       analogModeOverride.c_str());
+            exit(EXIT_FAILURE);
+        }
+        logger.log(Logger::INF, "Command-line analog-to-digital mode: %s.",
+                   analogToDigitalModeName(analogToDigital));
+    }
 
     if (!gpio_joypad)
     {
@@ -330,6 +347,8 @@ int main(int argc, char *argv[])
 
     std::vector<MenuItem> itemsControl = {
         deviceType,
+        MenuItem("Analog to digital", getAnalogToDigitalSetting,
+                 setAnalogToDigitalSetting, "analog-to-digital"),
         MenuItem("Swap triggers", getSwapTriggers, setSwapTriggers, "bool"),
         MenuItem("Swap analog sticks", getSwapSticks, setSwapSticks, "bool"),
         MenuItem("Rumble test", []() { return 0; }, [](int val) { testRumble(val); }, "test-rumble"),
@@ -349,7 +368,10 @@ int main(int argc, char *argv[])
                  [](int button) { if (button == A_BUTTON) achievements_edit_password(arg_rom); }),
         MenuItem("Enabled",
                  []() { return achievements_enabled() ? 1 : 0; },
-                 [](int value) { achievements_set_enabled(value != 0, arg_rom); },
+                 [](int button) {
+                     if (button == LEFT || button == RIGHT)
+                         achievements_set_enabled(!achievements_enabled(), arg_rom);
+                 },
                  "bool")};
     Menu menuAchievements = Menu("RetroAchievements", itemsAchievements);
 

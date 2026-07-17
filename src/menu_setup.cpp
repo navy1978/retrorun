@@ -206,6 +206,26 @@ std::function<void(int)> setSwapSticks = [](int button)
         swapSticks = !swapSticks;
 };
 
+int getAnalogToDigitalSetting()
+{
+    return static_cast<int>(analogToDigital);
+}
+
+std::function<void(int)> setAnalogToDigitalSetting = [](int button)
+{
+    if (button != LEFT && button != RIGHT)
+        return;
+    int value = static_cast<int>(analogToDigital);
+    if (button == LEFT) value = (value + 4) % 5;
+    if (button == RIGHT) value = (value + 1) % 5;
+    analogToDigital = static_cast<AnalogToDigital>(value);
+    force_left_analog_stick = analogToDigital == LEFT_ANALOG_FORCED;
+    if (!persistVideoSetting("retrorun_analog_to_digital",
+                             analogToDigitalModeName(analogToDigital)))
+        logger.log(Logger::ERR, "Unable to save analog-to-digital mode in '%s'",
+                   activeConfigFile.c_str());
+};
+
 // --- Lock FPS ---
 
 int getLockDeclaredFPS()

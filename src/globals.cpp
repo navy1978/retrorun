@@ -114,7 +114,8 @@ bool pause_requested = false;
 
 int deviceTypeSelected=1;
 std::map<unsigned, std::string> controllerMap;
-AnalogToDigital analogToDigital = LEFT_ANALOG;
+// Preserve the historical retrorun_force_left_analog_stick=true behaviour.
+AnalogToDigital analogToDigital = LEFT_ANALOG_FORCED;
 
 joypad joy= joypad();
 

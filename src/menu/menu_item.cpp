@@ -234,10 +234,10 @@ const char *rotation_names[] = {
 
 const char *analog_to_digital_names[] = {
     "NONE",
-  "LEFT",
-  "RIGHT",
-  "LEFT FORCED",
-  "RIGHT FORCED"};  
+    "LEFT ANALOG",
+    "RIGHT ANALOG",
+    "LEFT ANALOG (FORCED)",
+    "RIGHT ANALOG (FORCED)"};
 
 const char *aspect_ratio_names[] = {
     "2:1",

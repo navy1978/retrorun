@@ -382,13 +382,31 @@ void initConfig()
             logger.log(Logger::DEB, "retrorun_auto_load parameter not found in retrorun.cfg using default value (%s).", auto_load ? "true" : "false");
         }
 
-        try
+        const auto analogModeSetting = conf_map.find("retrorun_analog_to_digital");
+        if (analogModeSetting != conf_map.end())
         {
-            const std::string &lasValue = conf_map.at("retrorun_force_left_analog_stick");
-            force_left_analog_stick = lasValue == "true" ? true : false;
-            logger.log(Logger::DEB, "retrorun_force_left_analog_stick: %s.", force_left_analog_stick ? "true" : "false");
+            if (!setAnalogToDigitalMode(analogModeSetting->second))
+                logger.log(Logger::WARN,
+                           "Invalid retrorun_analog_to_digital value '%s'; using %s.",
+                           analogModeSetting->second.c_str(),
+                           analogToDigitalModeName(analogToDigital));
+            else
+                logger.log(Logger::DEB, "retrorun_analog_to_digital: %s.",
+                           analogToDigitalModeName(analogToDigital));
         }
-        catch (...) { logger.log(Logger::DEB, "retrorun_force_left_analog_stick parameter not found in retrorun.cfg using default value (%s).", force_left_analog_stick ? "true" : "false"); }
+        else
+        {
+            // Backward compatibility: the old boolean always forced the left
+            // stick mapping and disabled native analog input.
+            const auto legacyAnalogSetting = conf_map.find("retrorun_force_left_analog_stick");
+            if (legacyAnalogSetting != conf_map.end())
+                setAnalogToDigitalMode(legacyAnalogSetting->second == "true"
+                                           ? "left_forced" : "none");
+            logger.log(Logger::DEB,
+                       "retrorun_analog_to_digital parameter not found; using %s%s.",
+                       analogToDigitalModeName(analogToDigital),
+                       legacyAnalogSetting != conf_map.end() ? " from legacy setting" : " by default");
+        }
 
         try
         {

@@ -215,6 +215,7 @@ Common options:
 | `-f`, `--fps` | Show the FPS counter. |
 | `-t`, `--triggers` | Enable trigger support. |
 | `-n`, `--analog` | Disable forced left-analog-to-D-pad mapping. |
+| `-A MODE`, `--analog-to-digital MODE` | Analog-to-D-pad mode: `none`, `left`, `right`, `left_forced` or `right_forced`. Overrides the configuration file. |
 | `-g` | Enable the GPIO joypad path used by some native devices. |
 | `-r`, `--restart` | Enable the restart behaviour used by distribution launchers. |
 
@@ -538,7 +539,8 @@ General and input settings:
 | `retrorun_audio_stable_buffer` | Optional extra audio buffering for difficult cores on SDL2 and GO2 (`false` by default). |
 | `retrorun_auto_save` | Saves automatically during shutdown. |
 | `retrorun_auto_load` | Loads the automatic save at startup. |
-| `retrorun_force_left_analog_stick` | Maps the left analog stick to the D-pad. |
+| `retrorun_analog_to_digital` | Analog-to-D-pad mode: `none`, `left`, `right`, `left_forced` or `right_forced`. Non-forced modes are disabled automatically when the core requests native analog input. Defaults to `left_forced` for backward compatibility. |
+| `retrorun_force_left_analog_stick` | Deprecated compatibility setting. `true` maps to `left_forced`, `false` maps to `none`; ignored when `retrorun_analog_to_digital` is present. |
 | `retrorun_swap_l1r1_with_l2r2` | Exchanges shoulder buttons and triggers. |
 | `retrorun_swap_sticks` | Exchanges left and right analog sticks. |
 | `retrorun_alternative_input_mode` | Uses the ArkOS-style Select/F2 hotkeys. |

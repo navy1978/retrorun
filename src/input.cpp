@@ -31,6 +31,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "platform.h"
 #include <stdio.h>
 #include <sys/time.h>
+#include <algorithm>
+#include <array>
+#include <cctype>
 
 extern int opt_backlight;
 extern int opt_volume;
@@ -38,6 +41,77 @@ bool input_ffwd_requested = false;
 static retro_fastforwarding_override fastForwardOverride = {-1.0f, false, true, false};
 static bool fastForwardOverrideSet = false;
 bool input_message = false;
+static std::array<bool, 16> coreAnalogRequested{};
+
+const char* analogToDigitalModeName(AnalogToDigital mode)
+{
+    switch (mode) {
+    case NONE: return "none";
+    case LEFT_ANALOG: return "left";
+    case RIGHT_ANALOG: return "right";
+    case LEFT_ANALOG_FORCED: return "left_forced";
+    case RIGHT_ANALOG_FORCED: return "right_forced";
+    default: return "none";
+    }
+}
+
+bool setAnalogToDigitalMode(const std::string& value)
+{
+    std::string normalized = value;
+    std::transform(normalized.begin(), normalized.end(), normalized.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    std::replace(normalized.begin(), normalized.end(), '-', '_');
+    std::replace(normalized.begin(), normalized.end(), ' ', '_');
+
+    if (normalized == "none" || normalized == "disabled" || normalized == "0")
+        analogToDigital = NONE;
+    else if (normalized == "left" || normalized == "left_analog" || normalized == "1")
+        analogToDigital = LEFT_ANALOG;
+    else if (normalized == "right" || normalized == "right_analog" || normalized == "2")
+        analogToDigital = RIGHT_ANALOG;
+    else if (normalized == "left_forced" || normalized == "left_analog_forced" || normalized == "3")
+        analogToDigital = LEFT_ANALOG_FORCED;
+    else if (normalized == "right_forced" || normalized == "right_analog_forced" || normalized == "4")
+        analogToDigital = RIGHT_ANALOG_FORCED;
+    else
+        return false;
+
+    force_left_analog_stick = analogToDigital == LEFT_ANALOG_FORCED;
+    return true;
+}
+
+AnalogToDigital effectiveAnalogToDigitalMode(unsigned port)
+{
+    if ((analogToDigital == LEFT_ANALOG || analogToDigital == RIGHT_ANALOG) &&
+        port < coreAnalogRequested.size() && coreAnalogRequested[port])
+        return NONE;
+    return analogToDigital;
+}
+
+static bool analogToDigitalDirectionPressed(const rr_thumb_t& thumb, unsigned id)
+{
+    constexpr float threshold = 0.35f;
+
+    if (!isTate()) {
+        if (id == RETRO_DEVICE_ID_JOYPAD_UP) return thumb.y < -threshold;
+        if (id == RETRO_DEVICE_ID_JOYPAD_DOWN) return thumb.y > threshold;
+        if (id == RETRO_DEVICE_ID_JOYPAD_LEFT) return thumb.x < -threshold;
+        return thumb.x > threshold;
+    }
+
+    // Use the same physical-to-logical rotation as getInputUp/Down/Left/Right.
+    if (tateState == REVERSED) {
+        if (id == RETRO_DEVICE_ID_JOYPAD_UP) return thumb.x > threshold;
+        if (id == RETRO_DEVICE_ID_JOYPAD_DOWN) return thumb.x < -threshold;
+        if (id == RETRO_DEVICE_ID_JOYPAD_LEFT) return thumb.y < -threshold;
+        return thumb.y > threshold;
+    }
+
+    if (id == RETRO_DEVICE_ID_JOYPAD_UP) return thumb.x < -threshold;
+    if (id == RETRO_DEVICE_ID_JOYPAD_DOWN) return thumb.x > threshold;
+    if (id == RETRO_DEVICE_ID_JOYPAD_LEFT) return thumb.y > threshold;
+    return thumb.y < -threshold;
+}
 
 bool input_exit_requested = false;
 bool input_exit_requested_firstTime = false;
@@ -1157,28 +1231,19 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
     if (rr_keyboard_virtual_visible() || rr_file_browser_visible() || achievements_view_visible())
         return 0;
 
+    if (device == RETRO_DEVICE_ANALOG &&
+        (index == RETRO_DEVICE_INDEX_ANALOG_LEFT ||
+         index == RETRO_DEVICE_INDEX_ANALOG_RIGHT) &&
+        port < coreAnalogRequested.size())
+        coreAnalogRequested[port] = true;
+
+    const AnalogToDigital analogMode = effectiveAnalogToDigitalMode(port);
+
 
     rr_input_button_t realL1 =  gpio_joypad ? l1Button : RRInputButton_TopLeft;
     rr_input_button_t realR1 = gpio_joypad ? r1Button : RRInputButton_TopRight ;
 // for set we dont need to take care of tate mode
     
-    if (force_left_analog_stick)
-    {
-        // Map thumbstick to dpad (force to enable the left analog stick mapping to it the DPAD)
-        const float TRIM = 0.35f;
-        rr_thumb_t thumb = rr_input_state_thumbstick_get(gamepadState, RRInputThumbstick_Left);
-
-        if (thumb.y < -TRIM)
-            rr_input_state_button_set(gamepadState, upButton, RRButtonState_Pressed);
-        if (thumb.y > TRIM)
-            rr_input_state_button_set(gamepadState, downButton, RRButtonState_Pressed);
-        if (thumb.x < -TRIM)
-            rr_input_state_button_set(gamepadState, leftButton, RRButtonState_Pressed);
-        if (thumb.x > TRIM)
-            rr_input_state_button_set(gamepadState, rightButton, RRButtonState_Pressed);
-    }
-
-
     if (Retrorun_Core == RETRORUN_CORE_PARALLEL_N64) // C buttons
     {
 
@@ -1254,17 +1319,27 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
                 return rr_input_state_button_get(gamepadState, startButton);
                 break;
             case RETRO_DEVICE_ID_JOYPAD_UP:
-                return getInputUp();
-                break;
             case RETRO_DEVICE_ID_JOYPAD_DOWN:
-                return getInputDown();
-                break;
             case RETRO_DEVICE_ID_JOYPAD_LEFT:
-                return getInputLeft();
-                break;
             case RETRO_DEVICE_ID_JOYPAD_RIGHT:
-                return getInputRight();
-                break;
+            {
+                rr_button_state_t physical = RRButtonState_Released;
+                if (id == RETRO_DEVICE_ID_JOYPAD_UP) physical = getInputUp();
+                else if (id == RETRO_DEVICE_ID_JOYPAD_DOWN) physical = getInputDown();
+                else if (id == RETRO_DEVICE_ID_JOYPAD_LEFT) physical = getInputLeft();
+                else physical = getInputRight();
+                if (physical == RRButtonState_Pressed || analogMode == NONE)
+                    return physical;
+
+                rr_input_thumbstick_t stick =
+                    (analogMode == LEFT_ANALOG || analogMode == LEFT_ANALOG_FORCED)
+                        ? RRInputThumbstick_Left : RRInputThumbstick_Right;
+                if (swapSticks)
+                    stick = stick == RRInputThumbstick_Left
+                                ? RRInputThumbstick_Right : RRInputThumbstick_Left;
+                const rr_thumb_t thumb = rr_input_state_thumbstick_get(gamepadState, stick);
+                return analogToDigitalDirectionPressed(thumb, id);
+            }
             case RETRO_DEVICE_ID_JOYPAD_A:
                 return getInputA();
                 break;
@@ -1303,10 +1378,11 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
 
 
 
-        else if (!force_left_analog_stick 
-        && device == RETRO_DEVICE_ANALOG 
-        && (index == RETRO_DEVICE_INDEX_ANALOG_LEFT || RETRO_DEVICE_INDEX_ANALOG_RIGHT)) 
+        else if (device == RETRO_DEVICE_ANALOG
+        && (index == RETRO_DEVICE_INDEX_ANALOG_LEFT ||
+            index == RETRO_DEVICE_INDEX_ANALOG_RIGHT))
         {
+            const unsigned requestedIndex = index;
 
             if (swapSticks)
             {
@@ -1319,6 +1395,15 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
                     index = RETRO_DEVICE_INDEX_ANALOG_LEFT;
                 }
             }
+
+            const bool mappedLeft =
+                (analogMode == LEFT_ANALOG || analogMode == LEFT_ANALOG_FORCED) &&
+                requestedIndex == RETRO_DEVICE_INDEX_ANALOG_LEFT;
+            const bool mappedRight =
+                (analogMode == RIGHT_ANALOG || analogMode == RIGHT_ANALOG_FORCED) &&
+                requestedIndex == RETRO_DEVICE_INDEX_ANALOG_RIGHT;
+            if (mappedLeft || mappedRight)
+                return 0;
 
             rr_thumb_t thumb;
             //rr_thumb_t thumb2;
