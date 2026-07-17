@@ -8,6 +8,26 @@
                  -= Light Libretro Front-end =-
 
 =================================
+Version 3.1.0 (Jul 17, 2026)
+---------------------------------
+- Add RetroAchievements integration with background login, game identification,
+  unlock notifications, badge browser, Encore mode and runtime configuration.
+- Add in-game multi-disc swapping through the libretro disk-control interface.
+- Add screen decorations and bezel support, including AmberELEC and ArkOS pack
+  detection, per-game/system artwork, custom viewports and downloadable packs.
+- Add configurable analog-to-D-pad input modes with Tate-aware directions.
+- Improve GO2/DRM and SDL2 rendering, menu layout, overlays, frame pacing,
+  audio handling and handheld compatibility.
+- Improve fast-forward with libretro state reporting, non-blocking presentation,
+  video/audio dropping and runtime diagnostics.
+- Add timestamped frontend logs and an independent core log level that defaults
+  to ERROR.
+- Replace image-based frontend messages with lightweight font-rendered,
+  icon-based RGB565 notifications.
+- Add an on-screen keyboard with uppercase/lowercase input, expanded menu
+  information pages, network diagnostics and updated credits.
+
+=================================
 Version 3.0.0 (Jul 15, 2026)
 ---------------------------------
 - Added a portable SDL2 backend for macOS and Linux-based handheld devices.
