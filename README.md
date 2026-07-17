@@ -286,27 +286,91 @@ RetroRun reads a simple `key = value` configuration file.
 - SDL2 default: `./retrorun.cfg` in the current working directory.
 - Every backend: pass `-c /path/to/retrorun.cfg` to select another file.
 
-The repository includes [retrorun.cfg](retrorun.cfg) as an SDL2-oriented
-example. A minimal portable configuration is:
+The configuration file (`retrorun.cfg`) contains settings for different cores.
+Example:
 
 ```ini
-retrorun_log_level = INFO
-retrorun_show_loading_screen = true
-retrorun_aspect_ratio = auto
-retrorun_pixel_perfect = false
-retrorun_fps_counter = false
-retrorun_loop_declared_fps = true
-retrorun_ui_profile = auto
-
-# SDL2 only
-retrorun_video_renderer = auto
-retrorun_vsync = false
-
-# All video backends
-retrorun_video_filter = off
-retrorun_video_shader = off
-retrorun_decorations = off
+# ---- RETRORUN INTERNAL SETTINGS ----
+retrorun_screenshot_folder = /storage/roms/screenshots
+# ---- FLYCAST ----
+flycast_threaded_rendering = enabled
+flycast_internal_resolution = 640x480
+flycast_anisotropic_filtering = off
+flycast_enable_dsp = disabled
+flycast_synchronous_rendering = disabled
+flycast_enable_rtt = disabled
+flycast_enable_rttb = disabled
+flycast_delay_frame_swapping = disabled
+# Alpha sorting should be set to per strip
+flycast_alpha_sorting = per-strip (fast, least accurate)
+flycast_div_matching = auto
+# Texupscale should be off
+flycast_texupscale = off
+# Vibration support should be on
+flycast_enable_purupuru = enabled
+flycast_auto_skip_frame = disabled
+flycast_gdrom_fast_loading = enabled
+flycast_volume_modifier_enable = disabled
+flycast_framerate = fullspeed
+flycast_anisotropic_filtering = disabled
+# ---- FLYCAST2021 ----
+flycast2021_threaded_rendering = enabled
+flycast2021_internal_resolution = 640x480
+flycast2021_anisotropic_filtering = off
+flycast2021_enable_dsp = disabled
+flycast2021_synchronous_rendering = disabled
+flycast2021_enable_rtt = disabled
+flycast2021_enable_rttb = disabled
+flycast2021_delay_frame_swapping = disabled
+# Alpha sorting should be set to per strip
+flycast2021_alpha_sorting = per-strip (fast, least accurate)
+flycast2021_div_matching = auto
+# Texupscale should be off
+flycast2021_texupscale = off
+# Vibration support should be on
+flycast2021_enable_purupuru = enabled
+flycast2021_gdrom_fast_loading = enabled
+flycast2021_volume_modifier_enable = disabled
+flycast2021_framerate = fullspeed
+flycast2021_anisotropic_filtering = disabled
+# ---- PARALLEL N64 ----
+parallel-n64-framerate = fullspeed
+parallel-n64-filtering = nearest
+parallel-n64-audio-buffer-size = 1024
+parallel-n64-gfxplugin-accuracy = medium
+parallel-n64-screensize = 640x480
+parallel-n64-gfxplugin = rice
+parallel-n64-pak1 = rumble
+parallel-n64-pak2 = memory
+parallel-n64-pak3 = none
+parallel-n64-pak4 = none
+# ---- JAGUAR ----
+virtualjaguar_doom_res_hack = enabled
+virtualjaguar_pal = disabled
+virtualjaguar_usefastblitter = enabled
+virtualjaguar_bios = enabled
+# ---- PPSSPP ----
+ppsspp_cpu_core = JIT
+#ppsspp_detect_vsync_swap_interval = disabled
+ppsspp_fast_memory = enabled
+ppsspp_frameskip = 0
+ppsspp_frameskiptype = Number of frames
+ppsspp_ignore_bad_memory_access = enabled
+ppsspp_internal_resolution = 480x272
+ppsspp_rendering_mode=buffered
+# ---- DUCKSTATION ----
+duckstation_CPU.Overclock = 100
+duckstation_Controller1.Type=AnalogController
+# ---- SWANSTATION ----
+swanstation_CPU_Overclock = 100
+swanstation_GPU_Renderer = Software
 ```
+
+(*) Pay attention to the parameter names, as they follow the naming convention
+of the core. For example, in some distributions, the Flycast core is named
+Reicast. In such cases, parameters should be prefixed accordingly—e.g.,
+`flycast_threaded_rendering` should be renamed to
+`reicast_threaded_rendering`.
 
 ### RetroAchievements
 
