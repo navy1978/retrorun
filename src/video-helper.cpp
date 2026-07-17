@@ -57,6 +57,7 @@ std::string tabSpaces = "";
 int stepCredits = 15;
 int posYCredits = 8;
 int time_credit = 2;
+bool credits_fast = false;
 int offset = 0;
 bool direction_forward = true;
 int rowForText = 0;
@@ -401,6 +402,14 @@ void resetCredisPosition()
 {
     posYCredits = 8;
     time_credit = 2;
+    credits_fast = false;
+}
+
+void setCreditsAccelerated(bool accelerated)
+{
+    credits_fast = accelerated;
+    if (credits_fast)
+        time_credit = 0;
 }
 
 static void drawCreditLogo(int image_y, rr_surface_t **surface)
@@ -740,8 +749,11 @@ void showInfoGraphics(int, rr_surface_t **surface, int)
 
 void showCredits(rr_surface_t **surface)
 {
-
-    if (time_credit > 0)
+    if (credits_fast)
+    {
+        posYCredits--;
+    }
+    else if (time_credit > 0)
     {
         time_credit--;
     }

@@ -22,6 +22,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include "globals.h"
 #include "video.h"
+#include "video-helper.h"
 #include "libretro.h"
 #include "keyboard.h"
 #include "file_browser.h"
@@ -376,15 +377,12 @@ rr_input_state_t *input_gampad_current_get()
 }
 
 void manageCredits(){
+setCreditsAccelerated(
+    rr_input_state_button_get(gamepadState, aButton) == RRButtonState_Pressed);
 if (rr_input_state_button_get(gamepadState, bButton) == RRButtonState_Pressed &&
     rr_input_state_button_get(prevGamepadState, bButton) == RRButtonState_Released)
     {
         menuManager.handle_input_credits(B_BUTTON);
-    }
-    if (rr_input_state_button_get(gamepadState, aButton) == RRButtonState_Pressed &&
-        rr_input_state_button_get(prevGamepadState, aButton) == RRButtonState_Released)
-    {
-        menuManager.handle_input_credits(A_BUTTON);
     }
 }
 
@@ -619,6 +617,8 @@ if (input_info_requested_alternative) { // this are the alternative combinations
             input_info_requested = !input_info_requested;
             pause_requested = input_info_requested;
             input_credits_requested = false;
+            if (input_info_requested)
+                menuManager.beginSession();
             lastInforequestTime = currentTime;
             logger.log(Logger::DEB, "Input: Info requested OK");
         }
@@ -676,6 +676,8 @@ if (input_info_requested_alternative) { // this are the alternative combinations
             input_info_requested = !input_info_requested;
             pause_requested = input_info_requested;
             input_credits_requested = false;
+            if (input_info_requested)
+                menuManager.beginSession();
             lastInforequestTime = currentTime;
             logger.log(Logger::DEB, "Input: Info requested OK");
         }

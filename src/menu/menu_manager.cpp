@@ -197,6 +197,7 @@ void MenuManager::handle_input(int buttonPressed)
                     queueMenus.push(currentMenu_); // push the current menu onto the queue before updating it
                 }
                 currentMenu_ = mi.getMenu();
+                currentMenu_->resetSelected();
             }
             else
             {
@@ -226,6 +227,19 @@ void MenuManager::setCurrentMenu(Menu *menu)
 {
     std::lock_guard<std::mutex> lock(current_menu_mutex_);
     currentMenu_ = menu;
+    if (rootMenu_ == nullptr)
+        rootMenu_ = menu;
+}
+
+void MenuManager::beginSession()
+{
+    std::lock_guard<std::mutex> lock(mutexManager);
+    std::lock_guard<std::mutex> menuLock(current_menu_mutex_);
+    while (!queueMenus.empty())
+        queueMenus.pop();
+    currentMenu_ = rootMenu_;
+    if (currentMenu_ != nullptr)
+        currentMenu_->resetSelected();
 }
 
 void MenuManager::resetMenu(){

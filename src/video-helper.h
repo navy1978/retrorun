@@ -96,6 +96,7 @@ int getRowForText();
 std::string stripReturnCarriage(std::string input);
 bool canCreditBeDrawn(int pos);
 void resetCredisPosition();
+void setCreditsAccelerated(bool accelerated);
 void showCenteredText(int y, const char *text, unsigned short color, rr_surface_t **surface);
 void showLongCenteredText(int y, const char *text, unsigned short color, rr_surface_t **surface);
 void drawCreditLine(int y, const char *text, unsigned short color, rr_surface_t **surface);
