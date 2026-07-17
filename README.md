@@ -711,13 +711,13 @@ repository's **Actions** tab. It produces three downloadable artifacts:
 - `retrorun-linux-sdl2-aarch64` for Linux handhelds using SDL2/KMSDRM;
 - `retrorun-macos-sdl2-arm64` for Apple Silicon macOS.
 
-The macOS job runs on GitHub's `macos-14` Apple Silicon runner. The two Linux
-handheld jobs intentionally run on a self-hosted runner labelled
-`self-hosted`, `linux` and `arm64`: it must provide the target GO2/DRM or SDL2,
-EGL and OpenGL ES development libraries. This can be an ARM64 handheld build
-machine or a runner prepared with the same target sysroot as the distribution.
-GitHub-hosted x86 runners cannot produce compatible native handheld binaries
-without such a toolchain.
+The macOS and SDL2 Linux jobs run on GitHub-hosted Apple Silicon and ARM64
+runners. The GO2 job runs on a standard GitHub Ubuntu runner but compiles
+inside the AmberELEC build container, using the same RG351P ARM64 toolchain,
+`librga` and target sysroot as the distribution. The initial GO2 build may take
+longer while that environment is prepared; its toolchain, sources and compiler
+cache are retained between runs to speed up later builds. No self-hosted runner
+is required for this public repository.
 
 When launching the workflow, select only the artifacts needed for the test.
 After it completes, open the run summary and download the corresponding

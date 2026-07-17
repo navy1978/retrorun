@@ -4,12 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       build_go2:
-        description: Build the native GO2/DRM ARM64 binary on the handheld runner
+        description: Build the native GO2/DRM ARM64 binary with the AmberELEC toolchain
         required: true
         type: boolean
         default: true
       build_linux_sdl2:
-        description: Build the SDL2/KMSDRM ARM64 binary on the handheld runner
+        description: Build the SDL2/KMSDRM ARM64 binary on GitHub ARM64
         required: true
         type: boolean
         default: true
@@ -22,27 +22,51 @@ on:
 permissions:
   contents: read
 
+env:
+  AMBERELEC_REPOSITORY: navy1978/AmberELEC
+  AMBERELEC_REF: dev
+
 jobs:
   linux-go2:
     name: Linux GO2/DRM (ARM64)
     if: ${{ inputs.build_go2 }}
-    # Register the AmberELEC-compatible ARM64 machine with these default
-    # self-hosted labels. It must expose the target GO2/DRM development
-    # headers and libraries; GitHub-hosted x86 runners cannot build this
-    # native handheld binary.
-    runs-on: [self-hosted, linux, arm64]
+    # Build through AmberELEC so librga and all target headers come from the
+    # same cross-compilation sysroot used by the distribution.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Build native GO2/DRM binary
-        run: make PLATFORM=linux-go2 config=release ARCH= verbose=1
+      - name: Checkout AmberELEC build environment
+        run: |
+          git clone --depth 1 --branch "${AMBERELEC_REF}" \
+            "https://github.com/${AMBERELEC_REPOSITORY}.git" amber
+
+      - name: Restore AmberELEC toolchain and package cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            amber/build.AmberELEC-RG351P.aarch64
+            amber/sources
+            amber/.ccache-aarch64-cortex-a53
+          key: amberelec-rg351p-aarch64-retrorun-v1
+
+      - name: Build GO2/DRM with the AmberELEC toolchain
+        run: |
+          sed -i "s/^PKG_VERSION=.*/PKG_VERSION=\"${GITHUB_SHA}\"/" \
+            amber/packages/games/tools/retrorun/package.mk
+          docker run --rm --user "$(id -u):$(id -g)" \
+            -v "${GITHUB_WORKSPACE}/amber:/work" -w /work \
+            ghcr.io/amberelec/amberelec-build \
+            bash -lc 'DEVICE=RG351P ARCH=aarch64 ./scripts/build retrorun'
 
       - name: Stage artifact
         run: |
+          binary="$(find amber/build.AmberELEC-RG351P.aarch64 -path '*/.install_pkg/usr/bin/retrorun' -type f -print -quit)"
+          test -n "${binary}"
           mkdir -p dist
-          cp retrorun dist/retrorun-linux-go2-aarch64
+          cp "${binary}" dist/retrorun-linux-go2-aarch64
           file dist/retrorun-linux-go2-aarch64
 
       - uses: actions/upload-artifact@v4
@@ -55,11 +79,19 @@ jobs:
   linux-sdl2:
     name: Linux SDL2/KMSDRM (ARM64)
     if: ${{ inputs.build_linux_sdl2 }}
-    runs-on: [self-hosted, linux, arm64]
+    # GitHub provides this native ARM64 runner without charge for public repos.
+    runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential pkg-config libsdl2-dev libpng-dev libcurl4-openssl-dev \
+            libegl1-mesa-dev libgles2-mesa-dev
 
       - name: Build SDL2/KMSDRM binary
         run: make PLATFORM=linux-sdl2 config=release ARCH= verbose=1
