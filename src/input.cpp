@@ -35,6 +35,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 extern int opt_backlight;
 extern int opt_volume;
 bool input_ffwd_requested = false;
+static retro_fastforwarding_override fastForwardOverride = {-1.0f, false, true, false};
+static bool fastForwardOverrideSet = false;
 bool input_message = false;
 
 bool input_exit_requested = false;
@@ -386,6 +388,47 @@ if (rr_input_state_button_get(gamepadState, bButton) == RRButtonState_Pressed &&
     }
 }
 
+void fastForwardSetOverride(const retro_fastforwarding_override* override_state)
+{
+    if (!override_state)
+        return;
+    fastForwardOverride = *override_state;
+    fastForwardOverrideSet = true;
+    input_ffwd_requested = fastForwardOverride.fastforward;
+    logger.log(Logger::DEB,
+               "Fast-forward override: active=%s ratio=%.2f notification=%s inhibit_toggle=%s",
+               input_ffwd_requested ? "true" : "false", fastForwardOverride.ratio,
+               fastForwardOverride.notification ? "true" : "false",
+               fastForwardOverride.inhibit_toggle ? "true" : "false");
+}
+
+void fastForwardResetOverride()
+{
+    fastForwardOverride = {-1.0f, false, true, false};
+    fastForwardOverrideSet = false;
+    input_ffwd_requested = false;
+}
+
+bool fastForwardToggleAllowed()
+{
+    return !fastForwardOverrideSet || !fastForwardOverride.inhibit_toggle;
+}
+
+float fastForwardRatio()
+{
+    if (fastForwardOverrideSet && fastForwardOverride.fastforward &&
+        fastForwardOverride.ratio >= 0.0f)
+        return fastForwardOverride.ratio;
+    return 0.0f;
+}
+
+bool fastForwardNotificationVisible()
+{
+    return input_ffwd_requested &&
+           (!fastForwardOverrideSet || !fastForwardOverride.fastforward ||
+            fastForwardOverride.notification);
+}
+
 void manageMenu()
 {
     struct RepeatState {
@@ -663,6 +706,12 @@ if (input_info_requested_alternative) { // this are the alternative combinations
                 pauseRequestTime = currentTime;
             }
         }
+        if (!showLoading && (isF2Pressed || isSelectPressed) &&
+            isR2Pressed && wasR2Released && fastForwardToggleAllowed()) {
+            input_ffwd_requested = !input_ffwd_requested;
+            logger.log(Logger::DEB, "Input: Fast-forward %s",
+                       input_ffwd_requested ? "on" : "off");
+        }
 }
 
 } else { // this is the oermal behaviour used in AmberElec
@@ -721,8 +770,11 @@ if (input_info_requested_alternative) { // this are the alternative combinations
         }
         // Handle fast-forward request
         if (!showLoading && isSelectPressed && isR2Pressed && wasR2Released) {
-            input_ffwd_requested = !input_ffwd_requested;
-            logger.log(Logger::DEB, "Input: Fast-forward %s", input_ffwd_requested ? "on" : "off");
+            if (fastForwardToggleAllowed()) {
+                input_ffwd_requested = !input_ffwd_requested;
+                logger.log(Logger::DEB, "Input: Fast-forward %s",
+                           input_ffwd_requested ? "on" : "off");
+            }
         }
     }
 

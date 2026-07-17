@@ -22,6 +22,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include "struct.h"
 
 #include "../status.h"
+#include "../input.h"
 
 #include "queue.h"
 #include "../globals.h"
@@ -1276,7 +1277,16 @@ void go2_presenter_destroy(go2_presenter_t *presenter)
 
 void go2_presenter_post(go2_presenter_t *presenter, go2_surface_t *surface, int srcX, int srcY, int srcWidth, int srcHeight, int dstX, int dstY, int dstWidth, int dstHeight, go2_rotation_t rotation)
 {
-    sem_wait(&presenter->freeSem);
+    // During fast-forward the core must never be paced by the display queue.
+    // If all scanout buffers are busy, discard this presentation attempt and
+    // let retro_run() continue immediately. Normal gameplay remains blocking.
+    if (input_ffwd_requested) {
+        if (sem_trywait(&presenter->freeSem) != 0)
+            return;
+    } else {
+        while (sem_wait(&presenter->freeSem) != 0 && errno == EINTR) {
+        }
+    }
     pthread_mutex_lock(&presenter->queueMutex);
     go2_frame_buffer_t *dstFrameBuffer =
         (go2_frame_buffer_t *)go2_queue_pop(presenter->freeFrameBuffers);
@@ -1519,7 +1529,15 @@ void go2_presenter_post_multiple(go2_presenter_t *presenter, go2_surface_t *surf
         logger.log(Logger::ERR, "ERROR: presenter is NULL! Skipping presenter_post.");
         return;
     }
-    sem_wait(&presenter->freeSem);
+    // Keep the emulation thread non-blocking while fast-forwarding. This path
+    // is used whenever status elements or screen decorations are composited.
+    if (input_ffwd_requested) {
+        if (sem_trywait(&presenter->freeSem) != 0)
+            return;
+    } else {
+        while (sem_wait(&presenter->freeSem) != 0 && errno == EINTR) {
+        }
+    }
 
     pthread_mutex_lock(&presenter->queueMutex);
 

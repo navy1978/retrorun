@@ -186,9 +186,43 @@ bool core_environment(unsigned cmd, void *data)
     switch (cmd)
     {
     case RETRO_ENVIRONMENT_GET_FASTFORWARDING:
+    {
         bval = (bool *)data;
-        *bval = false;
+        *bval = input_ffwd_requested;
+        static bool first = true;
+        static bool previous = false;
+        if (first || previous != *bval) {
+            logger.log(Logger::DEB, "Libretro GET_FASTFORWARDING -> %s",
+                       *bval ? "true" : "false");
+            first = false;
+            previous = *bval;
+        }
         return true;
+    }
+
+    case RETRO_ENVIRONMENT_SET_FASTFORWARDING_OVERRIDE:
+        fastForwardSetOverride(
+            static_cast<const retro_fastforwarding_override *>(data));
+        return data != nullptr;
+
+    case RETRO_ENVIRONMENT_GET_THROTTLE_STATE:
+    {
+        auto *state = static_cast<retro_throttle_state *>(data);
+        if (!state)
+            return false;
+        if (pause_requested) {
+            state->mode = RETRO_THROTTLE_FRAME_STEPPING;
+            state->rate = 0.0f;
+        } else if (input_ffwd_requested) {
+            state->mode = RETRO_THROTTLE_FAST_FORWARD;
+            const float ratio = fastForwardRatio();
+            state->rate = ratio >= 1.0f ? originalFps * ratio : 0.0f;
+        } else {
+            state->mode = RETRO_THROTTLE_NONE;
+            state->rate = originalFps;
+        }
+        return true;
+    }
 
     case RETRO_ENVIRONMENT_GET_LOG_INTERFACE:
     {

@@ -531,6 +531,7 @@ General and input settings:
 | Setting | Description |
 | --- | --- |
 | `retrorun_log_level` | `INFO`, `DEBUG`, `WARNING` or `ERROR`. |
+| `retrorun_core_log_level` | Independent log level for libretro cores; defaults to `ERROR`. Set it explicitly to `INFO` or `DEBUG` for core diagnostics while keeping RetroRun's level independent. |
 | `retrorun_device_name` | Overrides automatic device identification. |
 | `retrorun_screenshot_folder` | Destination for screenshots. |
 | `retrorun_audio_buffer` | Audio buffer value such as `-1`, `256`, `512` or `1024`. |

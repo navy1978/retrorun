@@ -255,6 +255,18 @@ void initConfig()
 
         try
         {
+            const std::string &coreLogValue = conf_map.at("retrorun_core_log_level");
+            Logger::setCoreLogLevel(getLogLevel(coreLogValue));
+            logger.log(Logger::INF, "retrorun_core_log_level: %s", coreLogValue.c_str());
+        }
+        catch (...)
+        {
+            Logger::setCoreLogLevel(Logger::ERR);
+            logger.log(Logger::DEB, "retrorun_core_log_level parameter not found in retrorun.cfg using default value (ERROR).");
+        }
+
+        try
+        {
             const std::string &asValue = conf_map.at("retrorun_device_name");
             retrorun_device_name = asValue;
             resetDeviceName();

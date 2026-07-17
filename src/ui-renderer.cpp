@@ -175,7 +175,7 @@ bool uiRenderOverlays(const void* frame, unsigned width, unsigned height, size_t
     }
 
     const bool achievement_notification = achievements_notification_visible();
-    overlays.show_top_left = input_ffwd_requested || input_message || achievement_notification;
+    overlays.show_top_left = fastForwardNotificationVisible() || input_message || achievement_notification;
     if (overlays.show_top_left) {
         if (achievement_notification) {
             constexpr int notification_width = 300;
@@ -192,7 +192,7 @@ bool uiRenderOverlays(const void* frame, unsigned width, unsigned height, size_t
             achievements_render_notification(status_surface_top_left);
         } else if (input_message)
             showText(10, 10, status_message.c_str(), WHITE, &status_surface_top_left);
-        else
+        else if (fastForwardNotificationVisible())
             showImage(fast, &status_surface_top_left);
         visible = true;
     }

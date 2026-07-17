@@ -453,6 +453,11 @@ int main(int argc, char *argv[])
     auto frameDuration = duration_cast<nanoseconds>(seconds(1)) / max_fps;
     const auto frameDurationTick = duration_cast<steady_clock::duration>(frameDuration);
     auto nextFrameDeadline = steady_clock::now();
+    auto fastForwardStatsStarted = steady_clock::now();
+    uint64_t fastForwardCoreRuns = 0;
+    uint64_t fastForwardCoreTimeUs = 0;
+    uint64_t fastForwardAchievementsTimeUs = 0;
+    bool previousFastForwardState = false;
 
     while (isRunning)
     {
@@ -461,10 +466,14 @@ int main(int argc, char *argv[])
         auto loopStart = steady_clock::now();
 #endif
         input_message = false;
+        const auto achievementsStarted = steady_clock::now();
         if (pause_requested)
             achievements_idle();
         else
             achievements_frame();
+        if (input_ffwd_requested)
+            fastForwardAchievementsTimeUs += duration_cast<microseconds>(
+                steady_clock::now() - achievementsStarted).count();
         auto nextClock = high_resolution_clock::now();
         bool realPause = pause_requested && input_pause_requested;
         bool showInfo = pause_requested && input_info_requested;
@@ -494,7 +503,49 @@ int main(int argc, char *argv[])
                 redrawInfo = false;
             else
                 redrawInfo = true;
+            const auto coreStarted = steady_clock::now();
             g_retro.retro_run();
+            if (input_ffwd_requested) {
+                ++fastForwardCoreRuns;
+                fastForwardCoreTimeUs += duration_cast<microseconds>(
+                    steady_clock::now() - coreStarted).count();
+            }
+        }
+
+        if (input_ffwd_requested != previousFastForwardState) {
+            logger.log(Logger::INF,
+                       "Fast-forward runtime: %s, ratio=%.2f, normal_pacing=%s",
+                       input_ffwd_requested ? "enabled" : "disabled",
+                       fastForwardRatio(), runLoopAtDeclaredfps ? "enabled" : "disabled");
+            previousFastForwardState = input_ffwd_requested;
+            fastForwardStatsStarted = steady_clock::now();
+            fastForwardCoreRuns = 0;
+            fastForwardCoreTimeUs = 0;
+            fastForwardAchievementsTimeUs = 0;
+            uint64_t callbacks = 0, presented = 0, dropped = 0, callbackTimeUs = 0;
+            fastForwardVideoStats(&callbacks, &presented, &dropped, &callbackTimeUs);
+            (void)fastForwardAudioFramesDropped();
+        }
+        if (input_ffwd_requested &&
+            steady_clock::now() - fastForwardStatsStarted >= seconds(1)) {
+            uint64_t callbacks = 0, presented = 0, dropped = 0, callbackTimeUs = 0;
+            fastForwardVideoStats(&callbacks, &presented, &dropped, &callbackTimeUs);
+            const uint64_t audioDropped = fastForwardAudioFramesDropped();
+            logger.log(Logger::INF,
+                       "Fast-forward health: retro_run=%llu, video_callbacks=%llu, presented=%llu, dropped=%llu, audio_frames_muted=%llu, avg_retro_run_us=%.1f, avg_video_callback_us=%.1f, avg_achievements_us=%.1f, ratio=%.2f",
+                       static_cast<unsigned long long>(fastForwardCoreRuns),
+                       static_cast<unsigned long long>(callbacks),
+                       static_cast<unsigned long long>(presented),
+                       static_cast<unsigned long long>(dropped),
+                       static_cast<unsigned long long>(audioDropped),
+                       fastForwardCoreRuns ? static_cast<double>(fastForwardCoreTimeUs) / fastForwardCoreRuns : 0.0,
+                       callbacks ? static_cast<double>(callbackTimeUs) / callbacks : 0.0,
+                       fastForwardCoreRuns ? static_cast<double>(fastForwardAchievementsTimeUs) / fastForwardCoreRuns : 0.0,
+                       fastForwardRatio());
+            fastForwardCoreRuns = 0;
+            fastForwardCoreTimeUs = 0;
+            fastForwardAchievementsTimeUs = 0;
+            fastForwardStatsStarted = steady_clock::now();
         }
 
         if (input_exit_requested)
@@ -560,6 +611,7 @@ int main(int argc, char *argv[])
         }
 #endif
 
+        const float fastForwardSpeed = fastForwardRatio();
         if (runLoopAtDeclaredfps && !input_ffwd_requested)
         {
             nextFrameDeadline += frameDurationTick;
@@ -567,6 +619,17 @@ int main(int argc, char *argv[])
             if (nextFrameDeadline > now)
                 std::this_thread::sleep_until(nextFrameDeadline);
             else if (now - nextFrameDeadline > frameDurationTick)
+                nextFrameDeadline = now;
+        }
+        else if (input_ffwd_requested && fastForwardSpeed >= 1.0f)
+        {
+            const auto fastFrameDuration = duration_cast<steady_clock::duration>(
+                duration<double>(1.0 / (info.timing.fps * fastForwardSpeed)));
+            nextFrameDeadline += fastFrameDuration;
+            const auto now = steady_clock::now();
+            if (nextFrameDeadline > now)
+                std::this_thread::sleep_until(nextFrameDeadline);
+            else if (now - nextFrameDeadline > fastFrameDuration)
                 nextFrameDeadline = now;
         }
         else
@@ -666,6 +729,7 @@ int main(int argc, char *argv[])
     decoration_catalog_shutdown();
     achievements_shutdown();
     decoration_shutdown();
+    fastForwardResetOverride();
 
 #ifdef RR_PLATFORM_SDL
     video_prepare_core_unload();

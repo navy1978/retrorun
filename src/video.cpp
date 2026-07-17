@@ -43,12 +43,27 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "platform.h"
 
 #include <chrono>
+#include <atomic>
 #include <thread>
 #include "video-helper.h"
 
 
 
 #define ALIGN(val, align) (((val) + (align)-1) & ~((align)-1))
+
+static std::atomic<uint64_t> fastForwardVideoCallbackCount{0};
+static std::atomic<uint64_t> fastForwardVideoPresentedCount{0};
+static std::atomic<uint64_t> fastForwardVideoDroppedCount{0};
+static std::atomic<uint64_t> fastForwardVideoCallbackTimeUs{0};
+
+void fastForwardVideoStats(uint64_t* callbacks, uint64_t* presented, uint64_t* dropped,
+                           uint64_t* callback_time_us)
+{
+    if (callbacks) *callbacks = fastForwardVideoCallbackCount.exchange(0);
+    if (presented) *presented = fastForwardVideoPresentedCount.exchange(0);
+    if (dropped) *dropped = fastForwardVideoDroppedCount.exchange(0);
+    if (callback_time_us) *callback_time_us = fastForwardVideoCallbackTimeUs.exchange(0);
+}
 
 // extern float opt_aspect;
 extern int opt_backlight;
@@ -876,6 +891,21 @@ size_t lastPitch;
 //bool lastPixelPerfect= pixel_perfect;
 void core_video_refresh(const void *data, unsigned width, unsigned height, size_t pitch)
 {
+    const bool measureFastForward = input_ffwd_requested;
+    const auto callbackStarted = measureFastForward
+        ? std::chrono::steady_clock::now()
+        : std::chrono::steady_clock::time_point{};
+    struct CallbackTimer {
+        bool enabled;
+        std::chrono::steady_clock::time_point started;
+        ~CallbackTimer() {
+            if (enabled)
+                fastForwardVideoCallbackTimeUs += std::chrono::duration_cast<std::chrono::microseconds>(
+                    std::chrono::steady_clock::now() - started).count();
+        }
+    } callbackTimer{measureFastForward, callbackStarted};
+    if (measureFastForward)
+        ++fastForwardVideoCallbackCount;
 
 #ifndef RR_PLATFORM_SDL
     // Fixed presentation-only frameskip, equivalent to the strategy used by
@@ -947,18 +977,34 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
     }
 #endif
 
-    frameCounter++;
-    // the following is for Fast Forwarding
-    if (frameCounter == frameCounterSkip)
+    // Fast-forward must not be throttled by the display. RetroArch switches
+    // its video driver to non-blocking mode; RetroRun's presenters do not
+    // expose that operation, so discard only video updates arriving faster
+    // than the presenter's useful visible frame rate. GO2 composition is
+    // synchronous and relatively expensive, so keep a usable 10 fps preview
+    // there while leaving most of the CPU time available to retro_run().
+    static auto lastFastForwardPresentation = std::chrono::steady_clock::time_point{};
+    if (input_ffwd_requested && !input_info_requested && !input_message &&
+        !input_credits_requested && !showLoading)
     {
-        frameCounter = 0;
+        const auto now = std::chrono::steady_clock::now();
+#ifdef RR_PLATFORM_SDL
+        const double visibleFps = originalFps > 1.0f ? originalFps : 60.0f;
+#else
+        const double visibleFps = 10.0;
+#endif
+        const auto minimumInterval = std::chrono::duration<double>(1.0 / visibleFps);
+        if (lastFastForwardPresentation.time_since_epoch().count() != 0 &&
+            now - lastFastForwardPresentation < minimumInterval) {
+            ++fastForwardVideoDroppedCount;
+            return;
+        }
+        lastFastForwardPresentation = now;
+        ++fastForwardVideoPresentedCount;
     }
     else
     {
-        if (input_ffwd_requested)
-        {
-            return;
-        }
+        lastFastForwardPresentation = {};
     }
 
    /* if (true )
