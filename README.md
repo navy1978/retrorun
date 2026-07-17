@@ -702,6 +702,27 @@ For supported Anbernic devices, GO2/DRM remains the safest production backend.
 SDL2/KMSDRM is intended as an alternative and as the portable path for new
 devices.
 
+### GitHub Actions binary builds
+
+The **Build RetroRun binaries** workflow can be started manually from the
+repository's **Actions** tab. It produces three downloadable artifacts:
+
+- `retrorun-linux-go2-aarch64` for the native GO2/DRM backend;
+- `retrorun-linux-sdl2-aarch64` for Linux handhelds using SDL2/KMSDRM;
+- `retrorun-macos-sdl2-arm64` for Apple Silicon macOS.
+
+The macOS job runs on GitHub's `macos-14` Apple Silicon runner. The two Linux
+handheld jobs intentionally run on a self-hosted runner labelled
+`self-hosted`, `linux` and `arm64`: it must provide the target GO2/DRM or SDL2,
+EGL and OpenGL ES development libraries. This can be an ARM64 handheld build
+machine or a runner prepared with the same target sysroot as the distribution.
+GitHub-hosted x86 runners cannot produce compatible native handheld binaries
+without such a toolchain.
+
+When launching the workflow, select only the artifacts needed for the test.
+After it completes, open the run summary and download the corresponding
+artifact from **Artifacts**. Artifacts are kept for 30 days.
+
 ## History and credits
 
 RetroRun was initially developed by OtherCrashOverride until 2020. Development

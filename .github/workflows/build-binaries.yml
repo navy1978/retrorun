@@ -1,0 +1,107 @@
+name: Build RetroRun binaries
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_go2:
+        description: Build the native GO2/DRM ARM64 binary on the handheld runner
+        required: true
+        type: boolean
+        default: true
+      build_linux_sdl2:
+        description: Build the SDL2/KMSDRM ARM64 binary on the handheld runner
+        required: true
+        type: boolean
+        default: true
+      build_macos:
+        description: Build the macOS Apple Silicon SDL2 binary
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  linux-go2:
+    name: Linux GO2/DRM (ARM64)
+    if: ${{ inputs.build_go2 }}
+    # Register the AmberELEC-compatible ARM64 machine with these default
+    # self-hosted labels. It must expose the target GO2/DRM development
+    # headers and libraries; GitHub-hosted x86 runners cannot build this
+    # native handheld binary.
+    runs-on: [self-hosted, linux, arm64]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build native GO2/DRM binary
+        run: make PLATFORM=linux-go2 config=release ARCH= verbose=1
+
+      - name: Stage artifact
+        run: |
+          mkdir -p dist
+          cp retrorun dist/retrorun-linux-go2-aarch64
+          file dist/retrorun-linux-go2-aarch64
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: retrorun-linux-go2-aarch64
+          path: dist/retrorun-linux-go2-aarch64
+          if-no-files-found: error
+          retention-days: 30
+
+  linux-sdl2:
+    name: Linux SDL2/KMSDRM (ARM64)
+    if: ${{ inputs.build_linux_sdl2 }}
+    runs-on: [self-hosted, linux, arm64]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build SDL2/KMSDRM binary
+        run: make PLATFORM=linux-sdl2 config=release ARCH= verbose=1
+
+      - name: Stage artifact
+        run: |
+          mkdir -p dist
+          cp retrorun-sdl2 dist/retrorun-linux-sdl2-aarch64
+          file dist/retrorun-linux-sdl2-aarch64
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: retrorun-linux-sdl2-aarch64
+          path: dist/retrorun-linux-sdl2-aarch64
+          if-no-files-found: error
+          retention-days: 30
+
+  macos:
+    name: macOS SDL2 (Apple Silicon)
+    if: ${{ inputs.build_macos }}
+    # macos-14 is an Apple Silicon GitHub-hosted runner.
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install build dependencies
+        run: brew install sdl2 libpng
+
+      - name: Build macOS binary
+        run: make PLATFORM=macos-sdl2 config=release ARCH= verbose=1
+
+      - name: Stage artifact
+        run: |
+          mkdir -p dist
+          cp retrorun dist/retrorun-macos-sdl2-arm64
+          file dist/retrorun-macos-sdl2-arm64
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: retrorun-macos-sdl2-arm64
+          path: dist/retrorun-macos-sdl2-arm64
+          if-no-files-found: error
+          retention-days: 30
