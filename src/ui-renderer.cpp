@@ -9,16 +9,14 @@
 #include "file_browser.h"
 #include "achievements.h"
 #include "decoration.h"
+#include "fonts.h"
 
-#include "imgs/imgs_fast_forwarding.h"
-#include "imgs/imgs_numbers.h"
-#include "imgs/imgs_pause.h"
-#include "imgs/imgs_press.h"
 #include "imgs/imgs_retrorun.h"
-#include "imgs/imgs_screenshot.h"
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cmath>
 #include <string>
 
 namespace {
@@ -31,6 +29,180 @@ bool loading_overlay_logged = false;
 unsigned previous_overlay_mask = 0;
 int overlay_cleanup_frames = 0;
 std::atomic<int64_t> loading_started_ns{0};
+
+enum class PopupIcon { Pause, FastForward, Camera, Exit, Save, Load, Success,
+                       Error, Info, Reset, Slot };
+
+class PopupMessage {
+public:
+    PopupMessage(PopupIcon icon, std::string text, uint16_t color = 0xffff)
+        : icon_(icon), text_(std::move(text)), color_(color) {}
+
+    int width() const {
+        constexpr int text_x = 48;
+        constexpr int glyph_width = 8;
+        constexpr int right_padding = 10;
+        return std::max(108, text_x + static_cast<int>(text_.size()) * glyph_width + right_padding);
+    }
+    static constexpr int height() { return 44; }
+
+    void render(rr_surface_t* target) const {
+        if (!target) return;
+        uint16_t* pixels = static_cast<uint16_t*>(rr_surface_map(target));
+        if (!pixels) return;
+        const int w = rr_surface_width_get(target);
+        const int h = rr_surface_height_get(target);
+        const int stride = rr_surface_stride_get(target) / 2;
+        // Fully opaque RGB565 HUD. The rectangular surface is painted to
+        // every edge: without an alpha channel, unused black corner pixels
+        // would look like an accidental halo over the game.
+        constexpr uint16_t popup_background = 0x4a49;
+        std::fill(pixels, pixels + stride * h, popup_background);
+        fillRect(pixels, stride, w, h, 0, 0, w - 1, 2, 0x6b4d);
+        fillRect(pixels, stride, w, h, 0, 3, 2, h - 1, 0x5acb);
+        fillRect(pixels, stride, w, h, 3, h - 3, w - 1, h - 1, 0x18e3);
+        fillRect(pixels, stride, w, h, w - 3, 3, w - 1, h - 4, 0x2124);
+        // Keep the semantic colour attached to the symbol: a small pixel
+        // frame integrates the icon without becoming a separator or a tile.
+        const uint16_t accent = iconColor();
+        // Continuous chamfered frame. The 2x2 corner steps connect the four
+        // sides instead of leaving them looking like unrelated straight bars.
+        fillRect(pixels, stride, w, h, 9, 6, 35, 7, accent);
+        fillRect(pixels, stride, w, h, 7, 8, 8, 9, accent);
+        fillRect(pixels, stride, w, h, 36, 8, 37, 9, accent);
+        fillRect(pixels, stride, w, h, 6, 10, 7, 33, accent);
+        fillRect(pixels, stride, w, h, 37, 10, 38, 33, accent);
+        fillRect(pixels, stride, w, h, 7, 34, 8, 35, accent);
+        fillRect(pixels, stride, w, h, 36, 34, 37, 35, accent);
+        fillRect(pixels, stride, w, h, 9, 36, 35, 37, accent);
+        drawIcon(pixels, stride, w, h);
+        basic_text_out16_nf_color_clipped(pixels, stride, w, h, 49, 19,
+                                         text_.c_str(), 0x0000);
+        basic_text_out16_nf_color_clipped(pixels, stride, w, h, 48, 18,
+                                         text_.c_str(), color_);
+        rr_surface_unmap(target);
+    }
+
+private:
+    PopupIcon icon_;
+    std::string text_;
+    uint16_t color_;
+
+    static void pixel(uint16_t* p, int stride, int w, int h, int x, int y, uint16_t c) {
+        if (x >= 0 && x < w && y >= 0 && y < h) p[y * stride + x] = c;
+    }
+    static void fillRect(uint16_t* p, int stride, int w, int h,
+                         int x0, int y0, int x1, int y1, uint16_t c) {
+        x0 = std::max(0, x0); y0 = std::max(0, y0);
+        x1 = std::min(w - 1, x1); y1 = std::min(h - 1, y1);
+        for (int y = y0; y <= y1; ++y)
+            std::fill(p + y * stride + x0, p + y * stride + x1 + 1, c);
+    }
+    static void line(uint16_t* p, int stride, int w, int h,
+                     int x0, int y0, int x1, int y1, uint16_t c) {
+        int dx = std::abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+        int dy = -std::abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+        int error = dx + dy;
+        for (;;) {
+            pixel(p, stride, w, h, x0, y0, c);
+            pixel(p, stride, w, h, x0 + 1, y0, c);
+            if (x0 == x1 && y0 == y1) break;
+            const int twice = error * 2;
+            if (twice >= dy) { error += dy; x0 += sx; }
+            if (twice <= dx) { error += dx; y0 += sy; }
+        }
+    }
+    static void circle(uint16_t* p, int stride, int w, int h,
+                       int cx, int cy, int radius, uint16_t c) {
+        int x = radius, y = 0, error = 0;
+        while (x >= y) {
+            const int points[][2] = {{x,y},{y,x},{-y,x},{-x,y},{-x,-y},{-y,-x},{y,-x},{x,-y}};
+            for (const auto& point : points)
+                pixel(p, stride, w, h, cx + point[0], cy + point[1], c);
+            ++y;
+            if (error <= 0) error += 2 * y + 1;
+            if (error > 0) { --x; error -= 2 * x + 1; }
+        }
+    }
+    uint16_t iconColor() const {
+        switch (icon_) {
+        case PopupIcon::Success: return 0x47e8;
+        case PopupIcon::Error: return 0xf249;
+        case PopupIcon::FastForward:
+        case PopupIcon::Pause: return 0xffe6;
+        default: return 0xfbe4;
+        }
+    }
+    void drawIcon(uint16_t* p, int stride, int w, int h) const {
+        const uint16_t c = icon_ == PopupIcon::Error ? iconColor() : 0xffff;
+        constexpr uint16_t hi = 0xd69a;
+        constexpr uint16_t bg = 0x4a49;
+        // The frame centre is (22, 21.5). Glyphs use a 24x26 design grid,
+        // therefore this origin centres their visual bounds in both axes.
+        const int ox = 10, oy = 8;
+        auto scaled = [](int value) { return value; };
+        auto r = [&](int x0, int y0, int x1, int y1, uint16_t color) {
+            fillRect(p, stride, w, h, ox+x0, oy+y0, ox+x1, oy+y1, color);
+        };
+        auto circ = [&](int cx, int cy, int radius, uint16_t color) {
+            circle(p, stride, w, h, ox+scaled(cx), oy+scaled(cy), scaled(radius), color);
+        };
+        switch (icon_) {
+        case PopupIcon::Pause:
+            r(3,2,8,25,c); r(15,2,20,25,c);
+            r(4,3,7,5,hi); r(16,3,19,5,hi);
+            break;
+        case PopupIcon::FastForward:
+            // The original glyph occupied x=1..20 on the 24-pixel grid.
+            // Shift it two pixels right to align its visual centre with the
+            // pause bars and the centre of the chamfered frame.
+            for (int i=0; i<12; ++i) { r(3+i/2,3+i,5+i/2,4+i,c); r(3+(11-i)/2,15+i,5+(11-i)/2,16+i,c); }
+            for (int i=0; i<12; ++i) { r(14+i/2,3+i,16+i/2,4+i,c); r(14+(11-i)/2,15+i,16+(11-i)/2,16+i,c); }
+            break;
+        case PopupIcon::Camera:
+            r(2,8,22,22,c); r(7,4,16,9,c); r(4,10,20,20,bg);
+            circ(12,15,5,c); circ(12,15,2,hi); r(18,10,20,12,c); break;
+        case PopupIcon::Exit:
+            r(2,3,12,23,c); r(5,6,10,20,bg); r(9,12,23,15,c);
+            r(18,8,21,19,c); r(21,11,24,16,c); break;
+        case PopupIcon::Save:
+            r(4,2,20,21,c); r(2,6,22,18,c); r(6,5,18,9,bg);
+            r(7,12,17,16,hi); r(9,19,15,23,c); break;
+        case PopupIcon::Load:
+            r(4,2,20,21,c); r(2,6,22,18,c); r(6,5,18,9,bg);
+            r(11,10,14,18,hi); r(8,15,17,18,hi); r(10,18,15,21,hi); break;
+        case PopupIcon::Success:
+            line(p,stride,w,h,ox+4,oy+13,ox+10,oy+19,c);
+            line(p,stride,w,h,ox+10,oy+19,ox+21,oy+7,c); break;
+        case PopupIcon::Error:
+            for (int i=0; i<4; ++i) {
+                line(p,stride,w,h,ox+5+i,oy+5,ox+19+i,oy+19,c);
+                line(p,stride,w,h,ox+19-i,oy+5,ox+5-i,oy+19,c);
+            }
+            break;
+        case PopupIcon::Info:
+            r(10,9,14,19,c); r(8,18,16,21,c); r(10,4,14,7,c); break;
+        case PopupIcon::Reset:
+            circ(12,14,9,c); circ(12,14,6,bg); r(12,2,23,9,bg);
+            r(17,2,21,11,c); r(14,5,20,10,c); r(7,12,10,15,hi);
+            r(15,12,18,15,hi); r(10,10,15,17,hi); break;
+        case PopupIcon::Slot:
+            r(7,2,21,17,hi); r(4,6,18,21,c); r(1,10,15,25,hi);
+            r(4,13,12,16,bg); r(5,19,8,22,c); r(10,19,12,22,c); break;
+        }
+    }
+};
+
+void renderPopup(rr_surface_t*& surface, const PopupMessage& popup) {
+    if (surface && (rr_surface_width_get(surface) != popup.width() ||
+                    rr_surface_height_get(surface) != PopupMessage::height())) {
+        rr_surface_destroy(surface);
+        surface = nullptr;
+    }
+    if (!surface)
+        surface = rr_surface_create(display, popup.width(), PopupMessage::height(), format_565);
+    popup.render(surface);
+}
 
 int64_t steadyNowNs() {
     return std::chrono::duration_cast<std::chrono::nanoseconds>(
@@ -102,31 +274,34 @@ void renderStateMessage() {
     overlays.show_bottom_center = completed || requested;
     if (!overlays.show_bottom_center) return;
 
-    if (!status_surface_bottom_center)
-        status_surface_bottom_center = rr_surface_create(display, 150, 20, format_565);
     std::string label;
     unsigned short color = WHITE;
+    PopupIcon icon = PopupIcon::Slot;
     if (input_slot_memory_load_done) {
-        label = lastLoadSaveStateDoneOk ? " SLOT:" + std::to_string(currentSlot) + " LOADED."
-                                        : " LOAD FAILED!";
+        label = lastLoadSaveStateDoneOk ? "Slot " + std::to_string(currentSlot) + " loaded"
+                                        : "Load failed";
+        icon = lastLoadSaveStateDoneOk ? PopupIcon::Success : PopupIcon::Error;
         if (!lastLoadSaveStateDoneOk) color = RED;
     } else if (input_slot_memory_save_done) {
-        label = " SLOT:" + std::to_string(currentSlot) + " SAVED.";
+        label = "Slot " + std::to_string(currentSlot) + " saved";
+        icon = PopupIcon::Success;
     } else if (input_slot_memory_reset_done) {
-        label = " CORE RESET DONE.";
+        label = "Core reset";
+        icon = PopupIcon::Reset;
     } else if (input_slot_memory_load_requested) {
-        label = " LOADING SLOT:" + std::to_string(currentSlot) + " ...";
+        label = "Loading slot " + std::to_string(currentSlot) + "...";
         color = ORANGE;
+        icon = PopupIcon::Load;
     } else if (input_slot_memory_save_requested) {
-        label = " SAVING SLOT:" + std::to_string(currentSlot) + " ...";
+        label = "Saving slot " + std::to_string(currentSlot) + "...";
         color = ORANGE;
+        icon = PopupIcon::Save;
     } else {
-        label = " SLOT:" + std::to_string(currentSlot) + " SELECTED.";
+        label = "Slot " + std::to_string(currentSlot) + " selected";
     }
     if (rendered_surface != status_surface_bottom_center ||
         rendered_label != label || rendered_color != color) {
-        makeScreenBlack(status_surface_bottom_center, 150, 20);
-        showTextBigger(0, 5, label.c_str(), color, &status_surface_bottom_center);
+        renderPopup(status_surface_bottom_center, PopupMessage(icon, label, color));
         rendered_surface = status_surface_bottom_center;
         rendered_label = label;
         rendered_color = color;
@@ -157,9 +332,6 @@ bool uiRenderOverlays(const void* frame, unsigned width, unsigned height, size_t
 
     overlays.show_top_right = input_fps_requested && !input_info_requested && !input_credits_requested;
     if (overlays.show_top_right) {
-        if (!status_surface_top_right)
-            status_surface_top_right = rr_surface_create(display, numbers.width * 2,
-                                                         numbers.height / 10, format_565);
         showFPSImage();
         visible = true;
     }
@@ -170,7 +342,8 @@ bool uiRenderOverlays(const void* frame, unsigned width, unsigned height, size_t
     overlays.show_bottom_right = continueToShowScreenshotImage();
     if (overlays.show_bottom_right) {
         if (!previous_screenshot_visible || !status_surface_bottom_right)
-            showImage(screenshot, &status_surface_bottom_right);
+            renderPopup(status_surface_bottom_right,
+                        PopupMessage(PopupIcon::Camera, "Screenshot saved"));
         visible = true;
     }
 
@@ -190,33 +363,31 @@ bool uiRenderOverlays(const void* frame, unsigned width, unsigned height, size_t
                 status_surface_top_left = rr_surface_create(display, notification_width,
                                                             notification_height, format_565);
             achievements_render_notification(status_surface_top_left);
-        } else if (input_message)
-            showText(10, 10, status_message.c_str(), WHITE, &status_surface_top_left);
-        else if (fastForwardNotificationVisible())
-            showImage(fast, &status_surface_top_left);
+        } else if (input_message) {
+            renderPopup(status_surface_top_left,
+                        PopupMessage(PopupIcon::Info, status_message));
+        } else if (fastForwardNotificationVisible()) {
+            renderPopup(status_surface_top_left,
+                        PopupMessage(PopupIcon::FastForward, "Fast-forward"));
+        }
         visible = true;
     }
 
     const bool previous_bottom_left_visible = overlays.show_bottom_left;
     overlays.show_bottom_left = false;
-    const Image* bottom_left_image = nullptr;
+    const PopupMessage* bottom_left_popup = nullptr;
+    const PopupMessage exit_popup(PopupIcon::Exit, "Hold to exit");
+    const PopupMessage pause_popup(PopupIcon::Pause, "Paused");
     if (input_exit_requested_firstTime && !input_info_requested && !input_credits_requested) {
-        bottom_left_image = &quit;
+        bottom_left_popup = &exit_popup;
         overlays.show_bottom_left = true;
     }
     if (input_pause_requested && !input_info_requested) {
-        bottom_left_image = &pause_img;
+        bottom_left_popup = &pause_popup;
         overlays.show_bottom_left = true;
     }
-    static const uint8_t* rendered_bottom_left_pixels = nullptr;
-    static rr_surface_t* rendered_bottom_left_surface = nullptr;
-    if (bottom_left_image &&
-        (!previous_bottom_left_visible || rendered_bottom_left_surface != status_surface_bottom_left ||
-         rendered_bottom_left_pixels != bottom_left_image->pixel_data)) {
-        showImage(*bottom_left_image, &status_surface_bottom_left);
-        rendered_bottom_left_surface = status_surface_bottom_left;
-        rendered_bottom_left_pixels = bottom_left_image->pixel_data;
-    }
+    if (bottom_left_popup && (!previous_bottom_left_visible || !status_surface_bottom_left))
+        renderPopup(status_surface_bottom_left, *bottom_left_popup);
     checkPaused();
 
     renderStateMessage();

@@ -69,6 +69,7 @@ void resume(int button)
     if (button == A_BUTTON)
     {
         input_info_requested = false;
+        pause_requested = input_pause_requested;
     }
 }
 
@@ -556,6 +557,14 @@ void loadSaveSlotWrapper(int button, int slotNumber, std::string type)
             lastLoadSaveStateDoneOk = (loaded >= 0);
             input_slot_memory_load_done = true;
             lastLoadSaveStateDoneTime = (double)time(NULL);
+            if (loaded >= 0)
+            {
+                // Loading while the game is paused must resume execution so
+                // the core can expose and present the restored frame. Keeping
+                // either flag set leaves the confirmation menu frozen.
+                input_pause_requested = false;
+                pause_requested = false;
+            }
         }
         else
         {
@@ -566,6 +575,9 @@ void loadSaveSlotWrapper(int button, int slotNumber, std::string type)
     }
 
     input_info_requested = false;
+    // Opening the information menu also sets pause_requested. Restore the
+    // actual pause state when an action closes the menu programmatically.
+    pause_requested = input_pause_requested;
 }
 
 void restartCore(int button)

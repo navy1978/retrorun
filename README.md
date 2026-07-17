@@ -21,6 +21,13 @@ and distributions.
 - [Changelog](changelog.txt)
 - [Porting guide](PORTING.md)
 
+### Artwork attribution
+
+On-screen interface icons are derived from
+[Streamline Core Line Free](https://www.streamlinehq.com/icons/core-line-free),
+licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+Icons by [Streamline](https://streamlinehq.com).
+
 ## Backends and build outputs
 
 | Host or target | Backend | Build command | Output |

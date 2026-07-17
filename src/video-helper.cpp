@@ -37,7 +37,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "platform.h"
 
 #include "fonts.h"
-#include "imgs/imgs_numbers.h"
 #include "imgs/imgs_retrorun.h"
 #include "input.h"
 #include "system-info.h"
@@ -963,25 +962,68 @@ void showFPSImage()
 {
     static rr_surface_t* rendered_surface = nullptr;
     static int rendered_fps = -1;
-    const int cap_fps = std::clamp(static_cast<int>(fps), 0, 99);
-    if (rendered_surface == status_surface_top_right && rendered_fps == cap_fps) return;
-    rendered_surface = status_surface_top_right;
-    rendered_fps = cap_fps;
+    const int displayed_fps = std::max(0, static_cast<int>(fps));
 
-    const int sprite_height = numbers.height / 10;
-    const int stride = rr_surface_stride_get(status_surface_top_right);
-    auto* destination = static_cast<uint8_t*>(rr_surface_map(status_surface_top_right));
-    if (!destination) return;
-    const int digits[2] = {cap_fps / 10, cap_fps % 10};
-    for (int digit = 0; digit < 2; ++digit) {
-        const uint8_t* source = numbers.pixel_data +
-            digits[digit] * sprite_height * numbers.width * sizeof(uint16_t);
-        for (int row = 0; row < sprite_height; ++row) {
-            std::memcpy(destination + row * stride + digit * numbers.width * sizeof(uint16_t),
-                        source + row * numbers.width * sizeof(uint16_t),
-                        numbers.width * sizeof(uint16_t));
-        }
+    // Hot path: this function is called every presented frame, while the FPS
+    // value changes much less frequently. Avoid string creation, surface
+    // queries and mapping unless the displayed integer actually changes.
+    if (rendered_surface == status_surface_top_right &&
+        status_surface_top_right && rendered_fps == displayed_fps)
+        return;
+
+    const std::string label = "FPS: " + std::to_string(displayed_fps);
+    constexpr int horizontal_padding = 6;
+    constexpr int glyph_width = 8;
+    constexpr int surface_height = 20;
+    // Reserve three FPS digits from the first frame. If an unusually large
+    // value needs more room, grow the surface but never shrink it again during
+    // the session: GO2 recycles scanout buffers and a narrower replacement
+    // would otherwise leave part of the previous rectangle visible.
+    constexpr int minimum_characters = 8; // "FPS: " + three digits
+    const int requested_width = horizontal_padding * 2 +
+        std::max(minimum_characters, static_cast<int>(label.size())) * glyph_width;
+    const int current_width = status_surface_top_right
+        ? rr_surface_width_get(status_surface_top_right) : 0;
+    const int surface_width = std::max(current_width, requested_width);
+
+    if (status_surface_top_right &&
+        (current_width < requested_width ||
+         rr_surface_height_get(status_surface_top_right) != surface_height)) {
+        rr_surface_destroy(status_surface_top_right);
+        status_surface_top_right = nullptr;
     }
+    if (!status_surface_top_right)
+        status_surface_top_right = rr_surface_create(display, surface_width,
+                                                     surface_height, format_565);
+
+    rendered_surface = status_surface_top_right;
+    rendered_fps = displayed_fps;
+
+    const int stride = rr_surface_stride_get(status_surface_top_right) / 2;
+    auto* destination = static_cast<uint16_t*>(rr_surface_map(status_surface_top_right));
+    if (!destination) return;
+    std::fill(destination, destination + stride * surface_height,
+              static_cast<uint16_t>(0x0000));
+    // Opaque two-tone bevel matching the menu and notification frame.
+    std::fill(destination + 1 * stride + 3,
+              destination + 1 * stride + surface_width - 3,
+              static_cast<uint16_t>(0x6b4d));
+    std::fill(destination + 2 * stride + 2,
+              destination + 2 * stride + surface_width - 2,
+              static_cast<uint16_t>(0x5acb));
+    std::fill(destination + (surface_height - 2) * stride + 3,
+              destination + (surface_height - 2) * stride + surface_width - 2,
+              static_cast<uint16_t>(0x18e3));
+    for (int y = 3; y < surface_height - 2; ++y) {
+        destination[y * stride + 1] = 0x5acb;
+        destination[y * stride + surface_width - 2] = 0x2124;
+    }
+    basic_text_out16_nf_color_clipped(destination, stride, surface_width,
+                                      surface_height, horizontal_padding + 1, 7,
+                                      label.c_str(), 0x4208);
+    basic_text_out16_nf_color_clipped(destination, stride, surface_width,
+                                      surface_height, horizontal_padding, 6,
+                                      label.c_str(), WHITE);
     rr_surface_unmap(status_surface_top_right);
 }
 

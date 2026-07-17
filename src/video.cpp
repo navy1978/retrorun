@@ -861,8 +861,24 @@ inline void core_video_refresh_OPENGL(rr_surface_t *frame_surface, const void *d
             memset(black_frame.data(), 0x00, num_pixels * sizeof(uint16_t)); // RGB565 black
             data = black_frame.data();
         }
-        if (!showLoading){
-            return; // if the data is not valid and we are not loading the game then we need to dont draw this frame
+        if (!showLoading) {
+            // Hardware cores may emit several dupe/no-frame callbacks after
+            // retro_unserialize(). The game framebuffer is still usable, but
+            // returning here used to leave the previously composed full-menu
+            // overlay on screen indefinitely. Keep advancing the frontend UI
+            // and re-present the last GPU buffer so menu dismissal and popup
+            // notifications do not depend on a new core-rendered frame.
+            gs_w = rr_surface_width_get(frame_surface);
+            gs_h = rr_surface_height_get(frame_surface);
+            const bool showStatus = uiRenderOverlays(data, width, height, pitch);
+            if (!showStatus) {
+                rr_presenter_post(presenter,
+                                  frame_surface,
+                                  0, (gs_h - height), width, height,
+                                  x, y, w, h,
+                                  getRotation());
+            }
+            return;
         }
     }else{
         timeCorrectFrame++;
