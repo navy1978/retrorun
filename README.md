@@ -9,6 +9,46 @@ systems. It was originally designed for Anbernic devices using the GO2/DRM
 graphics stack and now provides a platform abstraction for input, audio and
 video, with an additional SDL2 backend for macOS and Linux.
 
+## Highlights
+
+- **Save states:** create and load states from the on-screen menu or controller
+  shortcuts, choose between multiple slots, and optionally save and restore a
+  state automatically when starting or closing a game.
+- **Multi-disc games:** change the active CD, GD-ROM or other removable image
+  while playing, using RetroRun's file browser and the libretro disk-control
+  interface exposed by compatible cores.
+- **Bezels and screen decorations:** automatically reuse installed AmberELEC
+  and ArkOS bezel packs, select artwork per game or system, honour custom
+  libretro and Batocera-style viewports, or download and manage a curated set
+  directly from the menu. Alpha-composited artwork is cached and accelerated
+  by RGA on supported GO2 devices.
+- **RetroAchievements:** sign in from the frontend, identify supported games,
+  browse locked and unlocked achievements with their badges, and display game
+  identification and unlock notifications. Official achievements, optional
+  unofficial achievements and Encore mode are supported in softcore mode, and
+  the integration can be disabled.
+- **Complete on-screen interface:** pause and resume games, inspect device,
+  core, graphics and network information, change runtime video, audio, volume
+  and brightness settings, manage save states and exit cleanly without leaving
+  the frontend.
+- **Fast-forward and frame control:** uncapped fast-forward with configurable
+  frame presentation, optional adaptive or fixed frameskip, VSync and frontend
+  frame pacing.
+- **Flexible video output:** software and OpenGL/OpenGL ES cores, automatic or
+  selectable aspect ratios, pixel-perfect scaling, Tate rotation, nearest or
+  linear filtering, scanlines, CRT effects and optional screen decorations.
+- **Handheld-oriented input:** controller remapping, analog-to-D-pad modes,
+  Tate-aware directional controls, analog sticks, triggers, rumble and
+  configurable controller shortcuts.
+- **Useful frontend tools:** screenshots, an unrestricted FPS counter,
+  a startup loading screen, icon-and-text notifications and an on-screen
+  keyboard with upper- and lowercase input.
+- **Portable backends:** native GO2/DRM support for compatible Anbernic devices
+  and an SDL2 backend for Linux handhelds, Linux desktops and macOS.
+- **Configurable cores and diagnostics:** per-core libretro options, separate
+  frontend and core log levels, timestamped logs and selectable save, system
+  and screenshot directories.
+
 The native backend remains available for the RG351 M/P/V/MP, RG552, RG503,
 RG353M and RG353V. The SDL2 backend provides an alternative implementation for
 Linux handheld distributions such as AmberELEC, ArkOS/dArkOS and other devices
@@ -39,21 +79,6 @@ Icons by [Streamline](https://streamlinehq.com).
 On Linux, the GO2 backend intentionally remains the default for compatibility
 with existing AmberELEC packages and supported Anbernic devices. Building the
 SDL2 target produces a separate executable and does not replace `retrorun`.
-
-## Features
-
-- Software-rendered and OpenGL/OpenGL ES libretro cores.
-- Integrated native GO2, DRM and Anbernic input support.
-- Portable SDL2 input, audio and video backend.
-- Runtime menu and on-screen display.
-- Automatic and selectable aspect ratios, pixel-perfect scaling and Tate mode.
-- Nearest/linear filtering, scanlines and CRT effects.
-- Optional VSync and frontend frame pacing.
-- Save states, automatic save/load and multiple state slots.
-- FPS counter, pause, fast-forward and screenshots.
-- Controller remapping, analog sticks, triggers and rumble.
-- Device, core and game information screens.
-- Per-core libretro options loaded from `retrorun.cfg`.
 
 ## On-screen menu
 
@@ -683,6 +708,26 @@ RetroRun was initially developed by OtherCrashOverride until 2020. Development
 has been continued by navy1978 since 2021. This version integrates and extends
 [libgo2](https://github.com/OtherCrashOverride/libgo2) and
 [rg351p-js2box](https://github.com/lualiliu/RG351P_virtual-gamepad).
+
+### Third-party libraries
+
+- [rcheevos](https://github.com/RetroAchievements/rcheevos), integrated in
+  `deps/rcheevos`, provides the RetroAchievements runtime and hashing client
+  under the [MIT License](deps/rcheevos/LICENSE).
+- [SDL2](https://www.libsdl.org/), [libpng](http://www.libpng.org/pub/png/libpng.html),
+  [libcurl](https://curl.se/libcurl/) and [zlib](https://zlib.net/) provide the
+  portable window, input, audio, PNG, network and compression facilities used
+  by the SDL2 and macOS builds.
+- The native GO2/DRM backend additionally uses Linux system libraries for
+  [DRM](https://dri.freedesktop.org/libdrm/)/GBM, EGL/OpenGL ES, RGA, ALSA,
+  [OpenAL Soft](https://openal-soft.org/) and
+  [libevdev](https://www.freedesktop.org/wiki/Software/libevdev/).
+
+The optional downloadable screen decorations are sourced from
+[libretro/common-overlays](https://github.com/libretro/common-overlays) and
+are licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+RetroRun records this attribution beside each downloaded artwork and does not
+bundle the artwork in the source repository.
 
 Thanks to Cebion, Christian_Haitian, dhwz, madcat1990, pkegg, superdealloc and
 Szalik for their contributions and support.

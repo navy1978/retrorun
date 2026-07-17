@@ -798,6 +798,39 @@ void showCredits(rr_surface_t **surface)
     drawCreditLine(currentY, "navy1978", WHITE, surface);
 
     currentY += stepCredits * 3;
+
+    drawCreditLine(currentY, "RetroAchievements", DARKGREY, surface);
+    currentY += stepCredits;
+    drawCreditLine(currentY, "rcheevos (MIT License)", WHITE, surface);
+
+    currentY += stepCredits * 3;
+    drawCreditLine(currentY, "Portable libraries", DARKGREY, surface);
+    currentY += stepCredits;
+    drawCreditLine(currentY, "SDL2 / libpng", WHITE, surface);
+    currentY += stepCredits;
+    drawCreditLine(currentY, "libcurl / zlib", WHITE, surface);
+
+    currentY += stepCredits * 3;
+    drawCreditLine(currentY, "GO2 platform libraries", DARKGREY, surface);
+    currentY += stepCredits;
+    drawCreditLine(currentY, "DRM / GBM / EGL", WHITE, surface);
+    currentY += stepCredits;
+    drawCreditLine(currentY, "OpenGL ES / RGA", WHITE, surface);
+    currentY += stepCredits;
+    drawCreditLine(currentY, "ALSA / OpenAL Soft", WHITE, surface);
+    currentY += stepCredits;
+    drawCreditLine(currentY, "libevdev", WHITE, surface);
+
+    currentY += stepCredits * 3;
+    drawCreditLine(currentY, "Artwork", DARKGREY, surface);
+    currentY += stepCredits;
+    drawCreditLine(currentY, "Streamline Core Line Free", WHITE, surface);
+    currentY += stepCredits;
+    drawCreditLine(currentY, "libretro/common-overlays", WHITE, surface);
+    currentY += stepCredits;
+    drawCreditLine(currentY, "CC BY 4.0", WHITE, surface);
+
+    currentY += stepCredits * 3;
     
     drawCreditLine(currentY, "Thanks to", DARKGREY, surface);
     currentY += stepCredits;

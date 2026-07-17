@@ -17,6 +17,7 @@ extern "C" {
 #include <curl/curl.h>
 #include <png.h>
 
+#include <algorithm>
 #include <chrono>
 #include <atomic>
 #include <cctype>
@@ -99,6 +100,48 @@ std::atomic<unsigned> http_results_pending{0};
 std::vector<std::thread> http_workers;
 
 void RC_CCONV core_memory_info(uint32_t id, rc_libretro_core_memory_info_t* info);
+
+void fill_notification_rect(uint16_t* pixels, int stride, int width, int height,
+                            int x0, int y0, int x1, int y1, uint16_t color) {
+    x0 = std::max(0, x0);
+    y0 = std::max(0, y0);
+    x1 = std::min(width - 1, x1);
+    y1 = std::min(height - 1, y1);
+    if (x0 > x1 || y0 > y1) return;
+    for (int y = y0; y <= y1; ++y)
+        std::fill(pixels + y * stride + x0, pixels + y * stride + x1 + 1, color);
+}
+
+void draw_notification_frame(uint16_t* pixels, int stride, int width, int height,
+                             int x, int y, int frame_width, int frame_height,
+                             uint16_t accent) {
+    // This is the same opaque, chamfered treatment as frontend popups. It is
+    // deliberately composed in RGB565: the presenter has no alpha channel for
+    // status surfaces.
+    fill_notification_rect(pixels, stride, width, height, x + 3, y, x + frame_width - 4, y + 1, accent);
+    fill_notification_rect(pixels, stride, width, height, x + 1, y + 2, x + 2, y + 3, accent);
+    fill_notification_rect(pixels, stride, width, height, x + frame_width - 3, y + 2, x + frame_width - 2, y + 3, accent);
+    fill_notification_rect(pixels, stride, width, height, x, y + 4, x + 1, y + frame_height - 5, accent);
+    fill_notification_rect(pixels, stride, width, height, x + frame_width - 2, y + 4, x + frame_width - 1, y + frame_height - 5, accent);
+    fill_notification_rect(pixels, stride, width, height, x + 1, y + frame_height - 4, x + 2, y + frame_height - 3, accent);
+    fill_notification_rect(pixels, stride, width, height, x + frame_width - 3, y + frame_height - 4, x + frame_width - 2, y + frame_height - 3, accent);
+    fill_notification_rect(pixels, stride, width, height, x + 3, y + frame_height - 2, x + frame_width - 4, y + frame_height - 1, accent);
+}
+
+void draw_notification_trophy(uint16_t* pixels, int stride, int width, int height) {
+    constexpr uint16_t white = 0xffff;
+    constexpr uint16_t highlight = 0xd69a;
+    constexpr uint16_t background = 0x4a49;
+    fill_notification_rect(pixels, stride, width, height, 18, 16, 35, 18, white);
+    fill_notification_rect(pixels, stride, width, height, 20, 19, 33, 28, white);
+    fill_notification_rect(pixels, stride, width, height, 17, 19, 19, 24, white);
+    fill_notification_rect(pixels, stride, width, height, 34, 19, 36, 24, white);
+    fill_notification_rect(pixels, stride, width, height, 22, 28, 31, 31, white);
+    fill_notification_rect(pixels, stride, width, height, 25, 31, 28, 36, white);
+    fill_notification_rect(pixels, stride, width, height, 20, 36, 33, 39, white);
+    fill_notification_rect(pixels, stride, width, height, 22, 19, 24, 26, background);
+    fill_notification_rect(pixels, stride, width, height, 27, 19, 30, 26, highlight);
+}
 
 bool config_bool(const char* key, bool fallback = false) {
     const auto it = conf_map.find(key);
@@ -900,29 +943,43 @@ void achievements_render_notification(rr_surface_t* surface) {
     const int width = rr_surface_width_get(surface);
     const int height = rr_surface_height_get(surface);
     const int stride = rr_surface_stride_get(surface) / 2;
-    std::fill(pixels, pixels + stride * height, static_cast<uint16_t>(0x0841));
-    const int text_x = has_badge ? 46 : 6;
-    if (has_badge) {
+    constexpr uint16_t popup_background = 0x4a49;
+    constexpr uint16_t accent = 0xfbe4;
+    std::fill(pixels, pixels + stride * height, popup_background);
+    // Match the opaque bevel used by frontend popups. Unlike the old black
+    // notification, this remains visually connected to pause/save/FF messages
+    // on displays without an alpha channel.
+    fill_notification_rect(pixels, stride, width, height, 0, 0, width - 1, 2, 0x6b4d);
+    fill_notification_rect(pixels, stride, width, height, 0, 3, 2, height - 1, 0x5acb);
+    fill_notification_rect(pixels, stride, width, height, 3, height - 3, width - 1, height - 1, 0x18e3);
+    fill_notification_rect(pixels, stride, width, height, width - 3, 3, width - 1, height - 4, 0x2124);
+    draw_notification_frame(pixels, stride, width, height, 6, 7, 40, 44, accent);
+    const int text_x = 57;
+    if (badge_pixels) {
         const auto badge_it = badge_cache.find(notification_badge_url);
         if (badge_it != badge_cache.end() && !badge_it->second.pixels.empty()) {
             const BadgeImage& badge = badge_it->second;
             constexpr int badge_size = 32;
-            for (int dy = 0; dy < badge_size && 10 + dy < height; ++dy) {
+            for (int dy = 0; dy < badge_size && 13 + dy < height; ++dy) {
                 const int sy = dy * badge.height / badge_size;
-                for (int dx = 0; dx < badge_size && 6 + dx < width; ++dx) {
+                for (int dx = 0; dx < badge_size && 10 + dx < width; ++dx) {
                     const int sx = dx * badge.width / badge_size;
-                    pixels[(10 + dy) * stride + 6 + dx] =
+                    pixels[(13 + dy) * stride + 10 + dx] =
                         badge.pixels[static_cast<size_t>(sy) * badge.width + sx];
                 }
             }
         }
+    } else {
+        draw_notification_trophy(pixels, stride, width, height);
     }
     basic_text_out16_nf_color_clipped(pixels, stride, width, height,
-                                     text_x, 5, "ACHIEVEMENT", 0xffe0);
+                                     text_x + 1, 9, "ACHIEVEMENT", 0x0000);
+    basic_text_out16_nf_color_clipped(pixels, stride, width, height,
+                                     text_x, 8, "ACHIEVEMENT", accent);
     // basic_text_out16 uses 8-pixel-wide glyph cells.
-    const size_t max_chars = static_cast<size_t>(std::max(1, (width - text_x - 6) / 8));
+    const size_t max_chars = static_cast<size_t>(std::max(1, (width - text_x - 9) / 8));
     size_t start = 0;
-    int y = 17;
+    int y = 22;
     while (start < notification_text.size() && y + 8 <= height) {
         size_t length = std::min(max_chars, notification_text.size() - start);
         if (start + length < notification_text.size()) {
@@ -930,6 +987,8 @@ void achievements_render_notification(rr_surface_t* surface) {
             if (space != std::string::npos && space > start) length = space - start;
         }
         const std::string line = notification_text.substr(start, length);
+        basic_text_out16_nf_color_clipped(pixels, stride, width, height,
+                                         text_x + 1, y + 1, line.c_str(), 0x0000);
         basic_text_out16_nf_color_clipped(pixels, stride, width, height,
                                          text_x, y, line.c_str(), 0xffff);
         start += length;
