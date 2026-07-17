@@ -30,12 +30,16 @@ int getSwapTriggers();
 extern std::function<void(int)> setSwapTriggers;
 int getSwapSticks();
 extern std::function<void(int)> setSwapSticks;
+int getAnalogToDigitalSetting();
+extern std::function<void(int)> setAnalogToDigitalSetting;
 
 // Lock FPS
 int getLockDeclaredFPS();
 extern std::function<void(int)> setLockDeclaredFPS;
 
 // Video filter / shader / pixel perfect
+int getDecorationSetting();
+extern std::function<void(int)> setDecorationSetting;
 int getVideoFilter();
 extern std::function<void(int)> setVideoFilter;
 int getVideoShader();

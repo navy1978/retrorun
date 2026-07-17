@@ -1,7 +1,12 @@
 #include "platform.h"
+#include "globals.h"
+#include "input.h"
+#include "keyboard.h"
 #include "status.h"
+#include "decoration.h"
 
 #include <SDL.h>
+#include <bitset>
 #ifdef __APPLE__
 #define GL_SILENCE_DEPRECATION
 #include <OpenGL/gl3.h>
@@ -29,13 +34,17 @@ struct rr_audio {
     SDL_AudioDeviceID device;
     int volume;
     int frequency;
+    int period_frames;
+    bool started;
     std::vector<short> mix_buffer;
+    std::vector<short> silence_buffer;
 };
 struct rr_display { SDL_Window* window; int width; int height; int brightness; };
 struct rr_surface {
     rr_display_t* display;
     int width, height, stride;
     uint32_t format;
+    uint64_t generation;
     std::vector<uint8_t> pixels;
 };
 struct rr_presenter {
@@ -44,10 +53,11 @@ struct rr_presenter {
     uint32_t background;
     bool loading_wait_completed;
     struct texture_entry {
-        SDL_Texture* texture;
-        int width;
-        int height;
-        Uint32 format;
+        SDL_Texture* texture = NULL;
+        int width = 0;
+        int height = 0;
+        Uint32 format = SDL_PIXELFORMAT_UNKNOWN;
+        uint64_t generation = 0;
     };
     std::unordered_map<const rr_surface_t*, texture_entry> textures;
 };
@@ -75,6 +85,8 @@ struct rr_context {
     int overlay_texture_width;
     int overlay_texture_height;
     GLenum overlay_texture_format;
+    const rr_surface_t* overlay_uploaded_surface;
+    uint64_t overlay_uploaded_generation;
     std::vector<uint8_t> overlay_upload;
     GLint post_texture_filter;
     bool post_pipeline_failed;
@@ -89,6 +101,7 @@ static rr_video_shader_t video_shader = RR_VIDEO_SHADER_OFF;
 static rr_presenter_t* active_presenter = NULL;
 static rr_context_t* active_context = NULL;
 static bool controller_mappings_loaded = false;
+static uint64_t next_surface_generation = 1;
 
 static void refresh_display_size(rr_display_t* display) {
     if (!display || !display->window) return;
@@ -106,6 +119,11 @@ static void refresh_display_size(rr_display_t* display) {
 
 static void ensure_sdl(uint32_t flags) {
     if ((SDL_WasInit(flags) & flags) == flags) return;
+    // RetroPad and the mappings below are positional. Do not let SDL switch
+    // A/B/X/Y according to printed labels on individual controllers.
+    // Use the literal for compatibility with older SDL2 headers shipped by
+    // handheld distributions, where the hint macro is not declared yet.
+    SDL_SetHint("SDL_GAMECONTROLLER_USE_BUTTON_LABELS", "0");
     const int result = SDL_InitSubSystem(flags);
     if (result != 0)
         std::fprintf(stderr, "RetroRun SDL initialization failed (0x%x): %s\n", flags, SDL_GetError());
@@ -176,7 +194,7 @@ static void add_handheld_controller_fallback(int device_index) {
     const std::string mapping =
         std::string(guid) +
         ",GO-Super Gamepad,"
-        "a:b0,b:b1,x:b2,y:b3,back:b12,start:b13,"
+        "a:b1,b:b0,x:b2,y:b3,back:b12,start:b13,guide:b16,"
         "dpleft:b10,dpdown:b9,dpright:b11,dpup:b8,"
         "leftshoulder:b4,lefttrigger:b6,rightshoulder:b5,righttrigger:b7,"
         "leftstick:b14,rightstick:b15,leftx:a0,lefty:a1,rightx:a2,righty:a3,"
@@ -264,6 +282,7 @@ static SDL_Surface* wrap_surface(rr_surface_t* surface) {
 
 rr_input_t* rr_input_create(const char*) {
     ensure_sdl(SDL_INIT_EVENTS | SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC);
+    SDL_StartTextInput();
     load_controller_mappings();
     rr_input_t* input = new rr_input_t();
     input->controller = open_first_controller();
@@ -297,6 +316,10 @@ static float normalized_axis(Sint16 value) {
     return value < 0 ? value / 32768.0f : value / 32767.0f;
 }
 
+// Forward declaration — defined at end of file
+static void rr_sdl_dispatch_key_event(const SDL_KeyboardEvent* ev);
+static void rr_sdl_dispatch_text_event(const SDL_TextInputEvent* ev);
+
 void rr_input_state_read(rr_input_t* input, rr_input_state_t* state) {
     std::memset(state, 0, sizeof(*state));
     bool controller_change = false;
@@ -304,6 +327,10 @@ void rr_input_state_read(rr_input_t* input, rr_input_state_t* state) {
     while (SDL_PollEvent(&event)) {
         if (event.type == SDL_QUIT)
             state->buttons[RRInputButton_Quit] = RRButtonState_Pressed;
+        else if (event.type == SDL_KEYDOWN || event.type == SDL_KEYUP)
+            rr_sdl_dispatch_key_event(&event.key);
+        else if (event.type == SDL_TEXTINPUT)
+            rr_sdl_dispatch_text_event(&event.text);
         else if (event.type == SDL_CONTROLLERDEVICEADDED) {
             std::fprintf(stderr, "RetroRun SDL controller added: device index=%d\n",
                          event.cdevice.which);
@@ -359,11 +386,72 @@ void rr_input_state_read(rr_input_t* input, rr_input_state_t* state) {
 
     SDL_GameController* pad = input->controller;
     if (!pad) return;
+    SDL_Joystick* raw_joystick = SDL_GameControllerGetJoystick(pad);
+    if (enable_key_log && raw_joystick) {
+        static std::vector<Uint8> previous_raw_buttons;
+        const int raw_count = SDL_JoystickNumButtons(raw_joystick);
+        if (static_cast<int>(previous_raw_buttons.size()) != raw_count)
+            previous_raw_buttons.assign(std::max(0, raw_count), 0);
+        for (int index = 0; index < raw_count; ++index) {
+            const Uint8 pressed = SDL_JoystickGetButton(raw_joystick, index);
+            if (pressed && !previous_raw_buttons[index])
+                std::fprintf(stderr, "RetroRun SDL raw button: b%d pressed\n", index);
+            previous_raw_buttons[index] = pressed;
+        }
+    }
+    const int raw_button_count = raw_joystick ? SDL_JoystickNumButtons(raw_joystick) : 0;
+    // The raw b0..b16 profile below is verified specifically on RG351V.
+    // Several devices and distributions reuse the GO-Super name with a
+    // different physical layout, so never select it from the name alone.
+    const bool rg351_physical_layout = isRG351V();
+
+    if (rg351_physical_layout && raw_joystick && raw_button_count >= 12) {
+        auto raw_button = [&](int index, rr_input_button_t portable) {
+            if (SDL_JoystickGetButton(raw_joystick, index))
+                state->buttons[portable] = RRButtonState_Pressed;
+        };
+        // RG351V physical layout as exposed by SDL's joystick layer. SDL
+        // compacts the Linux event codes into twelve button indices; the
+        // D-pad remains a controller hat and must not be read from b8-b11.
+        // Translate these physical controls to js2xbox/GO2 one-for-one.
+        raw_button(1, RRInputButton_A);
+        raw_button(0, RRInputButton_B);
+        raw_button(2, RRInputButton_X);
+        raw_button(3, RRInputButton_Y);
+        raw_button(7, RRInputButton_F1);  // Select
+        raw_button(8, RRInputButton_F2);  // L3
+        raw_button(11, RRInputButton_F3); // R2
+        raw_button(10, RRInputButton_F4); // L2
+        raw_button(9, RRInputButton_F5);  // Function
+        raw_button(6, RRInputButton_F6);  // Start
+        raw_button(4, RRInputButton_TopLeft);
+        raw_button(5, RRInputButton_TopRight);
+        const Uint8 hat = SDL_JoystickNumHats(raw_joystick) > 0
+            ? SDL_JoystickGetHat(raw_joystick, 0) : SDL_HAT_CENTERED;
+        if (hat & SDL_HAT_UP)
+            state->buttons[RRInputButton_DPadUp] = RRButtonState_Pressed;
+        if (hat & SDL_HAT_DOWN)
+            state->buttons[RRInputButton_DPadDown] = RRButtonState_Pressed;
+        if (hat & SDL_HAT_LEFT)
+            state->buttons[RRInputButton_DPadLeft] = RRButtonState_Pressed;
+        if (hat & SDL_HAT_RIGHT)
+            state->buttons[RRInputButton_DPadRight] = RRButtonState_Pressed;
+        raw_button(8, RRInputButton_THUMBL);
+        state->sticks[RRInputThumbstick_Left] = {
+            normalized_axis(SDL_JoystickGetAxis(raw_joystick, 0)),
+            normalized_axis(SDL_JoystickGetAxis(raw_joystick, 1))};
+        state->sticks[RRInputThumbstick_Right] = {
+            normalized_axis(SDL_JoystickGetAxis(raw_joystick, 2)),
+            normalized_axis(SDL_JoystickGetAxis(raw_joystick, 3))};
+        return;
+    }
 #define PAD_BUTTON(sdl, rr) if (SDL_GameControllerGetButton(pad, sdl)) state->buttons[rr] = RRButtonState_Pressed
     PAD_BUTTON(SDL_CONTROLLER_BUTTON_DPAD_UP, RRInputButton_DPadUp);
     PAD_BUTTON(SDL_CONTROLLER_BUTTON_DPAD_DOWN, RRInputButton_DPadDown);
     PAD_BUTTON(SDL_CONTROLLER_BUTTON_DPAD_LEFT, RRInputButton_DPadLeft);
     PAD_BUTTON(SDL_CONTROLLER_BUTTON_DPAD_RIGHT, RRInputButton_DPadRight);
+    // SDL uses the Xbox positional convention (A bottom, B right, X left,
+    // Y top); RetroPad uses B bottom, A right, Y left, X top.
     PAD_BUTTON(SDL_CONTROLLER_BUTTON_A, RRInputButton_B);
     PAD_BUTTON(SDL_CONTROLLER_BUTTON_B, RRInputButton_A);
     PAD_BUTTON(SDL_CONTROLLER_BUTTON_X, RRInputButton_Y);
@@ -372,13 +460,51 @@ void rr_input_state_read(rr_input_t* input, rr_input_state_t* state) {
     PAD_BUTTON(SDL_CONTROLLER_BUTTON_START, RRInputButton_START);
     PAD_BUTTON(SDL_CONTROLLER_BUTTON_LEFTSHOULDER, RRInputButton_TopLeft);
     PAD_BUTTON(SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, RRInputButton_TopRight);
-    PAD_BUTTON(SDL_CONTROLLER_BUTTON_LEFTSTICK, RRInputButton_THUMBL);
-    PAD_BUTTON(SDL_CONTROLLER_BUTTON_RIGHTSTICK, RRInputButton_THUMBR);
+    SDL_Joystick* joystick = SDL_GameControllerGetJoystick(pad);
+    const int button_count = joystick ? SDL_JoystickNumButtons(joystick) : 0;
+    const char* pad_name = SDL_GameControllerName(pad);
+    const char* joystick_name = joystick ? SDL_JoystickName(joystick) : NULL;
+    const bool go_super =
+        (pad_name && std::strcmp(pad_name, "GO-Super Gamepad") == 0) ||
+        (joystick_name && std::strcmp(joystick_name, "GO-Super Gamepad") == 0);
+    const bool rg351_layout = go_super || isRG351V();
+    // GO-Super exposes its two final controls as raw b14/b15. Depending on
+    // the device these are L3/R3 or, on RG351V, Function/R3. Do not depend on
+    // the distribution database having leftstick/rightstick entries.
+    const bool guide =
+        SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_GUIDE) != 0 ||
+        (rg351_layout && button_count > 16 && SDL_JoystickGetButton(joystick, 16));
+    const bool left_stick =
+        SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_LEFTSTICK) != 0 ||
+        (rg351_layout && button_count > 14 && SDL_JoystickGetButton(joystick, 14));
+    const bool right_stick =
+        SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_RIGHTSTICK) != 0 ||
+        (rg351_layout && button_count > 15 && SDL_JoystickGetButton(joystick, 15));
+    // RG351V distributions are not consistent: the Function control is
+    // exposed either as the missing left-stick click or as Guide. Treat both
+    // as the same portable left hotkey; R3 remains the right-stick click.
+    const bool left_hotkey = rg351_layout ? (left_stick || guide) : left_stick;
+    if (left_hotkey)
+        state->buttons[RRInputButton_THUMBL] = RRButtonState_Pressed;
+    if (right_stick)
+        state->buttons[RRInputButton_THUMBR] = RRButtonState_Pressed;
 #undef PAD_BUTTON
-    if (SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_TRIGGERLEFT) > 16000)
+    const bool left_trigger =
+        SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_TRIGGERLEFT) > 16000;
+    const bool right_trigger =
+        SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_TRIGGERRIGHT) > 16000;
+    if (left_trigger)
         state->buttons[RRInputButton_TriggerLeft] = RRButtonState_Pressed;
-    if (SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_TRIGGERRIGHT) > 16000)
+    if (right_trigger)
         state->buttons[RRInputButton_TriggerRight] = RRButtonState_Pressed;
+    // The RG351V physically exposes Function and R3 as joystick buttons 14
+    // and 15. Some distribution controller databases omit their logical
+    // LEFTSTICK/RIGHTSTICK bindings, so read the physical slots as well.
+    // GO2/js2xbox exposes the same pair as F2/F5.
+    if (isRG351V()) {
+        if (left_hotkey) state->buttons[RRInputButton_F2] = RRButtonState_Pressed;
+        if (right_stick) state->buttons[RRInputButton_F5] = RRButtonState_Pressed;
+    }
     state->sticks[RRInputThumbstick_Left] = {
         normalized_axis(SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_LEFTX)),
         normalized_axis(SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_LEFTY))};
@@ -409,14 +535,31 @@ bool rr_input_set_rumble(uint16_t low, uint16_t high, uint32_t duration) {
 rr_audio_t* rr_audio_create(int frequency) {
     ensure_sdl(SDL_INIT_AUDIO);
     SDL_AudioSpec wanted = {};
-    // 1024 is intentionally retained for ALSA/KMSDRM handhelds: a 512-sample
-    // device period is too easy to underrun when a demanding core has a long
-    // frame. Queue latency is controlled independently below.
-    wanted.freq = frequency; wanted.format = AUDIO_S16SYS; wanted.channels = 2; wanted.samples = 1024;
+    wanted.freq = frequency;
+    wanted.format = AUDIO_S16SYS;
+    wanted.channels = 2;
+    wanted.samples = retrorun_audio_stable_buffer ? 2048 : 1024;
+    SDL_AudioSpec obtained = {};
     rr_audio_t* audio = new rr_audio_t();
-    audio->device = SDL_OpenAudioDevice(NULL, 0, &wanted, NULL, 0);
-    audio->volume = 100; audio->frequency = frequency;
-    if (audio->device) SDL_PauseAudioDevice(audio->device, 0);
+    audio->device = SDL_OpenAudioDevice(NULL, 0, &wanted,
+                                        retrorun_audio_stable_buffer ? &obtained : NULL, 0);
+    audio->volume = 100;
+    audio->frequency = retrorun_audio_stable_buffer && audio->device ? obtained.freq : frequency;
+    audio->period_frames = retrorun_audio_stable_buffer && audio->device
+        ? obtained.samples : wanted.samples;
+    audio->started = !retrorun_audio_stable_buffer;
+    audio->silence_buffer.assign(static_cast<size_t>(audio->period_frames) * 2, 0);
+    if (audio->device) {
+        std::fprintf(stderr,
+                     "RetroRun SDL audio: driver=%s, stable_buffer=%s, frequency=%d, samples=%d\n",
+                     SDL_GetCurrentAudioDriver() ? SDL_GetCurrentAudioDriver() : "unknown",
+                     retrorun_audio_stable_buffer ? "on" : "off",
+                     audio->frequency, audio->period_frames);
+        if (!retrorun_audio_stable_buffer)
+            SDL_PauseAudioDevice(audio->device, 0);
+    } else {
+        std::fprintf(stderr, "RetroRun SDL audio open failed: %s\n", SDL_GetError());
+    }
     return audio;
 }
 void rr_audio_destroy(rr_audio_t* audio) { if (audio) { if (audio->device) SDL_CloseAudioDevice(audio->device); delete audio; } }
@@ -424,24 +567,31 @@ void rr_audio_submit(rr_audio_t* audio, const short* data, int frames) {
     if (!audio || !audio->device || frames <= 0) return;
     const size_t samples = static_cast<size_t>(frames) * 2;
 
-    // SDL_QueueAudio has no intrinsic size limit. If emulation gets even
-    // slightly ahead of the audio device, an ever-growing queue becomes
-    // seconds of audible latency. Use the audio clock as a small secondary
-    // pacing source and retain only a short queue.
+    // Preserve RetroRun's original SDL audio clock by default.
     const Uint32 bytes_per_ms = static_cast<Uint32>(audio->frequency * 2 * sizeof(short) / 1000);
-    // Keep enough queued audio to survive occasional long Flycast frames on
-    // RK3326. This is also the effective clock during boot screens where some
-    // cores do not yet expose stable video timing.
-    const Uint32 target_queue = bytes_per_ms * 80;
+    const Uint32 target_queue = bytes_per_ms *
+        (retrorun_audio_stable_buffer ? 140 : 80);
     const Uint32 recovery_limit = bytes_per_ms * 250;
     Uint32 queued = SDL_GetQueuedAudioSize(audio->device);
+    if (retrorun_audio_stable_buffer && (!audio->started || queued == 0)) {
+        // Prebuffer roughly 40 ms on startup, one period after a later
+        // underrun. Silence avoids joining non-contiguous waveforms with a
+        // sharp click. On GLES a single 2048-frame period is already enough.
+        const int startup_periods = std::max(1,
+            (audio->frequency * 40 / 1000 + audio->period_frames - 1) /
+            audio->period_frames);
+        const int periods = audio->started ? 1 : startup_periods;
+        for (int i = 0; i < periods; ++i)
+            SDL_QueueAudio(audio->device, audio->silence_buffer.data(),
+                           static_cast<Uint32>(audio->silence_buffer.size() * sizeof(short)));
+        queued = SDL_GetQueuedAudioSize(audio->device);
+    }
     if (queued > recovery_limit) {
         SDL_ClearQueuedAudio(audio->device);
+        if (retrorun_audio_stable_buffer)
+            SDL_QueueAudio(audio->device, audio->silence_buffer.data(),
+                           static_cast<Uint32>(audio->silence_buffer.size() * sizeof(short)));
     } else {
-        // Never discard a complete audio block: that creates an audible
-        // discontinuity. A short adaptive wait keeps audio/video clocks
-        // together and also prevents old Flycast cores from racing through
-        // startup screens. Cap it below a typical scheduler time slice.
         for (int attempt = 0; queued > target_queue && attempt < 3; ++attempt) {
             const Uint32 excess_ms =
                 (queued - target_queue) / std::max<Uint32>(bytes_per_ms, 1);
@@ -458,6 +608,10 @@ void rr_audio_submit(rr_audio_t* audio, const short* data, int frames) {
             audio->mix_buffer[i] = static_cast<short>((data[i] * audio->volume) / 100);
         SDL_QueueAudio(audio->device, audio->mix_buffer.data(),
                        static_cast<Uint32>(audio->mix_buffer.size() * sizeof(short)));
+    }
+    if (retrorun_audio_stable_buffer && !audio->started) {
+        audio->started = true;
+        SDL_PauseAudioDevice(audio->device, 0);
     }
 }
 uint32_t rr_audio_volume_get(rr_audio_t* audio, const char*) { return audio ? audio->volume : 0; }
@@ -511,6 +665,7 @@ rr_surface_t* rr_surface_create(rr_display_t* display, int width, int height, ui
     if (width <= 0 || height <= 0 || sdl_pixel_format(format) == SDL_PIXELFORMAT_UNKNOWN) return NULL;
     rr_surface_t* surface = new rr_surface_t();
     surface->display = display; surface->width = width; surface->height = height; surface->format = format;
+    surface->generation = next_surface_generation++;
     surface->stride = width * (rr_pixel_format_bpp(format) / 8);
     surface->pixels.resize(static_cast<size_t>(surface->stride) * height);
     return surface;
@@ -520,12 +675,20 @@ int rr_surface_width_get(rr_surface_t* surface) { return surface->width; }
 int rr_surface_height_get(rr_surface_t* surface) { return surface->height; }
 uint32_t rr_surface_format_get(rr_surface_t* surface) { return surface->format; }
 int rr_surface_stride_get(rr_surface_t* surface) { return surface->stride; }
-void* rr_surface_map(rr_surface_t* surface) { return surface ? surface->pixels.data() : NULL; }
+void* rr_surface_map(rr_surface_t* surface) {
+    if (!surface) return NULL;
+    surface->generation = next_surface_generation++;
+    return surface->pixels.data();
+}
 void rr_surface_unmap(rr_surface_t*) {}
 void rr_surface_blit(rr_surface_t* source, int sx, int sy, int sw, int sh,
                      rr_surface_t* dest, int dx, int dy, int dw, int dh, rr_rotation_t) {
     SDL_Surface* src = wrap_surface(source); SDL_Surface* dst = wrap_surface(dest);
-    if (src && dst) { SDL_Rect sr = {sx,sy,sw,sh}; SDL_Rect dr = {dx,dy,dw,dh}; SDL_BlitScaled(src,&sr,dst,&dr); }
+    if (src && dst) {
+        SDL_Rect sr = {sx,sy,sw,sh}; SDL_Rect dr = {dx,dy,dw,dh};
+        SDL_BlitScaled(src,&sr,dst,&dr);
+        dest->generation = next_surface_generation++;
+    }
     if (src) SDL_FreeSurface(src);
     if (dst) SDL_FreeSurface(dst);
 }
@@ -560,16 +723,22 @@ static void render_surface(rr_presenter_t* presenter, rr_surface_t* surface, con
         entry.width = surface->width;
         entry.height = surface->height;
         entry.format = format;
+        entry.generation = 0;
         if (entry.texture)
             SDL_SetTextureBlendMode(entry.texture,
                                     surface->format == RR_PIXEL_FORMAT_RGBA8888
                                         ? SDL_BLENDMODE_BLEND : SDL_BLENDMODE_NONE);
     }
-    if (!entry.texture ||
+    if (!entry.texture) {
+        std::fprintf(stderr, "RetroRun SDL streaming texture creation failed: %s\n", SDL_GetError());
+        return;
+    }
+    if (entry.generation != surface->generation &&
         SDL_UpdateTexture(entry.texture, NULL, surface->pixels.data(), surface->stride) != 0) {
         std::fprintf(stderr, "RetroRun SDL streaming texture upload failed: %s\n", SDL_GetError());
         return;
     }
+    entry.generation = surface->generation;
     SDL_RenderCopyEx(presenter->renderer, entry.texture, src, dst,
                      90.0 * static_cast<int>(rotation), NULL, SDL_FLIP_NONE);
 }
@@ -633,11 +802,28 @@ void rr_presenter_wait_for_loading_screen(rr_presenter_t* presenter, unsigned mi
 }
 void rr_presenter_post_multiple(rr_presenter_t* p, rr_surface_t* base, status* o,
                                 int sx, int sy, int sw, int sh, int dx, int dy, int dw, int dh,
-                                rr_rotation_t r, rr_rotation_t, bool) {
-    clear_presenter(p); SDL_Rect src={sx,sy,sw,sh}, dst={dx,dy,dw,dh}; render_surface(p,base,&src,&dst,r);
+                                rr_rotation_t r, rr_rotation_t overlay_rotation, bool) {
+    clear_presenter(p);
+    if (o->show_decoration && o->decoration) {
+        SDL_Rect decoration_dst = {0, 0, p->display->width, p->display->height};
+        render_surface(p, decoration_background_surface(), NULL, &decoration_dst,
+                       RR_ROTATION_DEGREES_0);
+    }
+    SDL_Rect src={sx,sy,sw,sh}, dst={dx,dy,dw,dh}; render_surface(p,base,&src,&dst,r);
+    if (o->show_decoration && o->decoration &&
+        o->decoration->format == RR_PIXEL_FORMAT_RGBA8888) {
+        SDL_Rect decoration_dst = {0, 0, p->display->width, p->display->height};
+        SDL_Rect damaged = {dx, dy, dw, dh};
+        SDL_RenderSetClipRect(p->renderer, &damaged);
+        render_surface(p, o->decoration, NULL, &decoration_dst, RR_ROTATION_DEGREES_0);
+        SDL_RenderSetClipRect(p->renderer, NULL);
+    }
     const float scale = std::max(1.0f, p->display->width / 640.0f);
     auto overlay = [&](rr_surface_t* s, int x, int y, int w, int h) { SDL_Rect d={x,y,w,h}; render_surface(p,s,NULL,&d,RR_ROTATION_DEGREES_0); };
-    if (o->show_full && o->full) overlay(o->full, dx, dy, dw, dh);
+    if (o->show_full && o->full) {
+        SDL_Rect full_destination={dx,dy,dw,dh};
+        render_surface(p, o->full, NULL, &full_destination, overlay_rotation);
+    }
     if (o->show_top_left && o->top_left) overlay(o->top_left, 0, 0, o->top_left->width*scale, o->top_left->height*scale);
     if (o->show_top_right && o->top_right) overlay(o->top_right, p->display->width-o->top_right->width*scale, 0, o->top_right->width*scale, o->top_right->height*scale);
     if (o->show_bottom_left && o->bottom_left) overlay(o->bottom_left, 0, p->display->height-o->bottom_left->height*scale, o->bottom_left->width*scale, o->bottom_left->height*scale);
@@ -701,7 +887,9 @@ void main() {
         }
     }
 
-    vec3 color = texture(frame_texture, sample_uv * texture_scale).rgb;
+    vec4 sampled = texture(frame_texture, sample_uv * texture_scale);
+    vec3 color = sampled.rgb;
+    if (shader_mode == -1) color *= sampled.a;
     if (shader_mode > 0) {
         // gl_FragCoord already advances by one for every physical output row.
         // This replaces the previous per-fragment sine with one cheap step.
@@ -716,7 +904,7 @@ void main() {
         grille.b += 0.07 * step(2.0, mask);
         color *= vignette * grille;
     }
-    output_color = vec4(color, 1.0);
+    output_color = vec4(color, shader_mode == 0 ? sampled.a : 1.0);
 }
 )GLSL";
 #else
@@ -753,7 +941,9 @@ void main() {
         }
     }
 
-    vec3 color = texture(frame_texture, sample_uv * texture_scale).rgb;
+    vec4 sampled = texture(frame_texture, sample_uv * texture_scale);
+    vec3 color = sampled.rgb;
+    if (shader_mode == -1) color *= sampled.a;
     if (shader_mode > 0) {
         float scanline = 0.82 + 0.18 * sin(sample_uv.y * source_size.y * 3.14159265);
         color *= scanline;
@@ -766,7 +956,7 @@ void main() {
                       (mask < 2.0 ? vec3(0.92, 1.00, 0.92) : vec3(0.92, 0.92, 1.00));
         color *= max(vignette, 0.55) * grille;
     }
-    output_color = vec4(color, 1.0);
+    output_color = vec4(color, shader_mode == 0 ? sampled.a : 1.0);
 }
 )GLSL";
 #endif
@@ -908,6 +1098,8 @@ rr_context_t* rr_context_create(rr_display_t* display, int width, int height,
     context->overlay_texture_width = 0;
     context->overlay_texture_height = 0;
     context->overlay_texture_format = 0;
+    context->overlay_uploaded_surface = NULL;
+    context->overlay_uploaded_generation = 0;
     context->post_texture_filter = -1;
     context->post_pipeline_failed = false;
     const char* default_framebuffer_env = std::getenv("RETRORUN_SDL_DEFAULT_FRAMEBUFFER");
@@ -1011,7 +1203,7 @@ void rr_context_make_current(rr_context_t* context) {
 static void blit_overlay(rr_context_t* context, rr_surface_t* surface,
                          int x, int y, int width, int height,
                          int drawable_width, int drawable_height,
-                         rr_rotation_t rotation) {
+                         rr_rotation_t rotation, int shader_mode = 0) {
     if (!surface || width <= 0 || height <= 0) return;
 
     GLint previous_draw = 0;
@@ -1021,6 +1213,9 @@ static void blit_overlay(rr_context_t* context, rr_surface_t* surface,
     GLint previous_active_texture = 0;
     GLint previous_texture = 0;
     GLint previous_unpack_alignment = 0;
+    GLint previous_blend_src_rgb = 0, previous_blend_dst_rgb = 0;
+    GLint previous_blend_src_alpha = 0, previous_blend_dst_alpha = 0;
+    const GLboolean blend_was_enabled = glIsEnabled(GL_BLEND);
     GLint previous_viewport[4] = {};
     glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &previous_draw);
     glGetIntegerv(GL_CURRENT_PROGRAM, &previous_program);
@@ -1028,6 +1223,10 @@ static void blit_overlay(rr_context_t* context, rr_surface_t* surface,
     glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &previous_array_buffer);
     glGetIntegerv(GL_ACTIVE_TEXTURE, &previous_active_texture);
     glGetIntegerv(GL_UNPACK_ALIGNMENT, &previous_unpack_alignment);
+    glGetIntegerv(GL_BLEND_SRC_RGB, &previous_blend_src_rgb);
+    glGetIntegerv(GL_BLEND_DST_RGB, &previous_blend_dst_rgb);
+    glGetIntegerv(GL_BLEND_SRC_ALPHA, &previous_blend_src_alpha);
+    glGetIntegerv(GL_BLEND_DST_ALPHA, &previous_blend_dst_alpha);
     glGetIntegerv(GL_VIEWPORT, previous_viewport);
     glActiveTexture(GL_TEXTURE0);
     glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous_texture);
@@ -1053,32 +1252,40 @@ static void blit_overlay(rr_context_t* context, rr_surface_t* surface,
         glBindTexture(GL_TEXTURE_2D, context->overlay_texture);
     }
 
-    // CPU surfaces are top-down while OpenGL textures are sampled bottom-up.
-    // Flip the upload once so the same shader path works reliably on Mali,
-    // where blitting a temporary FBO into the KMSDRM default framebuffer is
-    // not consistently presented.
-    context->overlay_upload.resize(surface->pixels.size());
-    for (int row = 0; row < surface->height; ++row) {
-        std::memcpy(context->overlay_upload.data() +
-                        static_cast<size_t>(row) * surface->stride,
-                    surface->pixels.data() +
-                        static_cast<size_t>(surface->height - 1 - row) * surface->stride,
-                    surface->stride);
-    }
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    if (context->overlay_texture_width != surface->width ||
+    const bool texture_changed =
+        context->overlay_uploaded_surface != surface ||
+        context->overlay_uploaded_generation != surface->generation ||
+        context->overlay_texture_width != surface->width ||
         context->overlay_texture_height != surface->height ||
-        context->overlay_texture_format != internal_format) {
-        glTexImage2D(GL_TEXTURE_2D, 0, internal_format,
-                     surface->width, surface->height, 0,
-                     source_format, source_type, context->overlay_upload.data());
+        context->overlay_texture_format != internal_format;
+    if (texture_changed) {
+        // CPU surfaces are top-down while OpenGL textures are sampled bottom-up.
+        // Only rebuild this copy when the overlay contents actually change.
+        context->overlay_upload.resize(surface->pixels.size());
+        for (int row = 0; row < surface->height; ++row) {
+            std::memcpy(context->overlay_upload.data() +
+                            static_cast<size_t>(row) * surface->stride,
+                        surface->pixels.data() +
+                            static_cast<size_t>(surface->height - 1 - row) * surface->stride,
+                        surface->stride);
+        }
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        if (context->overlay_texture_width != surface->width ||
+            context->overlay_texture_height != surface->height ||
+            context->overlay_texture_format != internal_format) {
+            glTexImage2D(GL_TEXTURE_2D, 0, internal_format,
+                         surface->width, surface->height, 0,
+                         source_format, source_type, context->overlay_upload.data());
+        } else {
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0,
+                            surface->width, surface->height,
+                            source_format, source_type, context->overlay_upload.data());
+        }
         context->overlay_texture_width = surface->width;
         context->overlay_texture_height = surface->height;
         context->overlay_texture_format = internal_format;
-    } else {
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0,
-                        surface->width, surface->height,
-                        source_format, source_type, context->overlay_upload.data());
+        context->overlay_uploaded_surface = surface;
+        context->overlay_uploaded_generation = surface->generation;
     }
     const float scale_x = static_cast<float>(drawable_width) / context->display->width;
     const float scale_y = static_cast<float>(drawable_height) / context->display->height;
@@ -1094,9 +1301,15 @@ static void blit_overlay(rr_context_t* context, rr_surface_t* surface,
     glUniform2f(context->uniform_source_size,
                 static_cast<float>(surface->width), static_cast<float>(surface->height));
     glUniform2f(context->uniform_texture_scale, 1.0f, 1.0f);
-    glUniform1i(context->uniform_shader_mode, 0);
+    glUniform1i(context->uniform_shader_mode, shader_mode);
     glUniform1i(context->uniform_rotation, static_cast<int>(rotation));
     glBindVertexArray(context->post_vao);
+    if (surface->format == RR_PIXEL_FORMAT_RGBA8888) {
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    } else {
+        glDisable(GL_BLEND);
+    }
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
     glBindVertexArray(static_cast<GLuint>(previous_vao));
@@ -1104,6 +1317,9 @@ static void blit_overlay(rr_context_t* context, rr_surface_t* surface,
     glUseProgram(static_cast<GLuint>(previous_program));
     glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(previous_texture));
     glPixelStorei(GL_UNPACK_ALIGNMENT, previous_unpack_alignment);
+    glBlendFuncSeparate(previous_blend_src_rgb, previous_blend_dst_rgb,
+                        previous_blend_src_alpha, previous_blend_dst_alpha);
+    if (blend_was_enabled) glEnable(GL_BLEND); else glDisable(GL_BLEND);
     glActiveTexture(static_cast<GLenum>(previous_active_texture));
     glViewport(previous_viewport[0], previous_viewport[1],
                previous_viewport[2], previous_viewport[3]);
@@ -1144,6 +1360,27 @@ static void draw_overlays(rr_context_t* context, status* overlays,
              overlays->bottom_center->width * scale, overlays->bottom_center->height * scale);
 }
 
+static void blit_decoration_damage(rr_context_t* context, rr_surface_t* surface,
+                                   int game_x, int game_y, int game_width, int game_height,
+                                   int drawable_width, int drawable_height) {
+    const GLboolean scissor_was_enabled = glIsEnabled(GL_SCISSOR_TEST);
+    GLint previous_scissor[4] = {};
+    glGetIntegerv(GL_SCISSOR_BOX, previous_scissor);
+    const float scale_x = static_cast<float>(drawable_width) / context->display->width;
+    const float scale_y = static_cast<float>(drawable_height) / context->display->height;
+    glEnable(GL_SCISSOR_TEST);
+    glScissor(static_cast<int>(game_x * scale_x),
+              drawable_height - static_cast<int>((game_y + game_height) * scale_y),
+              static_cast<int>(game_width * scale_x),
+              static_cast<int>(game_height * scale_y));
+    blit_overlay(context, surface, 0, 0,
+                 context->display->width, context->display->height,
+                 drawable_width, drawable_height, RR_ROTATION_DEGREES_0);
+    glScissor(previous_scissor[0], previous_scissor[1],
+              previous_scissor[2], previous_scissor[3]);
+    if (!scissor_was_enabled) glDisable(GL_SCISSOR_TEST);
+}
+
 void rr_context_swap_buffers(rr_context_t* context, int source_width, int source_height,
                              int dest_x, int dest_y, int dest_width, int dest_height,
                              status* overlays, rr_rotation_t rotation) {
@@ -1156,7 +1393,8 @@ void rr_context_swap_buffers(rr_context_t* context, int source_width, int source
         int drawable_height = context->display->height;
         SDL_GL_GetDrawableSize(context->window, &drawable_width, &drawable_height);
 
-        if ((video_shader != RR_VIDEO_SHADER_OFF || rotation != RR_ROTATION_DEGREES_0) &&
+        const bool has_decoration = overlays && overlays->show_decoration && overlays->decoration;
+        if ((video_shader != RR_VIDEO_SHADER_OFF || rotation != RR_ROTATION_DEGREES_0 || has_decoration) &&
             context->color_texture &&
             ensure_post_pipeline(context) &&
             source_width > 0 && source_height > 0 &&
@@ -1182,8 +1420,19 @@ void rr_context_swap_buffers(rr_context_t* context, int source_width, int source
             glViewport(0, 0, drawable_width, drawable_height);
             glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
+            const bool decoration_overlay = has_decoration &&
+                rr_surface_format_get(overlays->decoration) == RR_PIXEL_FORMAT_RGBA8888;
+            if (has_decoration)
+                blit_overlay(context, overlays->decoration, 0, 0,
+                             context->display->width, context->display->height,
+                             drawable_width, drawable_height, RR_ROTATION_DEGREES_0,
+                             decoration_overlay ? -1 : 0);
             draw_post_processed_frame(context, source_width, source_height,
                                       left, bottom, right, top, rotation);
+            if (decoration_overlay)
+                blit_decoration_damage(context, overlays->decoration,
+                                       dest_x, dest_y, dest_width, dest_height,
+                                       drawable_width, drawable_height);
         }
         draw_overlays(context, overlays, dest_x, dest_y, dest_width, dest_height,
                       drawable_width, drawable_height, rotation);
@@ -1220,6 +1469,14 @@ void rr_context_swap_buffers(rr_context_t* context, int source_width, int source
     glViewport(0, 0, drawable_width, drawable_height);
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
+    const bool has_decoration = overlays && overlays->show_decoration && overlays->decoration;
+    const bool decoration_overlay = has_decoration &&
+        rr_surface_format_get(overlays->decoration) == RR_PIXEL_FORMAT_RGBA8888;
+    if (has_decoration)
+        blit_overlay(context, overlays->decoration, 0, 0,
+                     context->display->width, context->display->height,
+                     drawable_width, drawable_height, RR_ROTATION_DEGREES_0,
+                     decoration_overlay ? -1 : 0);
     glBindFramebuffer(GL_READ_FRAMEBUFFER, context->framebuffer);
     const GLenum filtering = video_filter == RR_VIDEO_FILTER_NEAREST ? GL_NEAREST : GL_LINEAR;
     if (!draw_post_processed_frame(context, source_width, source_height,
@@ -1229,6 +1486,10 @@ void rr_context_swap_buffers(rr_context_t* context, int source_width, int source
                           left, bottom, right, top, GL_COLOR_BUFFER_BIT, filtering);
     }
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    if (decoration_overlay)
+        blit_decoration_damage(context, overlays->decoration,
+                               dest_x, dest_y, dest_width, dest_height,
+                               drawable_width, drawable_height);
     draw_overlays(context, overlays, dest_x, dest_y, dest_width, dest_height,
                   drawable_width, drawable_height, rotation);
     SDL_GL_SwapWindow(context->window);
@@ -1253,6 +1514,7 @@ rr_surface_t* rr_context_surface_lock(rr_context_t* context) {
     surface->height = context->height;
     surface->stride = context->width * 4;
     surface->format = RR_PIXEL_FORMAT_RGBA8888;
+    surface->generation = next_surface_generation++;
     surface->pixels.resize(static_cast<size_t>(surface->stride) * surface->height);
 
     std::vector<uint8_t> bottom_up(surface->pixels.size());
@@ -1310,3 +1572,208 @@ void rr_video_shader_set(rr_video_shader_t shader) { video_shader = shader; }
 rr_video_shader_t rr_video_shader_get() { return video_shader; }
 const char* rr_platform_backend_name() { return "sdl2"; }
 const char* rr_platform_renderer_name() { return renderer_name; }
+
+// --- Platform capabilities ---
+
+uint32_t rr_platform_capabilities() {
+    return RRPlatformCapability_PhysicalKeyboard;
+}
+
+// --- SDL keyboard-to-libretro translation ---
+
+// Scancodes used as frontend gamepad emulation — these are NOT forwarded to
+// the core as keyboard events because they represent joypad buttons.
+static bool is_frontend_hotkey(SDL_Scancode sc) {
+    switch (sc) {
+    case SDL_SCANCODE_UP: case SDL_SCANCODE_DOWN:
+    case SDL_SCANCODE_LEFT: case SDL_SCANCODE_RIGHT:
+    case SDL_SCANCODE_X: case SDL_SCANCODE_Z:
+    case SDL_SCANCODE_S: case SDL_SCANCODE_A:
+    case SDL_SCANCODE_BACKSPACE: case SDL_SCANCODE_RETURN:
+    case SDL_SCANCODE_Q: case SDL_SCANCODE_W:
+    case SDL_SCANCODE_1: case SDL_SCANCODE_2:
+    case SDL_SCANCODE_3: case SDL_SCANCODE_4:
+    case SDL_SCANCODE_ESCAPE:
+        return true;
+    default:
+        return false;
+    }
+}
+
+// Map SDL scancode to libretro RETROK_* keycode.
+static unsigned sdl_scancode_to_retrok(SDL_Scancode sc) {
+    switch (sc) {
+    case SDL_SCANCODE_BACKSPACE:    return 8;   // RETROK_BACKSPACE
+    case SDL_SCANCODE_TAB:         return 9;   // RETROK_TAB
+    case SDL_SCANCODE_RETURN:      return 13;  // RETROK_RETURN
+    case SDL_SCANCODE_ESCAPE:      return 27;  // RETROK_ESCAPE
+    case SDL_SCANCODE_SPACE:       return 32;  // RETROK_SPACE
+    case SDL_SCANCODE_COMMA:       return 44;  // RETROK_COMMA
+    case SDL_SCANCODE_MINUS:       return 45;  // RETROK_MINUS
+    case SDL_SCANCODE_PERIOD:      return 46;  // RETROK_PERIOD
+    case SDL_SCANCODE_SLASH:       return 47;  // RETROK_SLASH
+    case SDL_SCANCODE_0:           return 48;
+    case SDL_SCANCODE_1:           return 49;
+    case SDL_SCANCODE_2:           return 50;
+    case SDL_SCANCODE_3:           return 51;
+    case SDL_SCANCODE_4:           return 52;
+    case SDL_SCANCODE_5:           return 53;
+    case SDL_SCANCODE_6:           return 54;
+    case SDL_SCANCODE_7:           return 55;
+    case SDL_SCANCODE_8:           return 56;
+    case SDL_SCANCODE_9:           return 57;
+    case SDL_SCANCODE_SEMICOLON:   return 59;  // RETROK_SEMICOLON
+    case SDL_SCANCODE_EQUALS:      return 61;  // RETROK_EQUALS
+    case SDL_SCANCODE_LEFTBRACKET: return 91;  // RETROK_LEFTBRACKET
+    case SDL_SCANCODE_BACKSLASH:   return 92;  // RETROK_BACKSLASH
+    case SDL_SCANCODE_RIGHTBRACKET:return 93;  // RETROK_RIGHTBRACKET
+    case SDL_SCANCODE_GRAVE:       return 96;  // RETROK_BACKQUOTE
+    case SDL_SCANCODE_A:           return 97;
+    case SDL_SCANCODE_B:           return 98;
+    case SDL_SCANCODE_C:           return 99;
+    case SDL_SCANCODE_D:           return 100;
+    case SDL_SCANCODE_E:           return 101;
+    case SDL_SCANCODE_F:           return 102;
+    case SDL_SCANCODE_G:           return 103;
+    case SDL_SCANCODE_H:           return 104;
+    case SDL_SCANCODE_I:           return 105;
+    case SDL_SCANCODE_J:           return 106;
+    case SDL_SCANCODE_K:           return 107;
+    case SDL_SCANCODE_L:           return 108;
+    case SDL_SCANCODE_M:           return 109;
+    case SDL_SCANCODE_N:           return 110;
+    case SDL_SCANCODE_O:           return 111;
+    case SDL_SCANCODE_P:           return 112;
+    case SDL_SCANCODE_Q:           return 113;
+    case SDL_SCANCODE_R:           return 114;
+    case SDL_SCANCODE_S:           return 115;
+    case SDL_SCANCODE_T:           return 116;
+    case SDL_SCANCODE_U:           return 117;
+    case SDL_SCANCODE_V:           return 118;
+    case SDL_SCANCODE_W:           return 119;
+    case SDL_SCANCODE_X:           return 120;
+    case SDL_SCANCODE_Y:           return 121;
+    case SDL_SCANCODE_Z:           return 122;
+    case SDL_SCANCODE_DELETE:      return 127; // RETROK_DELETE
+    case SDL_SCANCODE_KP_0:        return 256; // RETROK_KP0
+    case SDL_SCANCODE_KP_1:        return 257;
+    case SDL_SCANCODE_KP_2:        return 258;
+    case SDL_SCANCODE_KP_3:        return 259;
+    case SDL_SCANCODE_KP_4:        return 260;
+    case SDL_SCANCODE_KP_5:        return 261;
+    case SDL_SCANCODE_KP_6:        return 262;
+    case SDL_SCANCODE_KP_7:        return 263;
+    case SDL_SCANCODE_KP_8:        return 264;
+    case SDL_SCANCODE_KP_9:        return 265;
+    case SDL_SCANCODE_KP_PERIOD:   return 266;
+    case SDL_SCANCODE_KP_DIVIDE:   return 267;
+    case SDL_SCANCODE_KP_MULTIPLY: return 268;
+    case SDL_SCANCODE_KP_MINUS:    return 269;
+    case SDL_SCANCODE_KP_PLUS:     return 270;
+    case SDL_SCANCODE_KP_ENTER:    return 271;
+    case SDL_SCANCODE_KP_EQUALS:   return 272;
+    case SDL_SCANCODE_UP:          return 273;
+    case SDL_SCANCODE_DOWN:        return 274;
+    case SDL_SCANCODE_RIGHT:       return 275;
+    case SDL_SCANCODE_LEFT:        return 276;
+    case SDL_SCANCODE_INSERT:      return 277;
+    case SDL_SCANCODE_HOME:        return 278;
+    case SDL_SCANCODE_END:         return 279;
+    case SDL_SCANCODE_PAGEUP:      return 280;
+    case SDL_SCANCODE_PAGEDOWN:    return 281;
+    case SDL_SCANCODE_F1:          return 282;
+    case SDL_SCANCODE_F2:          return 283;
+    case SDL_SCANCODE_F3:          return 284;
+    case SDL_SCANCODE_F4:          return 285;
+    case SDL_SCANCODE_F5:          return 286;
+    case SDL_SCANCODE_F6:          return 287;
+    case SDL_SCANCODE_F7:          return 288;
+    case SDL_SCANCODE_F8:          return 289;
+    case SDL_SCANCODE_F9:          return 290;
+    case SDL_SCANCODE_F10:         return 291;
+    case SDL_SCANCODE_F11:         return 292;
+    case SDL_SCANCODE_F12:         return 293;
+    case SDL_SCANCODE_NUMLOCKCLEAR:return 300;
+    case SDL_SCANCODE_CAPSLOCK:    return 301;
+    case SDL_SCANCODE_SCROLLLOCK:  return 302;
+    case SDL_SCANCODE_RSHIFT:      return 303;
+    case SDL_SCANCODE_LSHIFT:      return 304;
+    case SDL_SCANCODE_RCTRL:       return 305;
+    case SDL_SCANCODE_LCTRL:       return 306;
+    case SDL_SCANCODE_RALT:        return 307;
+    case SDL_SCANCODE_LALT:        return 308;
+    case SDL_SCANCODE_LGUI:        return 311; // RETROK_LSUPER
+    case SDL_SCANCODE_RGUI:        return 312; // RETROK_RSUPER
+    default:                       return 0;   // RETROK_UNKNOWN
+    }
+}
+
+// Map SDL key modifier bitmask to libretro RETROKMOD bitmask.
+static uint16_t sdl_mod_to_retrokmod(Uint16 sdl_mod) {
+    uint16_t mod = 0;
+    if (sdl_mod & KMOD_SHIFT) mod |= 0x01; // RETROKMOD_SHIFT
+    if (sdl_mod & KMOD_CTRL)  mod |= 0x02; // RETROKMOD_CTRL
+    if (sdl_mod & KMOD_ALT)   mod |= 0x04; // RETROKMOD_ALT
+    if (sdl_mod & KMOD_GUI)   mod |= 0x08; // RETROKMOD_META
+    return mod;
+}
+
+// Dispatch an SDL keyboard event to the core. Called from the event loop.
+static void rr_sdl_dispatch_key_event(const SDL_KeyboardEvent* ev) {
+    static std::bitset<SDL_NUM_SCANCODES> forwarded_keys;
+
+    SDL_Scancode sc = ev->keysym.scancode;
+    const bool down = ev->type == SDL_KEYDOWN;
+
+    if (rr_keyboard_text_editing()) {
+        if (!down) return;
+        const unsigned keycode = sdl_scancode_to_retrok(sc);
+        if (!keycode) return;
+        RRKeyEvent edit_event = {true, keycode, 0,
+                                 sdl_mod_to_retrokmod(ev->keysym.mod)};
+        rr_keyboard_event(&edit_event);
+        return;
+    }
+
+    // A release is forwarded only if its matching press reached the core.
+    // This prevents both frontend shortcuts leaking into the core and keys
+    // becoming stuck when a frontend screen opens while a key is held.
+    if (down && (!rr_keyboard_has_callback() || is_frontend_hotkey(sc))) return;
+    if (!down && !forwarded_keys.test(sc)) return;
+
+    unsigned keycode = sdl_scancode_to_retrok(sc);
+    if (keycode == 0) return; // Unknown key, don't send garbage
+
+    RRKeyEvent rr_ev;
+    rr_ev.down = down;
+    rr_ev.keycode = keycode;
+    rr_ev.character = 0; // Will be filled by SDL_TEXTINPUT if available
+    rr_ev.modifiers = sdl_mod_to_retrokmod(ev->keysym.mod);
+
+    rr_keyboard_event(&rr_ev);
+    forwarded_keys.set(sc, down);
+}
+
+static uint32_t decode_first_utf8_codepoint(const char* text) {
+    const unsigned char* s = reinterpret_cast<const unsigned char*>(text);
+    if (!s[0]) return 0;
+    if (s[0] < 0x80) return s[0];
+    if ((s[0] & 0xe0) == 0xc0 && s[1])
+        return ((s[0] & 0x1f) << 6) | (s[1] & 0x3f);
+    if ((s[0] & 0xf0) == 0xe0 && s[1] && s[2])
+        return ((s[0] & 0x0f) << 12) | ((s[1] & 0x3f) << 6) | (s[2] & 0x3f);
+    if ((s[0] & 0xf8) == 0xf0 && s[1] && s[2] && s[3])
+        return ((s[0] & 0x07) << 18) | ((s[1] & 0x3f) << 12) |
+               ((s[2] & 0x3f) << 6) | (s[3] & 0x3f);
+    return 0;
+}
+
+static void rr_sdl_dispatch_text_event(const SDL_TextInputEvent* ev) {
+    if (!rr_keyboard_has_callback() && !rr_keyboard_text_editing()) return;
+    const uint32_t character = decode_first_utf8_codepoint(ev->text);
+    if (!character) return;
+    RRKeyEvent event = {true, RETROK_UNKNOWN, character, 0};
+    rr_keyboard_event(&event);
+    event.down = false;
+    rr_keyboard_event(&event);
+}

@@ -7,6 +7,9 @@ Copyright (C) 2021-present  navy1978
 #include "core_loader.h"
 #include "globals.h"
 #include "config.h"
+#include "keyboard.h"
+#include "disk_control.h"
+#include "achievements.h"
 #include "video.h"
 #include "audio.h"
 #include "input.h"
@@ -183,9 +186,43 @@ bool core_environment(unsigned cmd, void *data)
     switch (cmd)
     {
     case RETRO_ENVIRONMENT_GET_FASTFORWARDING:
+    {
         bval = (bool *)data;
-        *bval = false;
+        *bval = input_ffwd_requested;
+        static bool first = true;
+        static bool previous = false;
+        if (first || previous != *bval) {
+            logger.log(Logger::DEB, "Libretro GET_FASTFORWARDING -> %s",
+                       *bval ? "true" : "false");
+            first = false;
+            previous = *bval;
+        }
         return true;
+    }
+
+    case RETRO_ENVIRONMENT_SET_FASTFORWARDING_OVERRIDE:
+        fastForwardSetOverride(
+            static_cast<const retro_fastforwarding_override *>(data));
+        return data != nullptr;
+
+    case RETRO_ENVIRONMENT_GET_THROTTLE_STATE:
+    {
+        auto *state = static_cast<retro_throttle_state *>(data);
+        if (!state)
+            return false;
+        if (pause_requested) {
+            state->mode = RETRO_THROTTLE_FRAME_STEPPING;
+            state->rate = 0.0f;
+        } else if (input_ffwd_requested) {
+            state->mode = RETRO_THROTTLE_FAST_FORWARD;
+            const float ratio = fastForwardRatio();
+            state->rate = ratio >= 1.0f ? originalFps * ratio : 0.0f;
+        } else {
+            state->mode = RETRO_THROTTLE_NONE;
+            state->rate = originalFps;
+        }
+        return true;
+    }
 
     case RETRO_ENVIRONMENT_GET_LOG_INTERFACE:
     {
@@ -380,8 +417,9 @@ bool core_environment(unsigned cmd, void *data)
 
     case RETRO_ENVIRONMENT_GET_DISK_CONTROL_INTERFACE_VERSION:
     {
-        logger.log(Logger::DEB, "RETRO_ENVIRONMENT_GET_DISK_CONTROL_INTERFACE_VERSION not implemented");
-        return false;
+        if (!data) return false;
+        *static_cast<unsigned*>(data) = 1;
+        return true;
     }
 
     case RETRO_ENVIRONMENT_GET_PERF_INTERFACE:
@@ -406,14 +444,34 @@ bool core_environment(unsigned cmd, void *data)
 
     case RETRO_ENVIRONMENT_SET_KEYBOARD_CALLBACK:
     {
-        logger.log(Logger::DEB, "RETRO_ENVIRONMENT_SET_KEYBOARD_CALLBACK not implemented");
-        return false;
+        const struct retro_keyboard_callback *cb =
+            static_cast<const struct retro_keyboard_callback *>(data);
+        if (cb && cb->callback)
+        {
+            rr_keyboard_set_callback(cb->callback);
+            logger.log(Logger::DEB, "RETRO_ENVIRONMENT_SET_KEYBOARD_CALLBACK: registered");
+        }
+        return true;
+    }
+
+    case RETRO_ENVIRONMENT_SET_MEMORY_MAPS:
+    {
+        achievements_set_memory_map(static_cast<const retro_memory_map*>(data));
+        return true;
     }
 
     case RETRO_ENVIRONMENT_SET_DISK_CONTROL_INTERFACE:
     {
-        logger.log(Logger::DEB, "RETRO_ENVIRONMENT_SET_DISK_CONTROL_INTERFACE not implemented");
-        return false;
+        rr_disk_control_set(static_cast<const retro_disk_control_callback*>(data));
+        logger.log(Logger::DEB, "RETRO_ENVIRONMENT_SET_DISK_CONTROL_INTERFACE: registered");
+        return true;
+    }
+
+    case RETRO_ENVIRONMENT_SET_DISK_CONTROL_EXT_INTERFACE:
+    {
+        rr_disk_control_set_ext(static_cast<const retro_disk_control_ext_callback*>(data));
+        logger.log(Logger::DEB, "RETRO_ENVIRONMENT_SET_DISK_CONTROL_EXT_INTERFACE: registered");
+        return true;
     }
 
     case RETRO_ENVIRONMENT_SET_CONTROLLER_INFO:
@@ -641,6 +699,8 @@ libc_error:
 
 void *core_unload(void *)
 {
+    rr_keyboard_clear_callback();
+    rr_disk_control_clear();
     if (g_retro.initialized)
     {
         g_retro.retro_deinit();

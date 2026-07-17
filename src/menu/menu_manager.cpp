@@ -24,11 +24,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 std::mutex mutexManager;
 
-constexpr std::chrono::milliseconds MENU_INPUT_THRESHOLD{250};
-// constexpr std::chrono::milliseconds MENU_INPUT_LEFT_RIGHT_THRESHOLD{50};
-auto lastPress = std::chrono::steady_clock::now();
-auto currentPress = std::chrono::steady_clock::now();
-
 MenuManager::MenuManager()
 {
 }
@@ -85,17 +80,7 @@ void MenuManager::handle_input(int buttonPressed)
 {
    
     std::lock_guard<std::mutex> lock(mutexManager);
-    currentPress = std::chrono::steady_clock::now();
-    auto now_seconds = std::chrono::duration_cast<std::chrono::seconds>(currentPress - lastPress).count();
-    auto now_milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(currentPress - lastPress).count() % 1000;
-    auto elapsed_time_ms = now_seconds * 1000 + now_milliseconds;
-
-    // std::chrono::milliseconds THRESHOLD = (buttonPressed == LEFT || buttonPressed == RIGHT) ? MENU_INPUT_LEFT_RIGHT_THRESHOLD : MENU_INPUT_THRESHOLD;
-
-    if (elapsed_time_ms > MENU_INPUT_THRESHOLD.count())
     {
-        lastPress = currentPress;
-
         std::lock_guard<std::mutex> lock(current_menu_mutex_);
 
         if (currentMenu_ == nullptr)
@@ -212,6 +197,7 @@ void MenuManager::handle_input(int buttonPressed)
                     queueMenus.push(currentMenu_); // push the current menu onto the queue before updating it
                 }
                 currentMenu_ = mi.getMenu();
+                currentMenu_->resetSelected();
             }
             else
             {
@@ -241,6 +227,19 @@ void MenuManager::setCurrentMenu(Menu *menu)
 {
     std::lock_guard<std::mutex> lock(current_menu_mutex_);
     currentMenu_ = menu;
+    if (rootMenu_ == nullptr)
+        rootMenu_ = menu;
+}
+
+void MenuManager::beginSession()
+{
+    std::lock_guard<std::mutex> lock(mutexManager);
+    std::lock_guard<std::mutex> menuLock(current_menu_mutex_);
+    while (!queueMenus.empty())
+        queueMenus.pop();
+    currentMenu_ = rootMenu_;
+    if (currentMenu_ != nullptr)
+        currentMenu_->resetSelected();
 }
 
 void MenuManager::resetMenu(){

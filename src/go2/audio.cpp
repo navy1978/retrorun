@@ -41,7 +41,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #define SOUND_SAMPLES_SIZE (2048)
 #define SOUND_CHANNEL_COUNT 2
 
-static constexpr int BUFFER_COUNT = 4;
+static constexpr int DEFAULT_BUFFER_COUNT = 4;
+static constexpr int STABLE_BUFFER_COUNT = 6;
 
 typedef struct go2_audio
 {
@@ -49,7 +50,8 @@ typedef struct go2_audio
     ALCdevice *device;
     ALCcontext *context;
     ALuint source;
-    ALuint buffers[BUFFER_COUNT];
+    ALuint buffers[STABLE_BUFFER_COUNT];
+    int buffer_count;
     bool isAudioInitialized;
 } go2_audio_t;
 
@@ -67,6 +69,8 @@ go2_audio_t *go2_audio_create(int frequency)
     memset(result, 0, sizeof(*result));
 
     result->frequency = frequency;
+    result->buffer_count = retrorun_audio_stable_buffer
+        ? STABLE_BUFFER_COUNT : DEFAULT_BUFFER_COUNT;
 
     result->device = alcOpenDevice(NULL);
     if (!result->device)
@@ -93,7 +97,7 @@ go2_audio_t *go2_audio_create(int frequency)
     alSourcei(result->source, AL_LOOPING, AL_FALSE);
 
 
-    for (int i = 0; i < BUFFER_COUNT; ++i)
+    for (int i = 0; i < result->buffer_count; ++i)
     {
         alGenBuffers(1, &result->buffers[i]);
         alBufferData(result->buffers[i], AL_FORMAT_STEREO16, NULL, 0, frequency);
@@ -117,7 +121,7 @@ void go2_audio_destroy(go2_audio_t *audio)
         alcMakeContextCurrent(audio->context);
     alSourceStop(audio->source);
     alDeleteSources(1, &audio->source);
-    alDeleteBuffers(BUFFER_COUNT, audio->buffers);
+    alDeleteBuffers(audio->buffer_count, audio->buffers);
     alcMakeContextCurrent(NULL);
     alcDestroyContext(audio->context);
     alcCloseDevice(audio->device);

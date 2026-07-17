@@ -201,14 +201,14 @@ bool persistVideoSetting(const std::string &setting, const std::string &value)
         std::string key = line.substr(0, line.find('='));
         trim(key);
         if (key == setting) {
-            line = setting + " = " + value;
+            line = setting + (value.empty() ? " =" : " = " + value);
             replaced = true;
         }
         lines.push_back(line);
     }
     input.close();
     if (!replaced)
-        lines.push_back(setting + " = " + value);
+        lines.push_back(setting + (value.empty() ? " =" : " = " + value));
 
     std::ofstream output(activeConfigFile, std::ios::trunc);
     if (!output.good()) return false;
@@ -252,6 +252,18 @@ void initConfig()
             logger.log(Logger::INF, "retrorun_log_level: %s\n", arValue.c_str());
         }
         catch (...) { logger.log(Logger::DEB, "retrorun_log_level parameter not found in retrorun.cfg using default value (INFO).\n"); }
+
+        try
+        {
+            const std::string &coreLogValue = conf_map.at("retrorun_core_log_level");
+            Logger::setCoreLogLevel(getLogLevel(coreLogValue));
+            logger.log(Logger::INF, "retrorun_core_log_level: %s", coreLogValue.c_str());
+        }
+        catch (...)
+        {
+            Logger::setCoreLogLevel(Logger::ERR);
+            logger.log(Logger::DEB, "retrorun_core_log_level parameter not found in retrorun.cfg using default value (ERROR).");
+        }
 
         try
         {
@@ -370,13 +382,31 @@ void initConfig()
             logger.log(Logger::DEB, "retrorun_auto_load parameter not found in retrorun.cfg using default value (%s).", auto_load ? "true" : "false");
         }
 
-        try
+        const auto analogModeSetting = conf_map.find("retrorun_analog_to_digital");
+        if (analogModeSetting != conf_map.end())
         {
-            const std::string &lasValue = conf_map.at("retrorun_force_left_analog_stick");
-            force_left_analog_stick = lasValue == "true" ? true : false;
-            logger.log(Logger::DEB, "retrorun_force_left_analog_stick: %s.", force_left_analog_stick ? "true" : "false");
+            if (!setAnalogToDigitalMode(analogModeSetting->second))
+                logger.log(Logger::WARN,
+                           "Invalid retrorun_analog_to_digital value '%s'; using %s.",
+                           analogModeSetting->second.c_str(),
+                           analogToDigitalModeName(analogToDigital));
+            else
+                logger.log(Logger::DEB, "retrorun_analog_to_digital: %s.",
+                           analogToDigitalModeName(analogToDigital));
         }
-        catch (...) { logger.log(Logger::DEB, "retrorun_force_left_analog_stick parameter not found in retrorun.cfg using default value (%s).", force_left_analog_stick ? "true" : "false"); }
+        else
+        {
+            // Backward compatibility: the old boolean always forced the left
+            // stick mapping and disabled native analog input.
+            const auto legacyAnalogSetting = conf_map.find("retrorun_force_left_analog_stick");
+            if (legacyAnalogSetting != conf_map.end())
+                setAnalogToDigitalMode(legacyAnalogSetting->second == "true"
+                                           ? "left_forced" : "none");
+            logger.log(Logger::DEB,
+                       "retrorun_analog_to_digital parameter not found; using %s%s.",
+                       analogToDigitalModeName(analogToDigital),
+                       legacyAnalogSetting != conf_map.end() ? " from legacy setting" : " by default");
+        }
 
         try
         {
@@ -413,6 +443,19 @@ void initConfig()
             }
         }
         catch (...) { logger.log(Logger::DEB, "retrorun_audio_buffer parameter not found in retrorun.cfg using default value (-1)."); }
+
+        try
+        {
+            const std::string &value = conf_map.at("retrorun_audio_stable_buffer");
+            retrorun_audio_stable_buffer = value == "true";
+            logger.log(Logger::DEB, "retrorun_audio_stable_buffer: %s.",
+                       retrorun_audio_stable_buffer ? "true" : "false");
+        }
+        catch (...)
+        {
+            logger.log(Logger::DEB,
+                       "retrorun_audio_stable_buffer parameter not found; using false.");
+        }
 
         try
         {
@@ -575,8 +618,6 @@ void initConfig()
         }
         catch (...) { logger.log(Logger::DEB, "retrorun_pixel_perfect parameter not found in retrorun.cfg using default value (%s)", pixel_perfect ? "true" : "false"); }
 
-        processVideoInAnotherThread =
-            (isRG552() && isFlycast2021()) || forceVideoMultithread;
         pwm = rumble_type_pwm;
 
         adaptiveFps = false;

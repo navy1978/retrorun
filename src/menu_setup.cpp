@@ -15,6 +15,7 @@ Copyright (C) 2021-present  navy1978
 #include "input.h"
 #include "rumble.h"
 #include "platform.h"
+#include "decoration.h"
 
 #include "menu/menu_manager.h"
 
@@ -25,6 +26,7 @@ Copyright (C) 2021-present  navy1978
 #include <limits>
 #include <ctime>
 #include <cstdlib>
+#include <sys/stat.h>
 
 // --- Constants ---
 
@@ -67,6 +69,7 @@ void resume(int button)
     if (button == A_BUTTON)
     {
         input_info_requested = false;
+        pause_requested = input_pause_requested;
     }
 }
 
@@ -204,6 +207,26 @@ std::function<void(int)> setSwapSticks = [](int button)
         swapSticks = !swapSticks;
 };
 
+int getAnalogToDigitalSetting()
+{
+    return static_cast<int>(analogToDigital);
+}
+
+std::function<void(int)> setAnalogToDigitalSetting = [](int button)
+{
+    if (button != LEFT && button != RIGHT)
+        return;
+    int value = static_cast<int>(analogToDigital);
+    if (button == LEFT) value = (value + 4) % 5;
+    if (button == RIGHT) value = (value + 1) % 5;
+    analogToDigital = static_cast<AnalogToDigital>(value);
+    force_left_analog_stick = analogToDigital == LEFT_ANALOG_FORCED;
+    if (!persistVideoSetting("retrorun_analog_to_digital",
+                             analogToDigitalModeName(analogToDigital)))
+        logger.log(Logger::ERR, "Unable to save analog-to-digital mode in '%s'",
+                   activeConfigFile.c_str());
+};
+
 // --- Lock FPS ---
 
 int getLockDeclaredFPS()
@@ -262,6 +285,17 @@ std::function<void(int)> setSDLVsync = [](int button)
 #endif
 
 // --- Video filter ---
+
+int getDecorationSetting()
+{
+    return decoration_enabled() ? 1 : 0;
+}
+
+std::function<void(int)> setDecorationSetting = [](int button)
+{
+    if (button == LEFT || button == RIGHT)
+        decoration_set_enabled(!decoration_enabled());
+};
 
 int getVideoFilter()
 {
@@ -335,6 +369,11 @@ std::function<void(int)> setPixelPerfect = [](int button)
 {
     if (button == LEFT || button == RIGHT)
     {
+        // Decorations require an integer-scaled viewport. Keep the effective
+        // setting enabled until the decoration is turned off, at which point
+        // decoration_set_enabled() restores the user's previous preference.
+        if (decoration_enabled())
+            return;
         pixel_perfect = !pixel_perfect;
         prepareScreen(currentWidth, currentHeight);
         persistVideoSetting("retrorun_pixel_perfect", pixel_perfect ? "true" : "false");
@@ -481,35 +520,28 @@ std::function<void(int)> setDeviceType = [](int button)
 
 // --- Save/Load slot ---
 
-std::string getSlotNameStr(int slotNumber, std::string type)
+std::string getSlotNameStr(int slotNumber, std::string)
 {
-    std::string result = "<empty>";
+    std::string result = "Empty";
     char *savePath = createSavePath(arg_rom, opt_savedir);
     std::string savePath1 = savePath;
     savePath1 += slotNumber == 1 ? "" : "" + std::to_string(slotNumber - 1);
     if (fileExists(savePath1.c_str()))
     {
-        result = getLastModifiedTime(savePath1.c_str());
+        struct stat info = {};
+        if (stat(savePath1.c_str(), &info) == 0) {
+            char date[32] = {};
+            const std::tm* modified = std::localtime(&info.st_mtime);
+            if (modified) std::strftime(date, sizeof(date), "%d %b %H:%M", modified);
+            result = date;
+        }
     }
     std::free(savePath);
-    if (type == "Load")
-        return "<- " + std::to_string(slotNumber) + " " + result;
-    else
-        return "-> " + std::to_string(slotNumber) + " " + result;
+    return "Slot " + std::to_string(slotNumber) + "  " + result;
 }
 
 void loadSaveSlotWrapper(int button, int slotNumber, std::string type)
 {
-    static time_t lastSlotWrapperTime = 0;
-    time_t currentTime = time(NULL);
-
-    if (difftime(currentTime, lastSlotWrapperTime) < 1.0)
-    {
-        logger.log(Logger::WARN, "loadSaveSlotWrapper called too quickly; skipping execution.");
-        return;
-    }
-    lastSlotWrapperTime = currentTime;
-
     // Inline the slot logic
     if (button == A_BUTTON)
     {
@@ -525,6 +557,14 @@ void loadSaveSlotWrapper(int button, int slotNumber, std::string type)
             lastLoadSaveStateDoneOk = (loaded >= 0);
             input_slot_memory_load_done = true;
             lastLoadSaveStateDoneTime = (double)time(NULL);
+            if (loaded >= 0)
+            {
+                // Loading while the game is paused must resume execution so
+                // the core can expose and present the restored frame. Keeping
+                // either flag set leaves the confirmation menu frozen.
+                input_pause_requested = false;
+                pause_requested = false;
+            }
         }
         else
         {
@@ -532,10 +572,12 @@ void loadSaveSlotWrapper(int button, int slotNumber, std::string type)
             SaveState(savePath1.c_str());
         }
         free(savePath);
-        sleep(1);
     }
 
     input_info_requested = false;
+    // Opening the information menu also sets pause_requested. Restore the
+    // actual pause state when an action closes the menu programmatically.
+    pause_requested = input_pause_requested;
 }
 
 void restartCore(int button)

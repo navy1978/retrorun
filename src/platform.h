@@ -179,3 +179,29 @@ rr_video_shader_t rr_video_shader_get();
 
 const char* rr_platform_backend_name();
 const char* rr_platform_renderer_name();
+
+// --- Platform capability flags ---
+
+typedef enum {
+    RRPlatformCapability_FileDrop         = (1 << 0),
+    RRPlatformCapability_PhysicalKeyboard = (1 << 1),
+    RRPlatformCapability_NativeFilePicker = (1 << 2),
+} rr_platform_capability_t;
+
+// Query platform capabilities. Returns a bitmask of rr_platform_capability_t.
+uint32_t rr_platform_capabilities();
+
+// --- Keyboard events ---
+
+// Portable key event produced by platform backends and forwarded to the
+// libretro core's keyboard callback (if registered).
+struct RRKeyEvent {
+    bool down;           // true = key pressed, false = key released
+    unsigned keycode;    // libretro RETROK_* value
+    uint32_t character;  // Unicode codepoint (0 if unavailable)
+    uint16_t modifiers;  // RETROKMOD_* bitmask
+};
+
+// Platform backends call this to deliver a keyboard event to the shared
+// dispatcher, which forwards it to the core's retro_keyboard_event_t callback.
+void rr_keyboard_event(const RRKeyEvent* event);

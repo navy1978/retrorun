@@ -30,6 +30,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <chrono>
 #include <thread>
 #include <cmath>
+#include <atomic>
 
 #define FRAMES_MAX (48000)
 #define CHANNELS (2)
@@ -45,6 +46,7 @@ static u_int16_t audioBuffer[AUDIO_BUFFER_SIZE];
 static int audioFrameCount;
 static int audioFrameLimit;
 static int prevVolume;
+static std::atomic<uint64_t> fastForwardAudioDroppedFrames{0};
 std::mutex mtx; // mutex for critical section
 
 bool firstTime = true;
@@ -95,6 +97,11 @@ int getVolume()
     return value;
 }
 
+uint64_t fastForwardAudioFramesDropped()
+{
+    return fastForwardAudioDroppedFrames.exchange(0);
+}
+
 void setVolume(int value)
 {
     rr_audio_volume_set(audio, (uint32_t)value, soundCardName.c_str());
@@ -105,6 +112,8 @@ void core_audio_sample(int16_t left, int16_t right)
     
     if (input_ffwd_requested || audio_disabled)
     {
+        if (input_ffwd_requested)
+            ++fastForwardAudioDroppedFrames;
         return;
     }
 
@@ -126,9 +135,10 @@ void core_audio_sample(int16_t left, int16_t right)
 
 size_t core_audio_sample_batch(const int16_t *data, size_t frames)
 {
-
-    if (audio_disabled)
+    if (input_ffwd_requested || audio_disabled)
         {
+            if (input_ffwd_requested)
+                fastForwardAudioDroppedFrames += frames;
             return frames;
         }
 
@@ -151,19 +161,6 @@ size_t core_audio_sample_batch(const int16_t *data, size_t frames)
     {
         logger.log(Logger::DEB, "ORIGINAL FPS NOT VALID! skipping audio");
         return frames;
-    }
-    audioCounter++;
-    // the following is for Fast Forwarding
-    if (audioCounter != audioCounterSkip)
-    {
-        if (input_ffwd_requested)
-        {
-            return frames;
-        }
-    }
-    else
-    {
-        audioCounter = 0;
     }
     SetVolume();
 

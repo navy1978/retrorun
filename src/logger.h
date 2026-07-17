@@ -19,6 +19,8 @@ public:
 
     void setLogLevel(LogLevel level);
 
+    static void setCoreLogLevel(LogLevel level);
+
     void log(LogLevel level, const char* format, ...);
 
     static void setCoreName(const std::string& coreName);

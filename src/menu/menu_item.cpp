@@ -66,6 +66,20 @@ MenuItem::MenuItem(std::string name, std::function<void(int)> action)
     
 }
 
+MenuItem::MenuItem(NameCalculator nameCalculator, std::function<void(int)> action)
+{
+    name_ = "";
+    valueSelected_ = -1;
+    action_ = action;
+    is_menu_ = false;
+    menu_ = nullptr;
+    mis_unit_ = "";
+    is_quit_item = false;
+    is_question_item = false;
+    m_valueCalculator = nullptr;
+    m_nameCalculator = nameCalculator;
+}
+
 
 MenuItem::MenuItem(std::string name, Menu *menu, std::function<void(int)> action)
 {
@@ -197,6 +211,7 @@ std::string MenuItem::getMisUnit()
     || mis_unit_ == "video-filter"
     || mis_unit_ == "video-shader"
     || mis_unit_ == "ui-profile"
+    || mis_unit_ == "decoration"
     )
     {
         return "";
@@ -219,10 +234,10 @@ const char *rotation_names[] = {
 
 const char *analog_to_digital_names[] = {
     "NONE",
-  "LEFT",
-  "RIGHT",
-  "LEFT FORCED",
-  "RIGHT FORCED"};  
+    "LEFT ANALOG",
+    "RIGHT ANALOG",
+    "LEFT ANALOG (FORCED)",
+    "RIGHT ANALOG (FORCED)"};
 
 const char *aspect_ratio_names[] = {
     "2:1",
@@ -299,6 +314,10 @@ std::string MenuItem::getStringValue()
     else if (mis_unit_ == "ui-profile")
     {
         return ui_profile_names[getValue()];
+    }
+    else if (mis_unit_ == "decoration")
+    {
+        return getValue() == 1 ? "Auto" : "Off";
     }
     else if (mis_unit_ == "device-type")
     {

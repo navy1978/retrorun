@@ -22,6 +22,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include "struct.h"
 
 #include "../status.h"
+#include "../input.h"
 
 #include "queue.h"
 #include "../globals.h"
@@ -55,6 +56,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 // #include <GLES2/gl2ext.h>
 
 #include <png.h>
+
+#include <algorithm>
 
 go2_display_t *go2_display_create()
 {
@@ -816,9 +819,10 @@ static uint32_t go2_rkformat_get(uint32_t drm_fourcc)
     }
 }
 
-void go2_surface_blit(go2_surface_t *srcSurface, int srcX, int srcY, int srcWidth, int srcHeight,
-                      go2_surface_t *dstSurface, int dstX, int dstY, int dstWidth, int dstHeight,
-                      go2_rotation_t rotation)
+static void go2_surface_blit_internal(go2_surface_t *srcSurface, int srcX, int srcY,
+                      int srcWidth, int srcHeight, go2_surface_t *dstSurface,
+                      int dstX, int dstY, int dstWidth, int dstHeight,
+                      go2_rotation_t rotation, bool alpha_blend)
 {
     rga_info_t dst = {0};
     dst.fd = go2_surface_prime_fd(dstSurface);
@@ -875,6 +879,8 @@ void go2_surface_blit(go2_surface_t *srcSurface, int srcX, int srcY, int srcWidt
     src.rect.wstride = srcSurface->stride / (go2_drm_format_get_bpp(srcSurface->format) / 8);
     src.rect.hstride = srcSurface->height;
     src.rect.format = go2_rkformat_get(srcSurface->format);
+    if (alpha_blend)
+        src.blend = 0xff0105; // Porter-Duff source-over with per-pixel alpha.
 
 #if 0
     enum
@@ -892,6 +898,26 @@ void go2_surface_blit(go2_surface_t *srcSurface, int srcX, int srcY, int srcWidt
     {
         logger.log(Logger::ERR,"c_RkRgaBlit failed.\n");
     }
+}
+
+void go2_surface_blit(go2_surface_t *srcSurface, int srcX, int srcY,
+                      int srcWidth, int srcHeight, go2_surface_t *dstSurface,
+                      int dstX, int dstY, int dstWidth, int dstHeight,
+                      go2_rotation_t rotation)
+{
+    go2_surface_blit_internal(srcSurface, srcX, srcY, srcWidth, srcHeight,
+                              dstSurface, dstX, dstY, dstWidth, dstHeight,
+                              rotation, false);
+}
+
+void go2_surface_blit_alpha(go2_surface_t *srcSurface, int srcX, int srcY,
+                            int srcWidth, int srcHeight, go2_surface_t *dstSurface,
+                            int dstX, int dstY, int dstWidth, int dstHeight,
+                            go2_rotation_t rotation)
+{
+    go2_surface_blit_internal(srcSurface, srcX, srcY, srcWidth, srcHeight,
+                              dstSurface, dstX, dstY, dstWidth, dstHeight,
+                              rotation, true);
 }
 
 int go2_surface_save_as_png(go2_surface_t *surface, const char *filename)
@@ -1251,7 +1277,16 @@ void go2_presenter_destroy(go2_presenter_t *presenter)
 
 void go2_presenter_post(go2_presenter_t *presenter, go2_surface_t *surface, int srcX, int srcY, int srcWidth, int srcHeight, int dstX, int dstY, int dstWidth, int dstHeight, go2_rotation_t rotation)
 {
-    sem_wait(&presenter->freeSem);
+    // During fast-forward the core must never be paced by the display queue.
+    // If all scanout buffers are busy, discard this presentation attempt and
+    // let retro_run() continue immediately. Normal gameplay remains blocking.
+    if (input_ffwd_requested) {
+        if (sem_trywait(&presenter->freeSem) != 0)
+            return;
+    } else {
+        while (sem_wait(&presenter->freeSem) != 0 && errno == EINTR) {
+        }
+    }
     pthread_mutex_lock(&presenter->queueMutex);
     go2_frame_buffer_t *dstFrameBuffer =
         (go2_frame_buffer_t *)go2_queue_pop(presenter->freeFrameBuffers);
@@ -1494,7 +1529,15 @@ void go2_presenter_post_multiple(go2_presenter_t *presenter, go2_surface_t *surf
         logger.log(Logger::ERR, "ERROR: presenter is NULL! Skipping presenter_post.");
         return;
     }
-    sem_wait(&presenter->freeSem);
+    // Keep the emulation thread non-blocking while fast-forwarding. This path
+    // is used whenever status elements or screen decorations are composited.
+    if (input_ffwd_requested) {
+        if (sem_trywait(&presenter->freeSem) != 0)
+            return;
+    } else {
+        while (sem_wait(&presenter->freeSem) != 0 && errno == EINTR) {
+        }
+    }
 
     pthread_mutex_lock(&presenter->queueMutex);
 
@@ -1509,9 +1552,72 @@ void go2_presenter_post_multiple(go2_presenter_t *presenter, go2_surface_t *surf
     }
 
     go2_surface_t *dstSurface = go2_frame_buffer_surface_get(dstFrameBuffer);
-    
+    const bool rotated_canvas = rotation == GO2_ROTATION_DEGREES_90 ||
+                                rotation == GO2_ROTATION_DEGREES_270;
+    const int canvas_width = rotated_canvas ? dstSurface->height : dstSurface->width;
+    const int canvas_height = rotated_canvas ? dstSurface->width : dstSurface->height;
 
-    go2_surface_blit(surface1, srcX, srcY, srcWidth, srcHeight, dstSurface, dstX, dstY, dstWidth, dstHeight, rotation);
+    if (status_obj->clean_full) {
+        void* dstPixels = go2_surface_map(dstSurface);
+        if (dstPixels) {
+            memset(dstPixels, 0, dstSurface->stride * dstSurface->height);
+            go2_surface_unmap(dstSurface);
+        }
+        if (status_obj->show_decoration && status_obj->decoration &&
+            status_obj->decoration->format != DRM_FORMAT_RGBA8888) {
+            go2_surface_blit(status_obj->decoration, 0, 0,
+                             status_obj->decoration->width, status_obj->decoration->height,
+                             dstSurface, 0, 0, canvas_width, canvas_height,
+                             rotation);
+        }
+    }
+
+    // Full frontend pages are opaque. Do not blit the core underneath them:
+    // besides wasting an RGA operation, menu dimensions may differ from the
+    // core allocation (for example 320x240 over mGBA's 256x160 surface).
+    if (!status_obj->show_full)
+        go2_surface_blit(surface1, srcX, srcY, srcWidth, srcHeight,
+                         dstSurface, dstX, dstY, dstWidth, dstHeight, rotation);
+
+    // PNG bezels are true foreground overlays: their transparent opening
+    // reveals the game while opaque curved edges mask its rectangular frame.
+    // RGA performs this source-over blend in hardware.
+    if (!status_obj->show_full && status_obj->show_decoration && status_obj->decoration &&
+        status_obj->decoration->format == DRM_FORMAT_RGBA8888) {
+        // Each presenter framebuffer keeps the static artwork outside the
+        // core's destination rectangle. A complete blend is only required
+        // while all three recycled buffers are being cleaned (menu close,
+        // decoration change, viewport change). During steady gameplay the
+        // core can only damage its own rectangle, so restore that intersection
+        // instead of reading and writing the full screen every frame.
+        int blend_x = status_obj->clean_full ? 0 : dstX;
+        int blend_y = status_obj->clean_full ? 0 : dstY;
+        int blend_width = status_obj->clean_full ? canvas_width : dstWidth;
+        int blend_height = status_obj->clean_full ? canvas_height : dstHeight;
+        if (blend_x < 0) { blend_width += blend_x; blend_x = 0; }
+        if (blend_y < 0) { blend_height += blend_y; blend_y = 0; }
+        blend_width = std::min(blend_width, canvas_width - blend_x);
+        blend_height = std::min(blend_height, canvas_height - blend_y);
+        if (blend_width > 0 && blend_height > 0) {
+            const int source_x = blend_x * status_obj->decoration->width /
+                                 canvas_width;
+            const int source_y = blend_y * status_obj->decoration->height /
+                                 canvas_height;
+            const int source_right = (blend_x + blend_width) *
+                                     status_obj->decoration->width /
+                                     canvas_width;
+            const int source_bottom = (blend_y + blend_height) *
+                                      status_obj->decoration->height /
+                                      canvas_height;
+            go2_surface_blit_alpha(status_obj->decoration,
+                                   source_x, source_y,
+                                   std::max(1, source_right - source_x),
+                                   std::max(1, source_bottom - source_y),
+                                   dstSurface, blend_x, blend_y,
+                                   blend_width, blend_height,
+                                   rotation);
+        }
+    }
 
     go2_surface_t *surface = NULL;
 

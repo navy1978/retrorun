@@ -22,16 +22,96 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include "globals.h"
 #include "video.h"
+#include "video-helper.h"
 #include "libretro.h"
+#include "keyboard.h"
+#include "file_browser.h"
+#include "achievements.h"
 
 #include "platform.h"
 #include <stdio.h>
 #include <sys/time.h>
+#include <algorithm>
+#include <array>
+#include <cctype>
 
 extern int opt_backlight;
 extern int opt_volume;
 bool input_ffwd_requested = false;
+static retro_fastforwarding_override fastForwardOverride = {-1.0f, false, true, false};
+static bool fastForwardOverrideSet = false;
 bool input_message = false;
+static std::array<bool, 16> coreAnalogRequested{};
+
+const char* analogToDigitalModeName(AnalogToDigital mode)
+{
+    switch (mode) {
+    case NONE: return "none";
+    case LEFT_ANALOG: return "left";
+    case RIGHT_ANALOG: return "right";
+    case LEFT_ANALOG_FORCED: return "left_forced";
+    case RIGHT_ANALOG_FORCED: return "right_forced";
+    default: return "none";
+    }
+}
+
+bool setAnalogToDigitalMode(const std::string& value)
+{
+    std::string normalized = value;
+    std::transform(normalized.begin(), normalized.end(), normalized.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    std::replace(normalized.begin(), normalized.end(), '-', '_');
+    std::replace(normalized.begin(), normalized.end(), ' ', '_');
+
+    if (normalized == "none" || normalized == "disabled" || normalized == "0")
+        analogToDigital = NONE;
+    else if (normalized == "left" || normalized == "left_analog" || normalized == "1")
+        analogToDigital = LEFT_ANALOG;
+    else if (normalized == "right" || normalized == "right_analog" || normalized == "2")
+        analogToDigital = RIGHT_ANALOG;
+    else if (normalized == "left_forced" || normalized == "left_analog_forced" || normalized == "3")
+        analogToDigital = LEFT_ANALOG_FORCED;
+    else if (normalized == "right_forced" || normalized == "right_analog_forced" || normalized == "4")
+        analogToDigital = RIGHT_ANALOG_FORCED;
+    else
+        return false;
+
+    force_left_analog_stick = analogToDigital == LEFT_ANALOG_FORCED;
+    return true;
+}
+
+AnalogToDigital effectiveAnalogToDigitalMode(unsigned port)
+{
+    if ((analogToDigital == LEFT_ANALOG || analogToDigital == RIGHT_ANALOG) &&
+        port < coreAnalogRequested.size() && coreAnalogRequested[port])
+        return NONE;
+    return analogToDigital;
+}
+
+static bool analogToDigitalDirectionPressed(const rr_thumb_t& thumb, unsigned id)
+{
+    constexpr float threshold = 0.35f;
+
+    if (!isTate()) {
+        if (id == RETRO_DEVICE_ID_JOYPAD_UP) return thumb.y < -threshold;
+        if (id == RETRO_DEVICE_ID_JOYPAD_DOWN) return thumb.y > threshold;
+        if (id == RETRO_DEVICE_ID_JOYPAD_LEFT) return thumb.x < -threshold;
+        return thumb.x > threshold;
+    }
+
+    // Use the same physical-to-logical rotation as getInputUp/Down/Left/Right.
+    if (tateState == REVERSED) {
+        if (id == RETRO_DEVICE_ID_JOYPAD_UP) return thumb.x > threshold;
+        if (id == RETRO_DEVICE_ID_JOYPAD_DOWN) return thumb.x < -threshold;
+        if (id == RETRO_DEVICE_ID_JOYPAD_LEFT) return thumb.y < -threshold;
+        return thumb.y > threshold;
+    }
+
+    if (id == RETRO_DEVICE_ID_JOYPAD_UP) return thumb.x < -threshold;
+    if (id == RETRO_DEVICE_ID_JOYPAD_DOWN) return thumb.x > threshold;
+    if (id == RETRO_DEVICE_ID_JOYPAD_LEFT) return thumb.y > threshold;
+    return thumb.y < -threshold;
+}
 
 bool input_exit_requested = false;
 bool input_exit_requested_firstTime = false;
@@ -293,18 +373,32 @@ void initButtons(){
      }
 
 #ifdef RR_PLATFORM_SDL
-     // SDL already reports logical controller buttons. Do not reuse the
-     // BTN_TRIGGER_HAPPY layout required by the original Anbernic devices.
-     selectButton = RRInputButton_SELECT;
-     startButton = RRInputButton_START;
-     l1Button = RRInputButton_TopLeft;
-     r1Button = RRInputButton_TopRight;
-     l2Button = RRInputButton_TriggerLeft;
-     r2Button = RRInputButton_TriggerRight;
-     l3Button = RRInputButton_THUMBL;
-     r3Button = RRInputButton_THUMBR;
-     ignoreF2 = true;
-     logger.log(Logger::DEB, "SDL2 logical joypad configuration detected.");
+     if (isRG351V()) {
+         // Keep exactly the same portable layout produced by GO2/js2xbox.
+         selectButton = RRInputButton_F1;
+         startButton = RRInputButton_F6;
+         l1Button = RRInputButton_TopLeft;
+         r1Button = RRInputButton_TopRight;
+         l2Button = RRInputButton_F4;
+         r2Button = RRInputButton_F3;
+         l3Button = RRInputButton_F2;
+         r3Button = RRInputButton_F5;
+         f2Button = RRInputButton_F2;
+         ignoreF2 = false;
+         logger.log(Logger::DEB, "SDL2 RG351V uses the GO2 F1-F6 physical layout.");
+     } else {
+         // Standard SDL controller layout for desktop and newer handhelds.
+         selectButton = RRInputButton_SELECT;
+         startButton = RRInputButton_START;
+         l1Button = RRInputButton_TopLeft;
+         r1Button = RRInputButton_TopRight;
+         l2Button = RRInputButton_TriggerLeft;
+         r2Button = RRInputButton_TriggerRight;
+         l3Button = RRInputButton_THUMBL;
+         r3Button = RRInputButton_THUMBR;
+         ignoreF2 = true;
+         logger.log(Logger::DEB, "SDL2 logical joypad configuration detected.");
+     }
 #endif
  
      applyButtonRemapping();
@@ -359,44 +453,90 @@ rr_input_state_t *input_gampad_current_get()
 }
 
 void manageCredits(){
-if (rr_input_state_button_get(gamepadState, bButton) == RRButtonState_Pressed)
+setCreditsAccelerated(
+    rr_input_state_button_get(gamepadState, aButton) == RRButtonState_Pressed);
+if (rr_input_state_button_get(gamepadState, bButton) == RRButtonState_Pressed &&
+    rr_input_state_button_get(prevGamepadState, bButton) == RRButtonState_Released)
     {
         menuManager.handle_input_credits(B_BUTTON);
     }
-    if (rr_input_state_button_get(gamepadState, aButton) == RRButtonState_Pressed)
-    {
-        menuManager.handle_input_credits(A_BUTTON);
-    }
+}
+
+void fastForwardSetOverride(const retro_fastforwarding_override* override_state)
+{
+    if (!override_state)
+        return;
+    fastForwardOverride = *override_state;
+    fastForwardOverrideSet = true;
+    input_ffwd_requested = fastForwardOverride.fastforward;
+    logger.log(Logger::DEB,
+               "Fast-forward override: active=%s ratio=%.2f notification=%s inhibit_toggle=%s",
+               input_ffwd_requested ? "true" : "false", fastForwardOverride.ratio,
+               fastForwardOverride.notification ? "true" : "false",
+               fastForwardOverride.inhibit_toggle ? "true" : "false");
+}
+
+void fastForwardResetOverride()
+{
+    fastForwardOverride = {-1.0f, false, true, false};
+    fastForwardOverrideSet = false;
+    input_ffwd_requested = false;
+}
+
+bool fastForwardToggleAllowed()
+{
+    return !fastForwardOverrideSet || !fastForwardOverride.inhibit_toggle;
+}
+
+float fastForwardRatio()
+{
+    if (fastForwardOverrideSet && fastForwardOverride.fastforward &&
+        fastForwardOverride.ratio >= 0.0f)
+        return fastForwardOverride.ratio;
+    return 0.0f;
+}
+
+bool fastForwardNotificationVisible()
+{
+    return input_ffwd_requested &&
+           (!fastForwardOverrideSet || !fastForwardOverride.fastforward ||
+            fastForwardOverride.notification);
 }
 
 void manageMenu()
 {
-    // mutexInput.lock();
-    if (rr_input_state_button_get(gamepadState, bButton) == RRButtonState_Pressed)
-    {
-        menuManager.handle_input(B_BUTTON);
-    }
-    if (rr_input_state_button_get(gamepadState, aButton) == RRButtonState_Pressed)
-    {
-        menuManager.handle_input(A_BUTTON);
-    }
-    if (rr_input_state_button_get(gamepadState, upButton) == RRButtonState_Pressed)
-    {
-        menuManager.handle_input(UP);
-    }
-    if (rr_input_state_button_get(gamepadState, downButton) == RRButtonState_Pressed)
-    {
-        menuManager.handle_input(DOWN);
-    }
-    if (rr_input_state_button_get(gamepadState, leftButton) == RRButtonState_Pressed)
-    {
-        menuManager.handle_input(LEFT);
-    }
-    if (rr_input_state_button_get(gamepadState, rightButton) == RRButtonState_Pressed)
-    {
-        menuManager.handle_input(RIGHT);
-    }
-    // mutexInput.unlock();
+    struct RepeatState {
+        bool held = false;
+        std::chrono::steady_clock::time_point next;
+    };
+    static RepeatState up_repeat, down_repeat, left_repeat, right_repeat;
+    const auto now = std::chrono::steady_clock::now();
+
+    auto pressed_edge = [](rr_input_button_t button) {
+        return rr_input_state_button_get(gamepadState, button) == RRButtonState_Pressed &&
+               rr_input_state_button_get(prevGamepadState, button) == RRButtonState_Released;
+    };
+    auto direction_trigger = [&](rr_input_button_t button, RepeatState& repeat) {
+        const bool pressed = rr_input_state_button_get(gamepadState, button) == RRButtonState_Pressed;
+        if (!pressed) { repeat.held = false; return false; }
+        if (!repeat.held) {
+            repeat.held = true;
+            repeat.next = now + std::chrono::milliseconds(350);
+            return true;
+        }
+        if (now >= repeat.next) {
+            repeat.next = now + std::chrono::milliseconds(90);
+            return true;
+        }
+        return false;
+    };
+
+    if (pressed_edge(bButton)) { menuManager.handle_input(B_BUTTON); return; }
+    if (pressed_edge(aButton)) { menuManager.handle_input(A_BUTTON); return; }
+    if (direction_trigger(upButton, up_repeat)) menuManager.handle_input(UP);
+    if (direction_trigger(downButton, down_repeat)) menuManager.handle_input(DOWN);
+    if (direction_trigger(leftButton, left_repeat)) menuManager.handle_input(LEFT);
+    if (direction_trigger(rightButton, right_repeat)) menuManager.handle_input(RIGHT);
 }
 
 
@@ -522,7 +662,9 @@ void core_input_poll(void)
 
 
     // if we are in the menu info we have to manage the input for that
-    if (input_credits_requested) {
+    if (rr_keyboard_virtual_visible() || rr_file_browser_visible() || achievements_view_visible()) {
+        // Modal frontend screens consume input below.
+    } else if (input_credits_requested) {
         manageCredits();
     }else
     if (input_info_requested)
@@ -549,6 +691,32 @@ bool isF2Pressed = ignoreF2 ? false: rr_input_state_button_get(gamepadState, f2B
 bool isR2Pressed = rr_input_state_button_get(gamepadState, r2Button) == RRButtonState_Pressed;
 bool wasR2Released = rr_input_state_button_get(prevGamepadState, r2Button) == RRButtonState_Released;
 
+const bool upEdge = rr_input_state_button_get(gamepadState, upButton) == RRButtonState_Pressed &&
+                    rr_input_state_button_get(prevGamepadState, upButton) == RRButtonState_Released;
+const bool downEdge = rr_input_state_button_get(gamepadState, downButton) == RRButtonState_Pressed &&
+                      rr_input_state_button_get(prevGamepadState, downButton) == RRButtonState_Released;
+const bool leftEdge = rr_input_state_button_get(gamepadState, leftButton) == RRButtonState_Pressed &&
+                      rr_input_state_button_get(prevGamepadState, leftButton) == RRButtonState_Released;
+const bool rightEdge = rr_input_state_button_get(gamepadState, rightButton) == RRButtonState_Pressed &&
+                       rr_input_state_button_get(prevGamepadState, rightButton) == RRButtonState_Released;
+const bool aEdge = isAPressed && rr_input_state_button_get(prevGamepadState, aButton) == RRButtonState_Released;
+const bool bEdge = isBPressed && wasBReleased;
+const bool xEdge = isXPressed && rr_input_state_button_get(prevGamepadState, xButton) == RRButtonState_Released;
+
+if (rr_keyboard_virtual_visible()) {
+    if (rr_keyboard_virtual_controller_input_enabled())
+        rr_keyboard_virtual_input(upEdge, downEdge, leftEdge, rightEdge, aEdge, bEdge, xEdge);
+    return;
+}
+if (rr_file_browser_visible()) {
+    rr_file_browser_input(upEdge, downEdge, aEdge, bEdge);
+    return;
+}
+if (achievements_view_visible()) {
+    achievements_view_input(upEdge, downEdge, leftEdge, rightEdge, aEdge, bEdge);
+    return;
+}
+
 // Get current time once
 struct timeval valTime;
 gettimeofday(&valTime, NULL);
@@ -566,6 +734,8 @@ if (input_info_requested_alternative) { // this are the alternative combinations
             input_info_requested = !input_info_requested;
             pause_requested = input_info_requested;
             input_credits_requested = false;
+            if (input_info_requested)
+                menuManager.beginSession();
             lastInforequestTime = currentTime;
             logger.log(Logger::DEB, "Input: Info requested OK");
         }
@@ -610,6 +780,12 @@ if (input_info_requested_alternative) { // this are the alternative combinations
                 pauseRequestTime = currentTime;
             }
         }
+        if (!showLoading && (isF2Pressed || isSelectPressed) &&
+            isR2Pressed && wasR2Released && fastForwardToggleAllowed()) {
+            input_ffwd_requested = !input_ffwd_requested;
+            logger.log(Logger::DEB, "Input: Fast-forward %s",
+                       input_ffwd_requested ? "on" : "off");
+        }
 }
 
 } else { // this is the oermal behaviour used in AmberElec
@@ -623,6 +799,8 @@ if (input_info_requested_alternative) { // this are the alternative combinations
             input_info_requested = !input_info_requested;
             pause_requested = input_info_requested;
             input_credits_requested = false;
+            if (input_info_requested)
+                menuManager.beginSession();
             lastInforequestTime = currentTime;
             logger.log(Logger::DEB, "Input: Info requested OK");
         }
@@ -666,8 +844,11 @@ if (input_info_requested_alternative) { // this are the alternative combinations
         }
         // Handle fast-forward request
         if (!showLoading && isSelectPressed && isR2Pressed && wasR2Released) {
-            input_ffwd_requested = !input_ffwd_requested;
-            logger.log(Logger::DEB, "Input: Fast-forward %s", input_ffwd_requested ? "on" : "off");
+            if (fastForwardToggleAllowed()) {
+                input_ffwd_requested = !input_ffwd_requested;
+                logger.log(Logger::DEB, "Input: Fast-forward %s",
+                           input_ffwd_requested ? "on" : "off");
+            }
         }
     }
 
@@ -1047,29 +1228,22 @@ if(isTate()){
 
 int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigned id)
 {
+    if (rr_keyboard_virtual_visible() || rr_file_browser_visible() || achievements_view_visible())
+        return 0;
+
+    if (device == RETRO_DEVICE_ANALOG &&
+        (index == RETRO_DEVICE_INDEX_ANALOG_LEFT ||
+         index == RETRO_DEVICE_INDEX_ANALOG_RIGHT) &&
+        port < coreAnalogRequested.size())
+        coreAnalogRequested[port] = true;
+
+    const AnalogToDigital analogMode = effectiveAnalogToDigitalMode(port);
 
 
     rr_input_button_t realL1 =  gpio_joypad ? l1Button : RRInputButton_TopLeft;
     rr_input_button_t realR1 = gpio_joypad ? r1Button : RRInputButton_TopRight ;
 // for set we dont need to take care of tate mode
     
-    if (force_left_analog_stick)
-    {
-        // Map thumbstick to dpad (force to enable the left analog stick mapping to it the DPAD)
-        const float TRIM = 0.35f;
-        rr_thumb_t thumb = rr_input_state_thumbstick_get(gamepadState, RRInputThumbstick_Left);
-
-        if (thumb.y < -TRIM)
-            rr_input_state_button_set(gamepadState, upButton, RRButtonState_Pressed);
-        if (thumb.y > TRIM)
-            rr_input_state_button_set(gamepadState, downButton, RRButtonState_Pressed);
-        if (thumb.x < -TRIM)
-            rr_input_state_button_set(gamepadState, leftButton, RRButtonState_Pressed);
-        if (thumb.x > TRIM)
-            rr_input_state_button_set(gamepadState, rightButton, RRButtonState_Pressed);
-    }
-
-
     if (Retrorun_Core == RETRORUN_CORE_PARALLEL_N64) // C buttons
     {
 
@@ -1145,17 +1319,27 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
                 return rr_input_state_button_get(gamepadState, startButton);
                 break;
             case RETRO_DEVICE_ID_JOYPAD_UP:
-                return getInputUp();
-                break;
             case RETRO_DEVICE_ID_JOYPAD_DOWN:
-                return getInputDown();
-                break;
             case RETRO_DEVICE_ID_JOYPAD_LEFT:
-                return getInputLeft();
-                break;
             case RETRO_DEVICE_ID_JOYPAD_RIGHT:
-                return getInputRight();
-                break;
+            {
+                rr_button_state_t physical = RRButtonState_Released;
+                if (id == RETRO_DEVICE_ID_JOYPAD_UP) physical = getInputUp();
+                else if (id == RETRO_DEVICE_ID_JOYPAD_DOWN) physical = getInputDown();
+                else if (id == RETRO_DEVICE_ID_JOYPAD_LEFT) physical = getInputLeft();
+                else physical = getInputRight();
+                if (physical == RRButtonState_Pressed || analogMode == NONE)
+                    return physical;
+
+                rr_input_thumbstick_t stick =
+                    (analogMode == LEFT_ANALOG || analogMode == LEFT_ANALOG_FORCED)
+                        ? RRInputThumbstick_Left : RRInputThumbstick_Right;
+                if (swapSticks)
+                    stick = stick == RRInputThumbstick_Left
+                                ? RRInputThumbstick_Right : RRInputThumbstick_Left;
+                const rr_thumb_t thumb = rr_input_state_thumbstick_get(gamepadState, stick);
+                return analogToDigitalDirectionPressed(thumb, id);
+            }
             case RETRO_DEVICE_ID_JOYPAD_A:
                 return getInputA();
                 break;
@@ -1194,10 +1378,11 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
 
 
 
-        else if (!force_left_analog_stick 
-        && device == RETRO_DEVICE_ANALOG 
-        && (index == RETRO_DEVICE_INDEX_ANALOG_LEFT || RETRO_DEVICE_INDEX_ANALOG_RIGHT)) 
+        else if (device == RETRO_DEVICE_ANALOG
+        && (index == RETRO_DEVICE_INDEX_ANALOG_LEFT ||
+            index == RETRO_DEVICE_INDEX_ANALOG_RIGHT))
         {
+            const unsigned requestedIndex = index;
 
             if (swapSticks)
             {
@@ -1210,6 +1395,15 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
                     index = RETRO_DEVICE_INDEX_ANALOG_LEFT;
                 }
             }
+
+            const bool mappedLeft =
+                (analogMode == LEFT_ANALOG || analogMode == LEFT_ANALOG_FORCED) &&
+                requestedIndex == RETRO_DEVICE_INDEX_ANALOG_LEFT;
+            const bool mappedRight =
+                (analogMode == RIGHT_ANALOG || analogMode == RIGHT_ANALOG_FORCED) &&
+                requestedIndex == RETRO_DEVICE_INDEX_ANALOG_RIGHT;
+            if (mappedLeft || mappedRight)
+                return 0;
 
             rr_thumb_t thumb;
             //rr_thumb_t thumb2;

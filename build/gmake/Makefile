@@ -23,12 +23,12 @@ ifeq ($(config),debug)
   OBJDIR     = obj/Debug
   TARGETDIR  = ../..
   TARGET     = $(TARGETDIR)/retrorun
-  DEFINES   += -DDEBUG -DRR_PLATFORM_GO2
-  INCLUDES  += -I../../src -I../.. -I../../src/go2 -I../../src/menu
+  DEFINES   += -DDEBUG -DRR_PLATFORM_GO2 -DRC_CLIENT_SUPPORTS_HASH
+  INCLUDES  += -I../../src -I../.. -I../../src/go2 -I../../src/menu -I../../deps/rcheevos/include -I../../deps/rcheevos/src
   CPPFLAGS  += -MMD -MP $(DEFINES) $(INCLUDES)
   CFLAGS    += $(CPPFLAGS) $(ARCH) -g -Wall -D__GBM__
   CXXFLAGS  += $(CFLAGS) -std=c++2a
-  LDFLAGS   += -Wl,-rpath=. -L../../. -ldl -lEGL -lGLESv2 -lrga -pthread -ffast-math -levdev -lgbm -ldrm -lpng -lasound -lopenal
+  LDFLAGS   += -Wl,-rpath=. -L../../. -ldl -lEGL -lGLESv2 -lrga -pthread -ffast-math -levdev -lgbm -ldrm -lpng -lasound -lopenal -lcurl -lz
   LIBS      += 
   RESFLAGS  += $(DEFINES) $(INCLUDES) 
   LDDEPS    += 
@@ -45,12 +45,12 @@ ifeq ($(config),release)
   OBJDIR     = obj/Release
   TARGETDIR  = ../..
   TARGET     = $(TARGETDIR)/retrorun
-  DEFINES   += -DNDEBUG -DRR_PLATFORM_GO2
-  INCLUDES  += -I../../src -I../.. -I../../src/go2 -I../../src/menu
+  DEFINES   += -DNDEBUG -DRR_PLATFORM_GO2 -DRC_CLIENT_SUPPORTS_HASH
+  INCLUDES  += -I../../src -I../.. -I../../src/go2 -I../../src/menu -I../../deps/rcheevos/include -I../../deps/rcheevos/src
   CPPFLAGS  += -MMD -MP $(DEFINES) $(INCLUDES)
   CFLAGS    += $(CPPFLAGS) $(ARCH) -O3 -ffast-math -flto -Wall -D__GBM__
   CXXFLAGS  += $(CFLAGS) -std=c++2a
-  LDFLAGS   += -s -flto -Wl,-rpath=. -L../../. -ldl -lEGL -lGLESv2 -lrga -pthread -ffast-math -levdev -lgbm -ldrm -lpng -lasound -lopenal
+  LDFLAGS   += -s -flto -Wl,-rpath=. -L../../. -ldl -lEGL -lGLESv2 -lrga -pthread -ffast-math -levdev -lgbm -ldrm -lpng -lasound -lopenal -lcurl -lz
   LIBS      += 
   RESFLAGS  += $(DEFINES) $(INCLUDES) 
   LDDEPS    += 
@@ -75,6 +75,8 @@ OBJECTS := \
 	$(OBJDIR)/input.o \
 	$(OBJDIR)/audio.o \
 	$(OBJDIR)/video-helper.o \
+	$(OBJDIR)/decoration.o \
+	$(OBJDIR)/decoration_catalog.o \
 	$(OBJDIR)/video.o \
 	$(OBJDIR)/globals.o \
 	$(OBJDIR)/rumble.o \
@@ -82,6 +84,11 @@ OBJECTS := \
 	$(OBJDIR)/core_loader.o \
 	$(OBJDIR)/savestate.o \
 	$(OBJDIR)/menu_setup.o \
+	$(OBJDIR)/keyboard.o \
+	$(OBJDIR)/disk_control.o \
+	$(OBJDIR)/file_browser.o \
+	$(OBJDIR)/achievements.o \
+	$(OBJDIR)/network_status.o \
 	$(OBJDIR)/main.o \
   	$(OBJDIR)/go2/audio.o \
 	$(OBJDIR)/go2/display.o \
@@ -91,6 +98,13 @@ OBJECTS := \
 	$(OBJDIR)/js2xbox/joypads.o \
 	$(OBJDIR)/js2xbox/js2xbox.o \
 	$(OBJDIR)/js2xbox/uinput.o
+
+RCHEEVOS_SOURCES := ../../deps/rcheevos/src/rc_client.c ../../deps/rcheevos/src/rc_compat.c \
+	../../deps/rcheevos/src/rc_libretro.c ../../deps/rcheevos/src/rc_util.c ../../deps/rcheevos/src/rc_version.c \
+	$(wildcard ../../deps/rcheevos/src/rcheevos/*.c) $(wildcard ../../deps/rcheevos/src/rhash/*.c) \
+	$(wildcard ../../deps/rcheevos/src/rapi/*.c)
+RCHEEVOS_OBJECTS := $(patsubst ../../deps/rcheevos/src/%.c,$(OBJDIR)/rcheevos/%.o,$(RCHEEVOS_SOURCES))
+OBJECTS += $(RCHEEVOS_OBJECTS)
 
 RESOURCES := \
 
@@ -186,6 +200,12 @@ $(OBJDIR)/audio.o: ../../src/audio.cpp
 $(OBJDIR)/video-helper.o: ../../src/video-helper.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/decoration.o: ../../src/decoration.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/decoration_catalog.o: ../../src/decoration_catalog.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/video.o: ../../src/video.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
@@ -207,6 +227,26 @@ $(OBJDIR)/savestate.o: ../../src/savestate.cpp
 $(OBJDIR)/menu_setup.o: ../../src/menu_setup.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/keyboard.o: ../../src/keyboard.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/disk_control.o: ../../src/disk_control.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/file_browser.o: ../../src/file_browser.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/achievements.o: ../../src/achievements.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/network_status.o: ../../src/network_status.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/rcheevos/%.o: ../../deps/rcheevos/src/%.c
+	@mkdir -p $(dir $@)
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(CFLAGS) -std=c99 -D_POSIX_C_SOURCE=200809L -include strings.h \
+		-Werror=implicit-function-declaration -o "$@" -c "$<"
 $(OBJDIR)/main.o: ../../src/main.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"

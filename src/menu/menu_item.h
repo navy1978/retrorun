@@ -39,6 +39,7 @@ public:
     MenuItem(NameCalculator nameCalculator, Menu *menu, std::function<void(int)> action);
     //MenuItem(std::string name, void (*action)(int));
     MenuItem(std::string name, std::function<void(int)> action);
+    MenuItem(NameCalculator nameCalculator, std::function<void(int)> action);
     void execute(int button);
     std::string get_name();
     std::string getMisUnit();

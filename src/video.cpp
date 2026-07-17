@@ -21,6 +21,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "globals.h"
 #include "video.h"
 #include "ui-renderer.h"
+#include "decoration.h"
+#include "keyboard.h"
+#include "file_browser.h"
+#include "achievements.h"
 
 #include "input.h"
 #include "libretro.h"
@@ -39,12 +43,27 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "platform.h"
 
 #include <chrono>
+#include <atomic>
 #include <thread>
 #include "video-helper.h"
 
 
 
 #define ALIGN(val, align) (((val) + (align)-1) & ~((align)-1))
+
+static std::atomic<uint64_t> fastForwardVideoCallbackCount{0};
+static std::atomic<uint64_t> fastForwardVideoPresentedCount{0};
+static std::atomic<uint64_t> fastForwardVideoDroppedCount{0};
+static std::atomic<uint64_t> fastForwardVideoCallbackTimeUs{0};
+
+void fastForwardVideoStats(uint64_t* callbacks, uint64_t* presented, uint64_t* dropped,
+                           uint64_t* callback_time_us)
+{
+    if (callbacks) *callbacks = fastForwardVideoCallbackCount.exchange(0);
+    if (presented) *presented = fastForwardVideoPresentedCount.exchange(0);
+    if (dropped) *dropped = fastForwardVideoDroppedCount.exchange(0);
+    if (callback_time_us) *callback_time_us = fastForwardVideoCallbackTimeUs.exchange(0);
+}
 
 // extern float opt_aspect;
 extern int opt_backlight;
@@ -813,7 +832,8 @@ inline void core_video_refresh_NON_OPENGL(const void *data, unsigned width, unsi
     }
 }
 
-inline void core_video_refresh_OPENGL(const void *data, unsigned width, unsigned height, size_t pitch)
+inline void core_video_refresh_OPENGL(rr_surface_t *frame_surface, const void *data,
+                                      unsigned width, unsigned height, size_t pitch)
 {
     static std::vector<uint16_t> black_frame;
     // eglSwapInterval(display, 0);
@@ -841,8 +861,24 @@ inline void core_video_refresh_OPENGL(const void *data, unsigned width, unsigned
             memset(black_frame.data(), 0x00, num_pixels * sizeof(uint16_t)); // RGB565 black
             data = black_frame.data();
         }
-        if (!showLoading){
-            return; // if the data is not valid and we are not loading the game then we need to dont draw this frame
+        if (!showLoading) {
+            // Hardware cores may emit several dupe/no-frame callbacks after
+            // retro_unserialize(). The game framebuffer is still usable, but
+            // returning here used to leave the previously composed full-menu
+            // overlay on screen indefinitely. Keep advancing the frontend UI
+            // and re-present the last GPU buffer so menu dismissal and popup
+            // notifications do not depend on a new core-rendered frame.
+            gs_w = rr_surface_width_get(frame_surface);
+            gs_h = rr_surface_height_get(frame_surface);
+            const bool showStatus = uiRenderOverlays(data, width, height, pitch);
+            if (!showStatus) {
+                rr_presenter_post(presenter,
+                                  frame_surface,
+                                  0, (gs_h - height), width, height,
+                                  x, y, w, h,
+                                  getRotation());
+            }
+            return;
         }
     }else{
         timeCorrectFrame++;
@@ -850,15 +886,15 @@ inline void core_video_refresh_OPENGL(const void *data, unsigned width, unsigned
     }
 
     
-    gs_w = rr_surface_width_get(gles_surface);
-    gs_h = rr_surface_height_get(gles_surface);
+    gs_w = rr_surface_width_get(frame_surface);
+    gs_h = rr_surface_height_get(frame_surface);
 
     bool showStatus = uiRenderOverlays(data, width, height, pitch);
 
     if (!showStatus)
     {
         rr_presenter_post(presenter,
-                           gles_surface,
+                           frame_surface,
                            0, (gs_h - height), width, height,
                            x, y, w, h,
                            getRotation());
@@ -871,6 +907,21 @@ size_t lastPitch;
 //bool lastPixelPerfect= pixel_perfect;
 void core_video_refresh(const void *data, unsigned width, unsigned height, size_t pitch)
 {
+    const bool measureFastForward = input_ffwd_requested;
+    const auto callbackStarted = measureFastForward
+        ? std::chrono::steady_clock::now()
+        : std::chrono::steady_clock::time_point{};
+    struct CallbackTimer {
+        bool enabled;
+        std::chrono::steady_clock::time_point started;
+        ~CallbackTimer() {
+            if (enabled)
+                fastForwardVideoCallbackTimeUs += std::chrono::duration_cast<std::chrono::microseconds>(
+                    std::chrono::steady_clock::now() - started).count();
+        }
+    } callbackTimer{measureFastForward, callbackStarted};
+    if (measureFastForward)
+        ++fastForwardVideoCallbackCount;
 
 #ifndef RR_PLATFORM_SDL
     // Fixed presentation-only frameskip, equivalent to the strategy used by
@@ -904,23 +955,25 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         height = currentHeight;
         data = lastData;
         pitch = lastPitch;
-        processVideoInAnotherThread = false;
     }
     else if (input_message)
     {
         width = INFO_MENU_WIDTH;
         height = INFO_MENU_HEIGHT;
-        processVideoInAnotherThread = false;
     }
     else
     {
 
         lastData = data;
         lastPitch = pitch;
-        // Preserve the RG552/Flycast2021 performance workaround and keep an
-        // explicit override for other combinations.
-        processVideoInAnotherThread =
-            (isRG552() && isFlycast2021()) || forceVideoMultithread;
+        if (forceVideoMultithread && !isRG552()) {
+            static bool warned = false;
+            if (!warned) {
+                logger.log(Logger::WARN,
+                           "retrorun_force_video_multithread ignored: supported only on RG552; it may crash other devices");
+                warned = true;
+            }
+        }
 
         if (isPPSSPP() && width < 1)
         {
@@ -940,24 +993,49 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
     }
 #endif
 
-    frameCounter++;
-    // the following is for Fast Forwarding
-    if (frameCounter == frameCounterSkip)
+    // Fast-forward must not be throttled by the display. RetroArch switches
+    // its video driver to non-blocking mode; RetroRun's presenters do not
+    // expose that operation, so discard only video updates arriving faster
+    // than the presenter's useful visible frame rate. GO2 composition is
+    // synchronous and relatively expensive, so keep a usable 10 fps preview
+    // there while leaving most of the CPU time available to retro_run().
+    static auto lastFastForwardPresentation = std::chrono::steady_clock::time_point{};
+    if (input_ffwd_requested && !input_info_requested && !input_message &&
+        !input_credits_requested && !showLoading)
     {
-        frameCounter = 0;
+        const auto now = std::chrono::steady_clock::now();
+#ifdef RR_PLATFORM_SDL
+        const double visibleFps = originalFps > 1.0f ? originalFps : 60.0f;
+#else
+        const double visibleFps = 10.0;
+#endif
+        const auto minimumInterval = std::chrono::duration<double>(1.0 / visibleFps);
+        if (lastFastForwardPresentation.time_since_epoch().count() != 0 &&
+            now - lastFastForwardPresentation < minimumInterval) {
+            ++fastForwardVideoDroppedCount;
+            return;
+        }
+        lastFastForwardPresentation = now;
+        ++fastForwardVideoPresentedCount;
     }
     else
     {
-        if (input_ffwd_requested)
-        {
-            return;
-        }
+        lastFastForwardPresentation = {};
     }
 
    /* if (true )
     {*/
         
         prepareScreen(width, height);
+        // Decoration metadata positions only emulated video. Frontend pages
+        // keep their normal dimensions so opening the menu cannot change its
+        // proportions depending on the selected bezel.
+        const bool frontend_page = input_info_requested || input_credits_requested ||
+                                   rr_keyboard_virtual_visible() ||
+                                   rr_file_browser_visible() ||
+                                   achievements_view_visible() || showLoading;
+        if (!frontend_page)
+            decoration_game_viewport(&x, &y, &w, &h);
         if (first_video_refresh){
         logger.log(Logger::DEB, "Real aspect_ratio=%f", aspect_ratio);
         logger.log(Logger::DEB, "Screen aspect_ratio=%f\n", screen_aspect_ratio);
@@ -1041,7 +1119,8 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
             !input_info_requested && !input_message &&
             !input_credits_requested && !input_fps_requested &&
             !screenshot_requested && videoShader == RR_VIDEO_SHADER_OFF;
-        if (directScanoutCandidate &&
+        const bool allowDirectScanout = directScanoutCandidate && decoration_surface() == nullptr;
+        if (allowDirectScanout &&
             rr_presenter_post_direct(presenter, gles_surface,
                                      0, rr_surface_height_get(gles_surface) - height,
                                      width, height, x, y, w, h, getRotation()))
@@ -1058,17 +1137,26 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
             rr_context_surface_unlock(context3D, directScanoutSurface);
             directScanoutSurface = nullptr;
         }
-        if (processVideoInAnotherThread)
-        {
-            std::thread th(core_video_refresh_OPENGL, data, width, height, pitch);
-            th.detach();
+        // Keep the historical RG552 pipeline used by demanding Dreamcast
+        // cores. The worker owns this specific locked surface and releases it
+        // only after the presenter has consumed it; never read the mutable
+        // global gles_surface from the detached thread.
+        const bool rg552_async = isRG552() && !input_info_requested &&
+            !input_message && !input_credits_requested && !input_fps_requested &&
+            !screenshot_requested && !input_pause_requested &&
+            !input_ffwd_requested && !rr_keyboard_virtual_visible() &&
+            !rr_file_browser_visible() && !achievements_view_visible() &&
+            !achievements_notification_visible() && !showLoading;
+        if (rg552_async) {
+            rr_surface_t *frame_surface = gles_surface;
+            std::thread([frame_surface, data, width, height, pitch]() {
+                core_video_refresh_OPENGL(frame_surface, data, width, height, pitch);
+                rr_context_surface_unlock(context3D, frame_surface);
+            }).detach();
+        } else {
+            core_video_refresh_OPENGL(gles_surface, data, width, height, pitch);
+            rr_context_surface_unlock(context3D, gles_surface);
         }
-        else
-        {
-            core_video_refresh_OPENGL(data, width, height, pitch);
-        }
-
-        rr_context_surface_unlock(context3D, gles_surface);
 #endif
     }
     else
@@ -1076,14 +1164,6 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
 
         // non-OpenGL
 
-        if (processVideoInAnotherThread)
-        {
-            std::thread th(core_video_refresh_NON_OPENGL, data, width, height, pitch);
-            th.detach();
-        }
-        else
-        {
-            core_video_refresh_NON_OPENGL(data, width, height, pitch);
-        }
+        core_video_refresh_NON_OPENGL(data, width, height, pitch);
     }
 }

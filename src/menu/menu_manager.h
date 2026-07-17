@@ -41,11 +41,13 @@ public:
     Menu& getPreviousMenu();
     void setPreviousMenu(Menu* menu);
     void resetMenu();
+    void beginSession();
     //void verify();
 
 private:
-    Menu* currentMenu_;
-    Menu* previousMenu_;
+    Menu* currentMenu_ = nullptr;
+    Menu* previousMenu_ = nullptr;
+    Menu* rootMenu_ = nullptr;
     std::stack<Menu*> queueMenus;
     //std::queue<int> queueItems;
     std::mutex current_menu_mutex_;
@@ -66,4 +68,3 @@ const std::string SHOW_CREDITS = "Credits";
 
 
 #endif  // MENU_H
-

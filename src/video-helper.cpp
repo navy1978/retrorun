@@ -37,12 +37,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "platform.h"
 
 #include "fonts.h"
-#include "imgs/imgs_numbers.h"
+#include "imgs/imgs_retrorun.h"
 #include "input.h"
 #include "system-info.h"
 #include "video.h"
 
 #include <chrono>
+#include <cstring>
 #include <unordered_map>
 
 int size_char = 8;
@@ -53,8 +54,9 @@ int posRetro = 3;
 bool loop = true;
 std::string tabSpaces = "";
 int stepCredits = 15;
-int posYCredits = INFO_MENU_HEIGHT + 8 * 2;
+int posYCredits = 8;
 int time_credit = 2;
+bool credits_fast = false;
 int offset = 0;
 bool direction_forward = true;
 int rowForText = 0;
@@ -107,7 +109,7 @@ void updateUIMenuDimensions(int destination_width, int destination_height)
     }
 
     if (INFO_MENU_WIDTH != previous_width || INFO_MENU_HEIGHT != previous_height)
-        posYCredits = INFO_MENU_HEIGHT + 16;
+        posYCredits = 8;
 }
 
 
@@ -397,7 +399,42 @@ bool canCreditBeDrawn(int pos)
 
 void resetCredisPosition()
 {
-    posYCredits = INFO_MENU_HEIGHT + 8 * 2;
+    posYCredits = 8;
+    time_credit = 2;
+    credits_fast = false;
+}
+
+void setCreditsAccelerated(bool accelerated)
+{
+    credits_fast = accelerated;
+    if (credits_fast)
+        time_credit = 0;
+}
+
+static void drawCreditLogo(int image_y, rr_surface_t **surface)
+{
+    if (!surface || !*surface) return;
+    const int image_x = (INFO_MENU_WIDTH - static_cast<int>(retrorun_logo.width)) / 2;
+    const int source_width = static_cast<int>(retrorun_logo.width);
+    const int source_height = static_cast<int>(retrorun_logo.height);
+    const int start_x = std::max(0, image_x);
+    const int end_x = std::min(INFO_MENU_WIDTH, image_x + source_width);
+    const int start_y = std::max(0, image_y);
+    const int end_y = std::min(INFO_MENU_HEIGHT, image_y + source_height);
+    if (start_x >= end_x || start_y >= end_y) return;
+
+    auto* destination = static_cast<uint8_t*>(rr_surface_map(*surface));
+    if (!destination) return;
+    const int destination_stride = rr_surface_stride_get(*surface);
+    const auto* source = reinterpret_cast<const uint16_t*>(retrorun_logo.pixel_data);
+    for (int y = start_y; y < end_y; ++y) {
+        const int source_y = y - image_y;
+        const int source_x = start_x - image_x;
+        std::memcpy(destination + y * destination_stride + start_x * sizeof(uint16_t),
+                    source + source_y * source_width + source_x,
+                    static_cast<size_t>(end_x - start_x) * sizeof(uint16_t));
+    }
+    rr_surface_unmap(*surface);
 }
 
 
@@ -460,6 +497,81 @@ void showCenteredText(int y, const char *text, unsigned short color, rr_surface_
     // showText(0, y, title.c_str(), color, surface);
 }
 
+static void drawSelectedMenuRow(int y, rr_surface_t **surface)
+{
+    if (!surface || !*surface) return;
+    auto *pixels = static_cast<uint16_t *>(rr_surface_map(*surface));
+    if (!pixels) return;
+
+    const int width = rr_surface_width_get(*surface);
+    const int height = rr_surface_height_get(*surface);
+    const int stride = rr_surface_stride_get(*surface) / sizeof(uint16_t);
+    const int row_height = getResolvedUIProfile() == UIProfile::Handheld ? 10 : 12;
+    const int top = std::max(0, y - 1);
+    const int bottom = std::min(height, top + row_height);
+    const int left = 4;
+    const int right = std::max(left, width - 4);
+#ifdef RR_PLATFORM_GO2
+    // The native handheld panels render very dark RGB565 blues close to black.
+    constexpr uint16_t selected_blue = 0x2b5f;
+#else
+    constexpr uint16_t selected_blue = 0x214a;
+#endif
+
+    for (int py = top; py < bottom; ++py)
+        std::fill(pixels + py * stride + left,
+                  pixels + py * stride + right,
+                  selected_blue);
+    rr_surface_unmap(*surface);
+}
+
+static void drawMenuRowColumns(int y, const std::string &label,
+                               const std::string &right_text,
+                               unsigned short color, rr_surface_t **surface)
+{
+    constexpr int margin = 12;
+    constexpr int glyph_width = 8;
+    const int right_edge = INFO_MENU_WIDTH - margin;
+    const int right_width = static_cast<int>(right_text.size()) * glyph_width;
+    const int right_x = right_edge - right_width;
+    const int gap = right_text.empty() ? 0 : glyph_width;
+    const int required_width = static_cast<int>(label.size()) * glyph_width +
+                               gap + right_width;
+    const int available_width = INFO_MENU_WIDTH - margin * 2;
+
+    if (required_width <= available_width) {
+        showText(margin, y, label.c_str(), color, surface);
+        if (!right_text.empty())
+            showText(right_x, y, right_text.c_str(), color, surface);
+    } else {
+        const std::string complete_row = right_text.empty()
+                                             ? label
+                                             : label + "  " + right_text;
+        showLongCenteredText(y, complete_row.c_str(), color, surface);
+    }
+}
+
+static void drawInfoRow(const std::string &label, const std::string &value,
+                        rr_surface_t **surface)
+{
+    constexpr int margin = 12;
+    constexpr int glyph_width = 8;
+    const int row = getRowForText();
+    const int value_width = static_cast<int>(value.size()) * glyph_width;
+    const int value_x = INFO_MENU_WIDTH - margin - value_width;
+    const int required_width = static_cast<int>(label.size()) * glyph_width +
+                               glyph_width + value_width;
+    const int available_width = INFO_MENU_WIDTH - margin * 2;
+
+    if (required_width <= available_width) {
+        showText(margin, row, label.c_str(), DARKGREY, surface);
+        showText(value_x, row, value.c_str(), LIGHTGREY, surface);
+    } else {
+        const std::string complete_row = label + ": " + value;
+        showLongCenteredText(row, complete_row.c_str(), LIGHTGREY, surface);
+    }
+}
+
 void showMovingHeaderText(int y, const char *text, unsigned short color, rr_surface_t **surface)
 {
     const std::string title(text ? text : "");
@@ -482,26 +594,18 @@ void showMovingHeaderText(int y, const char *text, unsigned short color, rr_surf
     }
 
     constexpr double speed_pixels_per_second = 30.0;
-    constexpr double endpoint_pause_seconds = 0.7;
     const int maximum_x = INFO_MENU_WIDTH - text_width;
     const double travel_seconds = maximum_x / speed_pixels_per_second;
-    const double cycle_seconds = endpoint_pause_seconds * 2.0 + travel_seconds * 2.0;
+    const double cycle_seconds = travel_seconds * 2.0;
     double elapsed = std::chrono::duration<double>(
                          std::chrono::steady_clock::now() - state.started).count();
     elapsed = std::fmod(elapsed, cycle_seconds);
 
-    double position = 0.0;
-    if (elapsed < endpoint_pause_seconds) {
-        position = 0.0;
-    } else if (elapsed < endpoint_pause_seconds + travel_seconds) {
-        position = (elapsed - endpoint_pause_seconds) * speed_pixels_per_second;
-    } else if (elapsed < endpoint_pause_seconds * 2.0 + travel_seconds) {
-        position = maximum_x;
-    } else {
-        position = maximum_x -
-                   (elapsed - endpoint_pause_seconds * 2.0 - travel_seconds) *
-                       speed_pixels_per_second;
-    }
+    // Bounce as soon as the text touches either edge. The previous endpoint
+    // pause made the header appear unresponsive before changing direction.
+    const double position = elapsed < travel_seconds
+        ? elapsed * speed_pixels_per_second
+        : maximum_x - (elapsed - travel_seconds) * speed_pixels_per_second;
 
     showText(static_cast<int>(position), y, title.c_str(), color, surface);
 }
@@ -532,41 +636,38 @@ void showInfoDevice(rr_surface_t **surface)
 {
 #ifdef RR_PLATFORM_SDL
     const SystemInfo info = querySystemInfo();
-    showCenteredText(getRowForText(), ("Host: " + info.hostname).c_str(), DARKGREY, surface);
-    showCenteredText(getRowForText(), ("Model: " + info.model).c_str(), DARKGREY, surface);
-    showLongCenteredText(getRowForText(), ("OS: " + info.operating_system).c_str(), DARKGREY, surface);
-    showLongCenteredText(getRowForText(), ("CPU: " + info.cpu).c_str(), DARKGREY, surface);
-    showCenteredText(getRowForText(), ("CPU threads: " + std::to_string(info.logical_cpus)).c_str(), DARKGREY, surface);
-    showLongCenteredText(getRowForText(), ("Renderer: " + info.gpu).c_str(), DARKGREY, surface);
-    std::string memory = "RAM: " + std::to_string(info.total_memory_mb) + " MB";
+    drawInfoRow("Host", info.hostname, surface);
+    drawInfoRow("Model", info.model, surface);
+    drawInfoRow("OS", info.operating_system, surface);
+    drawInfoRow("CPU", info.cpu, surface);
+    drawInfoRow("CPU threads", std::to_string(info.logical_cpus), surface);
+    drawInfoRow("Renderer", info.gpu, surface);
+    std::string memory = std::to_string(info.total_memory_mb) + " MB";
     if (info.available_memory_mb)
         memory += " (free " + std::to_string(info.available_memory_mb) + " MB)";
-    showCenteredText(getRowForText(), memory.c_str(), DARKGREY, surface);
+    drawInfoRow("RAM", memory, surface);
     return;
 #endif
     std::string hostName(getDeviceName());
     hostName = stripReturnCarriage(hostName);
-    showCenteredText(getRowForText(), (tabSpaces + "Model: " + hostName).c_str(), DARKGREY, surface);
+    drawInfoRow("Model", hostName, surface);
 
     std::string tot_ram = "Total RAM: N/A";
-    std::string free_ram = "Free RAM: N/A";
 #ifdef RR_PLATFORM_GO2
     struct sysinfo sys_info;
     // std::string procs = "Number of processes: N/A";
     if (sysinfo(&sys_info) == 0)
     {
         long total_ram_val = sys_info.totalram / (1024 * 1024);
-        long free_ram_val = sys_info.freeram / (1024 * 1024);
         // long number_procs = sys_info.procs;
         tot_ram = std::to_string(total_ram_val) + " MB";
-        free_ram = std::to_string(free_ram_val) + " MB";
         // procs = "# of processes:" + std::to_string(number_procs);
     }
 #endif
 
     for (const auto &cpu_info : cpu_info_list)
     {
-        showCenteredText(getRowForText(), ("CPU(s): " + cpu_info.number_of_cpu + " " + cpu_info.cpu_name).c_str(), DARKGREY, surface);
+        drawInfoRow("CPU(s)", cpu_info.number_of_cpu + " " + cpu_info.cpu_name, surface);
         // showCenteredText(getRowForText(), ("CPU(s) Model:"+cpu_info.cpu_name).c_str(), DARKGREY, surface);
         // showCenteredText(getRowForText(), ("CPU(s) Thread per Core:"+cpu_info.thread_per_cpu).c_str(), DARKGREY, surface);
     }
@@ -574,54 +675,40 @@ void showInfoDevice(rr_surface_t **surface)
 
     // showCenteredText(getRowForText(), (tot_ram).c_str(), DARKGREY, surface);
 
-    showCenteredText(getRowForText(), ("GPU: " + gpu_name).c_str(), DARKGREY, surface);
-    showCenteredText(getRowForText(), ("RAM: " + tot_ram).c_str(), DARKGREY, surface);
+    drawInfoRow("GPU", gpu_name, surface);
+    drawInfoRow("RAM", tot_ram, surface);
     // showCenteredText(getRowForText(), (procs).c_str(), DARKGREY, surface);
 }
 
 void showInfoCore(rr_surface_t **surface)
 {
-    std::string core = tabSpaces + "Name: ";
-    showCenteredText(getRowForText(), const_cast<char *>(core.append(coreName).c_str()), DARKGREY, surface);
-    std::string version = tabSpaces + "Version: ";
-    showCenteredText(getRowForText(), const_cast<char *>(version.append(coreVersion).c_str()), DARKGREY, surface);
-    std::string canzip = tabSpaces + "Files .zip allowed: ";
-    showCenteredText(getRowForText(), const_cast<char *>(canzip.append(coreReadZippedFiles ? "true" : "false").c_str()), DARKGREY, surface);
-
-    std::string openGl = tabSpaces + "OpenGL: ";
-    showCenteredText(getRowForText(), const_cast<char *>(openGl.append(isOpenGL ? "true" : "false").c_str()), DARKGREY, surface);
+    drawInfoRow("Name", coreName, surface);
+    drawInfoRow("Version", coreVersion, surface);
+    drawInfoRow("ZIP files", coreReadZippedFiles ? "Allowed" : "Not allowed", surface);
+    drawInfoRow("OpenGL", isOpenGL ? "Yes" : "No", surface);
 }
 
 void showInfoGame(rr_surface_t **surface)
 {
-    std::string origFps = tabSpaces + "Orignal FPS: ";
-    showCenteredText(getRowForText(), const_cast<char *>(origFps.append(std::to_string((int)originalFps)).c_str()), DARKGREY, surface);
-
-    std::string averageFps = tabSpaces + "Average FPS: ";
-    showCenteredText(getRowForText(), const_cast<char *>(averageFps.append(std::to_string((int)avgFps)).c_str()), DARKGREY, surface);
-
-    std::string res2 = tabSpaces + "Resolution: ";
-    showCenteredText(getRowForText(), const_cast<char *>(res2.append(std::to_string(currentWidth)).append("x").append(std::to_string(currentHeight)).c_str()), DARKGREY, surface);
-    std::string orientation = tabSpaces + "Orientation: ";
-    showCenteredText(getRowForText(), const_cast<char *>(orientation.append(isGameVertical ? "Portrait" : "Landscape").c_str()), DARKGREY, surface);
+    drawInfoRow("Original FPS", std::to_string(static_cast<int>(originalFps)), surface);
+    drawInfoRow("Average FPS", std::to_string(static_cast<int>(avgFps)), surface);
+    drawInfoRow("Resolution", std::to_string(currentWidth) + "x" +
+                std::to_string(currentHeight), surface);
+    drawInfoRow("Orientation", isGameVertical ? "Portrait" : "Landscape", surface);
 }
 
 void showInfoGraphics(int, rr_surface_t **surface, int)
 {
     const std::string backend = std::string(rr_platform_backend_name()) == "sdl2"
                                     ? "SDL2" : "GO2 / DRM";
-    showCenteredText(getRowForText(), ("Backend: " + backend).c_str(), DARKGREY, surface);
-    showLongCenteredText(getRowForText(),
-                         ("Renderer: " + std::string(rr_platform_renderer_name())).c_str(),
-                         DARKGREY, surface);
-    showCenteredText(getRowForText(),
-                     isOpenGL ? "Core video: Hardware OpenGL" : "Core video: Software",
-                     DARKGREY, surface);
+    drawInfoRow("Backend", backend, surface);
+    drawInfoRow("Renderer", rr_platform_renderer_name(), surface);
+    drawInfoRow("Core video", isOpenGL ? "Hardware OpenGL" : "Software", surface);
 
-    const std::string output = "Output: " + std::to_string(rr_display_width_get(display)) + "x" +
-                               std::to_string(rr_display_height_get(display)) + " / Core: " +
+    const std::string output = std::to_string(rr_display_width_get(display)) + "x" +
+                               std::to_string(rr_display_height_get(display)) + " / Core " +
                                std::to_string(currentWidth) + "x" + std::to_string(currentHeight);
-    showLongCenteredText(getRowForText(), output.c_str(), DARKGREY, surface);
+    drawInfoRow("Output", output, surface);
 
     const char *pixel_format = "Unknown";
     if (color_format == RR_PIXEL_FORMAT_RGB565) pixel_format = "RGB565";
@@ -629,41 +716,43 @@ void showInfoGraphics(int, rr_surface_t **surface, int)
     else if (color_format == RR_PIXEL_FORMAT_XRGB8888) pixel_format = "XRGB8888";
     else if (color_format == RR_PIXEL_FORMAT_RGBA8888) pixel_format = "RGBA8888";
     else if (color_format == RR_PIXEL_FORMAT_RGBA5551) pixel_format = "RGBA5551";
-    showCenteredText(getRowForText(), ("Pixel format: " + std::string(pixel_format)).c_str(),
-                     DARKGREY, surface);
+    drawInfoRow("Pixel format", pixel_format, surface);
 
     char aspect[64] = {};
-    std::snprintf(aspect, sizeof(aspect), "Aspect ratio: %.3f", aspect_ratio);
-    showCenteredText(getRowForText(), aspect, DARKGREY, surface);
+    std::snprintf(aspect, sizeof(aspect), "%.3f", aspect_ratio);
+    drawInfoRow("Aspect ratio", aspect, surface);
 
     static const char *filter_names[] = {"Off", "Nearest", "Linear"};
     static const char *shader_names[] = {"Off", "Scanlines", "CRT"};
     const int filter = static_cast<int>(rr_video_filter_get());
     const int shader = static_cast<int>(rr_video_shader_get());
-    const std::string effects = "Filter: " + std::string(filter_names[filter]) +
-                                " / Shader: " + shader_names[shader];
-    showLongCenteredText(getRowForText(), effects.c_str(), DARKGREY, surface);
+    const std::string effects = std::string(filter_names[filter]) +
+                                " / Shader " + shader_names[shader];
+    drawInfoRow("Filter", effects, surface);
 
 #ifdef RR_PLATFORM_SDL
-    const std::string sync = std::string("VSync: ") + (rr_video_vsync_get() ? "On" : "Off") +
-                             " / Pixel perfect: " + (pixel_perfect ? "On" : "Off");
+    const std::string sync = std::string(rr_video_vsync_get() ? "On" : "Off") +
+                             " / Pixel " + (pixel_perfect ? "On" : "Off");
 #else
-    const std::string sync = std::string("VSync: Backend / Pixel perfect: ") +
+    const std::string sync = std::string("Backend / Pixel ") +
                              (pixel_perfect ? "On" : "Off");
 #endif
-    showLongCenteredText(getRowForText(), sync.c_str(), DARKGREY, surface);
+    drawInfoRow("VSync", sync, surface);
 
     static const char *profile_names[] = {"Auto", "Handheld", "Desktop"};
-    const std::string profile = "UI: " +
+    const std::string profile =
         std::string(profile_names[static_cast<int>(getUIProfile())]) + " -> " +
         profile_names[static_cast<int>(getResolvedUIProfile())];
-    showCenteredText(getRowForText(), profile.c_str(), DARKGREY, surface);
+    drawInfoRow("UI profile", profile, surface);
 }
 
 void showCredits(rr_surface_t **surface)
 {
-
-    if (time_credit > 0)
+    if (credits_fast)
+    {
+        posYCredits--;
+    }
+    else if (time_credit > 0)
     {
         time_credit--;
     }
@@ -675,6 +764,9 @@ void showCredits(rr_surface_t **surface)
 
     /// DEV
     int currentY = posYCredits;
+
+    drawCreditLogo(currentY, surface);
+    currentY += static_cast<int>(retrorun_logo.height) + stepCredits;
 
     drawCreditLine(currentY, "RetroRun", ORANGE, surface);
     currentY += stepCredits;
@@ -704,6 +796,39 @@ void showCredits(rr_surface_t **surface)
     drawCreditLine(currentY, "OtherCrashOverride", WHITE, surface);
     currentY += stepCredits;
     drawCreditLine(currentY, "navy1978", WHITE, surface);
+
+    currentY += stepCredits * 3;
+
+    drawCreditLine(currentY, "RetroAchievements", DARKGREY, surface);
+    currentY += stepCredits;
+    drawCreditLine(currentY, "rcheevos (MIT License)", WHITE, surface);
+
+    currentY += stepCredits * 3;
+    drawCreditLine(currentY, "Portable libraries", DARKGREY, surface);
+    currentY += stepCredits;
+    drawCreditLine(currentY, "SDL2 / libpng", WHITE, surface);
+    currentY += stepCredits;
+    drawCreditLine(currentY, "libcurl / zlib", WHITE, surface);
+
+    currentY += stepCredits * 3;
+    drawCreditLine(currentY, "GO2 platform libraries", DARKGREY, surface);
+    currentY += stepCredits;
+    drawCreditLine(currentY, "DRM / GBM / EGL", WHITE, surface);
+    currentY += stepCredits;
+    drawCreditLine(currentY, "OpenGL ES / RGA", WHITE, surface);
+    currentY += stepCredits;
+    drawCreditLine(currentY, "ALSA / OpenAL Soft", WHITE, surface);
+    currentY += stepCredits;
+    drawCreditLine(currentY, "libevdev", WHITE, surface);
+
+    currentY += stepCredits * 3;
+    drawCreditLine(currentY, "Artwork", DARKGREY, surface);
+    currentY += stepCredits;
+    drawCreditLine(currentY, "Streamline Core Line Free", WHITE, surface);
+    currentY += stepCredits;
+    drawCreditLine(currentY, "libretro/common-overlays", WHITE, surface);
+    currentY += stepCredits;
+    drawCreditLine(currentY, "CC BY 4.0", WHITE, surface);
 
     currentY += stepCredits * 3;
     
@@ -779,20 +904,31 @@ void showInfo(int w, rr_surface_t **surface)
 
         else if (mi.isQuit()|| mi.isQuestion())
         {
-            showCenteredText(getRowForText(), (tabSpaces + mi.get_name() + ": < " + mi.getValues()[mi.getValue()] + " >").c_str(), mi.isSelected() ? WHITE : DARKGREY, surface);
+            const int row = getRowForText();
+            if (mi.isSelected()) drawSelectedMenuRow(row, surface);
+            showCenteredText(row, (tabSpaces + mi.get_name() + ": < " + mi.getValues()[mi.getValue()] + " >").c_str(), mi.isSelected() ? WHITE : DARKGREY, surface);
         }
         else if (mi.getMenu() != NULL)
         {
-
-            showCenteredText(getRowForText(), (tabSpaces + mi.get_name()).c_str(), mi.isSelected() ? WHITE : DARKGREY, surface);
+            const int row = getRowForText();
+            if (mi.isSelected()) drawSelectedMenuRow(row, surface);
+            drawMenuRowColumns(row, mi.get_name(), ">",
+                               mi.isSelected() ? WHITE : DARKGREY, surface);
         }
         else if (mi.m_valueCalculator != NULL)
         {
-            showCenteredText(getRowForText(), (tabSpaces + mi.get_name() + ": < " + mi.getStringValue() + mi.getMisUnit() + " >").c_str(), mi.isSelected() ? WHITE : DARKGREY, surface);
+            const int row = getRowForText();
+            if (mi.isSelected()) drawSelectedMenuRow(row, surface);
+            const std::string value = "< " + mi.getStringValue() + mi.getMisUnit() + " >";
+            drawMenuRowColumns(row, mi.get_name(), value,
+                               mi.isSelected() ? WHITE : DARKGREY, surface);
         }
         else
         {
-            showCenteredText(getRowForText(), (tabSpaces + mi.get_name()).c_str(), mi.isSelected() ? WHITE : DARKGREY, surface);
+            const int row = getRowForText();
+            if (mi.isSelected()) drawSelectedMenuRow(row, surface);
+            drawMenuRowColumns(row, mi.get_name(), "",
+                               mi.isSelected() ? WHITE : DARKGREY, surface);
         }
     }
 
@@ -855,50 +991,73 @@ std::string getCurrentTimeForFileName()
     return str;
 }
 
-void showNumberSprite(int x, int y, int number, int width, int height, const uint8_t *src)
-{
-    int height_sprite = height / 10; // 10 are the total number of sprites present in the image
-    int src_stride = width * sizeof(short);
-    uint8_t *dst = (uint8_t *)rr_surface_map(status_surface_top_right);
-    if (dst == nullptr)
-    {
-        return;
-    }
-    int dst_stride = rr_surface_stride_get(status_surface_top_right);
-    int brightnessIndex = number;
-    src += (brightnessIndex * height_sprite * src_stride); // 18
-    dst += x * sizeof(short) + y * dst_stride;
-    for (int y = 0; y < height_sprite; ++y) // 16
-    {
-        memcpy(dst, src, width * sizeof(short));
-        src += src_stride;
-        dst += dst_stride;
-    }
-}
-
-int getDigit(int n, int position)
-{
-    int res = (int)(n / pow(10, (position - 1))) % 10;
-    if (res > 9)
-        res = 9;
-    if (res < 0)
-        res = 0;
-    return res;
-}
-
-int getWidthFPS()
-{
-
-    return rr_surface_width_get(status_surface_top_right);
-}
-
 void showFPSImage()
 {
-    int x = getWidthFPS() - (numbers.width * 2); // depends on the width of the image
-    int y = 0;
-    int capFps = fps>99 ? 99: fps;
-    showNumberSprite(x, y, getDigit(capFps, 2), numbers.width, numbers.height, numbers.pixel_data);
-    showNumberSprite(x + numbers.width, y, getDigit(capFps, 1), numbers.width, numbers.height, numbers.pixel_data);
+    static rr_surface_t* rendered_surface = nullptr;
+    static int rendered_fps = -1;
+    const int displayed_fps = std::max(0, static_cast<int>(fps));
+
+    // Hot path: this function is called every presented frame, while the FPS
+    // value changes much less frequently. Avoid string creation, surface
+    // queries and mapping unless the displayed integer actually changes.
+    if (rendered_surface == status_surface_top_right &&
+        status_surface_top_right && rendered_fps == displayed_fps)
+        return;
+
+    const std::string label = "FPS: " + std::to_string(displayed_fps);
+    constexpr int horizontal_padding = 6;
+    constexpr int glyph_width = 8;
+    constexpr int surface_height = 20;
+    // Reserve three FPS digits from the first frame. If an unusually large
+    // value needs more room, grow the surface but never shrink it again during
+    // the session: GO2 recycles scanout buffers and a narrower replacement
+    // would otherwise leave part of the previous rectangle visible.
+    constexpr int minimum_characters = 8; // "FPS: " + three digits
+    const int requested_width = horizontal_padding * 2 +
+        std::max(minimum_characters, static_cast<int>(label.size())) * glyph_width;
+    const int current_width = status_surface_top_right
+        ? rr_surface_width_get(status_surface_top_right) : 0;
+    const int surface_width = std::max(current_width, requested_width);
+
+    if (status_surface_top_right &&
+        (current_width < requested_width ||
+         rr_surface_height_get(status_surface_top_right) != surface_height)) {
+        rr_surface_destroy(status_surface_top_right);
+        status_surface_top_right = nullptr;
+    }
+    if (!status_surface_top_right)
+        status_surface_top_right = rr_surface_create(display, surface_width,
+                                                     surface_height, format_565);
+
+    rendered_surface = status_surface_top_right;
+    rendered_fps = displayed_fps;
+
+    const int stride = rr_surface_stride_get(status_surface_top_right) / 2;
+    auto* destination = static_cast<uint16_t*>(rr_surface_map(status_surface_top_right));
+    if (!destination) return;
+    std::fill(destination, destination + stride * surface_height,
+              static_cast<uint16_t>(0x0000));
+    // Opaque two-tone bevel matching the menu and notification frame.
+    std::fill(destination + 1 * stride + 3,
+              destination + 1 * stride + surface_width - 3,
+              static_cast<uint16_t>(0x6b4d));
+    std::fill(destination + 2 * stride + 2,
+              destination + 2 * stride + surface_width - 2,
+              static_cast<uint16_t>(0x5acb));
+    std::fill(destination + (surface_height - 2) * stride + 3,
+              destination + (surface_height - 2) * stride + surface_width - 2,
+              static_cast<uint16_t>(0x18e3));
+    for (int y = 3; y < surface_height - 2; ++y) {
+        destination[y * stride + 1] = 0x5acb;
+        destination[y * stride + surface_width - 2] = 0x2124;
+    }
+    basic_text_out16_nf_color_clipped(destination, stride, surface_width,
+                                      surface_height, horizontal_padding + 1, 7,
+                                      label.c_str(), 0x4208);
+    basic_text_out16_nf_color_clipped(destination, stride, surface_width,
+                                      surface_height, horizontal_padding, 6,
+                                      label.c_str(), WHITE);
+    rr_surface_unmap(status_surface_top_right);
 }
 
 void showFullImage_888(int x, int y, int width, int height, const uint8_t *src, rr_surface_t **surface)

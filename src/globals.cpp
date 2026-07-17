@@ -26,7 +26,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <unistd.h>
 
 
-std::string release = "3.0.0";
+std::string release = "3.1.0";
 
 
 
@@ -77,7 +77,6 @@ int frameCounterSkip = 4;
 int audioCounter = 0;
 int audioCounterSkip = 6;
 
-bool processVideoInAnotherThread = true;
 bool forceVideoMultithread = false;
 // Frame duplication is perceptible on handheld displays. Keep adaptive
 // skipping opt-in until backend-specific timings can exclude vblank waits.
@@ -93,6 +92,7 @@ bool runLoopAtDeclaredfps = true;
 
 int retrorun_audio_buffer = -1; // means it will be fixed to a value related with the original FPS of the game
 int new_retrorun_audio_buffer = -1;
+bool retrorun_audio_stable_buffer = false;
 int retrorun_mouse_speed_factor = 5;
 std::string retrorun_device_name;
 std::vector<CpuInfo> cpu_info_list;
@@ -114,7 +114,8 @@ bool pause_requested = false;
 
 int deviceTypeSelected=1;
 std::map<unsigned, std::string> controllerMap;
-AnalogToDigital analogToDigital = LEFT_ANALOG;
+// Preserve the historical retrorun_force_left_analog_stick=true behaviour.
+AnalogToDigital analogToDigital = LEFT_ANALOG_FORCED;
 
 joypad joy= joypad();
 

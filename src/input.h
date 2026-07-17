@@ -23,7 +23,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <stdint.h>
 #include <stdbool.h>
 #include "platform.h"
+#include "globals.h"
 #include <map>
+#include "libretro.h"
+#include <string>
 
 
 extern bool input_exit_requested;
@@ -56,3 +59,11 @@ rr_input_state_t* input_gampad_current_get();
 void core_input_poll(void);
 int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigned id);
 void applyButtonRemapping();
+void fastForwardSetOverride(const retro_fastforwarding_override* override_state);
+void fastForwardResetOverride();
+bool fastForwardToggleAllowed();
+float fastForwardRatio();
+bool fastForwardNotificationVisible();
+bool setAnalogToDigitalMode(const std::string& value);
+const char* analogToDigitalModeName(AnalogToDigital mode);
+AnalogToDigital effectiveAnalogToDigitalMode(unsigned port);
