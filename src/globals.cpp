@@ -19,6 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 #include "globals.h"
 #include <cstring>
+#include <strings.h>
 #include <string>
 #include <sstream>
 #include <regex>
@@ -371,13 +372,14 @@ const char *getDeviceName() noexcept
     return DEVICE_NAME;
 }
 
-bool checkDeviceName(char *target)
+bool checkDeviceName(const char *target)
 {
-
     size_t targetLength = strlen(target);
 
-    // Check if the first part of DEVICE_NAME matches the target
-    if (strncmp(DEVICE_NAME, target, targetLength) == 0)
+    // OS images do not consistently preserve the vendor's capitalization.
+    // Match the model name case-insensitively, but keep the end-of-name check
+    // so, for example, RG351M never matches a longer unrelated identifier.
+    if (strncasecmp(DEVICE_NAME, target, targetLength) == 0)
     {
         // Check if the next character is '\n' or if DEVICE_NAME is exactly "RG351M"
         return (DEVICE_NAME[targetLength] == '\n' || DEVICE_NAME[targetLength] == '\0');
@@ -387,38 +389,43 @@ bool checkDeviceName(char *target)
 
 bool isRG351M()
 {
-    return checkDeviceName((char *)"RG351M"); // strcmp(DEVICE_NAME, "RG351M\n") == 0;
+    return checkDeviceName("RG351M"); // strcmp(DEVICE_NAME, "RG351M\n") == 0;
 }
 bool isRG351P()
 {
-    return checkDeviceName((char *)"RG351P");
+    return checkDeviceName("RG351P");
 }
 bool isRG351V()
 {
-    return checkDeviceName((char *)"RG351V"); 
+    return checkDeviceName("RG351V");
 }
 bool isRG351MP()
 {
-    return checkDeviceName((char *)"RG351MP"); 
+    return checkDeviceName("RG351MP");
 }
 bool isRG552()
 {
-    return checkDeviceName((char *)"RG552"); 
+    return checkDeviceName("RG552");
 }
 bool isRG503()
 {
-    return checkDeviceName((char *)"RG503"); 
+    return checkDeviceName("RG503");
 }
 bool isRG353V()
 {
-    return checkDeviceName((char *)"RG353V"); 
+    return checkDeviceName("RG353V");
 }
 bool isRG353M()
 {
-    return checkDeviceName((char *)"RG353M"); 
+    return checkDeviceName("RG353M");
+}
+bool isMiniloongPocket1()
+{
+    return checkDeviceName("Miniloong Pocket 1");
 }
 bool hasDeviceRotatedScreen(){
-   return  isRG351V() || isRG351MP() || isRG503() || isRG353V() || isRG353M();
+   return  isRG351V() || isRG351MP() || isRG503() || isRG353V() || isRG353M() ||
+           isMiniloongPocket1();
 }
 bool wideScreenNotRotated(){
     return  isRG503();

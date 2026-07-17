@@ -1,5 +1,7 @@
 #include "platform.h"
 
+#include "globals.h"
+
 #include "go2/audio.h"
 #include "go2/display.h"
 #include "go2/input.h"
@@ -47,6 +49,21 @@ static_assert(static_cast<int>(RR_ROTATION_VERTICAL) == static_cast<int>(GO2_ROT
               "GO2 and platform rotation layouts must match");
 
 static go2_rotation_t native_rotation(rr_rotation_t value) {
+    // The Miniloong Pocket 1 exposes its 720x1280 panel in portrait through
+    // DRM. RetroRun works in its landscape logical coordinate space, so add
+    // the panel's fixed 270 degree transform to every GO2 presentation path.
+    // Doing this at the platform boundary keeps RGA blits, overlays and the
+    // direct-scanout plane in the same orientation. It also composes with
+    // both Tate directions instead of forcing a single global rotation.
+    if (isMiniloongPocket1()) {
+        switch (value) {
+        case RR_ROTATION_DEGREES_0:   return GO2_ROTATION_DEGREES_270;
+        case RR_ROTATION_DEGREES_90:  return GO2_ROTATION_DEGREES_0;
+        case RR_ROTATION_DEGREES_180: return GO2_ROTATION_DEGREES_90;
+        case RR_ROTATION_DEGREES_270: return GO2_ROTATION_DEGREES_180;
+        default: break;
+        }
+    }
     return static_cast<go2_rotation_t>(value);
 }
 

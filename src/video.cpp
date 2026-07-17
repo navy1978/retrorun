@@ -135,6 +135,8 @@ static rr_surface_t *directScanoutSurface = nullptr;
 void video_configure(struct retro_game_geometry *geom)
 {
     logger.log(Logger::DEB, "Configuring video...");
+    if (isMiniloongPocket1())
+        logger.log(Logger::INF, "Miniloong Pocket 1 detected: using portrait-panel rotation.");
     if (isPPSSPP() && geom->base_height == 0)
     {
         // for PPSSPP is possible to receive geom with 0 values

@@ -90,7 +90,7 @@ UIProfile getResolvedUIProfile()
 #else
     (void)getDeviceName();
     if (isRG351M() || isRG351P() || isRG351V() || isRG351MP() || isRG552() ||
-        isRG503() || isRG353V() || isRG353M())
+        isRG503() || isRG353V() || isRG353M() || isMiniloongPocket1())
         return UIProfile::Handheld;
     return UIProfile::Desktop;
 #endif
