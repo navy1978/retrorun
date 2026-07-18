@@ -201,31 +201,57 @@ void go2_audio_submit(go2_audio_t *audio, const short *data, int frames)
 
 }
 
-uint32_t go2_audio_volume_get(go2_audio_t *audio, const char *selem_name)
+static snd_mixer_elem_t *go2_audio_open_mixer_element(snd_mixer_t **handle,
+                                                        const char *selem_name)
 {
-    snd_mixer_t *handle;
-    snd_mixer_selem_id_t *sid;
     const char *card = "default";
-    //  = isRG552()? "DAC" : "Playback";
+    snd_mixer_selem_id_t *sid;
 
-    snd_mixer_open(&handle, 0);
-    snd_mixer_attach(handle, card);
-    snd_mixer_selem_register(handle, NULL, NULL);
-    snd_mixer_load(handle);
+    *handle = NULL;
+    if (snd_mixer_open(handle, 0) < 0 ||
+        snd_mixer_attach(*handle, card) < 0 ||
+        snd_mixer_selem_register(*handle, NULL, NULL) < 0 ||
+        snd_mixer_load(*handle) < 0)
+    {
+        if (*handle)
+            snd_mixer_close(*handle);
+        *handle = NULL;
+        logger.log(Logger::WARN, "Unable to open ALSA mixer control '%s'.", selem_name);
+        return NULL;
+    }
 
     snd_mixer_selem_id_alloca(&sid);
     snd_mixer_selem_id_set_index(sid, 0);
     snd_mixer_selem_id_set_name(sid, selem_name);
 
-    snd_mixer_elem_t *elem = snd_mixer_find_selem(handle, sid);
+    snd_mixer_elem_t *elem = snd_mixer_find_selem(*handle, sid);
+    if (!elem)
+        logger.log(Logger::WARN, "ALSA mixer control '%s' not found; volume control disabled.", selem_name);
+    return elem;
+}
+
+uint32_t go2_audio_volume_get(go2_audio_t *audio, const char *selem_name)
+{
+    snd_mixer_t *handle;
+    snd_mixer_elem_t *elem = go2_audio_open_mixer_element(&handle, selem_name);
+    if (!elem)
+        return 100;
 
     long min;
     long max;
-    snd_mixer_selem_get_playback_volume_range(elem, &min, &max);
+    if (snd_mixer_selem_get_playback_volume_range(elem, &min, &max) < 0 || max <= min)
+    {
+        snd_mixer_close(handle);
+        return 100;
+    }
 
     // snd_mixer_selem_set_playback_volume_all(elem, value / 100.0f * max);
     long volume;
-    snd_mixer_selem_get_playback_volume(elem, SND_MIXER_SCHN_MONO, &volume);
+    if (snd_mixer_selem_get_playback_volume(elem, SND_MIXER_SCHN_MONO, &volume) < 0)
+    {
+        snd_mixer_close(handle);
+        return 100;
+    }
 
     snd_mixer_close(handle);
 
@@ -240,24 +266,17 @@ void go2_audio_volume_set(go2_audio_t *audio, uint32_t value, const char *selem_
     // https://gist.github.com/wolfg1969/3575700
 
     snd_mixer_t *handle;
-    snd_mixer_selem_id_t *sid;
-    const char *card = "default";
-    // const char *selem_name = isRG552()? "DAC" : "Playback";
-
-    snd_mixer_open(&handle, 0);
-    snd_mixer_attach(handle, card);
-    snd_mixer_selem_register(handle, NULL, NULL);
-    snd_mixer_load(handle);
-
-    snd_mixer_selem_id_alloca(&sid);
-    snd_mixer_selem_id_set_index(sid, 0);
-    snd_mixer_selem_id_set_name(sid, selem_name);
-
-    snd_mixer_elem_t *elem = snd_mixer_find_selem(handle, sid);
+    snd_mixer_elem_t *elem = go2_audio_open_mixer_element(&handle, selem_name);
+    if (!elem)
+        return;
 
     long min;
     long max;
-    snd_mixer_selem_get_playback_volume_range(elem, &min, &max);
+    if (snd_mixer_selem_get_playback_volume_range(elem, &min, &max) < 0 || max <= min)
+    {
+        snd_mixer_close(handle);
+        return;
+    }
     // printf("volume: min=%ld, max=%ld\n", min, max);
 
     snd_mixer_selem_set_playback_volume_all(elem, value / 100.0f * max);
@@ -268,23 +287,16 @@ void go2_audio_volume_set(go2_audio_t *audio, uint32_t value, const char *selem_
 go2_audio_path_t go2_audio_path_get(go2_audio_t *audio, const char *selem_name)
 {
     snd_mixer_t *handle;
-    snd_mixer_selem_id_t *sid;
-    const char *card = "default";
-    // const char *selem_name = "Playback Path";
-
-    snd_mixer_open(&handle, 0);
-    snd_mixer_attach(handle, card);
-    snd_mixer_selem_register(handle, NULL, NULL);
-    snd_mixer_load(handle);
-
-    snd_mixer_selem_id_alloca(&sid);
-    snd_mixer_selem_id_set_index(sid, 0);
-    snd_mixer_selem_id_set_name(sid, selem_name);
-
-    snd_mixer_elem_t *elem = snd_mixer_find_selem(handle, sid);
+    snd_mixer_elem_t *elem = go2_audio_open_mixer_element(&handle, selem_name);
+    if (!elem)
+        return (go2_audio_path_t)0;
 
     unsigned int value;
-    snd_mixer_selem_get_enum_item(elem, SND_MIXER_SCHN_MONO, &value);
+    if (snd_mixer_selem_get_enum_item(elem, SND_MIXER_SCHN_MONO, &value) < 0)
+    {
+        snd_mixer_close(handle);
+        return (go2_audio_path_t)0;
+    }
 
     // char name[128];
     // snd_mixer_selem_get_enum_item_name(elem, value, 128, name);
@@ -298,20 +310,9 @@ go2_audio_path_t go2_audio_path_get(go2_audio_t *audio, const char *selem_name)
 void go2_audio_path_set(go2_audio_t *audio, go2_audio_path_t value, const char *selem_name)
 {
     snd_mixer_t *handle;
-    snd_mixer_selem_id_t *sid;
-    const char *card = "default";
-    // const char *selem_name = "Playback Path";
-
-    snd_mixer_open(&handle, 0);
-    snd_mixer_attach(handle, card);
-    snd_mixer_selem_register(handle, NULL, NULL);
-    snd_mixer_load(handle);
-
-    snd_mixer_selem_id_alloca(&sid);
-    snd_mixer_selem_id_set_index(sid, 0);
-    snd_mixer_selem_id_set_name(sid, selem_name);
-
-    snd_mixer_elem_t *elem = snd_mixer_find_selem(handle, sid);
+    snd_mixer_elem_t *elem = go2_audio_open_mixer_element(&handle, selem_name);
+    if (!elem)
+        return;
 
     snd_mixer_selem_set_enum_item(elem, SND_MIXER_SCHN_MONO, (unsigned int)value);
 
