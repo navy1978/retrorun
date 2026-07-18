@@ -528,14 +528,12 @@ ROM's parent directory), and `<rom name>` is the filename without its
 extension. This also works when games are grouped in subdirectories. The local
 layout is compatible with the core of Batocera's decoration naming scheme.
 Images are installed separately and no third-party artwork is bundled with
-RetroRun. If no PNG matches, RetroRun
-generates a small generic decoration directly in memory, so `Auto` also works
-without downloading an asset pack. PNG alpha is preserved and the artwork is
+RetroRun. If no PNG matches, no decoration is composited and the game keeps
+its regular video layout. PNG alpha is preserved and matching artwork is
 composited over the game, allowing curved frames to mask the rectangular core
 image correctly. On GO2 this source-over operation is handled by RGA hardware;
 the full artwork is cached in all three presenter framebuffers and normally
-only the game-damaged rectangle is blended again. The generated opaque
-fallback remains an inexpensive cached background.
+only the game-damaged rectangle is blended again.
 
 Frontend video settings:
 

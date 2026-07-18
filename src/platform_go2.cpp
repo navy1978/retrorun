@@ -130,6 +130,7 @@ void rr_presenter_post_multiple(rr_presenter_t* p, rr_surface_t* s, status* o, i
     native.bottom_left = o->bottom_left ? o->bottom_left->native : NULL;
     native.full = o->full ? o->full->native : NULL;
     native.decoration = o->decoration ? o->decoration->native : NULL;
+    native.decoration_background = o->decoration_background ? o->decoration_background->native : NULL;
     native.show_top_right=o->show_top_right; native.show_bottom_right=o->show_bottom_right;
     native.show_bottom_center=o->show_bottom_center; native.show_top_left=o->show_top_left;
     native.show_bottom_left=o->show_bottom_left; native.show_full=o->show_full;

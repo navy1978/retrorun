@@ -45,6 +45,7 @@ class status  {
     rr_surface_t *bottom_left;
     rr_surface_t *full;
     rr_surface_t *decoration;
+    rr_surface_t *decoration_background;
     bool show_top_right;
     bool show_bottom_right;
     bool show_bottom_center;

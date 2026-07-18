@@ -920,6 +920,33 @@ void go2_surface_blit_alpha(go2_surface_t *srcSurface, int srcX, int srcY,
                               rotation, true);
 }
 
+static bool go2_surface_copy_if_compatible(go2_surface_t *srcSurface,
+                                           go2_surface_t *dstSurface)
+{
+    if (!srcSurface || !dstSurface ||
+        srcSurface->format != dstSurface->format ||
+        srcSurface->width != dstSurface->width ||
+        srcSurface->height != dstSurface->height)
+        return false;
+
+    uint8_t *srcPixels = static_cast<uint8_t *>(go2_surface_map(srcSurface));
+    uint8_t *dstPixels = static_cast<uint8_t *>(go2_surface_map(dstSurface));
+    if (!srcPixels || !dstPixels) {
+        if (srcPixels) go2_surface_unmap(srcSurface);
+        if (dstPixels) go2_surface_unmap(dstSurface);
+        return false;
+    }
+
+    const size_t bytes_per_row = std::min(srcSurface->stride, dstSurface->stride);
+    for (int y = 0; y < srcSurface->height; ++y)
+        memcpy(dstPixels + static_cast<size_t>(y) * dstSurface->stride,
+               srcPixels + static_cast<size_t>(y) * srcSurface->stride,
+               bytes_per_row);
+    go2_surface_unmap(dstSurface);
+    go2_surface_unmap(srcSurface);
+    return true;
+}
+
 int go2_surface_save_as_png(go2_surface_t *surface, const char *filename)
 {
     png_structp png_ptr = NULL;
@@ -1563,12 +1590,18 @@ void go2_presenter_post_multiple(go2_presenter_t *presenter, go2_surface_t *surf
             memset(dstPixels, 0, dstSurface->stride * dstSurface->height);
             go2_surface_unmap(dstSurface);
         }
-        if (status_obj->show_decoration && status_obj->decoration &&
-            status_obj->decoration->format != DRM_FORMAT_RGBA8888) {
-            go2_surface_blit(status_obj->decoration, 0, 0,
-                             status_obj->decoration->width, status_obj->decoration->height,
-                             dstSurface, 0, 0, canvas_width, canvas_height,
-                             rotation);
+        // Seed each recycled framebuffer with the physical bezel. This is a
+        // same-format memory copy on GO2 (RGB888), avoiding the RK3399 RGA
+        // fullscreen-rotation limitation entirely.
+        go2_surface_t *static_decoration = status_obj->decoration_background
+            ? status_obj->decoration_background : status_obj->decoration;
+        if (status_obj->show_decoration && static_decoration &&
+            static_decoration->format != DRM_FORMAT_RGBA8888) {
+            if (!go2_surface_copy_if_compatible(static_decoration, dstSurface))
+                go2_surface_blit(static_decoration, 0, 0,
+                                 static_decoration->width, static_decoration->height,
+                                 dstSurface, 0, 0, dstSurface->width, dstSurface->height,
+                                 GO2_ROTATION_DEGREES_0);
         }
     }
 
@@ -1582,8 +1615,8 @@ void go2_presenter_post_multiple(go2_presenter_t *presenter, go2_surface_t *surf
     // PNG bezels are true foreground overlays: their transparent opening
     // reveals the game while opaque curved edges mask its rectangular frame.
     // RGA performs this source-over blend in hardware.
-    if (!status_obj->show_full && status_obj->show_decoration && status_obj->decoration &&
-        status_obj->decoration->format == DRM_FORMAT_RGBA8888) {
+    if (!rotated_canvas && !status_obj->show_full && status_obj->show_decoration &&
+        status_obj->decoration && status_obj->decoration->format == DRM_FORMAT_RGBA8888) {
         // Each presenter framebuffer keeps the static artwork outside the
         // core's destination rectangle. A complete blend is only required
         // while all three recycled buffers are being cleaned (menu close,

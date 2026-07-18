@@ -39,7 +39,7 @@ void video_deinit();
 void resetCredisPosition();
 uintptr_t core_video_get_current_framebuffer();
 void core_video_refresh(const void * data, unsigned width, unsigned height, size_t pitch);
-void prepareScreen(int width, int height);
+void prepareScreen(int width, int height, bool apply_pixel_perfect = true);
 void drawNonOpenGL(const void* data, unsigned width, unsigned height, size_t pitch);
 void fastForwardVideoStats(uint64_t* callbacks, uint64_t* presented, uint64_t* dropped,
                            uint64_t* callback_time_us = nullptr);

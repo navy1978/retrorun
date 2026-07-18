@@ -416,7 +416,7 @@ void prepareScreenPixelPerfect(int width, int height) {
 }
 
 
-void prepareScreen(int width, int height)
+void prepareScreen(int width, int height, bool apply_pixel_perfect)
 {
    
     
@@ -443,7 +443,7 @@ void prepareScreen(int width, int height)
             return;
         }
     
-        if (pixel_perfect)
+        if (apply_pixel_perfect && pixel_perfect)
         {
             prepareScreenPixelPerfect(width,height);
             return;
@@ -1026,7 +1026,6 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
    /* if (true )
     {*/
         
-        prepareScreen(width, height);
         // Decoration metadata positions only emulated video. Frontend pages
         // keep their normal dimensions so opening the menu cannot change its
         // proportions depending on the selected bezel.
@@ -1034,6 +1033,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
                                    rr_keyboard_virtual_visible() ||
                                    rr_file_browser_visible() ||
                                    achievements_view_visible() || showLoading;
+        prepareScreen(width, height, !frontend_page);
         if (!frontend_page)
             decoration_game_viewport(&x, &y, &w, &h);
         if (first_video_refresh){

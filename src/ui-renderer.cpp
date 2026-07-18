@@ -217,6 +217,7 @@ void bindOverlaySurfaces() {
     overlays.top_left = status_surface_top_left;
     overlays.full = status_surface_full;
     overlays.decoration = decoration_surface();
+    overlays.decoration_background = decoration_background_surface();
 }
 
 void renderFullOverlay(int width, int height) {

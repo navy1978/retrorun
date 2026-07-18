@@ -47,7 +47,7 @@ typedef struct go2_context_attributes
 
 typedef struct go2_status {
     go2_surface_t *top_right, *bottom_right, *bottom_center;
-    go2_surface_t *top_left, *bottom_left, *full, *decoration;
+    go2_surface_t *top_left, *bottom_left, *full, *decoration, *decoration_background;
     bool show_top_right, show_bottom_right, show_bottom_center;
     bool show_top_left, show_bottom_left, show_full, show_decoration;
     bool clean_top_right, clean_bottom_right, clean_bottom_center;

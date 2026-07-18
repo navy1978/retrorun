@@ -20,7 +20,8 @@
 namespace {
 bool enabled = false;
 bool load_attempted = false;
-bool pixel_perfect_before_enable = false;
+bool decoration_forced_pixel_perfect = false;
+bool pixel_perfect_before_decoration = false;
 std::string content;
 std::string loaded_path;
 rr_surface_t* cached_surface = nullptr;
@@ -43,6 +44,72 @@ int viewport_x = 0;
 int viewport_y = 0;
 int viewport_width = 0;
 int viewport_height = 0;
+
+bool rotation_swaps_axes(rr_rotation_t rotation) {
+    return rotation == RR_ROTATION_DEGREES_90 ||
+           rotation == RR_ROTATION_DEGREES_270;
+}
+
+void restore_pixel_perfect() {
+    if (!decoration_forced_pixel_perfect) return;
+    pixel_perfect = pixel_perfect_before_decoration;
+    decoration_forced_pixel_perfect = false;
+}
+
+void enable_pixel_perfect_for_decoration() {
+    if (decoration_forced_pixel_perfect) return;
+    pixel_perfect_before_decoration = pixel_perfect;
+    pixel_perfect = true;
+    decoration_forced_pixel_perfect = true;
+    logger.log(Logger::DEB, "Screen decoration enabled pixel perfect mode.");
+}
+
+DecorationLayout rotate_layout_from_display(const DecorationLayout& physical) {
+    if (!physical.valid) return {};
+
+    const double game_x = physical.left;
+    const double game_y = physical.top;
+    const double game_width = physical.width - physical.left - physical.right;
+    const double game_height = physical.height - physical.top - physical.bottom;
+    if (game_width <= 0.0 || game_height <= 0.0) return {};
+
+    DecorationLayout transformed;
+    transformed.valid = true;
+    switch (getRotation()) {
+    case RR_ROTATION_DEGREES_90:
+        // The RGA rotates the canvas counter-clockwise. Store the viewport in
+        // its pre-rotation coordinates so it lands at AmberELEC's physical
+        // custom viewport after presentation.
+        transformed.width = physical.height;
+        transformed.height = physical.width;
+        transformed.left = game_y;
+        transformed.top = physical.width - game_x - game_width;
+        transformed.right = transformed.width - transformed.left - game_height;
+        transformed.bottom = transformed.height - transformed.top - game_width;
+        break;
+    case RR_ROTATION_DEGREES_270:
+        // Inverse of the clockwise presenter rotation.
+        transformed.width = physical.height;
+        transformed.height = physical.width;
+        transformed.left = physical.height - game_y - game_height;
+        transformed.top = game_x;
+        transformed.right = transformed.width - transformed.left - game_height;
+        transformed.bottom = transformed.height - transformed.top - game_width;
+        break;
+    case RR_ROTATION_DEGREES_180:
+        transformed.width = physical.width;
+        transformed.height = physical.height;
+        transformed.left = physical.width - game_x - game_width;
+        transformed.top = physical.height - game_y - game_height;
+        transformed.right = game_x;
+        transformed.bottom = game_y;
+        break;
+    default:
+        transformed = physical;
+        break;
+    }
+    return transformed;
+}
 
 void decoration_canvas_size(int* width, int* height) {
     *width = rr_display_width_get(display);
@@ -284,7 +351,7 @@ void load_info(const std::filesystem::path& image_path) {
         return;
     }
     parsed.valid = true;
-    layout = parsed;
+    layout = rotate_layout_from_display(parsed);
     logger.log(Logger::INF, "Screen decoration layout loaded: %s",
                info_path.string().c_str());
 }
@@ -305,9 +372,8 @@ void load_distribution_viewport() {
     if (!value("custom_viewport_x", &x) || !value("custom_viewport_y", &y) ||
         !value("custom_viewport_width", &width) ||
         !value("custom_viewport_height", &height)) return;
-    int display_width = 0;
-    int display_height = 0;
-    decoration_canvas_size(&display_width, &display_height);
+    const int display_width = rr_display_width_get(display);
+    const int display_height = rr_display_height_get(display);
     if (display_width <= 0 || display_height <= 0 || x < 0 || y < 0 ||
         width <= 0 || height <= 0 || x + width > display_width ||
         y + height > display_height) {
@@ -316,13 +382,15 @@ void load_distribution_viewport() {
                    x, y, width, height);
         return;
     }
-    layout.valid = true;
-    layout.width = display_width;
-    layout.height = display_height;
-    layout.left = x;
-    layout.top = y;
-    layout.right = display_width - x - width;
-    layout.bottom = display_height - y - height;
+    DecorationLayout physical;
+    physical.valid = true;
+    physical.width = display_width;
+    physical.height = display_height;
+    physical.left = x;
+    physical.top = y;
+    physical.right = display_width - x - width;
+    physical.bottom = display_height - y - height;
+    layout = rotate_layout_from_display(physical);
     logger.log(Logger::INF,
                "Distribution decoration viewport loaded from /tmp/raappend.cfg");
 }
@@ -337,21 +405,27 @@ bool load_png(const std::filesystem::path& path, bool distribution) {
         png_image_free(&image);
         return false;
     }
-    int output_width = 0;
-    int output_height = 0;
-    decoration_canvas_size(&output_width, &output_height);
+    // Decorations are authored for the physical panel. Keep that geometry:
+    // RK3399/RG552 rejects a fullscreen RGA blit with a 90/270 degree
+    // rotation, while the core frame itself can still be rotated normally.
+    const rr_rotation_t rotation = getRotation();
+    const int output_width = rr_display_width_get(display);
+    const int output_height = rr_display_height_get(display);
     if (output_width <= 0 || output_height <= 0) return false;
     rr_surface_t* loaded = rr_surface_create(display, output_width, output_height,
                                               RR_PIXEL_FORMAT_RGBA8888);
+    // GO2's software presenter owns RGB888 framebuffers. Keep the cached
+    // static layer in that same format so it can be copied directly when a
+    // presenter buffer is recycled, without involving RGA.
     rr_surface_t* background_surface = rr_surface_create(display, output_width, output_height,
-                                                          RR_PIXEL_FORMAT_RGB565);
+                                                          RR_PIXEL_FORMAT_RGB888);
     if (!loaded || !background_surface) {
         if (loaded) rr_surface_destroy(loaded);
         if (background_surface) rr_surface_destroy(background_surface);
         return false;
     }
     auto* pixels = static_cast<uint8_t*>(rr_surface_map(loaded));
-    auto* background = static_cast<uint16_t*>(rr_surface_map(background_surface));
+    auto* background = static_cast<uint8_t*>(rr_surface_map(background_surface));
     if (!pixels || !background) {
         if (pixels) rr_surface_unmap(loaded);
         if (background) rr_surface_unmap(background_surface);
@@ -360,13 +434,52 @@ bool load_png(const std::filesystem::path& path, bool distribution) {
         return false;
     }
     const int stride = rr_surface_stride_get(loaded);
-    const int background_stride = rr_surface_stride_get(background_surface) / sizeof(uint16_t);
+    const int background_stride = rr_surface_stride_get(background_surface);
+    int artwork_pre_rotation = 0;
+    if (rotation == RR_ROTATION_DEGREES_90)
+        artwork_pre_rotation = 270;
+    else if (rotation == RR_ROTATION_DEGREES_180)
+        artwork_pre_rotation = 180;
+    else if (rotation == RR_ROTATION_DEGREES_270)
+        artwork_pre_rotation = 90;
     for (int y = 0; y < output_height; ++y) {
-        const unsigned source_y = static_cast<unsigned>(
-            static_cast<uint64_t>(y) * image.height / output_height);
         for (int x = 0; x < output_width; ++x) {
-            const unsigned source_x = static_cast<unsigned>(
-                static_cast<uint64_t>(x) * image.width / output_width);
+            unsigned source_x = 0;
+            unsigned source_y = 0;
+            switch (rotation) {
+            case RR_ROTATION_DEGREES_90:
+                // Pre-rotate clockwise: inverse of the panel's CCW mounting.
+                source_x = static_cast<unsigned>(
+                    static_cast<uint64_t>(y) * image.width / output_height);
+                source_y = static_cast<unsigned>(
+                    static_cast<uint64_t>(output_width - 1 - x) * image.height /
+                    output_width);
+                break;
+            case RR_ROTATION_DEGREES_180:
+                source_x = static_cast<unsigned>(
+                    static_cast<uint64_t>(output_width - 1 - x) * image.width /
+                    output_width);
+                source_y = static_cast<unsigned>(
+                    static_cast<uint64_t>(output_height - 1 - y) * image.height /
+                    output_height);
+                break;
+            case RR_ROTATION_DEGREES_270:
+                // RG552: pre-rotate the landscape artwork CCW into the native
+                // 1152x1920 framebuffer. Physical panel mounting rotates it
+                // back clockwise, yielding the original landscape artwork.
+                source_x = static_cast<unsigned>(
+                    static_cast<uint64_t>(output_height - 1 - y) * image.width /
+                    output_height);
+                source_y = static_cast<unsigned>(
+                    static_cast<uint64_t>(x) * image.height / output_width);
+                break;
+            default:
+                source_x = static_cast<unsigned>(
+                    static_cast<uint64_t>(x) * image.width / output_width);
+                source_y = static_cast<unsigned>(
+                    static_cast<uint64_t>(y) * image.height / output_height);
+                break;
+            }
             const size_t offset = (static_cast<size_t>(source_y) * image.width + source_x) * 4;
             const size_t destination = static_cast<size_t>(y) * stride + x * 4;
             pixels[destination] = rgba[offset];
@@ -374,11 +487,13 @@ bool load_png(const std::filesystem::path& path, bool distribution) {
             pixels[destination + 2] = rgba[offset + 2];
             pixels[destination + 3] = rgba[offset + 3];
             const uint8_t alpha = rgba[offset + 3];
-            const uint8_t r = static_cast<uint8_t>(rgba[offset] * alpha / 255);
-            const uint8_t g = static_cast<uint8_t>(rgba[offset + 1] * alpha / 255);
-            const uint8_t b = static_cast<uint8_t>(rgba[offset + 2] * alpha / 255);
-            background[y * background_stride + x] = static_cast<uint16_t>(
-                ((r & 0xf8) << 8) | ((g & 0xfc) << 3) | (b >> 3));
+            const uint8_t r = static_cast<uint8_t>((rgba[offset] * alpha + 127) / 255);
+            const uint8_t g = static_cast<uint8_t>((rgba[offset + 1] * alpha + 127) / 255);
+            const uint8_t b = static_cast<uint8_t>((rgba[offset + 2] * alpha + 127) / 255);
+            const size_t background_offset = static_cast<size_t>(y) * background_stride + x * 3;
+            background[background_offset] = r;
+            background[background_offset + 1] = g;
+            background[background_offset + 2] = b;
         }
     }
     rr_surface_unmap(loaded);
@@ -390,63 +505,36 @@ bool load_png(const std::filesystem::path& path, bool distribution) {
     loaded_path = path.string();
     load_info(path);
     if (distribution) load_distribution_viewport();
-    logger.log(Logger::INF, "Screen decoration loaded: %s", loaded_path.c_str());
+    enable_pixel_perfect_for_decoration();
+    logger.log(Logger::INF,
+               "Screen decoration loaded: %s (canvas=%dx%d, rotation=%d, artwork_pre_rotation=%d)",
+               loaded_path.c_str(), output_width, output_height,
+               static_cast<int>(rotation), artwork_pre_rotation);
     return true;
 }
 
-bool create_builtin_decoration() {
-    int width = 0;
-    int height = 0;
-    decoration_canvas_size(&width, &height);
-    if (width <= 0 || height <= 0) return false;
-    rr_surface_t* generated = rr_surface_create(display, width, height,
-                                                RR_PIXEL_FORMAT_RGB565);
-    if (!generated) return false;
-    auto* pixels = static_cast<uint16_t*>(rr_surface_map(generated));
-    if (!pixels) { rr_surface_destroy(generated); return false; }
-    const int stride = rr_surface_stride_get(generated) / sizeof(uint16_t);
-
-    constexpr uint16_t background = 0x0842;
-    constexpr uint16_t stripe_dark = 0x10a6;
-    constexpr uint16_t stripe_blue = 0x2295;
-    constexpr uint16_t accent = 0x43bf;
-    const int side_width = std::max(24, width / 8);
-    const int line_width = std::max(1, width / 320);
-    for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-            uint16_t color = background;
-            const int edge_distance = std::min(x, width - 1 - x);
-            if (edge_distance < side_width) {
-                const int diagonal = (edge_distance + y / 3) % 18;
-                color = diagonal < 3 ? stripe_blue : stripe_dark;
-                if (edge_distance < line_width * 2) color = accent;
-            }
-            pixels[y * stride + x] = color;
-        }
-    }
-    rr_surface_unmap(generated);
-    if (cached_surface) rr_surface_destroy(cached_surface);
-    cached_surface = generated;
-    loaded_path = "built-in";
-    layout = {};
-    viewport_display_width = 0;
-    viewport_display_height = 0;
-    logger.log(Logger::INF, "Screen decoration loaded: built-in RetroRun fallback");
-    return true;
-}
 }
 
 void decoration_init(const char* content_path) {
     content = content_path ? content_path : "";
     const auto setting = conf_map.find("retrorun_decorations");
-    enabled = setting != conf_map.end() && value_true(setting->second);
-    pixel_perfect_before_enable = pixel_perfect;
-    if (enabled)
-        pixel_perfect = true;
+    const auto source = conf_map.find("retrorun_decoration_source");
+    // `retrorun_decoration_source=auto` is the distribution default. Treat it
+    // as enabling decorations when the older on/off key is absent, while an
+    // explicit `retrorun_decorations=off` always wins.
+    enabled = setting != conf_map.end()
+        ? value_true(setting->second)
+        : source != conf_map.end() && !source->second.empty() &&
+          source->second != "off";
+    logger.log(Logger::DEB, "Screen decorations: enabled=%s (setting=%s, source=%s)",
+               enabled ? "true" : "false",
+               setting != conf_map.end() ? setting->second.c_str() : "unset",
+               source != conf_map.end() ? source->second.c_str() : "unset");
     load_attempted = false;
 }
 
 void decoration_shutdown() {
+    restore_pixel_perfect();
     if (cached_surface) rr_surface_destroy(cached_surface);
     if (cached_background) rr_surface_destroy(cached_background);
     cached_surface = nullptr;
@@ -463,12 +551,6 @@ bool decoration_enabled() { return enabled; }
 void decoration_set_enabled(bool value) {
     if (value == enabled)
         return;
-    if (value) {
-        pixel_perfect_before_enable = pixel_perfect;
-        pixel_perfect = true;
-    } else {
-        pixel_perfect = pixel_perfect_before_enable;
-    }
     enabled = value;
     load_attempted = false;
     if (!enabled && cached_surface) {
@@ -480,6 +562,7 @@ void decoration_set_enabled(bool value) {
         cached_background = nullptr;
     }
     if (!enabled) {
+        restore_pixel_perfect();
         layout = {};
         viewport_display_width = 0;
         viewport_display_height = 0;
@@ -497,9 +580,10 @@ rr_surface_t* decoration_surface() {
     for (const auto& candidate : candidates())
         if (std::filesystem::is_regular_file(candidate.path) &&
             load_png(candidate.path, candidate.distribution)) return cached_surface;
-    logger.log(Logger::INF, "Screen decorations: no matching PNG found in %s; using built-in fallback",
+    restore_pixel_perfect();
+    logger.log(Logger::INF, "Screen decorations: no matching PNG found in %s; disabled for this game",
                decoration_root().string().c_str());
-    return create_builtin_decoration() ? cached_surface : nullptr;
+    return nullptr;
 }
 
 rr_surface_t* decoration_background_surface() {
@@ -531,6 +615,7 @@ std::string decoration_source_label() {
 }
 
 void decoration_reload() {
+    restore_pixel_perfect();
     if (cached_surface) rr_surface_destroy(cached_surface);
     if (cached_background) rr_surface_destroy(cached_background);
     cached_surface = nullptr;
@@ -568,8 +653,13 @@ bool decoration_game_viewport(int* x, int* y, int* width, int* height) {
     // The decoration viewport is the maximum available opening, not a request
     // to distort the core image. Fit the frontend's already-correct game
     // rectangle inside it and preserve that aspect ratio.
-    const double game_aspect = *height > 0
+    double game_aspect = *height > 0
         ? static_cast<double>(*width) / *height : 1.0;
+    // The viewport is stored in the presenter's pre-rotation coordinate
+    // system. A landscape core is therefore portrait in that system (and vice
+    // versa); use the inverse ratio before fitting it into the bezel opening.
+    if (rotation_swaps_axes(getRotation()) && game_aspect > 0.0)
+        game_aspect = 1.0 / game_aspect;
     const double viewport_aspect = static_cast<double>(viewport_width) / viewport_height;
     int fitted_width = viewport_width;
     int fitted_height = viewport_height;
