@@ -423,9 +423,12 @@ bool isMiniloongPocket1()
 {
     return checkDeviceName("Miniloong Pocket 1");
 }
+bool isRK3566Device()
+{
+    return isRG503() || isRG353V() || isRG353M() || isMiniloongPocket1();
+}
 bool hasDeviceRotatedScreen(){
-   return  isRG351V() || isRG351MP() || isRG503() || isRG353V() || isRG353M() ||
-           isMiniloongPocket1();
+   return isRG351V() || isRG351MP() || isRK3566Device();
 }
 bool wideScreenNotRotated(){
     return  isRG503();

@@ -241,7 +241,7 @@ void video_configure(struct retro_game_geometry *geom)
     if (isOpenGL)
     {
         rr_context_attributes_t attr;
-        if (color_format == RR_PIXEL_FORMAT_XRGB8888 && !(isRG503()||isRG353V() ||isRG353M())) // should be always true
+        if (color_format == RR_PIXEL_FORMAT_XRGB8888 && !isRK3566Device()) // should be always true
         {
 #ifdef RR_SDL_GLES
             // GLES3 cores commonly leave version_major/minor at zero. Request
@@ -279,6 +279,11 @@ void video_configure(struct retro_game_geometry *geom)
             attr.depth_bits = 24;
             attr.stencil_bits = 8;
         }
+
+        logger.log(Logger::DEB,
+                   "EGL color config: red=%d, green=%d, blue=%d, alpha=%d, profile=%s",
+                   attr.red_bits, attr.green_bits, attr.blue_bits, attr.alpha_bits,
+                   isRK3566Device() ? "RK3566" : "generic");
 
    
 

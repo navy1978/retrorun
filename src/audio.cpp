@@ -63,8 +63,7 @@ void audio_init(int freq)
     audioFrameCount = 0;
     // The Pocket 1 uses the RK3566 mixer layout, like the RG353 family:
     // its playback volume control is named "Master", not "Playback".
-    bool is503AudioDeviceLike = isRG503() || isRG353M() || isRG353V() ||
-                                isMiniloongPocket1();
+    bool is503AudioDeviceLike = isRK3566Device();
     soundCardName = isRG552() ? "DAC" : is503AudioDeviceLike ? "Master"
                                                   : "Playback";
 

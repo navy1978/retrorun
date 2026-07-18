@@ -357,7 +357,7 @@ void initButtons(){
         ignoreF2 = false;
      }
  
-     if ( isRG503()||isRG353V() || isRG353M() )
+     if (isRK3566Device())
      {
          l2Button = RRInputButton_TriggerLeft;
          r2Button = RRInputButton_TriggerRight;
@@ -367,7 +367,7 @@ void initButtons(){
          r3Button = RRInputButton_THUMBR;
          f2Button = RRInputButton_F2;
          ignoreF2 = false;
-         logger.log(Logger::DEB, "RG503/RG353 joypad configuration detected.");
+         logger.log(Logger::DEB, "RK3566 joypad configuration detected.");
      }else{
         logger.log(Logger::DEB, "RG351 joypad configuration detected.");
      }
@@ -1152,13 +1152,13 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
         case RETRO_DEVICE_ID_JOYPAD_R:
             return rr_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? r2Button : realR1);
         case RETRO_DEVICE_ID_JOYPAD_L2:
-        if (isRG503()||isRG353V() || isRG353M()){
+        if (isRK3566Device()){
             return rr_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? l2Button : realL1);
         }else{
             return rr_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? realL1 : l2Button);
         }
         case RETRO_DEVICE_ID_JOYPAD_R2:
-        if (isRG503()||isRG353V() || isRG353M()){
+        if (isRK3566Device()){
             return rr_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? r2Button : realR1);
         }else{
             return rr_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? realR1 : r2Button);

@@ -196,6 +196,7 @@ bool isRG503();
 bool isRG353V();
 bool isRG353M();
 bool isMiniloongPocket1();
+bool isRK3566Device();
 bool hasDeviceRotatedScreen();
 bool wideScreenNotRotated();
 void resetDeviceName();
@@ -243,6 +244,5 @@ extern bool pause_requested;
 extern bool  showLoading;
 extern std::map<std::string, std::string> conf_map;
 extern bool pixel_perfect;
-
 
 
