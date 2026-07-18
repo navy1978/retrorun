@@ -563,10 +563,12 @@ General and input settings:
 | --- | --- |
 | `retrorun_log_level` | `INFO`, `DEBUG`, `WARNING` or `ERROR`. |
 | `retrorun_core_log_level` | Independent log level for libretro cores; defaults to `ERROR`. Set it explicitly to `INFO` or `DEBUG` for core diagnostics while keeping RetroRun's level independent. |
+| `retrorun_log_to_file` | Duplicates RetroRun and libretro core logs to `retrorun.log` beside the executable. The file is recreated at each launch; defaults to `false`. |
 | `retrorun_device_name` | Overrides automatic device identification. |
 | `retrorun_screenshot_folder` | Destination for screenshots. |
 | `retrorun_audio_buffer` | Audio buffer value such as `-1`, `256`, `512` or `1024`. |
 | `retrorun_audio_stable_buffer` | Optional extra audio buffering for difficult cores on SDL2 and GO2 (`false` by default). |
+| `retrorun_force_audio_multithread` | Runs blocking audio submission on a dedicated bounded worker thread. It can help demanding cores, especially on RG552; defaults to `false`. |
 | `retrorun_auto_save` | Saves automatically during shutdown. |
 | `retrorun_auto_load` | Loads the automatic save at startup. |
 | `retrorun_analog_to_digital` | Analog-to-D-pad mode: `none`, `left`, `right`, `left_forced` or `right_forced`. Non-forced modes are disabled automatically when the core requests native analog input. Defaults to `left_forced` for backward compatibility. |

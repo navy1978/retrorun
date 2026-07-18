@@ -85,6 +85,7 @@ bool rr_input_set_rumble(uint16_t, uint16_t, uint32_t) { return false; }
 rr_audio_t* rr_audio_create(int frequency) { go2_audio_t* native = go2_audio_create(frequency); if (!native) return NULL; rr_audio_t* a = new rr_audio_t; a->native = native; return a; }
 void rr_audio_destroy(rr_audio_t* audio) { if (audio) { go2_audio_destroy(audio->native); delete audio; } }
 void rr_audio_submit(rr_audio_t* audio, const short* data, int frames) { go2_audio_submit(audio->native, data, frames); }
+void rr_audio_release_thread(rr_audio_t* audio) { if (audio) go2_audio_release_thread(audio->native); }
 uint32_t rr_audio_volume_get(rr_audio_t* audio, const char* control) { return go2_audio_volume_get(audio->native, control); }
 void rr_audio_volume_set(rr_audio_t* audio, uint32_t value, const char* control) { go2_audio_volume_set(audio->native, value, control); }
 

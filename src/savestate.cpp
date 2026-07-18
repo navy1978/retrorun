@@ -9,6 +9,7 @@ Copyright (C) 2021-present  navy1978
 #include "config.h"
 #include "globals.h"
 #include "input.h"
+#include "audio.h"
 #include "platform.h"
 #include "libretro.h"
 
@@ -110,6 +111,7 @@ int LoadState(const char *saveName)
     fflush(stdout);
     pthread_mutex_lock(&stateMutex);
     rr_video_sync();
+    audio_discard_pending();
     mprotect(ptr, size, PROT_READ);
     bool result = g_retro.retro_unserialize(ptr, size);
     mprotect(ptr, size, PROT_READ | PROT_WRITE);

@@ -535,6 +535,8 @@ int main(int argc, char *argv[])
         }
 
         if (input_ffwd_requested != previousFastForwardState) {
+            if (input_ffwd_requested)
+                audio_discard_pending();
             logger.log(Logger::INF,
                        "Fast-forward runtime: %s, ratio=%.2f, normal_pacing=%s",
                        input_ffwd_requested ? "enabled" : "disabled",

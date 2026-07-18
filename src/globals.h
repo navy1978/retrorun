@@ -210,6 +210,7 @@ extern bool runLoopAtDeclaredfps;
 extern int retrorun_audio_buffer;
 extern int  new_retrorun_audio_buffer; // this is only need when we change the other one on the fly via menu
 extern bool retrorun_audio_stable_buffer;
+extern bool forceAudioMultithread;
 extern int retrorun_mouse_speed_factor;
 
 extern float avgFps;
@@ -242,7 +243,5 @@ extern bool pause_requested;
 extern bool  showLoading;
 extern std::map<std::string, std::string> conf_map;
 extern bool pixel_perfect;
-
-
 
 

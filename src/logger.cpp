@@ -9,6 +9,20 @@
 
 static std::string coreName_;
 static Logger::LogLevel coreLogLevel_ = Logger::ERR;
+static std::FILE *logFile_ = nullptr;
+
+static void writeLogBuffer(const char *buffer, size_t length, bool flush)
+{
+    std::fwrite(buffer, 1, length, stdout);
+    if (logFile_)
+    {
+        std::fwrite(buffer, 1, length, logFile_);
+        if (flush)
+            std::fflush(logFile_);
+    }
+    if (flush)
+        std::fflush(stdout);
+}
 
 static int writeTimestamp(char *buffer, size_t size)
 {
@@ -24,8 +38,30 @@ static int writeTimestamp(char *buffer, size_t size)
 
 Logger::Logger(LogLevel level) : logLevel_(level) {}
 
+Logger::~Logger()
+{
+    if (logFile_)
+    {
+        std::fclose(logFile_);
+        logFile_ = nullptr;
+    }
+}
+
 void Logger::setLogLevel(LogLevel level) {
     logLevel_ = level;
+}
+
+bool Logger::enableFileLogging(const std::string& path)
+{
+    std::FILE *file = std::fopen(path.c_str(), "w");
+    if (!file)
+        return false;
+
+    if (logFile_)
+        std::fclose(logFile_);
+    logFile_ = file;
+    std::setvbuf(logFile_, nullptr, _IOLBF, 0);
+    return true;
 }
 
 void Logger::setCoreLogLevel(LogLevel level) {
@@ -51,8 +87,7 @@ void Logger::log(LogLevel level, const char* format, ...) {
         size_t length = std::min(sizeof(buffer) - 1,
                                  static_cast<size_t>(used) + static_cast<size_t>(written));
         if (length == 0 || buffer[length - 1] != '\n') buffer[length++] = '\n';
-        std::fwrite(buffer, 1, length, stdout);
-        if (level >= WARN) std::fflush(stdout);
+        writeLogBuffer(buffer, length, level >= WARN);
     }
 }
 
@@ -97,6 +132,5 @@ void Logger::core_log(enum retro_log_level level, const char* fmt, ...) {
     size_t length = std::min(sizeof(buffer) - 1,
                              static_cast<size_t>(used) + static_cast<size_t>(written));
     if (length == 0 || buffer[length - 1] != '\n') buffer[length++] = '\n';
-    std::fwrite(buffer, 1, length, stdout);
-    if (messageLevel >= WARN) std::fflush(stdout);
+    writeLogBuffer(buffer, length, messageLevel >= WARN);
 }

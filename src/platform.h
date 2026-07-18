@@ -85,6 +85,7 @@ bool rr_input_set_rumble(uint16_t low_frequency, uint16_t high_frequency,
 rr_audio_t* rr_audio_create(int frequency);
 void rr_audio_destroy(rr_audio_t* audio);
 void rr_audio_submit(rr_audio_t* audio, const short* data, int frames);
+void rr_audio_release_thread(rr_audio_t* audio);
 uint32_t rr_audio_volume_get(rr_audio_t* audio, const char* control);
 void rr_audio_volume_set(rr_audio_t* audio, uint32_t value, const char* control);
 

@@ -20,6 +20,13 @@ Copyright (C) 2021-present  navy1978
 #include <sys/stat.h>
 #include <ctime>
 #include <algorithm>
+#include <filesystem>
+#include <vector>
+
+#ifdef __APPLE__
+#include <mach-o/dyld.h>
+#include <limits.h>
+#endif
 
 // Whitespace characters for trimming
 static const char *ws = " \t\n\r\f\v";
@@ -153,6 +160,43 @@ bool fileExists(const char *path)
     return access(path, F_OK) != -1;
 }
 
+static std::string getAbsolutePath(const std::string &path)
+{
+    std::error_code error;
+    std::filesystem::path absolute = std::filesystem::absolute(path, error);
+    if (error)
+        return path;
+
+    std::filesystem::path canonical = std::filesystem::weakly_canonical(absolute, error);
+    if (!error)
+        return canonical.string();
+
+    return absolute.lexically_normal().string();
+}
+
+static std::filesystem::path getExecutableDirectory()
+{
+    std::error_code error;
+
+#ifdef __linux__
+    const std::filesystem::path executable = std::filesystem::read_symlink("/proc/self/exe", error);
+    if (!error && !executable.empty())
+        return executable.parent_path();
+#elif defined(__APPLE__)
+    char buffer[PATH_MAX];
+    uint32_t size = sizeof(buffer);
+    if (_NSGetExecutablePath(buffer, &size) == 0)
+        return std::filesystem::path(getAbsolutePath(buffer)).parent_path();
+
+    std::vector<char> dynamicBuffer(size);
+    if (_NSGetExecutablePath(dynamicBuffer.data(), &size) == 0)
+        return std::filesystem::path(getAbsolutePath(dynamicBuffer.data())).parent_path();
+#endif
+
+    const std::filesystem::path current = std::filesystem::current_path(error);
+    return error ? std::filesystem::path(".") : current;
+}
+
 std::string getLastModifiedTime(const char *path)
 {
     struct stat fileInfo;
@@ -233,25 +277,52 @@ void initConfig()
         logger.log(Logger::INF, "Local configuration file not found. Using configuration file: '%s'", opt_setting_file);
         config_file = opt_setting_file;
     }
-    std::ifstream infile(config_file);
-    activeConfigFile = config_file;
+    activeConfigFile = getAbsolutePath(config_file);
+    std::ifstream infile(activeConfigFile);
 
     if (!infile.good())
     {
-        logger.log(Logger::ERR, "Configuration file:'%s' doesn't exist default core settings will be used", opt_setting_file);
+        logger.log(Logger::ERR, "Configuration file:'%s' doesn't exist default core settings will be used", activeConfigFile.c_str());
     }
     else
     {
-        logger.log(Logger::INF, "Configuration found, reading configuration file:'%s'", config_file.c_str());
-        initMapConfig(config_file.c_str());
+        logger.log(Logger::INF, "Configuration found, reading configuration file:'%s'", activeConfigFile.c_str());
+        initMapConfig(activeConfigFile);
+
+        bool logToFile = false;
+        bool logFileReady = false;
+        const std::string logFilePath = (getExecutableDirectory() / "retrorun.log").string();
+        const auto logToFileSetting = conf_map.find("retrorun_log_to_file");
+        if (logToFileSetting != conf_map.end())
+        {
+            const std::string &value = logToFileSetting->second;
+            logToFile = value == "true" || value == "enabled" || value == "1";
+            if (logToFile)
+            {
+                logFileReady = logger.enableFileLogging(logFilePath);
+                if (!logFileReady)
+                    logger.log(Logger::ERR, "Unable to open RetroRun log file: '%s'", logFilePath.c_str());
+            }
+        }
 
         try
         {
             const std::string &arValue = conf_map.at("retrorun_log_level");
             logger.setLogLevel(getLogLevel(arValue));
             logger.log(Logger::INF, "retrorun_log_level: %s\n", arValue.c_str());
+            logger.log(Logger::INF, "retrorun_config_file: '%s'", activeConfigFile.c_str());
         }
-        catch (...) { logger.log(Logger::DEB, "retrorun_log_level parameter not found in retrorun.cfg using default value (INFO).\n"); }
+        catch (...)
+        {
+            logger.setLogLevel(Logger::INF);
+            logger.log(Logger::INF, "retrorun_log_level parameter not found in retrorun.cfg using default value (INFO).");
+            logger.log(Logger::INF, "retrorun_config_file: '%s'", activeConfigFile.c_str());
+        }
+
+        if (logToFile && logFileReady)
+            logger.log(Logger::INF, "retrorun_log_to_file: true (file='%s')", logFilePath.c_str());
+        else if (!logToFile)
+            logger.log(Logger::DEB, "retrorun_log_to_file: false.");
 
         try
         {
@@ -455,6 +526,19 @@ void initConfig()
         {
             logger.log(Logger::DEB,
                        "retrorun_audio_stable_buffer parameter not found; using false.");
+        }
+
+        try
+        {
+            const std::string &value = conf_map.at("retrorun_force_audio_multithread");
+            forceAudioMultithread = value == "true" || value == "enabled" || value == "1";
+            logger.log(Logger::DEB, "retrorun_force_audio_multithread: %s.",
+                       forceAudioMultithread ? "true" : "false");
+        }
+        catch (...)
+        {
+            logger.log(Logger::DEB,
+                       "retrorun_force_audio_multithread parameter not found; using false.");
         }
 
         try

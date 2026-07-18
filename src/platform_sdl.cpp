@@ -18,6 +18,7 @@
 #include <png.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -32,7 +33,7 @@ struct rr_input_state {
 };
 struct rr_audio {
     SDL_AudioDeviceID device;
-    int volume;
+    std::atomic<int> volume;
     int frequency;
     int period_frames;
     bool started;
@@ -563,6 +564,7 @@ rr_audio_t* rr_audio_create(int frequency) {
     return audio;
 }
 void rr_audio_destroy(rr_audio_t* audio) { if (audio) { if (audio->device) SDL_CloseAudioDevice(audio->device); delete audio; } }
+void rr_audio_release_thread(rr_audio_t*) {}
 void rr_audio_submit(rr_audio_t* audio, const short* data, int frames) {
     if (!audio || !audio->device || frames <= 0) return;
     const size_t samples = static_cast<size_t>(frames) * 2;
@@ -600,12 +602,13 @@ void rr_audio_submit(rr_audio_t* audio, const short* data, int frames) {
         }
     }
 
-    if (audio->volume >= 100) {
+    const int volume = audio->volume.load(std::memory_order_relaxed);
+    if (volume >= 100) {
         SDL_QueueAudio(audio->device, data, static_cast<Uint32>(samples * sizeof(short)));
     } else {
         audio->mix_buffer.resize(samples);
         for (size_t i = 0; i < samples; ++i)
-            audio->mix_buffer[i] = static_cast<short>((data[i] * audio->volume) / 100);
+            audio->mix_buffer[i] = static_cast<short>((data[i] * volume) / 100);
         SDL_QueueAudio(audio->device, audio->mix_buffer.data(),
                        static_cast<Uint32>(audio->mix_buffer.size() * sizeof(short)));
     }
@@ -614,8 +617,8 @@ void rr_audio_submit(rr_audio_t* audio, const short* data, int frames) {
         SDL_PauseAudioDevice(audio->device, 0);
     }
 }
-uint32_t rr_audio_volume_get(rr_audio_t* audio, const char*) { return audio ? audio->volume : 0; }
-void rr_audio_volume_set(rr_audio_t* audio, uint32_t value, const char*) { if (audio) audio->volume = std::min<uint32_t>(value, 100); }
+uint32_t rr_audio_volume_get(rr_audio_t* audio, const char*) { return audio ? audio->volume.load(std::memory_order_relaxed) : 0; }
+void rr_audio_volume_set(rr_audio_t* audio, uint32_t value, const char*) { if (audio) audio->volume.store(std::min<uint32_t>(value, 100), std::memory_order_relaxed); }
 
 rr_display_t* rr_display_create() {
     ensure_sdl(SDL_INIT_VIDEO);

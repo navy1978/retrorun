@@ -16,8 +16,11 @@ public:
     };
 
     Logger(LogLevel level = INF);
+    ~Logger();
 
     void setLogLevel(LogLevel level);
+
+    bool enableFileLogging(const std::string& path);
 
     static void setCoreLogLevel(LogLevel level);
 

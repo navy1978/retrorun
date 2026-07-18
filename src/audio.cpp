@@ -26,9 +26,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <cstring>
 
 #include "platform.h"
+#include <algorithm>
 #include <mutex> // std::mutex
+#include <condition_variable>
+#include <deque>
 #include <chrono>
 #include <thread>
+#include <vector>
 #include <cmath>
 #include <atomic>
 
@@ -47,12 +51,81 @@ static int audioFrameCount;
 static int audioFrameLimit;
 static int prevVolume;
 static std::atomic<uint64_t> fastForwardAudioDroppedFrames{0};
-std::mutex mtx; // mutex for critical section
+
+struct QueuedAudio
+{
+    std::vector<short> samples;
+    int frames;
+};
+
+static std::mutex audioQueueMutex;
+static std::condition_variable audioQueueReady;
+static std::condition_variable audioQueueSpace;
+static std::deque<QueuedAudio> audioQueue;
+static std::thread audioThread;
+static size_t queuedAudioFrames = 0;
+static size_t maxQueuedAudioFrames = 0;
+static bool stopAudioThread = false;
 
 bool firstTime = true;
 int init_freq;
 
 std::string soundCardName;
+
+static void audioThreadLoop()
+{
+    for (;;)
+    {
+        QueuedAudio chunk;
+        {
+            std::unique_lock<std::mutex> lock(audioQueueMutex);
+            audioQueueReady.wait(lock, [] {
+                return stopAudioThread || !audioQueue.empty();
+            });
+
+            if (stopAudioThread && audioQueue.empty())
+            {
+                rr_audio_release_thread(audio);
+                return;
+            }
+
+            chunk = std::move(audioQueue.front());
+            audioQueue.pop_front();
+            queuedAudioFrames -= static_cast<size_t>(chunk.frames);
+        }
+        audioQueueSpace.notify_all();
+        rr_audio_submit(audio, chunk.samples.data(), chunk.frames);
+    }
+}
+
+static void submitAudio(const short *data, int frames)
+{
+    if (!audio || !data || frames <= 0)
+        return;
+
+    if (!forceAudioMultithread)
+    {
+        rr_audio_submit(audio, data, frames);
+        return;
+    }
+
+    QueuedAudio chunk;
+    chunk.frames = frames;
+    chunk.samples.assign(data, data + static_cast<size_t>(frames) * CHANNELS);
+
+    std::unique_lock<std::mutex> lock(audioQueueMutex);
+    audioQueueSpace.wait(lock, [frames] {
+        return stopAudioThread || audioQueue.empty() ||
+               queuedAudioFrames + static_cast<size_t>(frames) <= maxQueuedAudioFrames;
+    });
+    if (stopAudioThread)
+        return;
+
+    queuedAudioFrames += static_cast<size_t>(frames);
+    audioQueue.push_back(std::move(chunk));
+    lock.unlock();
+    audioQueueReady.notify_one();
+}
 
 void audio_init(int freq)
 {
@@ -61,6 +134,25 @@ void audio_init(int freq)
     init_freq = freq;
     audio = rr_audio_create(freq);
     audioFrameCount = 0;
+    firstTime = true;
+
+    if (forceAudioMultithread && audio)
+    {
+        // Four nominal 60 Hz chunks keep the core decoupled from backend
+        // waits without allowing latency to grow without limit.
+        maxQueuedAudioFrames = std::max<size_t>(2048, static_cast<size_t>(freq) / 15);
+        {
+            std::lock_guard<std::mutex> lock(audioQueueMutex);
+            audioQueue.clear();
+            queuedAudioFrames = 0;
+            stopAudioThread = false;
+        }
+        audioThread = std::thread(audioThreadLoop);
+        logger.log(Logger::INF,
+                   "Threaded audio enabled: queue=%zu frames (%.1f ms)",
+                   maxQueuedAudioFrames,
+                   freq > 0 ? maxQueuedAudioFrames * 1000.0 / freq : 0.0);
+    }
     bool is503AudioDeviceLike = isRG503() || isRG353M() || isRG353V();
     soundCardName = isRG552() ? "DAC" : is503AudioDeviceLike ? "Master"
                                                   : "Playback";
@@ -78,8 +170,38 @@ void audio_init(int freq)
 
 void audio_deinit()
 {
+    if (audioThread.joinable())
+    {
+        {
+            std::lock_guard<std::mutex> lock(audioQueueMutex);
+            stopAudioThread = true;
+            audioQueue.clear();
+            queuedAudioFrames = 0;
+        }
+        audioQueueReady.notify_all();
+        audioQueueSpace.notify_all();
+        audioThread.join();
+    }
+
     if (audio != NULL)
+    {
         rr_audio_destroy(audio);
+        audio = NULL;
+    }
+}
+
+void audio_discard_pending()
+{
+    audioFrameCount = 0;
+    if (!forceAudioMultithread)
+        return;
+
+    {
+        std::lock_guard<std::mutex> lock(audioQueueMutex);
+        audioQueue.clear();
+        queuedAudioFrames = 0;
+    }
+    audioQueueSpace.notify_all();
 }
 
 static void SetVolume()
@@ -124,7 +246,7 @@ void core_audio_sample(int16_t left, int16_t right)
 
     if (audioFrameCount >= retrorun_audio_buffer)
     {
-        rr_audio_submit(audio, (const short *)audioBuffer, audioFrameCount);
+        submitAudio((const short *)audioBuffer, audioFrameCount);
         audioFrameCount = 0;
         retrorun_audio_buffer = new_retrorun_audio_buffer==-1 ? audioFrameLimit:new_retrorun_audio_buffer;
     }
@@ -175,7 +297,7 @@ size_t core_audio_sample_batch(const int16_t *data, size_t frames)
     if (audioFrameCount + frames > static_cast<size_t>(retrorun_audio_buffer))
     // if (audioFrameCount + frames > retrorun_audio_buffer)
     {
-        rr_audio_submit(audio, (const short *)audioBuffer, audioFrameCount);
+        submitAudio((const short *)audioBuffer, audioFrameCount);
         audioFrameCount = 0;
         retrorun_audio_buffer = new_retrorun_audio_buffer==-1 ? audioFrameLimit :new_retrorun_audio_buffer;
     }

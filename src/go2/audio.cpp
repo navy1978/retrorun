@@ -108,7 +108,9 @@ go2_audio_t *go2_audio_create(int frequency)
 
     result->isAudioInitialized = true;
 
-    
+    // Audio submission may run on RetroRun's optional worker. Do not leave
+    // the OpenAL context associated with the thread that created it.
+    alcMakeContextCurrent(NULL);
 
     return result;
 }
@@ -199,6 +201,12 @@ void go2_audio_submit(go2_audio_t *audio, const short *data, int frames)
     prevClock = nextClock;
     totClock = std::chrono::high_resolution_clock::now();
 
+}
+
+void go2_audio_release_thread(go2_audio_t *audio)
+{
+    if (audio && alcGetCurrentContext() == audio->context)
+        alcMakeContextCurrent(NULL);
 }
 
 uint32_t go2_audio_volume_get(go2_audio_t *audio, const char *selem_name)
