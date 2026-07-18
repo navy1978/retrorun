@@ -19,7 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 
 extern unsigned char fontdata8x8[64*16];
-extern unsigned char fontdata6x8[256-32][8];
+extern unsigned char fontdata6x8[256][8];
 
 void basic_text_out16_nf(void *fb, int w, int x, int y, const char *text);
 void basic_text_out16(void *fb, int w, int x, int y, const char *texto, ...);
@@ -28,4 +28,6 @@ void basic_text_out_uyvy_nf(void *fb, int w, int x, int y, const char *text);
 void basic_text_out16_nf_color(void *fb, int w, int x, int y, const char *text, unsigned short color);
 void basic_text_out16_nf_color_clipped(void *fb, int stride, int width, int height,
                                       int x, int y, const char *text, unsigned short color);
+void basic_text_out16_6x8_nf_color_clipped(void *fb, int stride, int width, int height,
+                                          int x, int y, const char *text, unsigned short color);
 void basic_text_out16x16_nf_color_scaled_from_8x8(void *fb, int w, int x, int y, const char *text, unsigned short color);

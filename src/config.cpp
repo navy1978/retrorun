@@ -23,11 +23,6 @@ Copyright (C) 2021-present  navy1978
 #include <filesystem>
 #include <vector>
 
-#ifdef __APPLE__
-#include <mach-o/dyld.h>
-#include <limits.h>
-#endif
-
 // Whitespace characters for trimming
 static const char *ws = " \t\n\r\f\v";
 
@@ -174,29 +169,6 @@ static std::string getAbsolutePath(const std::string &path)
     return absolute.lexically_normal().string();
 }
 
-static std::filesystem::path getExecutableDirectory()
-{
-    std::error_code error;
-
-#ifdef __linux__
-    const std::filesystem::path executable = std::filesystem::read_symlink("/proc/self/exe", error);
-    if (!error && !executable.empty())
-        return executable.parent_path();
-#elif defined(__APPLE__)
-    char buffer[PATH_MAX];
-    uint32_t size = sizeof(buffer);
-    if (_NSGetExecutablePath(buffer, &size) == 0)
-        return std::filesystem::path(getAbsolutePath(buffer)).parent_path();
-
-    std::vector<char> dynamicBuffer(size);
-    if (_NSGetExecutablePath(dynamicBuffer.data(), &size) == 0)
-        return std::filesystem::path(getAbsolutePath(dynamicBuffer.data())).parent_path();
-#endif
-
-    const std::filesystem::path current = std::filesystem::current_path(error);
-    return error ? std::filesystem::path(".") : current;
-}
-
 std::string getLastModifiedTime(const char *path)
 {
     struct stat fileInfo;
@@ -291,7 +263,7 @@ void initConfig()
 
         bool logToFile = false;
         bool logFileReady = false;
-        const std::string logFilePath = (getExecutableDirectory() / "retrorun.log").string();
+        std::string logFilePath;
         const auto logToFileSetting = conf_map.find("retrorun_log_to_file");
         if (logToFileSetting != conf_map.end())
         {
@@ -299,9 +271,14 @@ void initConfig()
             logToFile = value == "true" || value == "enabled" || value == "1";
             if (logToFile)
             {
+                const std::filesystem::path configLogPath =
+                    std::filesystem::path(activeConfigFile).parent_path() / "retrorun.log";
+
+                logFilePath = configLogPath.string();
                 logFileReady = logger.enableFileLogging(logFilePath);
                 if (!logFileReady)
-                    logger.log(Logger::ERR, "Unable to open RetroRun log file: '%s'", logFilePath.c_str());
+                    logger.log(Logger::ERR, "Unable to open RetroRun log file: '%s'",
+                               logFilePath.c_str());
             }
         }
 

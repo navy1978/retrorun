@@ -563,7 +563,7 @@ General and input settings:
 | --- | --- |
 | `retrorun_log_level` | `INFO`, `DEBUG`, `WARNING` or `ERROR`. |
 | `retrorun_core_log_level` | Independent log level for libretro cores; defaults to `ERROR`. Set it explicitly to `INFO` or `DEBUG` for core diagnostics while keeping RetroRun's level independent. |
-| `retrorun_log_to_file` | Duplicates RetroRun and libretro core logs to `retrorun.log` beside the executable. The file is recreated at each launch; defaults to `false`. |
+| `retrorun_log_to_file` | Duplicates RetroRun and libretro core logs to `retrorun.log` in the directory containing the active `retrorun.cfg` (for example `/storage/.config/distribution/configs/retrorun.log` on AmberELEC). The file is recreated at each launch; defaults to `false`. |
 | `retrorun_device_name` | Overrides automatic device identification. |
 | `retrorun_screenshot_folder` | Destination for screenshots. |
 | `retrorun_audio_buffer` | Audio buffer value such as `-1`, `256`, `512` or `1024`. |

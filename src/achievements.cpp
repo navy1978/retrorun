@@ -464,7 +464,7 @@ void identify_game() {
                                            game_loaded, nullptr);
 }
 
-void RC_CCONV login_complete(int result, const char* error, rc_client_t*, void*) {
+void RC_CCONV login_complete(int result, const char* error, rc_client_t* active_client, void*) {
     login_pending = false;
     if (result != RC_OK) {
         login_error = error ? error : rc_error_str(result);
@@ -474,12 +474,19 @@ void RC_CCONV login_complete(int result, const char* error, rc_client_t*, void*)
     }
     login_error.clear();
     if (used_password_login) {
-        const rc_client_user_t* user = rc_client_get_user_info(client);
+        const rc_client_user_t* user = rc_client_get_user_info(active_client);
         if (user && user->token && *user->token) {
             if (persistVideoSetting("retrorun_achievements_token", user->token)) {
-                persistVideoSetting("retrorun_achievements_password", "");
-                logger.log(Logger::INF,
-                           "RetroAchievements: login token saved; plaintext password removed");
+                conf_map["retrorun_achievements_token"] = user->token;
+                if (persistVideoSetting("retrorun_achievements_password", "")) {
+                    conf_map["retrorun_achievements_password"] = "";
+                    logger.log(Logger::INF,
+                               "RetroAchievements: login token saved; plaintext password removed");
+                } else {
+                    logger.log(Logger::WARN,
+                               "RetroAchievements: login token saved, but the plaintext password "
+                               "could not be removed");
+                }
             } else {
                 logger.log(Logger::WARN,
                            "RetroAchievements: could not save the login token");

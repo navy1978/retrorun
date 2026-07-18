@@ -1502,7 +1502,13 @@ void blit_surface_status(go2_presenter_t *presenter, go2_surface_t *source_surfa
             dest_height_scaled);*/
         if (position == BUTTOM_LEFT)
         {
+            // The RG552 panel is presented after a 270-degree rotation.  In
+            // pre-rotation coordinates, bottom-left and bottom-right share
+            // the same centred viewport edge on this axis.  Including the
+            // horizontal inset makes this the exact mirror of BUTTOM_RIGHT.
             dest_x = max_width - dest_width_scaled;
+            if (isRG552() && rotation == GO2_ROTATION_DEGREES_270)
+                dest_x += scarto_w / 2;
             dest_y = max_height - dest_height_scaled + (scarto_h / 2);
         }
         else if (position == BUTTOM_RIGHT)

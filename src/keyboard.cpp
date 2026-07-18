@@ -72,8 +72,8 @@ static void fill_rect(uint16_t* pixels, int stride, int width, int height,
 static void draw_key_rect(uint16_t* pixels, int stride, int width, int height,
                           int x, int y, int w, int h, bool selected)
 {
-    constexpr int border_width = 2;
-    const uint16_t border = selected ? 0xffe0 : 0xffff;
+    constexpr int border_width = 1;
+    const uint16_t border = selected ? 0xffe0 : 0xbdf7;
     const uint16_t background = selected ? 0x39e7 : 0x1082;
     fill_rect(pixels, stride, width, height, x, y, w, h, border);
     fill_rect(pixels, stride, width, height,
@@ -190,10 +190,12 @@ void rr_keyboard_virtual_render(rr_surface_t* surface, int width, int height)
     std::fill(pixels, pixels + stride * height, static_cast<uint16_t>(0x0841));
     basic_text_out16_nf_color_clipped(pixels, stride, width, height, 8, 8,
                                      s_text_editing ? s_text_title.c_str() : "VIRTUAL KEYBOARD", 0xffff);
-    basic_text_out16_nf_color_clipped(pixels, stride, width, height, 8, 20,
+    // Keep the help line inside the 240-pixel handheld canvas.  The previous
+    // wording was wider than the RG552 menu surface and was visibly clipped.
+    basic_text_out16_nf_color_clipped(pixels, stride, width, height, 4, 20,
                                      s_text_editing
-                                         ? "D-PAD Move  A Type  B Cancel  X Case"
-                                         : "D-PAD Move  A Type  B Close  X Case", 0xbdf7);
+                                         ? "D-PAD A:Type B:Cancel X:Case"
+                                         : "D-PAD A:Type B:Close X:Case", 0xbdf7);
     int top = 42;
     if (s_text_editing) {
         const size_t max_chars = static_cast<size_t>(std::max(1, (width - 16) / 8));
@@ -204,18 +206,27 @@ void rr_keyboard_virtual_render(rr_surface_t* surface, int width, int height)
                                          shown.c_str(), 0xffe0);
         top = 56;
     }
+    const int horizontal_margin = 6;
+    const int status_y = std::max(0, height - 14);
+    const int keys_bottom = std::max(top + 5, status_y - 4);
+    const int row_step = std::max(10, std::min(24, (keys_bottom - top) / 5));
+    const int key_height = std::max(10, row_step - 3);
     for (int row = 0; row < 5; ++row) {
-        const int cell_w = std::max(24, (width - 16) / row_size(row));
+        // Compute each row from the available width.  In particular, symbol
+        // rows contain eleven keys: forcing a 24-pixel minimum made them spill
+        // past the right edge of the 240x160 handheld UI.
+        const int cell_w = std::max(1, (width - horizontal_margin * 2) / row_size(row));
+        const int row_width = cell_w * row_size(row);
+        const int row_x = (width - row_width) / 2;
         for (int col = 0; col < row_size(row); ++col) {
-            const int px = 8 + col * cell_w;
-            const int py = top + row * 24;
+            const int px = row_x + col * cell_w;
+            const int py = top + row * row_step;
             const bool selected = row == s_row && col == s_column;
             const int key_x = px;
-            const int key_y = py - 5;
-            const int key_w = cell_w - 5;
-            constexpr int key_h = 20;
+            const int key_y = py;
+            const int key_w = std::max(1, cell_w - 3);
             draw_key_rect(pixels, stride, width, height,
-                          key_x, key_y, key_w, key_h, selected);
+                          key_x, key_y, key_w, key_height, selected);
             const VirtualKey& key = selected_key(row, col);
             char character_label[2] = {0, 0};
             const char* label = key.label;
@@ -223,14 +234,24 @@ void rr_keyboard_virtual_render(rr_surface_t* surface, int width, int height)
                 character_label[0] = s_shift ? key.shifted : key.normal;
                 label = character_label;
             }
-            const int label_width = static_cast<int>(std::strlen(label)) * 8;
+            const int label_length = static_cast<int>(std::strlen(label));
+            const bool compact_label = label_length > 1;
+            const int glyph_width = compact_label ? 6 : 8;
+            const int label_width = label_length * glyph_width;
             const int label_x = key_x + std::max(2, (key_w - label_width) / 2);
-            basic_text_out16_nf_color_clipped(pixels, stride, width, height, label_x, py,
-                                             label,
-                                             selected ? 0xffe0 : 0xffff);
+            const int label_y = key_y + std::max(1, (key_height - 8) / 2);
+            if (compact_label) {
+                basic_text_out16_6x8_nf_color_clipped(pixels, stride, width, height,
+                                                      label_x, label_y, label,
+                                                      selected ? 0xffe0 : 0xffff);
+            } else {
+                basic_text_out16_nf_color_clipped(pixels, stride, width, height,
+                                                  label_x, label_y, label,
+                                                  selected ? 0xffe0 : 0xffff);
+            }
         }
     }
-    basic_text_out16_nf_color_clipped(pixels, stride, width, height, 8, height - 14,
+    basic_text_out16_nf_color_clipped(pixels, stride, width, height, 8, status_y,
                                      s_symbols ? "PAGE: SYMBOLS" :
                                      (s_shift ? "CASE: UPPERCASE" : "CASE: lowercase"),
                                      (s_symbols || s_shift) ? 0xffe0 : 0x7bef);

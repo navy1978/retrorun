@@ -342,6 +342,38 @@ void basic_text_out16_nf_color_clipped(void *fb, int stride, int width, int heig
     }
 }
 
+void basic_text_out16_6x8_nf_color_clipped(void *fb, int stride, int width, int height,
+                                          int x, int y, const char *text, unsigned short color)
+{
+    if (!fb || !text || stride <= 0 || width <= 0 || height <= 0)
+        return;
+
+    unsigned short *pixels = static_cast<unsigned short *>(fb);
+    for (int i = 0; text[i] != '\0'; ++i)
+    {
+        const unsigned char glyph = static_cast<unsigned char>(text[i]);
+        if (glyph == ' ')
+            continue;
+
+        const int glyph_x = x + i * 6;
+        for (int row = 0; row < 8; ++row)
+        {
+            const int py = y + row;
+            if (py < 0 || py >= height)
+                continue;
+
+            const unsigned char bits = fontdata6x8[glyph][row];
+            for (int column = 0; column < 6; ++column)
+            {
+                const int px = glyph_x + column;
+                if ((bits & static_cast<unsigned char>(0x20 >> column)) &&
+                    px >= 0 && px < width)
+                    pixels[py * stride + px] = color;
+            }
+        }
+    }
+}
+
 /* note: may use 1 extra pixel on the right */
 void basic_text_out16_nf(void *fb, int w, int x, int y, const char *text)
 {
