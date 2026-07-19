@@ -481,6 +481,9 @@ void rr_input_state_read(rr_input_t* input, rr_input_state_t* state) {
     const bool right_stick =
         SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_RIGHTSTICK) != 0 ||
         (rg351_layout && button_count > 15 && SDL_JoystickGetButton(joystick, 15));
+    if (isMiniloongPocket1() && joystick && button_count > 10 &&
+        SDL_JoystickGetButton(joystick, 10))
+        state->buttons[RRInputButton_MENU] = RRButtonState_Pressed;
     // RG351V distributions are not consistent: the Function control is
     // exposed either as the missing left-stick click or as Guide. Treat both
     // as the same portable left hotkey; R3 remains the right-stick click.

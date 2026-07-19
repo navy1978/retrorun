@@ -50,7 +50,8 @@ video, with an additional SDL2 backend for macOS and Linux.
   and screenshot directories.
 
 The native backend remains available for the RG351 M/P/V/MP, RG552, RG503,
-RG353M and RG353V. The SDL2 backend provides an alternative implementation for
+RG353M, RG353V and Miniloong Pocket 1. The Pocket 1's portrait DRM panel is
+rotated natively, including both Tate directions and direct scanout. The SDL2 backend provides an alternative implementation for
 Linux handheld distributions such as AmberELEC, ArkOS/dArkOS and other devices
 that provide SDL2, KMSDRM and OpenGL ES 3.
 
@@ -574,7 +575,7 @@ General and input settings:
 | `retrorun_log_level` | `INFO`, `DEBUG`, `WARNING` or `ERROR`. |
 | `retrorun_core_log_level` | Independent log level for libretro cores; defaults to `ERROR`. Set it explicitly to `INFO` or `DEBUG` for core diagnostics while keeping RetroRun's level independent. |
 | `retrorun_log_to_file` | Duplicates RetroRun and libretro core logs to `retrorun.log` in the directory containing the active `retrorun.cfg` (for example `/storage/.config/distribution/configs/retrorun.log` on AmberELEC). The file is recreated at each launch; defaults to `false`. |
-| `retrorun_device_name` | Overrides automatic device identification. |
+| `retrorun_device_name` | Overrides automatic device identification (for example, `Miniloong Pocket 1`). |
 | `retrorun_screenshot_folder` | Destination for screenshots. |
 | `retrorun_audio_buffer` | Audio buffer value such as `-1`, `256`, `512` or `1024`. |
 | `retrorun_audio_stable_buffer` | Optional extra audio buffering for difficult cores on SDL2 and GO2 (`false` by default). |
@@ -662,6 +663,10 @@ Default controller hotkeys:
 | Select + R1 | Save the current state slot. |
 | Select + L1 | Load the current state slot. |
 | Select + Up/Down | Select the next/previous state slot. |
+
+On Miniloong Pocket 1, the dedicated Menu button replaces Select as the
+frontend hotkey modifier for all combinations above. Select remains available
+to the emulated game.
 
 With `retrorun_alternative_input_mode = true`, Select or F2 is used with X to
 open the menu, Y for FPS, B for screenshots, A for pause and Start for exit.

@@ -168,6 +168,7 @@ static rr_input_button_t xButton;
 static rr_input_button_t yButton;
 
 static rr_input_button_t selectButton;
+static rr_input_button_t hotkeyButton;
 static rr_input_button_t startButton;
 static rr_input_button_t l1Button;
 static rr_input_button_t r1Button;
@@ -357,7 +358,7 @@ void initButtons(){
         ignoreF2 = false;
      }
  
-     if ( isRG503()||isRG353V() || isRG353M() )
+     if (isRK3566Device())
      {
          l2Button = RRInputButton_TriggerLeft;
          r2Button = RRInputButton_TriggerRight;
@@ -367,7 +368,7 @@ void initButtons(){
          r3Button = RRInputButton_THUMBR;
          f2Button = RRInputButton_F2;
          ignoreF2 = false;
-         logger.log(Logger::DEB, "RG503/RG353 joypad configuration detected.");
+         logger.log(Logger::DEB, "RK3566 joypad configuration detected.");
      }else{
         logger.log(Logger::DEB, "RG351 joypad configuration detected.");
      }
@@ -402,6 +403,9 @@ void initButtons(){
 #endif
  
      applyButtonRemapping();
+     hotkeyButton = isMiniloongPocket1() ? RRInputButton_MENU : selectButton;
+     if (isMiniloongPocket1())
+         logger.log(Logger::INF, "Miniloong Pocket 1 hotkey: Menu (BTN_MODE).");
  
 }
 
@@ -690,7 +694,7 @@ bool isL3Pressed = rr_input_state_button_get(gamepadState, l3Button) == RRButton
 bool isR3Pressed = rr_input_state_button_get(gamepadState, r3Button) == RRButtonState_Pressed;
 bool wasL3Released = rr_input_state_button_get(prevGamepadState, l3Button) == RRButtonState_Released;
 bool wasR3Released = rr_input_state_button_get(prevGamepadState, r3Button) == RRButtonState_Released;
-bool isSelectPressed = rr_input_state_button_get(gamepadState, selectButton) == RRButtonState_Pressed;
+bool isHotkeyPressed = rr_input_state_button_get(gamepadState, hotkeyButton) == RRButtonState_Pressed;
 bool isStartPressed = rr_input_state_button_get(gamepadState, startButton) == RRButtonState_Pressed;
 bool isXPressed = rr_input_state_button_get(gamepadState, xButton) == RRButtonState_Pressed;
 bool isYPressed = rr_input_state_button_get(gamepadState, yButton) == RRButtonState_Pressed;
@@ -735,7 +739,7 @@ if (input_info_requested_alternative) { // this are the alternative combinations
     // Handle emntering in Menu request
     const bool sticksMenuPressed = isL3Pressed && isR3Pressed &&
                                    (wasL3Released || wasR3Released);
-    if (!showLoading && ((isSelectPressed && isXPressed) ||
+    if (!showLoading && ((isHotkeyPressed && isXPressed) ||
                          (isF2Pressed && isXPressed) || sticksMenuPressed)) {
         double elapsed = currentTime - lastInforequestTime;
         logger.log(Logger::DEB, "Input: Info requested");
@@ -752,7 +756,7 @@ if (input_info_requested_alternative) { // this are the alternative combinations
     
     if (!input_info_requested){ // we are not in the menu...
         // Handle exit request
-        if ((isF2Pressed && isStartPressed) || (isSelectPressed && isStartPressed)) {
+        if ((isF2Pressed && isStartPressed) || (isHotkeyPressed && isStartPressed)) {
             if (input_exit_requested_firstTime && elapsed_time_ms > 0.5) {
                 input_exit_requested = true;
             } else if (!input_exit_requested_firstTime) {
@@ -761,7 +765,7 @@ if (input_info_requested_alternative) { // this are the alternative combinations
             }
         }
         // Handle FPS request
-        if ( !showLoading && ((isF2Pressed && isYPressed) || (isSelectPressed && isYPressed)) ) {
+        if ( !showLoading && ((isF2Pressed && isYPressed) || (isHotkeyPressed && isYPressed)) ) {
             double elapsed = currentTime - lastFPSrequestTime;
             if (elapsed >= 0.5) {
                 input_fps_requested = !input_fps_requested;
@@ -770,14 +774,14 @@ if (input_info_requested_alternative) { // this are the alternative combinations
         }
         // Handle screenshot request
         if (!showLoading && wasBReleased &&
-            ((isF2Pressed && isBPressed)|| (isSelectPressed && isBPressed))) {
+            ((isF2Pressed && isBPressed)|| (isHotkeyPressed && isBPressed))) {
             screenshot_requested = true;
             lastScreenhotrequestTime = currentTime;
             logger.log(Logger::DEB, "Input: Screenshot requested");
         }
 
         // Handle pause request
-        if (!showLoading && ((isF2Pressed && isAPressed) || (isSelectPressed && isAPressed))) {
+        if (!showLoading && ((isF2Pressed && isAPressed) || (isHotkeyPressed && isAPressed))) {
             double elapsed = currentTime - pauseRequestTime;
             if (elapsed >= 0.5) {
                 logger.log(Logger::DEB, "Input: Pause requested");
@@ -789,7 +793,7 @@ if (input_info_requested_alternative) { // this are the alternative combinations
                 pauseRequestTime = currentTime;
             }
         }
-        if (!showLoading && (isF2Pressed || isSelectPressed) &&
+        if (!showLoading && (isF2Pressed || isHotkeyPressed) &&
             isR2Pressed && wasR2Released && fastForwardToggleAllowed()) {
             input_ffwd_requested = !input_ffwd_requested;
             logger.log(Logger::DEB, "Input: Fast-forward %s",
@@ -816,7 +820,7 @@ if (input_info_requested_alternative) { // this are the alternative combinations
     }
     if (!input_info_requested){ // we aqre not in the menu
         // Handle exit request
-        if ( isSelectPressed && isStartPressed) {
+        if ( isHotkeyPressed && isStartPressed) {
             if (input_exit_requested_firstTime && elapsed_time_ms > 0.5) {
                 input_exit_requested = true;
             } else if (!input_exit_requested_firstTime) {
@@ -825,7 +829,7 @@ if (input_info_requested_alternative) { // this are the alternative combinations
          }
         }
         // Handle FPS request
-        if (!showLoading && isSelectPressed && isYPressed) {
+        if (!showLoading && isHotkeyPressed && isYPressed) {
             double elapsed = currentTime - lastFPSrequestTime;
             if (elapsed >= 0.5) {
                 input_fps_requested = !input_fps_requested;
@@ -833,13 +837,13 @@ if (input_info_requested_alternative) { // this are the alternative combinations
             }
         }
         // Handle screenshot request
-        if (!showLoading && isSelectPressed && isBPressed && wasBReleased) {
+        if (!showLoading && isHotkeyPressed && isBPressed && wasBReleased) {
             screenshot_requested = true;
             lastScreenhotrequestTime = currentTime;
             logger.log(Logger::DEB, "Input: Screenshot requested");
         }
         // Handle pause request
-        if (!showLoading && isSelectPressed && isAPressed) {
+        if (!showLoading && isHotkeyPressed && isAPressed) {
             double elapsed = currentTime - pauseRequestTime;
             if (elapsed >= 0.5) {
                 logger.log(Logger::DEB, "Input: Pause requested");
@@ -852,7 +856,7 @@ if (input_info_requested_alternative) { // this are the alternative combinations
             }
         }
         // Handle fast-forward request
-        if (!showLoading && isSelectPressed && isR2Pressed && wasR2Released) {
+        if (!showLoading && isHotkeyPressed && isR2Pressed && wasR2Released) {
             if (fastForwardToggleAllowed()) {
                 input_ffwd_requested = !input_ffwd_requested;
                 logger.log(Logger::DEB, "Input: Fast-forward %s",
@@ -868,7 +872,7 @@ if (input_info_requested_alternative) { // this are the alternative combinations
 
 
 // new
-if (!showLoading && (rr_input_state_button_get(gamepadState, selectButton) == RRButtonState_Pressed) &&
+if (!showLoading && (rr_input_state_button_get(gamepadState, hotkeyButton) == RRButtonState_Pressed) &&
 (rr_input_state_button_get(gamepadState, r1Button) == RRButtonState_Pressed))
 {
 gettimeofday(&valTime, NULL);
@@ -883,7 +887,7 @@ if (elapsed >= 0.5)
 }  
 }
 
-if (!showLoading && (rr_input_state_button_get(gamepadState, selectButton) == RRButtonState_Pressed) &&
+if (!showLoading && (rr_input_state_button_get(gamepadState, hotkeyButton) == RRButtonState_Pressed) &&
 (rr_input_state_button_get(gamepadState, upButton) == RRButtonState_Pressed))
 {
 gettimeofday(&valTime, NULL);
@@ -901,7 +905,7 @@ if (elapsed >= 0.5)
 
 }
 
-if (!showLoading && (rr_input_state_button_get(gamepadState, selectButton) == RRButtonState_Pressed) &&
+if (!showLoading && (rr_input_state_button_get(gamepadState, hotkeyButton) == RRButtonState_Pressed) &&
 (rr_input_state_button_get(gamepadState, downButton) == RRButtonState_Pressed))
 {
 gettimeofday(&valTime, NULL);
@@ -917,7 +921,7 @@ if (elapsed >= 0.5)
 } 
 }
 
-if (!showLoading && (rr_input_state_button_get(gamepadState, selectButton) == RRButtonState_Pressed) &&
+if (!showLoading && (rr_input_state_button_get(gamepadState, hotkeyButton) == RRButtonState_Pressed) &&
 (rr_input_state_button_get(gamepadState, l1Button) == RRButtonState_Pressed))
 {
 gettimeofday(&valTime, NULL);
@@ -1161,13 +1165,13 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
         case RETRO_DEVICE_ID_JOYPAD_R:
             return rr_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? r2Button : realR1);
         case RETRO_DEVICE_ID_JOYPAD_L2:
-        if (isRG503()||isRG353V() || isRG353M()){
+        if (isRK3566Device()){
             return rr_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? l2Button : realL1);
         }else{
             return rr_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? realL1 : l2Button);
         }
         case RETRO_DEVICE_ID_JOYPAD_R2:
-        if (isRG503()||isRG353V() || isRG353M()){
+        if (isRK3566Device()){
             return rr_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? r2Button : realR1);
         }else{
             return rr_input_state_button_get(gamepadState, swapL1R1WithL2R2 ? realR1 : r2Button);

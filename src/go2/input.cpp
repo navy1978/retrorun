@@ -52,7 +52,7 @@ static const char *BATTERY_CAPACITY_NAME_2 = "/sys/class/power_supply/bat/capaci
 static const char *BRIGHTNESS_VALUE_NAME = "/sys/class/backlight/backlight/brightness";
 
 #define GO2_THUMBSTICK_COUNT (Go2InputThumbstick_Right + 1)
-#define GO2_BUTTON_COUNT (Go2InputButton_TriggerRight + 1)
+#define GO2_BUTTON_COUNT (Go2InputButton_Quit + 1)
 
 typedef struct go2_input_state
 {
@@ -270,6 +270,7 @@ static void *input_task(void *arg)
 
     input->current_state.buttons[Go2InputButton_TriggerLeft] = libevdev_get_event_value(input->dev, EV_KEY, BTN_TL2) ? ButtonState_Pressed : ButtonState_Released;
     input->current_state.buttons[Go2InputButton_TriggerRight] = libevdev_get_event_value(input->dev, EV_KEY, BTN_TR2) ? ButtonState_Pressed : ButtonState_Released;
+    input->current_state.buttons[Go2InputButton_MENU] = libevdev_get_event_value(input->dev, EV_KEY, BTN_MODE) ? ButtonState_Pressed : ButtonState_Released;
 
     input->current_state.thumbs[Go2InputThumbstick_Left].x = libevdev_get_event_value(input->dev, EV_ABS, ABS_X) / (float)abs_x_max;
     input->current_state.thumbs[Go2InputThumbstick_Left].y = libevdev_get_event_value(input->dev, EV_ABS, ABS_Y) / (float)abs_y_max;
@@ -392,6 +393,9 @@ static void *input_task(void *arg)
                     break;
                 case BTN_TRIGGER_HAPPY16:
                     input->pending_state.buttons[Go2InputButton_F16] = state;
+                    break;
+                case BTN_MODE:
+                    input->pending_state.buttons[Go2InputButton_MENU] = state;
                     break;
 
                 case BTN_TL2:

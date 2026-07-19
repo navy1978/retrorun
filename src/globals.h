@@ -201,6 +201,8 @@ bool isRG552();
 bool isRG503();
 bool isRG353V();
 bool isRG353M();
+bool isMiniloongPocket1();
+bool isRK3566Device();
 bool isRG353Family();
 bool supportsVideoMultithread();
 bool hasDeviceRotatedScreen();

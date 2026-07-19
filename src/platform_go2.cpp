@@ -1,5 +1,7 @@
 #include "platform.h"
 
+#include "globals.h"
+
 #include "go2/audio.h"
 #include "go2/display.h"
 #include "go2/input.h"
@@ -41,12 +43,31 @@ static rr_video_shader_t video_shader = RR_VIDEO_SHADER_OFF;
 
 static_assert(static_cast<int>(RRInputButton_TriggerRight) == static_cast<int>(Go2InputButton_TriggerRight),
               "GO2 and platform button layouts must match");
+static_assert(static_cast<int>(RRInputButton_MENU) == static_cast<int>(Go2InputButton_MENU),
+              "GO2 and platform menu button layouts must match");
+static_assert(static_cast<int>(RRInputButton_Quit) == static_cast<int>(Go2InputButton_Quit),
+              "GO2 and platform button layouts must match");
 static_assert(static_cast<int>(RRInputThumbstick_Right) == static_cast<int>(Go2InputThumbstick_Right),
               "GO2 and platform stick layouts must match");
 static_assert(static_cast<int>(RR_ROTATION_VERTICAL) == static_cast<int>(GO2_ROTATION_VERTICAL),
               "GO2 and platform rotation layouts must match");
 
 static go2_rotation_t native_rotation(rr_rotation_t value) {
+    // The Miniloong Pocket 1 exposes its 720x1280 panel in portrait through
+    // DRM. RetroRun works in its landscape logical coordinate space, so add
+    // the panel's fixed 270 degree transform to every GO2 presentation path.
+    // Doing this at the platform boundary keeps RGA blits, overlays and the
+    // direct-scanout plane in the same orientation. It also composes with
+    // both Tate directions instead of forcing a single global rotation.
+    if (isMiniloongPocket1()) {
+        switch (value) {
+        case RR_ROTATION_DEGREES_0:   return GO2_ROTATION_DEGREES_270;
+        case RR_ROTATION_DEGREES_90:  return GO2_ROTATION_DEGREES_0;
+        case RR_ROTATION_DEGREES_180: return GO2_ROTATION_DEGREES_90;
+        case RR_ROTATION_DEGREES_270: return GO2_ROTATION_DEGREES_180;
+        default: break;
+        }
+    }
     return static_cast<go2_rotation_t>(value);
 }
 
@@ -68,11 +89,12 @@ rr_input_state_t* rr_input_state_create() { rr_input_state_t* s = new rr_input_s
 void rr_input_state_destroy(rr_input_state_t* state) { if (state) { go2_input_state_destroy(state->native); delete state; } }
 void rr_input_state_read(rr_input_t* input, rr_input_state_t* state) { go2_input_state_read(input->native, state->native); }
 rr_button_state_t rr_input_state_button_get(rr_input_state_t* state, rr_input_button_t button) {
-    if (button > RRInputButton_TriggerRight) return RRButtonState_Released;
+    if (!state || button < RRInputButton_DPadUp || button > RRInputButton_Quit)
+        return RRButtonState_Released;
     return static_cast<rr_button_state_t>(go2_input_state_button_get(state->native, static_cast<go2_input_button_t>(button)));
 }
 void rr_input_state_button_set(rr_input_state_t* state, rr_input_button_t button, rr_button_state_t value) {
-    if (button <= RRInputButton_TriggerRight)
+    if (state && button >= RRInputButton_DPadUp && button <= RRInputButton_Quit)
         go2_input_state_button_set(state->native, static_cast<go2_input_button_t>(button), static_cast<go2_button_state_t>(value));
 }
 rr_thumb_t rr_input_state_thumbstick_get(rr_input_state_t* state, rr_input_thumbstick_t stick) { go2_thumb_t v = go2_input_state_thumbstick_get(state->native, static_cast<go2_input_thumbstick_t>(stick)); rr_thumb_t r = {v.x, v.y}; return r; }

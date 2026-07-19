@@ -1520,7 +1520,12 @@ void blit_surface_status(go2_presenter_t *presenter, go2_surface_t *source_surfa
 
     // int dest2HeightScaled = dest2Height * scaleFactor * 0.75; // scale height by 0.75 to maintain 4:3 aspect ratio
 
-    if (hasDeviceRotatedScreen())
+    // Existing Anbernic devices in this group expose a landscape scanout
+    // despite their logical rotation. The Miniloong Pocket 1 is different:
+    // its DRM mode is physically portrait and its platform transform has
+    // already been composed into rotation. Use the generic rotated-blit
+    // layout below so notification surfaces keep their proportions.
+    if (hasDeviceRotatedScreen() && !isMiniloongPocket1())
     {
         // Scale the surface dimensions based on the display resolution
         if ((rotation== GO2_ROTATION_DEGREES_0 || rotation== GO2_ROTATION_DEGREES_180)){
