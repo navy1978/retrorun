@@ -60,6 +60,17 @@ const char *aspect_ratio_names_array[] = {
 
 // --- Simple callbacks ---
 
+static bool toggleRequested(int button)
+{
+    return button == LEFT || button == RIGHT;
+}
+
+static void saveBoolean(const char *setting, bool value)
+{
+    if (!persistConfigSetting(setting, value ? "true" : "false"))
+        logger.log(Logger::ERR, "Unable to save %s in '%s'", setting, activeConfigFile.c_str());
+}
+
 void fake(int)
 {
 }
@@ -180,7 +191,11 @@ std::function<void(int)> setTateMode = [](int button)
         tateState = static_cast<TateState>((tateState + 1) % (AUTO + 1));
     else if (button == LEFT)
         tateState = static_cast<TateState>((tateState - 1) < DISABLED ? AUTO : (tateState - 1));
+    else
+        return;
     first_video_refresh = true;
+    static const char *names[] = {"disabled", "enabled", "reversed", "auto"};
+    persistConfigSetting("retrorun_tate_mode", names[static_cast<int>(tateState)]);
 };
 
 // --- Swap triggers/sticks ---
@@ -193,7 +208,10 @@ int getSwapTriggers()
 std::function<void(int)> setSwapTriggers = [](int button)
 {
     if (button == LEFT || button == RIGHT)
+    {
         swapL1R1WithL2R2 = !swapL1R1WithL2R2;
+        saveBoolean("retrorun_swap_l1r1_with_l2r2", swapL1R1WithL2R2);
+    }
 };
 
 int getSwapSticks()
@@ -204,7 +222,10 @@ int getSwapSticks()
 std::function<void(int)> setSwapSticks = [](int button)
 {
     if (button == LEFT || button == RIGHT)
+    {
         swapSticks = !swapSticks;
+        saveBoolean("retrorun_swap_sticks", swapSticks);
+    }
 };
 
 int getAnalogToDigitalSetting()
@@ -237,7 +258,60 @@ int getLockDeclaredFPS()
 std::function<void(int)> setLockDeclaredFPS = [](int button)
 {
     if (button == LEFT || button == RIGHT)
+    {
         runLoopAtDeclaredfps = !runLoopAtDeclaredfps;
+        saveBoolean("retrorun_loop_declared_fps", runLoopAtDeclaredfps);
+    }
+};
+
+// --- Saves / general frontend behaviour ---
+
+int getAutoSaveSetting() { return auto_save ? 1 : 0; }
+std::function<void(int)> setAutoSaveSetting = [](int button) {
+    if (!toggleRequested(button)) return;
+    auto_save = !auto_save;
+    saveBoolean("retrorun_auto_save", auto_save);
+};
+
+int getAutoLoadSetting() { return auto_load ? 1 : 0; }
+std::function<void(int)> setAutoLoadSetting = [](int button) {
+    if (!toggleRequested(button)) return;
+    auto_load = !auto_load;
+    saveBoolean("retrorun_auto_load", auto_load);
+};
+
+int getFPSCounterSetting() { return input_fps_requested ? 1 : 0; }
+std::function<void(int)> setFPSCounterSetting = [](int button) {
+    if (!toggleRequested(button)) return;
+    input_fps_requested = !input_fps_requested;
+    saveBoolean("retrorun_fps_counter", input_fps_requested);
+};
+
+int getLoadingScreenSetting()
+{
+    return configValueIsTrue("retrorun_show_loading_screen", true) ? 1 : 0;
+}
+std::function<void(int)> setLoadingScreenSetting = [](int button) {
+    if (!toggleRequested(button)) return;
+    saveBoolean("retrorun_show_loading_screen", !getLoadingScreenSetting());
+};
+
+int getAlternativeInputSetting() { return input_info_requested_alternative ? 1 : 0; }
+std::function<void(int)> setAlternativeInputSetting = [](int button) {
+    if (!toggleRequested(button)) return;
+    input_info_requested_alternative = !input_info_requested_alternative;
+    saveBoolean("retrorun_alternative_input_mode", input_info_requested_alternative);
+};
+
+int getMouseSpeedSetting() { return retrorun_mouse_speed_factor; }
+std::function<void(int)> setMouseSpeedSetting = [](int button) {
+    if (button == LEFT)
+        retrorun_mouse_speed_factor = retrorun_mouse_speed_factor <= 1 ? 10 : retrorun_mouse_speed_factor - 1;
+    else if (button == RIGHT)
+        retrorun_mouse_speed_factor = retrorun_mouse_speed_factor >= 10 ? 1 : retrorun_mouse_speed_factor + 1;
+    else
+        return;
+    persistConfigSetting("retrorun_mouse_speed_factor", std::to_string(retrorun_mouse_speed_factor));
 };
 
 // --- persistVideoSetting is in config.cpp ---
@@ -403,12 +477,15 @@ int getRumbleDisabled()
 std::function<void(int)> setRumbleDisabled = [](int button)
 {
     if (button == LEFT || button == RIGHT)
+    {
         disableRumble = !disableRumble;
+        saveBoolean("retrorun_disable_rumble", disableRumble);
+    }
 };
 
 // --- Audio buffer ---
 
-static int audio_buffer_array[] = {-1, 1, 256, 512, 1024, 2048, 4096};
+static int audio_buffer_array[] = {-1, 256, 512, 1024, 2048, 4096};
 
 int getAudioBuffer()
 {
@@ -433,7 +510,147 @@ std::function<void(int)> setAudioBuffer = [](int button)
     else if (button == LEFT)
         new_index = (current_index - 1 + audio_buffer_array_size) % audio_buffer_array_size;
     if (new_index >= 0)
+    {
         new_retrorun_audio_buffer = audio_buffer_array[new_index];
+        persistConfigSetting("retrorun_audio_buffer", std::to_string(new_retrorun_audio_buffer));
+    }
+};
+
+int getStableAudioSetting()
+{
+    return configValueIsTrue("retrorun_audio_stable_buffer", false) ? 1 : 0;
+}
+std::function<void(int)> setStableAudioSetting = [](int button) {
+    if (!toggleRequested(button)) return;
+    saveBoolean("retrorun_audio_stable_buffer", !getStableAudioSetting());
+};
+
+int getThreadedAudioSetting()
+{
+    return configValueIsTrue("retrorun_force_audio_multithread", false) ? 1 : 0;
+}
+std::function<void(int)> setThreadedAudioSetting = [](int button) {
+    if (!toggleRequested(button)) return;
+    // Do not change forceAudioMultithread while audio is active: enabling it
+    // without constructing its worker would leave queued samples unconsumed.
+    saveBoolean("retrorun_force_audio_multithread", !getThreadedAudioSetting());
+};
+
+// --- Performance ---
+
+int getAdaptiveFrameskipSetting() { return adaptiveFrameSkip ? 1 : 0; }
+std::function<void(int)> setAdaptiveFrameskipSetting = [](int button) {
+    if (!toggleRequested(button)) return;
+    adaptiveFrameSkip = !adaptiveFrameSkip;
+    if (adaptiveFrameSkip && fixedFrameSkip > 0) {
+        fixedFrameSkip = 0;
+        persistConfigSetting("retrorun_frameskip", "0");
+    }
+    saveBoolean("retrorun_adaptive_frameskip", adaptiveFrameSkip);
+};
+
+int getFixedFrameskipSetting() { return fixedFrameSkip; }
+std::function<void(int)> setFixedFrameskipSetting = [](int button) {
+    if (button == LEFT)
+        fixedFrameSkip = fixedFrameSkip <= 0 ? 5 : fixedFrameSkip - 1;
+    else if (button == RIGHT)
+        fixedFrameSkip = fixedFrameSkip >= 5 ? 0 : fixedFrameSkip + 1;
+    else
+        return;
+    if (fixedFrameSkip > 0 && adaptiveFrameSkip) {
+        adaptiveFrameSkip = false;
+        saveBoolean("retrorun_adaptive_frameskip", false);
+    }
+    persistConfigSetting("retrorun_frameskip", std::to_string(fixedFrameSkip));
+};
+
+int getThreadedVideoSetting()
+{
+    return configValueIsTrue("retrorun_force_video_multithread", false) ? 1 : 0;
+}
+std::function<void(int)> setThreadedVideoSetting = [](int button) {
+    if (!toggleRequested(button)) return;
+    saveBoolean("retrorun_force_video_multithread", !getThreadedVideoSetting());
+};
+
+#ifndef RR_PLATFORM_SDL
+int getDRMDirectScanoutSetting()
+{
+    return static_cast<int>(drmDirectScanoutMode);
+}
+std::function<void(int)> setDRMDirectScanoutSetting = [](int button) {
+    int value = static_cast<int>(drmDirectScanoutMode);
+    if (button == LEFT) value = (value + 2) % 3;
+    else if (button == RIGHT) value = (value + 1) % 3;
+    else return;
+    drmDirectScanoutMode = static_cast<DRMDirectScanoutMode>(value);
+    static const char *names[] = {"auto", "false", "true"};
+    persistConfigSetting("retrorun_drm_direct_scanout", names[value]);
+};
+#endif
+
+// --- RetroAchievements extras ---
+
+int getAchievementsUnofficialSetting()
+{
+    return configValueIsTrue("retrorun_achievements_unofficial", false) ? 1 : 0;
+}
+std::function<void(int)> setAchievementsUnofficialSetting = [](int button) {
+    if (!toggleRequested(button)) return;
+    saveBoolean("retrorun_achievements_unofficial", !getAchievementsUnofficialSetting());
+};
+
+int getAchievementsEncoreSetting()
+{
+    return configValueIsTrue("retrorun_achievements_encore", false) ? 1 : 0;
+}
+std::function<void(int)> setAchievementsEncoreSetting = [](int button) {
+    if (!toggleRequested(button)) return;
+    saveBoolean("retrorun_achievements_encore", !getAchievementsEncoreSetting());
+};
+
+// --- Diagnostics ---
+
+static int logLevelIndex(const std::string &value, int fallback)
+{
+    if (value == "DEBUG") return 0;
+    if (value == "INFO") return 1;
+    if (value == "WARNING") return 2;
+    if (value == "ERROR") return 3;
+    return fallback;
+}
+
+int getRetroRunLogLevelSetting() { return logLevelIndex(configValue("retrorun_log_level"), 1); }
+std::function<void(int)> setRetroRunLogLevelSetting = [](int button) {
+    int value = getRetroRunLogLevelSetting();
+    if (button == LEFT) value = (value + 3) % 4;
+    else if (button == RIGHT) value = (value + 1) % 4;
+    else return;
+    static const char *names[] = {"DEBUG", "INFO", "WARNING", "ERROR"};
+    persistConfigSetting("retrorun_log_level", names[value]);
+};
+
+int getCoreLogLevelSetting() { return logLevelIndex(configValue("retrorun_core_log_level"), 3); }
+std::function<void(int)> setCoreLogLevelSetting = [](int button) {
+    int value = getCoreLogLevelSetting();
+    if (button == LEFT) value = (value + 3) % 4;
+    else if (button == RIGHT) value = (value + 1) % 4;
+    else return;
+    static const char *names[] = {"DEBUG", "INFO", "WARNING", "ERROR"};
+    persistConfigSetting("retrorun_core_log_level", names[value]);
+};
+
+int getLogToFileSetting() { return configValueIsTrue("retrorun_log_to_file", false) ? 1 : 0; }
+std::function<void(int)> setLogToFileSetting = [](int button) {
+    if (!toggleRequested(button)) return;
+    saveBoolean("retrorun_log_to_file", !getLogToFileSetting());
+};
+
+int getKeyLogSetting() { return enable_key_log ? 1 : 0; }
+std::function<void(int)> setKeyLogSetting = [](int button) {
+    if (!toggleRequested(button)) return;
+    enable_key_log = !enable_key_log;
+    saveBoolean("retrorun_enable_key_log", enable_key_log);
 };
 
 // --- Brightness ---

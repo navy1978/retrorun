@@ -78,6 +78,9 @@ int audioCounter = 0;
 int audioCounterSkip = 6;
 
 bool forceVideoMultithread = false;
+DRMDirectScanoutMode drmDirectScanoutMode = DRMDirectScanoutMode::Auto;
+bool drmDirectScanoutDiagnosticActive = false;
+bool drmDirectScanoutDiagnosticCompleted = false;
 // Frame duplication is perceptible on handheld displays. Keep adaptive
 // skipping opt-in until backend-specific timings can exclude vblank waits.
 bool adaptiveFrameSkip = false;
@@ -417,6 +420,14 @@ bool isRG353V()
 bool isRG353M()
 {
     return checkDeviceName((char *)"RG353M"); 
+}
+bool isRG353Family()
+{
+    return strncmp(DEVICE_NAME, "RG353", 5) == 0;
+}
+bool supportsVideoMultithread()
+{
+    return isRG552() || isRG353Family();
 }
 bool hasDeviceRotatedScreen(){
    return  isRG351V() || isRG351MP() || isRG503() || isRG353V() || isRG353M();

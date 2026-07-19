@@ -183,6 +183,17 @@ void MenuManager::handle_input(int buttonPressed)
                 
             }
 
+            if (mi.get_name() == SHOW_DRM)
+            {
+                if (mi.getMenu() != nullptr)
+                {
+                    queueMenus.push(currentMenu_);
+                    currentMenu_ = mi.getMenu();
+                    currentMenu_->resetSelected();
+                }
+                return;
+            }
+
             if (mi.get_name() == SHOW_DEVICE || mi.get_name() == SHOW_CORE
             || mi.get_name() == SHOW_GAME || mi.get_name() == SHOW_GRAPHICS
             || (mi.get_name().find("empty") != std::string::npos && mi.get_name().find("<-") != std::string::npos ))

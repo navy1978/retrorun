@@ -20,6 +20,8 @@ Copyright (C) 2021-present  navy1978
 #include <sys/stat.h>
 #include <ctime>
 #include <algorithm>
+#include <cerrno>
+#include <cstdio>
 #include <filesystem>
 #include <vector>
 
@@ -128,7 +130,7 @@ TateState getTateMode(const std::string tate)
         return ENABLED;
     else if (tate == "disabled")
         return DISABLED;
-    else if (tate == "reversed")
+    else if (tate == "reversed" || tate == "reverted")
         return REVERSED;
     else if (tate == "auto")
         return AUTO;
@@ -205,7 +207,21 @@ std::string replace(std::string &str, const std::string &from, const std::string
     return replaced;
 }
 
-bool persistVideoSetting(const std::string &setting, const std::string &value)
+bool configValueIsTrue(const std::string &setting, bool fallback)
+{
+    const auto value = conf_map.find(setting);
+    if (value == conf_map.end())
+        return fallback;
+    return value->second == "true" || value->second == "enabled" || value->second == "1";
+}
+
+std::string configValue(const std::string &setting, const std::string &fallback)
+{
+    const auto value = conf_map.find(setting);
+    return value == conf_map.end() ? fallback : value->second;
+}
+
+bool persistConfigSetting(const std::string &setting, const std::string &value)
 {
     std::ifstream input(activeConfigFile);
     if (!input.good()) return false;
@@ -226,10 +242,42 @@ bool persistVideoSetting(const std::string &setting, const std::string &value)
     if (!replaced)
         lines.push_back(setting + (value.empty() ? " =" : " = " + value));
 
-    std::ofstream output(activeConfigFile, std::ios::trunc);
+    const std::string temporary = activeConfigFile + ".tmp";
+    std::ofstream output(temporary, std::ios::trunc);
     if (!output.good()) return false;
     for (const std::string &entry : lines) output << entry << '\n';
+    output.close();
+    if (!output.good()) {
+        std::remove(temporary.c_str());
+        return false;
+    }
+
+    struct stat configStat = {};
+    if (stat(activeConfigFile.c_str(), &configStat) == 0) {
+        if (chmod(temporary.c_str(), configStat.st_mode & 07777) != 0)
+            logger.log(Logger::WARN, "Unable to preserve permissions for '%s': %s",
+                       temporary.c_str(), std::strerror(errno));
+#ifndef _WIN32
+        if (chown(temporary.c_str(), configStat.st_uid, configStat.st_gid) != 0 &&
+            errno != EPERM)
+            logger.log(Logger::WARN, "Unable to preserve ownership for '%s': %s",
+                       temporary.c_str(), std::strerror(errno));
+#endif
+    }
+#ifdef _WIN32
+    std::remove(activeConfigFile.c_str());
+#endif
+    if (std::rename(temporary.c_str(), activeConfigFile.c_str()) != 0) {
+        std::remove(temporary.c_str());
+        return false;
+    }
+    conf_map[setting] = value;
     return true;
+}
+
+bool persistVideoSetting(const std::string &setting, const std::string &value)
+{
+    return persistConfigSetting(setting, value);
 }
 
 // --- initConfig ---
@@ -342,7 +390,8 @@ void initConfig()
         try
         {
             const std::string &ssFps_counter = conf_map.at("retrorun_fps_counter");
-            input_fps_requested = ssFps_counter == "enabled" ? true : false;
+            input_fps_requested = ssFps_counter == "true" || ssFps_counter == "enabled" ||
+                                  ssFps_counter == "1";
             logger.log(Logger::DEB, "retrorun_fps_counter :%s", input_fps_requested ? "TRUE" : "FALSE");
         }
         catch (...) { logger.log(Logger::DEB, "retrorun_fps_counter parameter not found in retrorun.cfg using defaulf value (disabled)."); input_fps_requested = false; }
@@ -593,6 +642,32 @@ void initConfig()
             logger.log(Logger::DEB, "retrorun_force_video_multithread: %s.", forceVideoMultithread ? "true" : "false");
         }
         catch (...) { logger.log(Logger::DEB, "retrorun_force_video_multithread parameter not found in retrorun.cfg using default value."); }
+
+        try
+        {
+            const std::string &value = conf_map.at("retrorun_drm_direct_scanout");
+            if (value == "auto")
+                drmDirectScanoutMode = DRMDirectScanoutMode::Auto;
+            else if (value == "true" || value == "enabled" || value == "1")
+                drmDirectScanoutMode = DRMDirectScanoutMode::Enabled;
+            else if (value == "false" || value == "disabled" || value == "0")
+                drmDirectScanoutMode = DRMDirectScanoutMode::Disabled;
+            else
+            {
+                drmDirectScanoutMode = DRMDirectScanoutMode::Auto;
+                logger.log(Logger::WARN,
+                           "Unknown retrorun_drm_direct_scanout value '%s'; using auto.",
+                           value.c_str());
+            }
+            const char *mode = drmDirectScanoutMode == DRMDirectScanoutMode::Auto ? "auto" :
+                (drmDirectScanoutMode == DRMDirectScanoutMode::Enabled ? "true" : "false");
+            logger.log(Logger::DEB, "retrorun_drm_direct_scanout: %s.", mode);
+        }
+        catch (...)
+        {
+            logger.log(Logger::DEB,
+                       "retrorun_drm_direct_scanout parameter not found; using auto.");
+        }
 
         try
         {

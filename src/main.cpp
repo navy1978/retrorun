@@ -349,14 +349,26 @@ int main(int argc, char *argv[])
                  setAnalogToDigitalSetting, "analog-to-digital"),
         MenuItem("Swap triggers", getSwapTriggers, setSwapTriggers, "bool"),
         MenuItem("Swap analog sticks", getSwapSticks, setSwapSticks, "bool"),
+        MenuItem("Alternative hotkeys", getAlternativeInputSetting,
+                 setAlternativeInputSetting, "bool"),
+        MenuItem("Mouse speed", getMouseSpeedSetting, setMouseSpeedSetting, ""),
         MenuItem("Rumble test", []() { return 0; }, [](int val) { testRumble(val); }, "test-rumble"),
         MenuItem("Rumble disabled", getRumbleDisabled, setRumbleDisabled, "bool")};
     Menu menuControl = Menu("Control", itemsControl);
 
     std::vector<MenuItem> itemsAudio = {
-        MenuItem("Audio buffer", getAudioBuffer, setAudioBuffer, ""),
+        MenuItem("Audio buffer", getAudioBuffer, setAudioBuffer, "audio-buffer"),
+        MenuItem("Stable buffer (restart)", getStableAudioSetting,
+                 setStableAudioSetting, "bool"),
+        MenuItem("Threaded audio (restart)", getThreadedAudioSetting,
+                 setThreadedAudioSetting, "bool"),
         MenuItem("Audio disabled", getAudioDisabled, setAudioDisabled, "bool")};
     Menu menuAudio = Menu("Audio", itemsAudio);
+
+    std::vector<MenuItem> itemsSaves = {
+        MenuItem("Auto save", getAutoSaveSetting, setAutoSaveSetting, "bool"),
+        MenuItem("Auto load (next start)", getAutoLoadSetting, setAutoLoadSetting, "bool")};
+    Menu menuSaves = Menu("Saves", itemsSaves);
 
     std::vector<MenuItem> itemsAchievements = {
         MenuItem(achievements_status_label, [](int) {}),
@@ -370,7 +382,11 @@ int main(int argc, char *argv[])
                      if (button == LEFT || button == RIGHT)
                          achievements_set_enabled(!achievements_enabled(), arg_rom);
                  },
-                 "bool")};
+                 "bool"),
+        MenuItem("Unofficial (restart)", getAchievementsUnofficialSetting,
+                 setAchievementsUnofficialSetting, "bool"),
+        MenuItem("Encore (restart)", getAchievementsEncoreSetting,
+                 setAchievementsEncoreSetting, "bool")};
     Menu menuAchievements = Menu("RetroAchievements", itemsAchievements);
 
     MenuItem removeDecorationQuestion("Are you sure?", [](int button) {
@@ -397,6 +413,7 @@ int main(int argc, char *argv[])
     std::vector<MenuItem> itemsVideo = {
         MenuItem("Aspect ratio", getAspectRatioSettings, setAspectRatioSettings, "aspect-ratio"),
         MenuItem("Pixel perfect", getPixelPerfect, setPixelPerfect, "bool"),
+        MenuItem("FPS counter", getFPSCounterSetting, setFPSCounterSetting, "bool"),
         MenuItem("Lock FPS", getLockDeclaredFPS, setLockDeclaredFPS, "bool"),
         MenuItem("UI profile", getUIProfileSetting, setUIProfileSetting, "ui-profile"),
         MenuItem("Decorations", &menuDecorations, fake),
@@ -406,7 +423,33 @@ int main(int argc, char *argv[])
 #endif
         MenuItem("Video filter", getVideoFilter, setVideoFilter, "video-filter"),
         MenuItem("Shader (restart)", getVideoShader, setVideoShader, "video-shader"),
-        MenuItem("Tate mode", getTateMode, setTateMode, "rotation")};
+        MenuItem("Tate mode", getTateMode, setTateMode, "rotation"),
+        MenuItem("Loading screen (restart)", getLoadingScreenSetting,
+                 setLoadingScreenSetting, "bool")};
+
+    std::vector<MenuItem> itemsPerformance = {
+        MenuItem("Adaptive frameskip", getAdaptiveFrameskipSetting,
+                 setAdaptiveFrameskipSetting, "bool"),
+        MenuItem("Fixed frameskip", getFixedFrameskipSetting,
+                 setFixedFrameskipSetting, "")};
+#ifndef RR_PLATFORM_SDL
+    itemsPerformance.emplace_back("DRM direct scanout", getDRMDirectScanoutSetting,
+                                  setDRMDirectScanoutSetting, "drm-direct-scanout");
+    if (supportsVideoMultithread())
+        itemsPerformance.emplace_back("Force threaded video (restart)", getThreadedVideoSetting,
+                                      setThreadedVideoSetting, "bool");
+#endif
+    Menu menuPerformance = Menu("Performance", itemsPerformance);
+
+    std::vector<MenuItem> itemsDiagnostics = {
+        MenuItem("RetroRun log (restart)", getRetroRunLogLevelSetting,
+                 setRetroRunLogLevelSetting, "log-level"),
+        MenuItem("Core log (restart)", getCoreLogLevelSetting,
+                 setCoreLogLevelSetting, "log-level"),
+        MenuItem("Log to file (restart)", getLogToFileSetting,
+                 setLogToFileSetting, "bool"),
+        MenuItem("Input key log", getKeyLogSetting, setKeyLogSetting, "bool")};
+    Menu menuDiagnostics = Menu("Diagnostics", itemsDiagnostics);
 
     MenuItem menuItem_restart_core = MenuItem("Are you sure?", [](int arg) { restartCore(arg); });
     menuItem_restart_core.setQuestionItem();
@@ -417,10 +460,13 @@ int main(int argc, char *argv[])
 
     std::vector<MenuItem> itemsSettings = {
         MenuItem("System", &menuSystem, fake),
+        MenuItem("Saves", &menuSaves, fake),
         MenuItem("Control", &menuControl, fake),
         MenuItem("Video", &menuVideo, fake),
         MenuItem("Audio", &menuAudio, fake),
+        MenuItem("Performance", &menuPerformance, fake),
         MenuItem("RetroAchievements", &menuAchievements, fake),
+        MenuItem("Diagnostics", &menuDiagnostics, fake),
         MenuItem("Reset Core", &menuResetCore, fake)};
     Menu menuSettings = Menu("Settings", itemsSettings);
 
@@ -432,6 +478,35 @@ int main(int argc, char *argv[])
     Menu menuInfoGame = Menu("Current game", game);
     std::vector<MenuItem> graphics = {MenuItem(SHOW_GRAPHICS, NULL)};
     Menu menuInfoGraphics = Menu("Graphics", graphics);
+#ifndef RR_PLATFORM_SDL
+    steady_clock::time_point drmDiagnosticDeadline{};
+    bool drmDiagnosticSavedFps = false;
+    bool drmDiagnosticSavedFastForward = false;
+    MenuItem drmDiagnosticQuestion = MenuItem("Start DRM test?", [&](int button) {
+        if (button != A_BUTTON)
+            return;
+        rr_display_diagnostics_reset(display);
+        drmDirectScanoutDiagnosticCompleted = false;
+        drmDirectScanoutDiagnosticActive = true;
+        drmDiagnosticSavedFps = input_fps_requested;
+        drmDiagnosticSavedFastForward = input_ffwd_requested;
+        input_fps_requested = false;
+        input_ffwd_requested = false;
+        input_info_requested = false;
+        input_credits_requested = false;
+        pause_requested = false;
+        drmDiagnosticDeadline = steady_clock::now() + seconds(3);
+        logger.log(Logger::INF,
+                   "DRM diagnostic started: direct scanout forced for 3 seconds; input disabled.");
+    });
+    drmDiagnosticQuestion.setQuestionItem();
+    std::vector<MenuItem> drmDiagnosticQuestionItems = {drmDiagnosticQuestion};
+    Menu menuDRMDiagnosticQuestion = Menu(
+        "Game runs for 3 seconds; input disabled", drmDiagnosticQuestionItems);
+    std::vector<MenuItem> drm = {
+        MenuItem(SHOW_DRM, &menuDRMDiagnosticQuestion, fake)};
+    Menu menuInfoDRM = Menu("DRM diagnostics", drm);
+#endif
     std::vector<MenuItem> network = {
         MenuItem(network_status_connection_label, [](int) {}),
         MenuItem(network_status_interface_label, [](int) {}),
@@ -446,6 +521,9 @@ int main(int argc, char *argv[])
         MenuItem("Libretro core", &menuInfoCore, fake),
         MenuItem("Current game", &menuInfoGame, fake),
         MenuItem("Graphics", &menuInfoGraphics, fake),
+#ifndef RR_PLATFORM_SDL
+        MenuItem("DRM diagnostics", &menuInfoDRM, fake),
+#endif
         MenuItem("Network", &menuInfoNetwork, fake)};
 
     MenuItem menuItem_q = MenuItem("Are you sure?", [](int button) {
@@ -481,6 +559,35 @@ int main(int argc, char *argv[])
 
     while (isRunning)
     {
+#ifndef RR_PLATFORM_SDL
+        if (drmDirectScanoutDiagnosticActive &&
+            steady_clock::now() >= drmDiagnosticDeadline)
+        {
+            drmDirectScanoutDiagnosticActive = false;
+            drmDirectScanoutDiagnosticCompleted = true;
+            input_fps_requested = drmDiagnosticSavedFps;
+            input_ffwd_requested = drmDiagnosticSavedFastForward;
+            input_info_requested = true;
+            input_credits_requested = false;
+            pause_requested = true;
+            menuManager.setCurrentMenu(&menuInfoDRM);
+            rr_display_diagnostics_t result = {};
+            rr_display_diagnostics_get(display, &result);
+            logger.log(Logger::INF,
+                       "DRM diagnostic result: driver='%s', mode=%dx%d@%d, plane=%u, format=0x%08x, frames=%llu, vblank_us=%u/%u/%u, vblank_errors=%u, plane_errno=%d",
+                       result.driver, result.mode_width, result.mode_height,
+                       result.refresh_hz, static_cast<unsigned>(result.plane_id),
+                       static_cast<unsigned>(result.plane_format),
+                       static_cast<unsigned long long>(result.direct_frames),
+                       static_cast<unsigned>(result.vblank_average_us),
+                       static_cast<unsigned>(result.vblank_last_us),
+                       static_cast<unsigned>(result.vblank_max_us),
+                       static_cast<unsigned>(result.vblank_failures),
+                       result.direct_errno);
+            logger.log(Logger::INF,
+                       "DRM diagnostic completed; reopening the results page.");
+        }
+#endif
         decoration_catalog_update();
         // Input is polled by the core during retro_run(), so fast-forward may
         // toggle in the middle of this iteration. Use the state captured at
@@ -498,7 +605,7 @@ int main(int argc, char *argv[])
         input_message = false;
         const auto achievementsStarted = profileFastForwardFrame
             ? steady_clock::now() : steady_clock::time_point{};
-        double factor =static_cast<double>(0b101111) / 0b110010;
+        double factor = static_cast<double>(0b110001) / 0b110010;
         if (pause_requested)
             achievements_idle();
         else

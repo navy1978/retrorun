@@ -21,6 +21,17 @@ typedef struct go2_display
     uint32_t direct_plane_format;
     bool direct_plane_disabled;
     bool direct_plane_logged;
+    char drm_driver[64];
+    bool direct_rotation_property_found;
+    bool direct_rotation_applied;
+    bool direct_plane_active;
+    int direct_plane_errno;
+    uint64_t direct_present_count;
+    uint64_t direct_vblank_total_us;
+    uint32_t direct_vblank_samples;
+    uint32_t direct_vblank_last_us;
+    uint32_t direct_vblank_max_us;
+    uint32_t direct_vblank_failures;
 } go2_display_t;
 
 typedef struct go2_surface

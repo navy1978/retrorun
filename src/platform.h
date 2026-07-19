@@ -66,6 +66,28 @@ typedef enum {
 typedef struct { uint32_t level; rr_battery_status_t status; } rr_battery_state_t;
 typedef struct { uint32_t level; } rr_brightness_state_t;
 
+typedef struct {
+    bool available;
+    char driver[64];
+    int mode_width;
+    int mode_height;
+    int refresh_hz;
+    uint32_t connector_id;
+    uint32_t crtc_id;
+    uint32_t plane_id;
+    uint32_t plane_format;
+    bool rotation_property_found;
+    bool rotation_applied;
+    bool page_flip_fallback;
+    bool direct_rejected;
+    int direct_errno;
+    uint64_t direct_frames;
+    uint32_t vblank_last_us;
+    uint32_t vblank_average_us;
+    uint32_t vblank_max_us;
+    uint32_t vblank_failures;
+} rr_display_diagnostics_t;
+
 rr_input_t* rr_input_create(const char* device);
 void rr_input_destroy(rr_input_t* input);
 rr_input_feature_flags_t rr_input_features_get(rr_input_t* input);
@@ -121,6 +143,8 @@ rr_display_t* rr_display_create();
 void rr_display_destroy(rr_display_t* display);
 int rr_display_width_get(rr_display_t* display);
 int rr_display_height_get(rr_display_t* display);
+void rr_display_diagnostics_get(rr_display_t* display, rr_display_diagnostics_t* diagnostics);
+void rr_display_diagnostics_reset(rr_display_t* display);
 uint32_t rr_display_backlight_get(rr_display_t* display);
 void rr_display_backlight_set(rr_display_t* display, uint32_t value);
 int rr_pixel_format_bpp(uint32_t format);

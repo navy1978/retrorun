@@ -54,6 +54,27 @@ typedef struct go2_status {
     bool clean_top_left, clean_bottom_left, clean_full;
 } go2_status_t;
 
+typedef struct go2_display_diagnostics {
+    char driver[64];
+    int mode_width;
+    int mode_height;
+    int refresh_hz;
+    uint32_t connector_id;
+    uint32_t crtc_id;
+    uint32_t plane_id;
+    uint32_t plane_format;
+    bool rotation_property_found;
+    bool rotation_applied;
+    bool page_flip_fallback;
+    bool direct_rejected;
+    int direct_errno;
+    uint64_t direct_frames;
+    uint32_t vblank_last_us;
+    uint32_t vblank_average_us;
+    uint32_t vblank_max_us;
+    uint32_t vblank_failures;
+} go2_display_diagnostics_t;
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -63,6 +84,9 @@ go2_display_t* go2_display_create();
 void go2_display_destroy(go2_display_t* display);
 int go2_display_width_get(go2_display_t* display);
 int go2_display_height_get(go2_display_t* display);
+void go2_display_diagnostics_get(go2_display_t* display,
+                                 go2_display_diagnostics_t* diagnostics);
+void go2_display_diagnostics_reset(go2_display_t* display);
 void go2_display_present(go2_display_t* display, go2_frame_buffer_t* frame_buffer);
 bool go2_display_present_surface(go2_display_t* display, go2_surface_t* surface,
                                  int srcX, int srcY, int srcWidth, int srcHeight,

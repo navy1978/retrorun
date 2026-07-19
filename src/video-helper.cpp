@@ -21,10 +21,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "globals.h"
 #include "video-helper.h"
 #include <algorithm>
+#include <cctype>
 #include <ctime>
 #include <stdlib.h>
 #include <stdio.h>
 #include <exception>
+#include <fstream>
+#include <iterator>
 #include <string.h>
 #include <string>
 #include <sys/time.h>
@@ -630,6 +633,55 @@ void drawCreditLine(int y, const char *text, unsigned short color, rr_surface_t 
     }
 }
 
+static std::string readDeviceTreeSoC(const char *path)
+{
+    std::ifstream input(path, std::ios::binary);
+    if (!input.good())
+        return {};
+
+    const std::string compatible((std::istreambuf_iterator<char>(input)),
+                                 std::istreambuf_iterator<char>());
+    size_t offset = 0;
+    while (offset < compatible.size())
+    {
+        const size_t end = compatible.find('\0', offset);
+        const std::string entry = compatible.substr(
+            offset, end == std::string::npos ? std::string::npos : end - offset);
+        static const std::string prefix = "rockchip,rk";
+        if (entry.compare(0, prefix.size(), prefix) == 0)
+        {
+            std::string model = entry.substr(std::string("rockchip,").size());
+            std::transform(model.begin(), model.end(), model.begin(), [](unsigned char value) {
+                return static_cast<char>(std::toupper(value));
+            });
+            return "Rockchip " + model;
+        }
+        if (end == std::string::npos)
+            break;
+        offset = end + 1;
+    }
+    return {};
+}
+
+static std::string getSoCName()
+{
+    std::string soc = readDeviceTreeSoC("/sys/firmware/devicetree/base/compatible");
+    if (soc.empty())
+        soc = readDeviceTreeSoC("/proc/device-tree/compatible");
+    if (!soc.empty())
+        return soc;
+
+    // Device-tree information is occasionally hidden by older distributions.
+    // Keep a small fallback for devices already identified by RetroRun.
+    if (isRG552())
+        return "Rockchip RK3399";
+    if (isRG503() || isRG353Family())
+        return "Rockchip RK3566";
+    if (isRG351M() || isRG351P() || isRG351V() || isRG351MP())
+        return "Rockchip RK3326";
+    return "Unknown";
+}
+
 
 
 void showInfoDevice(rr_surface_t **surface)
@@ -651,6 +703,7 @@ void showInfoDevice(rr_surface_t **surface)
     std::string hostName(getDeviceName());
     hostName = stripReturnCarriage(hostName);
     drawInfoRow("Model", hostName, surface);
+    drawInfoRow("SoC", getSoCName(), surface);
 
     std::string tot_ram = "Total RAM: N/A";
 #ifdef RR_PLATFORM_GO2
@@ -744,6 +797,75 @@ void showInfoGraphics(int, rr_surface_t **surface, int)
         std::string(profile_names[static_cast<int>(getUIProfile())]) + " -> " +
         profile_names[static_cast<int>(getResolvedUIProfile())];
     drawInfoRow("UI profile", profile, surface);
+}
+
+void showInfoDRM(rr_surface_t **surface)
+{
+    rr_display_diagnostics_t diagnostics = {};
+    rr_display_diagnostics_get(display, &diagnostics);
+    if (!diagnostics.available)
+    {
+        drawInfoRow("DRM", "Not available", surface);
+        return;
+    }
+
+    const bool pacing_blacklisted = isRG353M() || isRG353V();
+    std::string setting;
+    if (drmDirectScanoutMode == DRMDirectScanoutMode::Enabled)
+        setting = "True (forced)";
+    else if (drmDirectScanoutMode == DRMDirectScanoutMode::Disabled)
+        setting = "False";
+    else
+        setting = pacing_blacklisted ? "Auto (blocked)" : "Auto (probe)";
+    drawInfoRow("Direct setting", setting, surface);
+
+    drawInfoRow("DRM driver", diagnostics.driver, surface);
+    drawInfoRow("Panel mode", std::to_string(diagnostics.mode_width) + "x" +
+                std::to_string(diagnostics.mode_height) + "@" +
+                std::to_string(diagnostics.refresh_hz), surface);
+    drawInfoRow("Connector / CRTC", std::to_string(diagnostics.connector_id) + " / " +
+                std::to_string(diagnostics.crtc_id), surface);
+
+    char format[5] = {};
+    for (int i = 0; i < 4; ++i)
+    {
+        const char value = static_cast<char>((diagnostics.plane_format >> (i * 8)) & 0xff);
+        format[i] = value >= 32 && value <= 126 ? value : '-';
+    }
+    const std::string plane = diagnostics.plane_id
+        ? std::to_string(diagnostics.plane_id) + " / " + format
+        : "Not probed";
+    drawInfoRow("Plane / format", plane, surface);
+
+    const std::string plane_rotation = diagnostics.plane_id
+        ? std::string(diagnostics.rotation_property_found ? "Property" : "No property") +
+              (diagnostics.rotation_applied ? " / OK" : " / Failed")
+        : "Not probed";
+    drawInfoRow("Plane rotation", plane_rotation, surface);
+    drawInfoRow("Page flip", diagnostics.page_flip_fallback ? "SetCrtc fallback" : "Enabled",
+                surface);
+
+    std::string direct_result;
+    if (diagnostics.direct_rejected)
+        direct_result = "Rejected / errno " + std::to_string(diagnostics.direct_errno);
+    else if (diagnostics.direct_frames)
+        direct_result = "Accepted / " + std::to_string(diagnostics.direct_frames);
+    else if (pacing_blacklisted && drmDirectScanoutMode == DRMDirectScanoutMode::Auto)
+        direct_result = "Skipped by auto";
+    else if (drmDirectScanoutDiagnosticCompleted)
+        direct_result = "No direct frames";
+    else
+        direct_result = "Not tested";
+    drawInfoRow("Direct result", direct_result, surface);
+
+    const std::string vblank = diagnostics.direct_frames
+        ? std::to_string(diagnostics.vblank_average_us) + " / " +
+              std::to_string(diagnostics.vblank_last_us) + " / " +
+              std::to_string(diagnostics.vblank_max_us) + " E" +
+              std::to_string(diagnostics.vblank_failures)
+        : "No samples";
+    drawInfoRow("VBlank avg/last/max", vblank, surface);
+    drawInfoRow("Press A", "Run 3s test", surface);
 }
 
 void showCredits(rr_surface_t **surface)
@@ -900,6 +1022,10 @@ void showInfo(int w, rr_surface_t **surface)
         else if (mi.get_name() == SHOW_GRAPHICS)
         {
             showInfoGraphics(w, surface, posX);
+        }
+        else if (mi.get_name() == SHOW_DRM)
+        {
+            showInfoDRM(surface);
         }
 
         else if (mi.isQuit()|| mi.isQuestion())
@@ -1375,6 +1501,11 @@ bool continueToShowSaveLoadStateDoneImage(){
 
 void checkPaused()
 {
+    if (drmDirectScanoutDiagnosticActive)
+    {
+        pause_requested = false;
+        return;
+    }
     if (input_pause_requested || input_info_requested)
     {
         pause_requested = true;

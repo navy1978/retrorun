@@ -657,6 +657,10 @@ rr_display_t* rr_display_create() {
 void rr_display_destroy(rr_display_t* display) { if (display) { if (display->window) SDL_DestroyWindow(display->window); delete display; } }
 int rr_display_width_get(rr_display_t* display) { refresh_display_size(display); return display->width; }
 int rr_display_height_get(rr_display_t* display) { refresh_display_size(display); return display->height; }
+void rr_display_diagnostics_get(rr_display_t*, rr_display_diagnostics_t* diagnostics) {
+    if (diagnostics) *diagnostics = {};
+}
+void rr_display_diagnostics_reset(rr_display_t*) {}
 uint32_t rr_display_backlight_get(rr_display_t* display) { return display->brightness; }
 void rr_display_backlight_set(rr_display_t* display, uint32_t value) { display->brightness = std::min<uint32_t>(value, 100); }
 int rr_pixel_format_bpp(uint32_t format) {

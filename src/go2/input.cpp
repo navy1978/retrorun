@@ -148,7 +148,16 @@ static void *battery_task(void *arg)
 
         pthread_mutex_unlock(&input->batteryMutex);
 
-        logger.log(Logger::DEB, "BATT: status=%d, level=%d\n", input->current_battery.status, input->current_battery.level);
+        const char *status = "Unknown";
+        switch (input->current_battery.status)
+        {
+        case Battery_Status_Discharging: status = "Discharging"; break;
+        case Battery_Status_Charging: status = "Charging"; break;
+        case Battery_Status_Full: status = "Full"; break;
+        default: break;
+        }
+        logger.log(Logger::DEB, "BATT: status=%s, level=%d%%",
+                   status, input->current_battery.level);
 
         sleep(1);
     }

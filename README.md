@@ -89,6 +89,15 @@ Each menu remembers its selected item when entering a submenu and returning.
 The read-only **Info > Graphics** page reports the active platform backend,
 renderer, software or hardware core path, output and core resolutions, pixel
 format, aspect ratio, filter, shader, VSync, pixel-perfect state and UI profile.
+On native DRM builds, **Info > DRM diagnostics** reports the selected direct
+scanout policy, DRM driver and panel mode, connector/CRTC and plane identifiers,
+plane format and rotation support, page-flip fallback state, direct-scanout
+result and sampled VBlank latency/failures. These values make it easier to
+compare device-specific DRM behaviour without enabling permanent debug timing.
+Pressing A from this page opens a confirmation prompt for a three-second test
+on the running game. During the test RetroRun temporarily forces direct scanout,
+suppresses frontend/game input and overlays, then restores the previous state
+and reopens the diagnostics page; the configured policy is not changed.
 The default controller shortcut is L3 + R3; alternative Select/F2 shortcuts
 can be enabled with `retrorun_alternative_input_mode`.
 
@@ -541,8 +550,8 @@ Frontend video settings:
 | --- | --- |
 | `retrorun_aspect_ratio` | `auto`, `2:1`, `4:3`, `5:4`, `16:9`, `16:10`, `1:1` or `3:2`. |
 | `retrorun_pixel_perfect` | `true` or `false`; default is disabled. |
-| `retrorun_tate_mode` | `auto`, `enabled`, `disabled` or `reverted`. |
-| `retrorun_fps_counter` | Enables the on-screen FPS counter. |
+| `retrorun_tate_mode` | `auto`, `enabled`, `disabled` or `reversed` (`reverted` remains accepted for compatibility). |
+| `retrorun_fps_counter` | Enables the on-screen FPS counter with `true`, `enabled` or `1`. |
 | `retrorun_show_loading_screen` | Shows the logo and loading message while a core initializes, for at least 700 ms. |
 | `retrorun_ui_profile` | `auto`, `handheld` or `desktop`; default is `auto`. It can also be changed at runtime under **Settings > Video**. |
 | `retrorun_video_filter` | `off`, `nearest` or `linear`; default is `off`. |
@@ -554,6 +563,7 @@ Frontend video settings:
 | `retrorun_loop_declared_fps` | Paces the frontend using the frame rate declared by the core. |
 | `retrorun_adaptive_frameskip` | Enables adaptive presentation skipping; experimental and `false` by default. |
 | `retrorun_frameskip` | Fixed number of video callbacks skipped after each presented frame, from `0` to `5`; default is `0` and takes precedence over adaptive frameskip. |
+| `retrorun_drm_direct_scanout` | GO2/DRM only: `auto`, `true` or `false`; default is `auto`. Direct scanout bypasses the RGA copy for compatible hardware-rendered frames. Auto excludes the RG353 family, whose DRM drivers may accept the plane update but exhibit unstable pacing, and tries it elsewhere with automatic fallback when the DRM request is rejected. It can still be forced with `true` for diagnostics. |
 | `retrorun_video_renderer` | SDL2 only: `auto`, `software`, `opengl` or `vulkan`. Requires restart. Vulkan is not implemented yet. On Linux `opengl` means OpenGL ES. |
 | `retrorun_vsync` | SDL2 only; default is `false` and can also be changed from the menu. |
 
@@ -577,7 +587,7 @@ General and input settings:
 | `retrorun_swap_sticks` | Exchanges left and right analog sticks. |
 | `retrorun_alternative_input_mode` | Uses the ArkOS-style Select/F2 hotkeys. |
 | `retrorun_mouse_speed_factor` | Mouse emulation speed; default is `5`. |
-| `retrorun_force_video_multithread` | Legacy RG552 hint. Ignored with a warning on other devices, where detached presentation can be unsafe. |
+| `retrorun_force_video_multithread` | Runs hardware-frame presentation on a detached thread on RG552 and the RG353 family. Experimental on RG353 devices and ignored with a warning on unsupported devices. RG552 keeps its automatic Flycast 2021 path even when this force option is disabled. |
 | `retrorun_enable_key_log` | Logs logical button names at `DEBUG` level. |
 
 Native-device overrides:
@@ -594,6 +604,22 @@ Settings not beginning with `retrorun_` are forwarded as libretro core
 options. Their names depend on the core library name. If a distribution calls
 the core `reicast` rather than `flycast`, its option prefix may also need to be
 changed.
+
+### Runtime settings menu
+
+The Settings menu writes user-facing choices back to the active
+`retrorun.cfg`. Saves, controls, video, audio, performance,
+RetroAchievements and diagnostics are kept in separate submenus. Settings
+labelled `(restart)` are stored immediately but take effect when RetroRun or
+the core is restarted. Backend-specific entries are only shown where they are
+usable: SDL renderer and VSync on SDL2, DRM direct scanout on GO2/DRM, and
+forced threaded video on RG552 and the RG353 family. Fixed and adaptive frameskip are
+mutually exclusive.
+
+The device information page also reports the detected SoC. On Rockchip
+handhelds RetroRun reads the device-tree compatibility data first (for example
+`Rockchip RK3326`, `Rockchip RK3566` or `Rockchip RK3399`) and only falls back
+to its known-device table when that data is unavailable.
 
 Example Flycast options:
 

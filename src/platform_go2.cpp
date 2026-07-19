@@ -93,6 +93,35 @@ rr_display_t* rr_display_create() { go2_display_t* native = go2_display_create()
 void rr_display_destroy(rr_display_t* display) { if (display) { go2_display_destroy(display->native); delete display; } }
 int rr_display_width_get(rr_display_t* display) { return go2_display_width_get(display->native); }
 int rr_display_height_get(rr_display_t* display) { return go2_display_height_get(display->native); }
+void rr_display_diagnostics_get(rr_display_t* display, rr_display_diagnostics_t* diagnostics) {
+    if (!diagnostics) return;
+    *diagnostics = {};
+    if (!display) return;
+    go2_display_diagnostics_t native = {};
+    go2_display_diagnostics_get(display->native, &native);
+    diagnostics->available = true;
+    std::snprintf(diagnostics->driver, sizeof(diagnostics->driver), "%s", native.driver);
+    diagnostics->mode_width = native.mode_width;
+    diagnostics->mode_height = native.mode_height;
+    diagnostics->refresh_hz = native.refresh_hz;
+    diagnostics->connector_id = native.connector_id;
+    diagnostics->crtc_id = native.crtc_id;
+    diagnostics->plane_id = native.plane_id;
+    diagnostics->plane_format = native.plane_format;
+    diagnostics->rotation_property_found = native.rotation_property_found;
+    diagnostics->rotation_applied = native.rotation_applied;
+    diagnostics->page_flip_fallback = native.page_flip_fallback;
+    diagnostics->direct_rejected = native.direct_rejected;
+    diagnostics->direct_errno = native.direct_errno;
+    diagnostics->direct_frames = native.direct_frames;
+    diagnostics->vblank_last_us = native.vblank_last_us;
+    diagnostics->vblank_average_us = native.vblank_average_us;
+    diagnostics->vblank_max_us = native.vblank_max_us;
+    diagnostics->vblank_failures = native.vblank_failures;
+}
+void rr_display_diagnostics_reset(rr_display_t* display) {
+    if (display) go2_display_diagnostics_reset(display->native);
+}
 uint32_t rr_display_backlight_get(rr_display_t* display) { return go2_display_backlight_get(display->native); }
 void rr_display_backlight_set(rr_display_t* display, uint32_t value) { go2_display_backlight_set(display->native, value); }
 int rr_pixel_format_bpp(uint32_t format) { return go2_drm_format_get_bpp(format); }

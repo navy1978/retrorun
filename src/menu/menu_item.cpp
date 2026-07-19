@@ -212,6 +212,9 @@ std::string MenuItem::getMisUnit()
     || mis_unit_ == "video-shader"
     || mis_unit_ == "ui-profile"
     || mis_unit_ == "decoration"
+    || mis_unit_ == "audio-buffer"
+    || mis_unit_ == "drm-direct-scanout"
+    || mis_unit_ == "log-level"
     )
     {
         return "";
@@ -270,6 +273,17 @@ const char *ui_profile_names[] = {
     "Handheld",
     "Desktop"};
 
+const char *drm_direct_scanout_names[] = {
+    "Auto",
+    "Off",
+    "On"};
+
+const char *log_level_names[] = {
+    "DEBUG",
+    "INFO",
+    "WARNING",
+    "ERROR"};
+
 
     std::string MenuItem::getDeviceType(int deviceIndex)
 {
@@ -314,6 +328,18 @@ std::string MenuItem::getStringValue()
     else if (mis_unit_ == "ui-profile")
     {
         return ui_profile_names[getValue()];
+    }
+    else if (mis_unit_ == "audio-buffer")
+    {
+        return getValue() < 0 ? "Auto" : std::to_string(getValue());
+    }
+    else if (mis_unit_ == "drm-direct-scanout")
+    {
+        return drm_direct_scanout_names[getValue()];
+    }
+    else if (mis_unit_ == "log-level")
+    {
+        return log_level_names[getValue()];
     }
     else if (mis_unit_ == "decoration")
     {

@@ -58,6 +58,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include <png.h>
 
 #include <algorithm>
+#include <chrono>
 
 go2_display_t *go2_display_create()
 {
@@ -79,6 +80,24 @@ go2_display_t *go2_display_create()
         logger.log(Logger::ERR,"open /dev/dri/card0 failed.\n");
         free(result);
         return NULL;
+    }
+
+    drmVersionPtr driver_version = drmGetVersion(result->fd);
+    if (driver_version)
+    {
+        const char *driver_name = driver_version->name ? driver_version->name : "Unknown";
+        const int driver_name_len = driver_version->name
+            ? static_cast<int>(driver_version->name_len)
+            : 7;
+        snprintf(result->drm_driver, sizeof(result->drm_driver), "%.*s %d.%d.%d",
+                 driver_name_len, driver_name,
+                 driver_version->version_major, driver_version->version_minor,
+                 driver_version->version_patchlevel);
+        drmFreeVersion(driver_version);
+    }
+    else
+    {
+        snprintf(result->drm_driver, sizeof(result->drm_driver), "Unknown");
     }
 
     drmModeRes *resources = drmModeGetResources(result->fd);
@@ -228,6 +247,57 @@ int go2_display_width_get(go2_display_t *display)
 int go2_display_height_get(go2_display_t *display)
 {
     return display->height;
+}
+
+void go2_display_diagnostics_get(go2_display_t *display,
+                                 go2_display_diagnostics_t *diagnostics)
+{
+    if (!diagnostics)
+        return;
+    memset(diagnostics, 0, sizeof(*diagnostics));
+    if (!display)
+        return;
+
+    snprintf(diagnostics->driver, sizeof(diagnostics->driver), "%s",
+             display->drm_driver[0] ? display->drm_driver : "Unknown");
+    diagnostics->mode_width = display->mode.hdisplay;
+    diagnostics->mode_height = display->mode.vdisplay;
+    diagnostics->refresh_hz = display->mode.vrefresh;
+    diagnostics->connector_id = display->connector_id;
+    diagnostics->crtc_id = display->crtc_id;
+    diagnostics->plane_id = display->direct_plane_id;
+    diagnostics->plane_format = display->direct_plane_format;
+    diagnostics->rotation_property_found = display->direct_rotation_property_found;
+    diagnostics->rotation_applied = display->direct_rotation_applied;
+    diagnostics->page_flip_fallback = display->page_flip_disabled;
+    diagnostics->direct_rejected = display->direct_plane_disabled;
+    diagnostics->direct_errno = display->direct_plane_errno;
+    diagnostics->direct_frames = display->direct_present_count;
+    diagnostics->vblank_last_us = display->direct_vblank_last_us;
+    diagnostics->vblank_average_us = display->direct_vblank_samples
+        ? static_cast<uint32_t>(display->direct_vblank_total_us /
+                                display->direct_vblank_samples)
+        : 0;
+    diagnostics->vblank_max_us = display->direct_vblank_max_us;
+    diagnostics->vblank_failures = display->direct_vblank_failures;
+}
+
+void go2_display_diagnostics_reset(go2_display_t *display)
+{
+    if (!display)
+        return;
+    display->direct_plane_disabled = false;
+    display->direct_plane_logged = false;
+    display->direct_plane_active = false;
+    display->direct_rotation_property_found = false;
+    display->direct_rotation_applied = false;
+    display->direct_plane_errno = 0;
+    display->direct_present_count = 0;
+    display->direct_vblank_total_us = 0;
+    display->direct_vblank_samples = 0;
+    display->direct_vblank_last_us = 0;
+    display->direct_vblank_max_us = 0;
+    display->direct_vblank_failures = 0;
 }
 
 static void go2_page_flip_handler(int, unsigned int, unsigned int, unsigned int,
@@ -389,7 +459,11 @@ static bool go2_set_plane_rotation(go2_display_t *display, uint32_t plane_id,
     drmModeObjectProperties *properties = drmModeObjectGetProperties(
         display->fd, plane_id, DRM_MODE_OBJECT_PLANE);
     if (!properties)
+    {
+        display->direct_rotation_property_found = false;
+        display->direct_rotation_applied = rotation == GO2_ROTATION_DEGREES_0;
         return rotation == GO2_ROTATION_DEGREES_0;
+    }
 
     bool found = false;
     bool success = rotation == GO2_ROTATION_DEGREES_0;
@@ -411,6 +485,8 @@ static bool go2_set_plane_rotation(go2_display_t *display, uint32_t plane_id,
             break;
     }
     drmModeFreeObjectProperties(properties);
+    display->direct_rotation_property_found = found;
+    display->direct_rotation_applied = success;
     return success;
 }
 
@@ -460,6 +536,8 @@ bool go2_display_present_surface(go2_display_t *display, go2_surface_t *surface,
                         static_cast<uint32_t>(srcWidth) << 16,
                         static_cast<uint32_t>(srcHeight) << 16) != 0)
     {
+        display->direct_plane_active = false;
+        display->direct_plane_errno = errno;
         logger.log(Logger::WARN,
                    "DRM direct scanout rejected by plane; using RGA fallback: %s",
                    strerror(errno));
@@ -467,10 +545,30 @@ bool go2_display_present_surface(go2_display_t *display, go2_surface_t *surface,
         return false;
     }
 
+    display->direct_plane_active = true;
+    display->direct_plane_errno = 0;
+    ++display->direct_present_count;
     drmVBlank vblank = {};
     vblank.request.type = DRM_VBLANK_RELATIVE;
     vblank.request.sequence = 1;
-    drmWaitVBlank(display->fd, &vblank);
+    const bool measure_vblank = display->direct_vblank_samples < 120;
+    const auto vblank_started = measure_vblank
+        ? std::chrono::steady_clock::now()
+        : std::chrono::steady_clock::time_point{};
+    const int vblank_result = drmWaitVBlank(display->fd, &vblank);
+    if (vblank_result != 0)
+        ++display->direct_vblank_failures;
+    else if (measure_vblank)
+    {
+        const uint32_t elapsed_us = static_cast<uint32_t>(
+            std::chrono::duration_cast<std::chrono::microseconds>(
+                std::chrono::steady_clock::now() - vblank_started).count());
+        display->direct_vblank_last_us = elapsed_us;
+        display->direct_vblank_total_us += elapsed_us;
+        ++display->direct_vblank_samples;
+        display->direct_vblank_max_us = std::max(display->direct_vblank_max_us,
+                                                 elapsed_us);
+    }
     if (!display->direct_plane_logged)
         logger.log(Logger::INF, "DRM direct scanout enabled (zero-copy GBM to plane).");
     display->direct_plane_logged = true;
@@ -483,6 +581,7 @@ void go2_display_direct_disable(go2_display_t *display)
         return;
     drmModeSetPlane(display->fd, display->direct_plane_id, display->crtc_id,
                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    display->direct_plane_active = false;
 }
 
 const char *BACKLIGHT_BRIGHTNESS_NAME = "/sys/class/backlight/backlight/brightness";
@@ -1746,6 +1845,35 @@ typedef struct go2_context
     int bufferCount;
 } go2_context_t;
 
+static const char *egl_error_name(EGLint error)
+{
+    switch (error)
+    {
+    case EGL_SUCCESS: return "EGL_SUCCESS";
+    case EGL_NOT_INITIALIZED: return "EGL_NOT_INITIALIZED";
+    case EGL_BAD_ACCESS: return "EGL_BAD_ACCESS";
+    case EGL_BAD_ALLOC: return "EGL_BAD_ALLOC";
+    case EGL_BAD_ATTRIBUTE: return "EGL_BAD_ATTRIBUTE";
+    case EGL_BAD_CONTEXT: return "EGL_BAD_CONTEXT";
+    case EGL_BAD_CONFIG: return "EGL_BAD_CONFIG";
+    case EGL_BAD_CURRENT_SURFACE: return "EGL_BAD_CURRENT_SURFACE";
+    case EGL_BAD_DISPLAY: return "EGL_BAD_DISPLAY";
+    case EGL_BAD_SURFACE: return "EGL_BAD_SURFACE";
+    case EGL_BAD_MATCH: return "EGL_BAD_MATCH";
+    case EGL_BAD_PARAMETER: return "EGL_BAD_PARAMETER";
+    case EGL_BAD_NATIVE_PIXMAP: return "EGL_BAD_NATIVE_PIXMAP";
+    case EGL_BAD_NATIVE_WINDOW: return "EGL_BAD_NATIVE_WINDOW";
+    case EGL_CONTEXT_LOST: return "EGL_CONTEXT_LOST";
+    default: return "EGL_UNKNOWN_ERROR";
+    }
+}
+
+static const char *environment_value(const char *name)
+{
+    const char *value = getenv(name);
+    return value && value[0] ? value : "<unset>";
+}
+
 static EGLConfig FindConfig(EGLDisplay eglDisplay, int redBits, int greenBits, int blueBits, int alphaBits, int depthBits, int stencilBits)
 {
     EGLint configAttributes[] =
@@ -1766,16 +1894,28 @@ static EGLConfig FindConfig(EGLDisplay eglDisplay, int redBits, int greenBits, i
     EGLBoolean success = eglChooseConfig(eglDisplay, configAttributes, NULL, 0, &num_configs);
     if (success != EGL_TRUE)
     {
-        logger.log(Logger::ERR,"eglChooseConfig failed.\n");
+        const EGLint error = eglGetError();
+        logger.log(Logger::ERR,
+                   "eglChooseConfig(count) failed: requested=%d/%d/%d/%d depth=%d stencil=%d, egl_error=0x%04x (%s)",
+                   redBits, greenBits, blueBits, alphaBits, depthBits, stencilBits,
+                   static_cast<unsigned int>(error), egl_error_name(error));
         exit(1);
     }
+
+    logger.log(Logger::INF,
+               "EGL configurations: available=%d, requested=%d/%d/%d/%d depth=%d stencil=%d",
+               num_configs, redBits, greenBits, blueBits, alphaBits,
+               depthBits, stencilBits);
 
     // EGLConfig* configs = new EGLConfig[num_configs];
     EGLConfig configs[num_configs];
     success = eglChooseConfig(eglDisplay, configAttributes, configs, num_configs, &num_configs);
     if (success != EGL_TRUE)
     {
-        logger.log(Logger::ERR,"eglChooseConfig failed.\n");
+        const EGLint error = eglGetError();
+        logger.log(Logger::ERR,
+                   "eglChooseConfig(list) failed: egl_error=0x%04x (%s)",
+                   static_cast<unsigned int>(error), egl_error_name(error));
         exit(1);
     }
 
@@ -1811,12 +1951,47 @@ static EGLConfig FindConfig(EGLDisplay eglDisplay, int redBits, int greenBits, i
         }
     }
 
+    if (!match)
+        logger.log(Logger::ERR,
+                   "No exact EGL configuration matched %d/%d/%d/%d depth=%d stencil=%d (available=%d)",
+                   redBits, greenBits, blueBits, alphaBits, depthBits,
+                   stencilBits, num_configs);
+
     return match;
 }
 
 go2_context_t *go2_context_create(go2_display_t *display, int width, int height, const go2_context_attributes_t *attributes)
 {
     EGLBoolean success;
+
+    logger.log(Logger::INF,
+               "Hardware context request: device='%s', drm=/dev/dri/card0, driver='%s', fd=%d, mode=%ux%u, connector=%u, crtc=%u, surface=%dx%d, GLES=%d.%d, color=%d/%d/%d/%d, depth=%d, stencil=%d",
+               getDeviceName(),
+               display && display->drm_driver[0] ? display->drm_driver : "<unknown>",
+               display ? display->fd : -1,
+               display ? display->width : 0,
+               display ? display->height : 0,
+               display ? display->connector_id : 0,
+               display ? display->crtc_id : 0,
+               width, height,
+               attributes ? attributes->major : -1,
+               attributes ? attributes->minor : -1,
+               attributes ? attributes->red_bits : -1,
+               attributes ? attributes->green_bits : -1,
+               attributes ? attributes->blue_bits : -1,
+               attributes ? attributes->alpha_bits : -1,
+               attributes ? attributes->depth_bits : -1,
+               attributes ? attributes->stencil_bits : -1);
+    logger.log(Logger::INF,
+               "Graphics environment: EGL_PLATFORM=%s, GBM_BACKEND=%s, MESA_LOADER_DRIVER_OVERRIDE=%s, LIBGL_DRIVERS_PATH=%s",
+               environment_value("EGL_PLATFORM"),
+               environment_value("GBM_BACKEND"),
+               environment_value("MESA_LOADER_DRIVER_OVERRIDE"),
+               environment_value("LIBGL_DRIVERS_PATH"));
+    logger.log(Logger::INF,
+               "Graphics loader paths: LD_LIBRARY_PATH=%s, __EGL_VENDOR_LIBRARY_FILENAMES=%s",
+               environment_value("LD_LIBRARY_PATH"),
+               environment_value("__EGL_VENDOR_LIBRARY_FILENAMES"));
 
     go2_context_t *result = (go2_context_t *)malloc(sizeof(*result));
     if (!result)
@@ -1835,28 +2010,85 @@ go2_context_t *go2_context_create(go2_display_t *display, int width, int height,
     result->gbmDevice = gbm_create_device(display->fd);
     if (!result->gbmDevice)
     {
-        logger.log(Logger::ERR,"gbm_create_device failed.\n");
+        logger.log(Logger::ERR, "gbm_create_device failed: drm_fd=%d, errno=%d (%s)",
+                   display->fd, errno, strerror(errno));
         free(result);
         return NULL;
     }
+
+    const char *gbm_backend = gbm_device_get_backend_name(result->gbmDevice);
+    logger.log(Logger::INF, "GBM device created: fd=%d, backend=%s",
+               gbm_device_get_fd(result->gbmDevice),
+               gbm_backend ? gbm_backend : "<unknown>");
+
+    const char *client_extensions = eglQueryString(EGL_NO_DISPLAY, EGL_EXTENSIONS);
+    EGLint client_query_error = eglGetError();
+    logger.log(Logger::INF, "EGL client extensions: %s",
+               client_extensions && client_extensions[0]
+                   ? client_extensions : "<unavailable>");
+    if (!client_extensions || !client_extensions[0] ||
+        client_query_error != EGL_SUCCESS)
+        logger.log(Logger::WARN,
+                   "EGL client extension query returned 0x%04x (%s)",
+                   static_cast<unsigned int>(client_query_error),
+                   egl_error_name(client_query_error));
 
     PFNEGLGETPLATFORMDISPLAYEXTPROC get_platform_display = NULL;
     get_platform_display = (PFNEGLGETPLATFORMDISPLAYEXTPROC)eglGetProcAddress("eglGetPlatformDisplayEXT");
     if (get_platform_display == NULL)
     {
-        logger.log(Logger::ERR,"eglGetProcAddress failed.\n");
+        const EGLint error = eglGetError();
+        logger.log(Logger::ERR,
+                   "eglGetProcAddress('eglGetPlatformDisplayEXT') failed: 0x%04x (%s)",
+                   static_cast<unsigned int>(error), egl_error_name(error));
         gbm_device_destroy(result->gbmDevice);
         free(result);
         return NULL;
     }
 
+    // Discard a possible error left by eglGetProcAddress so the following
+    // value belongs specifically to eglGetPlatformDisplayEXT.
+    (void)eglGetError();
     result->eglDisplay = get_platform_display(EGL_PLATFORM_GBM_KHR, result->gbmDevice, NULL);
     if (result->eglDisplay == EGL_NO_DISPLAY)
     {
-        logger.log(Logger::ERR,"eglGetPlatformDisplayEXT failed.\n");
-        gbm_device_destroy(result->gbmDevice);
-        free(result);
-        return NULL;
+        const EGLint platform_error = eglGetError();
+        logger.log(Logger::WARN,
+                   "eglGetPlatformDisplayEXT rejected GBM: platform=0x%04x, drm_fd=%d, gbm_backend=%s, egl_error=0x%04x (%s); trying legacy eglGetDisplay",
+                   static_cast<unsigned int>(EGL_PLATFORM_GBM_KHR), display->fd,
+                   gbm_backend ? gbm_backend : "<unknown>",
+                   static_cast<unsigned int>(platform_error),
+                   egl_error_name(platform_error));
+
+        // Older Mali/armsoc EGL stacks expose eglGetPlatformDisplayEXT but do
+        // not accept EGL_PLATFORM_GBM_KHR. Their legacy entry point accepts
+        // the GBM device directly as EGLNativeDisplayType.
+        (void)eglGetError();
+        result->eglDisplay = eglGetDisplay(
+            (EGLNativeDisplayType)result->gbmDevice);
+        if (result->eglDisplay == EGL_NO_DISPLAY)
+        {
+            const EGLint legacy_error = eglGetError();
+            logger.log(Logger::ERR,
+                       "Legacy eglGetDisplay(GBM) failed: drm_fd=%d, gbm_backend=%s, egl_error=0x%04x (%s); platform_error=0x%04x (%s)",
+                       display->fd,
+                       gbm_backend ? gbm_backend : "<unknown>",
+                       static_cast<unsigned int>(legacy_error),
+                       egl_error_name(legacy_error),
+                       static_cast<unsigned int>(platform_error),
+                       egl_error_name(platform_error));
+            gbm_device_destroy(result->gbmDevice);
+            free(result);
+            return NULL;
+        }
+
+        logger.log(Logger::WARN,
+                   "Using legacy eglGetDisplay(GBM) compatibility path for backend=%s",
+                   gbm_backend ? gbm_backend : "<unknown>");
+    }
+    else
+    {
+        logger.log(Logger::INF, "EGL GBM platform display acquired successfully");
     }
 
     // Initialize EGL
@@ -1865,26 +2097,58 @@ go2_context_t *go2_context_create(go2_display_t *display, int width, int height,
     success = eglInitialize(result->eglDisplay, &major, &minor);
     if (success != EGL_TRUE)
     {
-        logger.log(Logger::ERR,"eglInitialize failed.\n");
+        const EGLint error = eglGetError();
+        logger.log(Logger::ERR,
+                   "eglInitialize failed: egl_error=0x%04x (%s), drm_fd=%d, gbm_backend=%s",
+                   static_cast<unsigned int>(error), egl_error_name(error), display->fd,
+                   gbm_backend ? gbm_backend : "<unknown>");
         gbm_device_destroy(result->gbmDevice);
         free(result);
         return NULL;
     }
 
-    logger.log(Logger::DEB,"EGL: major=%d, minor=%d\n", major, minor);
-    logger.log(Logger::DEB,"EGL: Vendor=%s\n", eglQueryString(result->eglDisplay, EGL_VENDOR));
-    logger.log(Logger::DEB,"EGL: Version=%s\n", eglQueryString(result->eglDisplay, EGL_VERSION));
-    logger.log(Logger::DEB,"EGL: ClientAPIs=%s\n", eglQueryString(result->eglDisplay, EGL_CLIENT_APIS));
-    logger.log(Logger::DEB,"EGL: Extensions=%s\n", eglQueryString(result->eglDisplay, EGL_EXTENSIONS));
-    logger.log(Logger::DEB,"EGL: ClientExtensions=%s\n", eglQueryString(EGL_NO_DISPLAY, EGL_EXTENSIONS));
+    const char *egl_vendor = eglQueryString(result->eglDisplay, EGL_VENDOR);
+    const char *egl_version = eglQueryString(result->eglDisplay, EGL_VERSION);
+    const char *egl_apis = eglQueryString(result->eglDisplay, EGL_CLIENT_APIS);
+    const char *egl_extensions = eglQueryString(result->eglDisplay, EGL_EXTENSIONS);
+    logger.log(Logger::INF, "EGL initialized: version=%d.%d, vendor=%s, runtime=%s, APIs=%s",
+               major, minor,
+               egl_vendor ? egl_vendor : "<unavailable>",
+               egl_version ? egl_version : "<unavailable>",
+               egl_apis ? egl_apis : "<unavailable>");
+    logger.log(Logger::DEB, "EGL display extensions: %s",
+               egl_extensions ? egl_extensions : "<unavailable>");
     
 
     EGLConfig eglConfig = FindConfig(result->eglDisplay, attributes->red_bits, attributes->green_bits,
                                      attributes->blue_bits, attributes->alpha_bits, attributes->depth_bits, attributes->stencil_bits);
+    if (!eglConfig)
+    {
+        eglTerminate(result->eglDisplay);
+        gbm_device_destroy(result->gbmDevice);
+        free(result);
+        return NULL;
+    }
 
     // Get the native visual id associated with the config
     // int visual_id;
-    eglGetConfigAttrib(result->eglDisplay, eglConfig, EGL_NATIVE_VISUAL_ID, (EGLint *)&result->drmFourCC);
+    if (eglGetConfigAttrib(result->eglDisplay, eglConfig, EGL_NATIVE_VISUAL_ID,
+                           (EGLint *)&result->drmFourCC) != EGL_TRUE)
+    {
+        const EGLint error = eglGetError();
+        logger.log(Logger::ERR,
+                   "eglGetConfigAttrib(EGL_NATIVE_VISUAL_ID) failed: 0x%04x (%s)",
+                   static_cast<unsigned int>(error), egl_error_name(error));
+    }
+    else
+    {
+        logger.log(Logger::INF, "EGL native visual: 0x%08x ('%c%c%c%c')",
+                   result->drmFourCC,
+                   result->drmFourCC & 0xff,
+                   (result->drmFourCC >> 8) & 0xff,
+                   (result->drmFourCC >> 16) & 0xff,
+                   (result->drmFourCC >> 24) & 0xff);
+    }
 
     result->gbmSurface = gbm_surface_create(result->gbmDevice,
                                             width,
@@ -1893,19 +2157,30 @@ go2_context_t *go2_context_create(go2_display_t *display, int width, int height,
                                             GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
     if (!result->gbmSurface)
     {
-        logger.log(Logger::ERR,"gbm_surface_create failed.\n");
+        logger.log(Logger::ERR,
+                   "gbm_surface_create failed: size=%dx%d, format=0x%08x, flags=SCANOUT|RENDERING, errno=%d (%s)",
+                   width, height, result->drmFourCC, errno, strerror(errno));
         exit(1);
     }
 
     result->eglSurface = eglCreateWindowSurface(result->eglDisplay, eglConfig, (EGLNativeWindowType)result->gbmSurface, NULL);
     if (result->eglSurface == EGL_NO_SURFACE)
     {
-        logger.log(Logger::ERR,"eglCreateWindowSurface failed\n");
+        const EGLint error = eglGetError();
+        logger.log(Logger::ERR,
+                   "eglCreateWindowSurface failed: egl_error=0x%04x (%s)",
+                   static_cast<unsigned int>(error), egl_error_name(error));
         exit(1);
     }
 
     // Create a context
-    eglBindAPI(EGL_OPENGL_ES_API);
+    if (eglBindAPI(EGL_OPENGL_ES_API) != EGL_TRUE)
+    {
+        const EGLint error = eglGetError();
+        logger.log(Logger::ERR, "eglBindAPI(OpenGL ES) failed: 0x%04x (%s)",
+                   static_cast<unsigned int>(error), egl_error_name(error));
+        exit(1);
+    }
 
     EGLint contextAttributes[] = {
         EGL_CONTEXT_CLIENT_VERSION, attributes->major,
@@ -1914,16 +2189,24 @@ go2_context_t *go2_context_create(go2_display_t *display, int width, int height,
     result->eglContext = eglCreateContext(result->eglDisplay, eglConfig, EGL_NO_CONTEXT, contextAttributes);
     if (result->eglContext == EGL_NO_CONTEXT)
     {
-        logger.log(Logger::ERR,"eglCreateContext failed\n");
+        const EGLint error = eglGetError();
+        logger.log(Logger::ERR,
+                   "eglCreateContext failed: requested GLES=%d, egl_error=0x%04x (%s)",
+                   attributes->major, static_cast<unsigned int>(error),
+                   egl_error_name(error));
         exit(1);
     }
 
     success = eglMakeCurrent(result->eglDisplay, result->eglSurface, result->eglSurface, result->eglContext);
     if (success != EGL_TRUE)
     {
-        logger.log(Logger::ERR,"eglMakeCurrent failed\n");
+        const EGLint error = eglGetError();
+        logger.log(Logger::ERR, "eglMakeCurrent failed: 0x%04x (%s)",
+                   static_cast<unsigned int>(error), egl_error_name(error));
         exit(1);
     }
+
+    logger.log(Logger::INF, "Hardware rendering context is ready");
 
     return result;
 

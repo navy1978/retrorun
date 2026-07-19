@@ -64,6 +64,7 @@ const std::string SHOW_DEVICE = "SHOW_DEVICE";
 const std::string SHOW_CORE = "SHOW_CORE";
 const std::string SHOW_GAME = "SHOW_GAME";
 const std::string SHOW_GRAPHICS = "SHOW_GRAPHICS";
+const std::string SHOW_DRM = "SHOW_DRM";
 const std::string SHOW_CREDITS = "Credits";
 
 

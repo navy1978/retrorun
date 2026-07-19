@@ -37,6 +37,20 @@ extern std::function<void(int)> setAnalogToDigitalSetting;
 int getLockDeclaredFPS();
 extern std::function<void(int)> setLockDeclaredFPS;
 
+// Saves / general frontend behaviour
+int getAutoSaveSetting();
+extern std::function<void(int)> setAutoSaveSetting;
+int getAutoLoadSetting();
+extern std::function<void(int)> setAutoLoadSetting;
+int getFPSCounterSetting();
+extern std::function<void(int)> setFPSCounterSetting;
+int getLoadingScreenSetting();
+extern std::function<void(int)> setLoadingScreenSetting;
+int getAlternativeInputSetting();
+extern std::function<void(int)> setAlternativeInputSetting;
+int getMouseSpeedSetting();
+extern std::function<void(int)> setMouseSpeedSetting;
+
 // Video filter / shader / pixel perfect
 int getDecorationSetting();
 extern std::function<void(int)> setDecorationSetting;
@@ -56,12 +70,44 @@ int getAudioDisabled();
 extern std::function<void(int)> setAudioDisabled;
 int getAudioBuffer();
 extern std::function<void(int)> setAudioBuffer;
+int getStableAudioSetting();
+extern std::function<void(int)> setStableAudioSetting;
+int getThreadedAudioSetting();
+extern std::function<void(int)> setThreadedAudioSetting;
 int getAudioValue();
 extern std::function<void(int)> setAudioValue;
 
 // Rumble
 int getRumbleDisabled();
 extern std::function<void(int)> setRumbleDisabled;
+
+// Performance
+int getAdaptiveFrameskipSetting();
+extern std::function<void(int)> setAdaptiveFrameskipSetting;
+int getFixedFrameskipSetting();
+extern std::function<void(int)> setFixedFrameskipSetting;
+int getThreadedVideoSetting();
+extern std::function<void(int)> setThreadedVideoSetting;
+#ifndef RR_PLATFORM_SDL
+int getDRMDirectScanoutSetting();
+extern std::function<void(int)> setDRMDirectScanoutSetting;
+#endif
+
+// RetroAchievements extras
+int getAchievementsUnofficialSetting();
+extern std::function<void(int)> setAchievementsUnofficialSetting;
+int getAchievementsEncoreSetting();
+extern std::function<void(int)> setAchievementsEncoreSetting;
+
+// Diagnostics
+int getRetroRunLogLevelSetting();
+extern std::function<void(int)> setRetroRunLogLevelSetting;
+int getCoreLogLevelSetting();
+extern std::function<void(int)> setCoreLogLevelSetting;
+int getLogToFileSetting();
+extern std::function<void(int)> setLogToFileSetting;
+int getKeyLogSetting();
+extern std::function<void(int)> setKeyLogSetting;
 
 // Brightness / volume
 int getBrightnessValue();

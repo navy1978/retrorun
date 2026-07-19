@@ -29,8 +29,14 @@ std::string getLastModifiedTime(const char *path);
 std::string getSystemFromRomPath(const char *fullpath);
 std::string replace(std::string &str, const std::string &from, const std::string &to);
 
-// Persist a setting back to the active config file
+// Persist a setting back to the active config file and update conf_map.
+bool persistConfigSetting(const std::string &setting, const std::string &value);
+
+// Backward-compatible alias kept for existing callers.
 bool persistVideoSetting(const std::string &setting, const std::string &value);
+
+bool configValueIsTrue(const std::string &setting, bool fallback = false);
+std::string configValue(const std::string &setting, const std::string &fallback = "");
 
 // Active config file path (set during initConfig)
 extern std::string activeConfigFile;

@@ -43,6 +43,12 @@ enum TateState {
     AUTO
 };
 
+enum class DRMDirectScanoutMode {
+    Auto,
+    Disabled,
+    Enabled
+};
+
 
 
 enum Resolution
@@ -195,12 +201,17 @@ bool isRG552();
 bool isRG503();
 bool isRG353V();
 bool isRG353M();
+bool isRG353Family();
+bool supportsVideoMultithread();
 bool hasDeviceRotatedScreen();
 bool wideScreenNotRotated();
 void resetDeviceName();
 bool isTate();
 
 extern bool forceVideoMultithread;
+extern DRMDirectScanoutMode drmDirectScanoutMode;
+extern bool drmDirectScanoutDiagnosticActive;
+extern bool drmDirectScanoutDiagnosticCompleted;
 extern bool adaptiveFrameSkip;
 extern bool skipNextVideoFrame;
 extern int fixedFrameSkip;
@@ -243,5 +254,3 @@ extern bool pause_requested;
 extern bool  showLoading;
 extern std::map<std::string, std::string> conf_map;
 extern bool pixel_perfect;
-
-

@@ -551,6 +551,8 @@ void core_input_poll(void)
 
     // Read inputs
     input_gamepad_read();
+    if (drmDirectScanoutDiagnosticActive)
+        return;
     if (rr_input_state_button_get(gamepadState, RRInputButton_Quit) == RRButtonState_Pressed)
     {
         input_exit_requested = true;
@@ -1235,7 +1237,8 @@ if(isTate()){
 
 int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigned id)
 {
-    if (rr_keyboard_virtual_visible() || rr_file_browser_visible() || achievements_view_visible())
+    if (drmDirectScanoutDiagnosticActive || rr_keyboard_virtual_visible() ||
+        rr_file_browser_visible() || achievements_view_visible())
         return 0;
 
     if (device == RETRO_DEVICE_ANALOG &&

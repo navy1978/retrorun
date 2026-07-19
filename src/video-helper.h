@@ -104,6 +104,7 @@ void showInfoDevice(rr_surface_t **surface);
 void showInfoCore(rr_surface_t **surface);
 void showInfoGame(rr_surface_t **surface);
 void showInfoGraphics(int w, rr_surface_t **surface, int posX);
+void showInfoDRM(rr_surface_t **surface);
 void showCredits(rr_surface_t **surface);
 void showInfo(int w, rr_surface_t **surface);
 std::string getCurrentTimeForFileName();

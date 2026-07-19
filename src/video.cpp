@@ -966,11 +966,11 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
 
         lastData = data;
         lastPitch = pitch;
-        if (forceVideoMultithread && !isRG552()) {
+        if (forceVideoMultithread && !supportsVideoMultithread()) {
             static bool warned = false;
             if (!warned) {
                 logger.log(Logger::WARN,
-                           "retrorun_force_video_multithread ignored: supported only on RG552; it may crash other devices");
+                           "retrorun_force_video_multithread ignored: supported only on RG552 and the RG353 family");
                 warned = true;
             }
         }
@@ -1116,10 +1116,29 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         // buffer directly to a DRM plane and bypass the fullscreen RGA blit.
         const bool directScanoutCandidate =
             data == RETRO_HW_FRAME_BUFFER_VALID && !showLoading &&
-            !input_info_requested && !input_message &&
-            !input_credits_requested && !input_fps_requested &&
-            !screenshot_requested && videoShader == RR_VIDEO_SHADER_OFF;
-        const bool allowDirectScanout = directScanoutCandidate && decoration_surface() == nullptr;
+            (drmDirectScanoutDiagnosticActive ||
+             (!input_info_requested && !input_message &&
+              !input_credits_requested && !input_fps_requested &&
+              !screenshot_requested && videoShader == RR_VIDEO_SHADER_OFF));
+        static const bool directScanoutPacingBlacklisted = isRG353Family();
+        const bool directScanoutEnabled =
+            drmDirectScanoutDiagnosticActive ||
+            drmDirectScanoutMode == DRMDirectScanoutMode::Enabled ||
+            (drmDirectScanoutMode == DRMDirectScanoutMode::Auto &&
+             !directScanoutPacingBlacklisted);
+        static bool directScanoutFallbackLogged = false;
+        if (directScanoutCandidate && !directScanoutEnabled && !directScanoutFallbackLogged)
+        {
+            if (drmDirectScanoutMode == DRMDirectScanoutMode::Auto)
+                logger.log(Logger::INF,
+                           "DRM direct scanout disabled automatically on the RG353 family due to unstable frame pacing.");
+            else
+                logger.log(Logger::INF,
+                           "DRM direct scanout disabled; using the standard presenter.");
+            directScanoutFallbackLogged = true;
+        }
+        const bool allowDirectScanout = directScanoutCandidate && directScanoutEnabled &&
+            (drmDirectScanoutDiagnosticActive || decoration_surface() == nullptr);
         if (allowDirectScanout &&
             rr_presenter_post_direct(presenter, gles_surface,
                                      0, rr_surface_height_get(gles_surface) - height,
@@ -1137,17 +1156,21 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
             rr_context_surface_unlock(context3D, directScanoutSurface);
             directScanoutSurface = nullptr;
         }
-        // Keep the historical RG552 pipeline used by demanding Dreamcast
-        // cores. The worker owns this specific locked surface and releases it
-        // only after the presenter has consumed it; never read the mutable
+        // Keep the historical automatic RG552/Flycast 2021 path and allow the
+        // explicit setting on the handhelds whose GBM surface lifecycle is
+        // supported here. The worker owns this specific locked surface and
+        // releases it only after presentation; it never reads the mutable
         // global gles_surface from the detached thread.
-        const bool rg552_async = isRG552() && !input_info_requested &&
+        const bool threadedVideoRequested = forceVideoMultithread ||
+            (isRG552() && isFlycast2021());
+        const bool threadedVideo = supportsVideoMultithread() &&
+            threadedVideoRequested && !input_info_requested &&
             !input_message && !input_credits_requested && !input_fps_requested &&
             !screenshot_requested && !input_pause_requested &&
             !input_ffwd_requested && !rr_keyboard_virtual_visible() &&
             !rr_file_browser_visible() && !achievements_view_visible() &&
             !achievements_notification_visible() && !showLoading;
-        if (rg552_async) {
+        if (threadedVideo) {
             rr_surface_t *frame_surface = gles_surface;
             std::thread([frame_surface, data, width, height, pitch]() {
                 core_video_refresh_OPENGL(frame_surface, data, width, height, pitch);
