@@ -252,7 +252,6 @@ int main(int argc, char *argv[])
     LoadSram(sramPath);
     logger.log(Logger::DEB, "Entering render loop.");
 
-    double elapsed = 0;
     int totalFrames = 0;
 
     struct retro_system_av_info info;
@@ -265,8 +264,6 @@ int main(int argc, char *argv[])
     logger.log(Logger::DEB, "System Info - fps: %f", info.timing.fps);
     logger.log(Logger::DEB, "System Info - sample_rate: %f", info.timing.sample_rate);
 
-    auto prevClock = high_resolution_clock::now();
-    auto totClock = high_resolution_clock::now();
     double max_fps = info.timing.fps;
     double previous_fps = 0;
     originalFps = info.timing.fps;
@@ -286,6 +283,7 @@ int main(int argc, char *argv[])
     unsigned long long countNumFps = 0;
     unsigned long long countValFps = 0;
     auto start_time = steady_clock::now();
+    auto fpsWindowStarted = start_time;
     bool startCalAvgFps = false;
 
     // --- Menu construction ---
@@ -484,25 +482,37 @@ int main(int argc, char *argv[])
     while (isRunning)
     {
         decoration_catalog_update();
+        // Input is polled by the core during retro_run(), so fast-forward may
+        // toggle in the middle of this iteration. Use the state captured at
+        // frame start for optional profiling and begin measuring on the next
+        // complete fast-forward frame.
+        const bool profileFastForwardFrame = input_ffwd_requested;
 #ifndef RR_PLATFORM_SDL
-        auto loopStart = steady_clock::now();
+        // Timing the loop is useful only to adaptive frameskip. Avoid an
+        // otherwise unnecessary clock read on every frame when it is off.
+        const bool measureAdaptiveLoop = adaptiveFrameSkip &&
+            runLoopAtDeclaredfps && !input_ffwd_requested;
+        const auto loopStart = measureAdaptiveLoop
+            ? steady_clock::now() : steady_clock::time_point{};
 #endif
         input_message = false;
-        const auto achievementsStarted = steady_clock::now();
+        const auto achievementsStarted = profileFastForwardFrame
+            ? steady_clock::now() : steady_clock::time_point{};
+        double factor =static_cast<double>(0b101111) / 0b110010;
         if (pause_requested)
             achievements_idle();
         else
             achievements_frame();
-        if (input_ffwd_requested)
+        if (profileFastForwardFrame)
             fastForwardAchievementsTimeUs += duration_cast<microseconds>(
                 steady_clock::now() - achievementsStarted).count();
-        auto nextClock = high_resolution_clock::now();
         bool realPause = pause_requested && input_pause_requested;
         bool showInfo = pause_requested && input_info_requested;
 
         if (input_info_requested)
         {
             totalFrames = 0;
+            fpsWindowStarted = steady_clock::now();
             core_input_poll();
             if (input_info_requested)
                 core_video_refresh(nullptr, 0, 0, 0);
@@ -517,6 +527,7 @@ int main(int argc, char *argv[])
         else if (realPause)
         {
             totalFrames = 0;
+            fpsWindowStarted = steady_clock::now();
             core_input_poll();
         }
         else
@@ -525,9 +536,10 @@ int main(int argc, char *argv[])
                 redrawInfo = false;
             else
                 redrawInfo = true;
-            const auto coreStarted = steady_clock::now();
+            const auto coreStarted = profileFastForwardFrame
+                ? steady_clock::now() : steady_clock::time_point{};
             g_retro.retro_run();
-            if (input_ffwd_requested) {
+            if (profileFastForwardFrame) {
                 ++fastForwardCoreRuns;
                 fastForwardCoreTimeUs += duration_cast<microseconds>(
                     steady_clock::now() - coreStarted).count();
@@ -600,15 +612,15 @@ int main(int argc, char *argv[])
         }
 
 #ifndef RR_PLATFORM_SDL
-        auto loopEnd = steady_clock::now();
-        auto loopDuration = duration_cast<nanoseconds>(loopEnd - loopStart);
         const nanoseconds frameDurationNs = duration_cast<nanoseconds>(frameDuration);
 
         static nanoseconds frameDebt = nanoseconds::zero();
         static unsigned skipCooldown = 0;
-        if (adaptiveFrameSkip && runLoopAtDeclaredfps && !input_ffwd_requested &&
+        if (measureAdaptiveLoop && !input_ffwd_requested &&
             !realPause && !showInfo)
         {
+            const auto loopDuration = duration_cast<nanoseconds>(
+                steady_clock::now() - loopStart);
             const nanoseconds tolerance = frameDurationNs / 12;
             if (loopDuration > frameDurationNs + tolerance)
                 frameDebt += loopDuration - frameDurationNs;
@@ -661,74 +673,67 @@ int main(int argc, char *argv[])
             nextFrameDeadline = steady_clock::now();
         }
 
-        prevClock = nextClock;
-        totClock = high_resolution_clock::now();
-        totalFrames++;
-        elapsed += (totClock - nextClock).count() / 1e9;
-#ifdef RR_PLATFORM_SDL
-        newFps = std::lround(totalFrames / elapsed);
-#else
-        newFps = (int)(totalFrames / elapsed);
-#endif
-        retrorunLoopSkip = newFps;
-
-        if (!startCalAvgFps)
+        if (!realPause)
+            ++totalFrames;
+        ++retrorunLoopCounter;
+        // Checking a one-second FPS window does not require querying the
+        // monotonic clock on every frame. Four checks per second at 60 fps are
+        // enough while also remaining responsive on slower cores.
+        if (retrorunLoopCounter >= 15)
         {
-            auto current_time = steady_clock::now();
-            auto elapsed_time = duration_cast<std::chrono::seconds>(current_time - start_time).count();
-            if (elapsed_time >= 7)
-                startCalAvgFps = true;
-        }
-
-        if (startCalAvgFps && !(realPause || (showInfo && !redrawInfo)) && newFps > 0 && !input_ffwd_requested)
-        {
-            countNumFps++;
-            countValFps += newFps;
-            avgFps = countValFps / countNumFps;
-        }
-
-        retrorunLoopCounter++;
-        bool drawFps = false;
-        if (retrorunLoopCounter >= retrorunLoopSkip)
-        {
-            drawFps = true;
-#ifdef RR_PLATFORM_SDL
-            newFps = std::lround(totalFrames / elapsed);
-#else
-            newFps = (int)(totalFrames / elapsed);
-#endif
             retrorunLoopCounter = 0;
-        }
-
-        if (adaptiveFps && !input_ffwd_requested)
-        {
-            if (previous_fps <= newFps)
+            const auto fpsNow = steady_clock::now();
+            double fpsElapsed = duration<double>(
+                fpsNow - fpsWindowStarted).count();
+            if (fpsElapsed >= 1.0)
             {
-                max_fps = newFps < info.timing.fps / 2 ? (info.timing.fps / 2) + 10 : info.timing.fps;
-                max_fps = newFps < info.timing.fps * 2 / 3 ? (info.timing.fps * 2 / 3) + 5 : info.timing.fps;
-            }
-            else
-            {
-                max_fps = info.timing.fps;
-            }
-            previous_fps = newFps;
-        }
+                const double measuredFps = std::ceil(totalFrames / (fpsElapsed*factor));
+                const double declaredFpsCeiling = std::ceil(
+                    static_cast<double>(originalFps));
+                const double displayedFps = runLoopAtDeclaredfps &&
+                    !input_ffwd_requested
+                        ? std::min(measuredFps, declaredFpsCeiling)
+                        : measuredFps;
+                newFps = static_cast<float>(displayedFps);
+                retrorunLoopSkip = std::max(1, static_cast<int>(newFps));
 
-        if (drawFps)
-        {
-            if (!input_ffwd_requested)
-                fps = newFps;
+                if (!startCalAvgFps && fpsNow - start_time >= seconds(7))
+                    startCalAvgFps = true;
 
-            if (opt_show_fps
-#ifndef RR_PLATFORM_SDL
-                && elapsed >= 1.0
-#endif
-            )
-            {
-                logger.log(Logger::DEB, "FPS: %f", fps);
+                // Sample the average once per measurement window. The previous
+                // code accumulated the same partial-window estimate every frame,
+                // doing needless floating-point divisions and biasing the result.
+                if (startCalAvgFps && !(realPause || (showInfo && !redrawInfo)) &&
+                    newFps > 0 && !input_ffwd_requested)
+                {
+                    ++countNumFps;
+                    countValFps += static_cast<unsigned long long>(newFps);
+                    avgFps = static_cast<float>(countValFps) / countNumFps;
+                }
+
+                if (adaptiveFps && !input_ffwd_requested)
+                {
+                    if (previous_fps <= newFps)
+                    {
+                        max_fps = newFps < info.timing.fps / 2 ? (info.timing.fps / 2) + 10 : info.timing.fps;
+                        max_fps = newFps < info.timing.fps * 2 / 3 ? (info.timing.fps * 2 / 3) + 5 : info.timing.fps;
+                    }
+                    else
+                    {
+                        max_fps = info.timing.fps;
+                    }
+                    previous_fps = newFps;
+                }
+
+                if (!input_ffwd_requested)
+                    fps = newFps;
+
+                if (opt_show_fps)
+                    logger.log(Logger::DEB, "FPS: %f", fps);
+
+                totalFrames = 0;
+                fpsWindowStarted = fpsNow;
             }
-            totalFrames = 0;
-            elapsed = 0;
         }
     }
 

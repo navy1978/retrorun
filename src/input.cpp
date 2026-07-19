@@ -555,9 +555,18 @@ void core_input_poll(void)
     {
         input_exit_requested = true;
     }
-    rr_input_battery_read(input, &batteryState);
-    rr_input_brightness_read(input, &brightnessState);
+    // These values are produced by slow platform status workers and are only
+    // displayed by frontend UI. Reading them every emulated frame adds two
+    // synchronized accesses to the hottest input path without improving
+    // freshness, so refresh the cached copies at a human-visible cadence.
     gettimeofday(&exitTimeStop, NULL);
+    static time_t nextPlatformStatusRead = 0;
+    if (exitTimeStop.tv_sec >= nextPlatformStatusRead)
+    {
+        rr_input_battery_read(input, &batteryState);
+        rr_input_brightness_read(input, &brightnessState);
+        nextPlatformStatusRead = exitTimeStop.tv_sec + 1;
+    }
     //double now = exitTime.tv_sec + (exitTime.tv_usec / 1000000.0);
     double now_seconds = (exitTimeStop.tv_sec - exitTimeStart.tv_sec);
     double now_milliseconds = ((double)(exitTimeStop.tv_usec - exitTimeStart.tv_usec)) / 1000000.0;
@@ -717,10 +726,8 @@ if (achievements_view_visible()) {
     return;
 }
 
-// Get current time once
-struct timeval valTime;
-gettimeofday(&valTime, NULL);
-double currentTime = valTime.tv_sec + (valTime.tv_usec / 1000000.0);
+// Reuse the timestamp already read for the exit-button state machine.
+double currentTime = exitTimeStop.tv_sec + (exitTimeStop.tv_usec / 1000000.0);
 // Handle input_info_requested_alternative condition
 if (input_info_requested_alternative) { // this are the alternative combinations used by ArkOs
     // Handle emntering in Menu request

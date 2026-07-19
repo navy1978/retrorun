@@ -274,13 +274,19 @@ void decoration_catalog_init() {
 }
 
 void decoration_catalog_update() {
-    if (reload_pending.exchange(false)) {
+    const bool needs_reload = reload_pending.load(std::memory_order_acquire);
+    const bool worker_finished = worker.joinable() &&
+        !running.load(std::memory_order_acquire);
+    if (!needs_reload && !worker_finished) return;
+
+    if (needs_reload && reload_pending.exchange(
+            false, std::memory_order_acq_rel)) {
         conf_map["retrorun_decoration_pack"] = packs[selected].id;
         persistVideoSetting("retrorun_decoration_pack", packs[selected].id);
         decoration_set_enabled(true);
         decoration_reload();
     }
-    if (!running && worker.joinable()) worker.join();
+    if (worker_finished) worker.join();
 }
 
 void decoration_catalog_shutdown() {
