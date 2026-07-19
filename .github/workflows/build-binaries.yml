@@ -56,6 +56,11 @@ jobs:
         run: |
           sed -i "s/^PKG_VERSION=.*/PKG_VERSION=\"${GITHUB_SHA}\"/" \
             amber/packages/games/tools/retrorun/package.mk
+          # AmberELEC's GMP 6.2.1 recipe still points at gmplib.org, which is
+          # intermittently unreachable, while its LibreELEC fallback is gone.
+          # Use GNU's canonical archive without modifying the AmberELEC fork.
+          sed -i 's#^PKG_URL=.*#PKG_URL="https://ftp.gnu.org/gnu/gmp/${PKG_NAME}-${PKG_VERSION}.tar.xz"#' \
+            amber/packages/devel/gmp/package.mk
           docker run --rm --user "$(id -u):$(id -g)" \
             -v "${GITHUB_WORKSPACE}/amber:/work" -w /work \
             ghcr.io/amberelec/amberelec-build \
