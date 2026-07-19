@@ -150,7 +150,9 @@ typedef enum
     Go2InputButton_TopRight,
 
     Go2InputButton_TriggerLeft,
-    Go2InputButton_TriggerRight
+    Go2InputButton_TriggerRight,
+    Go2InputButton_MENU,
+    Go2InputButton_Quit
 } go2_input_button_t;
 
 typedef struct go2_input_state go2_input_state_t;

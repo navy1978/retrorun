@@ -43,6 +43,10 @@ static rr_video_shader_t video_shader = RR_VIDEO_SHADER_OFF;
 
 static_assert(static_cast<int>(RRInputButton_TriggerRight) == static_cast<int>(Go2InputButton_TriggerRight),
               "GO2 and platform button layouts must match");
+static_assert(static_cast<int>(RRInputButton_MENU) == static_cast<int>(Go2InputButton_MENU),
+              "GO2 and platform menu button layouts must match");
+static_assert(static_cast<int>(RRInputButton_Quit) == static_cast<int>(Go2InputButton_Quit),
+              "GO2 and platform button layouts must match");
 static_assert(static_cast<int>(RRInputThumbstick_Right) == static_cast<int>(Go2InputThumbstick_Right),
               "GO2 and platform stick layouts must match");
 static_assert(static_cast<int>(RR_ROTATION_VERTICAL) == static_cast<int>(GO2_ROTATION_VERTICAL),

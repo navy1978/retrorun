@@ -638,6 +638,10 @@ Default controller hotkeys:
 | Select + L1 | Load the current state slot. |
 | Select + Up/Down | Select the next/previous state slot. |
 
+On Miniloong Pocket 1, the dedicated Menu button replaces Select as the
+frontend hotkey modifier for all combinations above. Select remains available
+to the emulated game.
+
 With `retrorun_alternative_input_mode = true`, Select or F2 is used with X to
 open the menu, Y for FPS, B for screenshots, A for pause and Start for exit.
 

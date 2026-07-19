@@ -49,6 +49,7 @@ typedef enum {
     RRInputButton_THUMBR, RRInputButton_THUMBL,
     RRInputButton_TopLeft, RRInputButton_TopRight,
     RRInputButton_TriggerLeft, RRInputButton_TriggerRight,
+    RRInputButton_MENU,
     RRInputButton_Quit
 } rr_input_button_t;
 
