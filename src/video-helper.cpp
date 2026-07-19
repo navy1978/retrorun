@@ -809,14 +809,11 @@ void showInfoDRM(rr_surface_t **surface)
         return;
     }
 
-    const bool pacing_blacklisted = isRG353M() || isRG353V();
     std::string setting;
     if (drmDirectScanoutMode == DRMDirectScanoutMode::Enabled)
-        setting = "True (forced)";
-    else if (drmDirectScanoutMode == DRMDirectScanoutMode::Disabled)
-        setting = "False";
+        setting = "True";
     else
-        setting = pacing_blacklisted ? "Auto (blocked)" : "Auto (probe)";
+        setting = "False";
     drawInfoRow("Direct setting", setting, surface);
 
     drawInfoRow("DRM driver", diagnostics.driver, surface);
@@ -850,8 +847,6 @@ void showInfoDRM(rr_surface_t **surface)
         direct_result = "Rejected / errno " + std::to_string(diagnostics.direct_errno);
     else if (diagnostics.direct_frames)
         direct_result = "Accepted / " + std::to_string(diagnostics.direct_frames);
-    else if (pacing_blacklisted && drmDirectScanoutMode == DRMDirectScanoutMode::Auto)
-        direct_result = "Skipped by auto";
     else if (drmDirectScanoutDiagnosticCompleted)
         direct_result = "No direct frames";
     else

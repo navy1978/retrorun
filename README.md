@@ -564,7 +564,7 @@ Frontend video settings:
 | `retrorun_loop_declared_fps` | Paces the frontend using the frame rate declared by the core. |
 | `retrorun_adaptive_frameskip` | Enables adaptive presentation skipping; experimental and `false` by default. |
 | `retrorun_frameskip` | Fixed number of video callbacks skipped after each presented frame, from `0` to `5`; default is `0` and takes precedence over adaptive frameskip. |
-| `retrorun_drm_direct_scanout` | GO2/DRM only: `auto`, `true` or `false`; default is `auto`. Direct scanout bypasses the RGA copy for compatible hardware-rendered frames. Auto excludes the RG353 family, whose DRM drivers may accept the plane update but exhibit unstable pacing, and tries it elsewhere with automatic fallback when the DRM request is rejected. It can still be forced with `true` for diagnostics. |
+| `retrorun_drm_direct_scanout` | GO2/DRM only: `true` or `false`; default is `false`. Direct scanout bypasses the RGA copy for compatible hardware-rendered frames. Enable it only after testing the relevant device and core; some cores, including `parallel_n64`, may be incompatible. The DRM diagnostics page can test it temporarily without changing this setting. |
 | `retrorun_video_renderer` | SDL2 only: `auto`, `software`, `opengl` or `vulkan`. Requires restart. Vulkan is not implemented yet. On Linux `opengl` means OpenGL ES. |
 | `retrorun_vsync` | SDL2 only; default is `false` and can also be changed from the menu. |
 

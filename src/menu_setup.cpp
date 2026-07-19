@@ -576,15 +576,16 @@ std::function<void(int)> setThreadedVideoSetting = [](int button) {
 #ifndef RR_PLATFORM_SDL
 int getDRMDirectScanoutSetting()
 {
-    return static_cast<int>(drmDirectScanoutMode);
+    return drmDirectScanoutMode == DRMDirectScanoutMode::Enabled ? 1 : 0;
 }
 std::function<void(int)> setDRMDirectScanoutSetting = [](int button) {
-    int value = static_cast<int>(drmDirectScanoutMode);
-    if (button == LEFT) value = (value + 2) % 3;
-    else if (button == RIGHT) value = (value + 1) % 3;
+    int value = getDRMDirectScanoutSetting();
+    if (button == LEFT || button == RIGHT) value = value == 0 ? 1 : 0;
     else return;
-    drmDirectScanoutMode = static_cast<DRMDirectScanoutMode>(value);
-    static const char *names[] = {"auto", "false", "true"};
+    drmDirectScanoutMode = value == 1
+        ? DRMDirectScanoutMode::Enabled
+        : DRMDirectScanoutMode::Disabled;
+    static const char *names[] = {"false", "true"};
     persistConfigSetting("retrorun_drm_direct_scanout", names[value]);
 };
 #endif

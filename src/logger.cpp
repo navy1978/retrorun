@@ -6,10 +6,25 @@
 #include <cstring>
 #include <cstdio>
 #include <algorithm>
+#ifdef _WIN32
+#include <process.h>
+#else
+#include <unistd.h>
+#endif
 
 static std::string coreName_;
 static Logger::LogLevel coreLogLevel_ = Logger::ERR;
 static std::FILE *logFile_ = nullptr;
+
+static long processId()
+{
+#ifdef _WIN32
+    static const long pid = static_cast<long>(_getpid());
+#else
+    static const long pid = static_cast<long>(getpid());
+#endif
+    return pid;
+}
 
 static void writeLogBuffer(const char *buffer, size_t length, bool flush)
 {
@@ -75,7 +90,8 @@ void Logger::log(LogLevel level, const char* format, ...) {
         int used = writeTimestamp(buffer, sizeof(buffer));
         if (used <= 0) return;
         const int prefix = std::snprintf(buffer + used, sizeof(buffer) - used,
-                                         "> RetroRun <  %s", labels[level]);
+                                         "> RetroRun < [PID %ld] %s",
+                                         processId(), labels[level]);
         if (prefix < 0) return;
         used += prefix;
         if (used < 0) return;
@@ -119,8 +135,9 @@ void Logger::core_log(enum retro_log_level level, const char* fmt, ...) {
     char buffer[4096];
     int used = writeTimestamp(buffer, sizeof(buffer));
     if (used <= 0) return;
-    const int prefix = std::snprintf(buffer + used, sizeof(buffer) - used, "> %s < %s",
-                                     coreName_.c_str(), labels[messageLevel]);
+    const int prefix = std::snprintf(buffer + used, sizeof(buffer) - used,
+                                     "> %s < [PID %ld] %s",
+                                     coreName_.c_str(), processId(), labels[messageLevel]);
     if (prefix < 0) return;
     used += prefix;
     if (used < 0) return;

@@ -1127,21 +1127,14 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
              (!input_info_requested && !input_message &&
               !input_credits_requested && !input_fps_requested &&
               !screenshot_requested && videoShader == RR_VIDEO_SHADER_OFF));
-        static const bool directScanoutPacingBlacklisted = isRG353Family();
         const bool directScanoutEnabled =
             drmDirectScanoutDiagnosticActive ||
-            drmDirectScanoutMode == DRMDirectScanoutMode::Enabled ||
-            (drmDirectScanoutMode == DRMDirectScanoutMode::Auto &&
-             !directScanoutPacingBlacklisted);
+            drmDirectScanoutMode == DRMDirectScanoutMode::Enabled;
         static bool directScanoutFallbackLogged = false;
         if (directScanoutCandidate && !directScanoutEnabled && !directScanoutFallbackLogged)
         {
-            if (drmDirectScanoutMode == DRMDirectScanoutMode::Auto)
-                logger.log(Logger::INF,
-                           "DRM direct scanout disabled automatically on the RG353 family due to unstable frame pacing.");
-            else
-                logger.log(Logger::INF,
-                           "DRM direct scanout disabled; using the standard presenter.");
+            logger.log(Logger::INF,
+                       "DRM direct scanout disabled; using the standard presenter.");
             directScanoutFallbackLogged = true;
         }
         const bool allowDirectScanout = directScanoutCandidate && directScanoutEnabled &&

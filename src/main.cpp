@@ -100,7 +100,7 @@ int main(int argc, char *argv[])
     main_thread_id = pthread_self();
     printf("\n");
     printf("########### RETRORUN %s ###########\n", release.c_str());
-    printf("libretro frontend for Anbernic Devices\n");
+    printf("Lightweight cross-platform libretro frontend\n");
     printf("Copyright (C) 2020  OtherCrashOverride\n");
     printf("Copyright (C) 2021-present  navy1978\n");
     printf("\n");

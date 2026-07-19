@@ -44,7 +44,6 @@ enum TateState {
 };
 
 enum class DRMDirectScanoutMode {
-    Auto,
     Disabled,
     Enabled
 };

@@ -646,27 +646,25 @@ void initConfig()
         try
         {
             const std::string &value = conf_map.at("retrorun_drm_direct_scanout");
-            if (value == "auto")
-                drmDirectScanoutMode = DRMDirectScanoutMode::Auto;
-            else if (value == "true" || value == "enabled" || value == "1")
+            if (value == "true" || value == "enabled" || value == "1")
                 drmDirectScanoutMode = DRMDirectScanoutMode::Enabled;
             else if (value == "false" || value == "disabled" || value == "0")
                 drmDirectScanoutMode = DRMDirectScanoutMode::Disabled;
             else
             {
-                drmDirectScanoutMode = DRMDirectScanoutMode::Auto;
+                drmDirectScanoutMode = DRMDirectScanoutMode::Disabled;
                 logger.log(Logger::WARN,
-                           "Unknown retrorun_drm_direct_scanout value '%s'; using auto.",
+                           "Unknown retrorun_drm_direct_scanout value '%s'; using false.",
                            value.c_str());
             }
-            const char *mode = drmDirectScanoutMode == DRMDirectScanoutMode::Auto ? "auto" :
-                (drmDirectScanoutMode == DRMDirectScanoutMode::Enabled ? "true" : "false");
+            const char *mode = drmDirectScanoutMode == DRMDirectScanoutMode::Enabled
+                ? "true" : "false";
             logger.log(Logger::DEB, "retrorun_drm_direct_scanout: %s.", mode);
         }
         catch (...)
         {
             logger.log(Logger::DEB,
-                       "retrorun_drm_direct_scanout parameter not found; using auto.");
+                       "retrorun_drm_direct_scanout parameter not found; using false.");
         }
 
         try

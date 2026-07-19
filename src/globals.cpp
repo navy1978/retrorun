@@ -27,7 +27,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <unistd.h>
 
 
-std::string release = "3.1.1-SNAPSHOT";
+std::string release = "3.1.1";
 
 
 
@@ -79,7 +79,7 @@ int audioCounter = 0;
 int audioCounterSkip = 6;
 
 bool forceVideoMultithread = false;
-DRMDirectScanoutMode drmDirectScanoutMode = DRMDirectScanoutMode::Auto;
+DRMDirectScanoutMode drmDirectScanoutMode = DRMDirectScanoutMode::Disabled;
 bool drmDirectScanoutDiagnosticActive = false;
 bool drmDirectScanoutDiagnosticCompleted = false;
 // Frame duplication is perceptible on handheld displays. Keep adaptive

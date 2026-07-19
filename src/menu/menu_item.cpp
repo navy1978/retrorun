@@ -274,7 +274,6 @@ const char *ui_profile_names[] = {
     "Desktop"};
 
 const char *drm_direct_scanout_names[] = {
-    "Auto",
     "Off",
     "On"};
 
