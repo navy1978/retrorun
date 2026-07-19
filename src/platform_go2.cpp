@@ -89,11 +89,12 @@ rr_input_state_t* rr_input_state_create() { rr_input_state_t* s = new rr_input_s
 void rr_input_state_destroy(rr_input_state_t* state) { if (state) { go2_input_state_destroy(state->native); delete state; } }
 void rr_input_state_read(rr_input_t* input, rr_input_state_t* state) { go2_input_state_read(input->native, state->native); }
 rr_button_state_t rr_input_state_button_get(rr_input_state_t* state, rr_input_button_t button) {
-    if (button > RRInputButton_TriggerRight) return RRButtonState_Released;
+    if (!state || button < RRInputButton_DPadUp || button > RRInputButton_Quit)
+        return RRButtonState_Released;
     return static_cast<rr_button_state_t>(go2_input_state_button_get(state->native, static_cast<go2_input_button_t>(button)));
 }
 void rr_input_state_button_set(rr_input_state_t* state, rr_input_button_t button, rr_button_state_t value) {
-    if (button <= RRInputButton_TriggerRight)
+    if (state && button >= RRInputButton_DPadUp && button <= RRInputButton_Quit)
         go2_input_state_button_set(state->native, static_cast<go2_input_button_t>(button), static_cast<go2_button_state_t>(value));
 }
 rr_thumb_t rr_input_state_thumbstick_get(rr_input_state_t* state, rr_input_thumbstick_t stick) { go2_thumb_t v = go2_input_state_thumbstick_get(state->native, static_cast<go2_input_thumbstick_t>(stick)); rr_thumb_t r = {v.x, v.y}; return r; }
