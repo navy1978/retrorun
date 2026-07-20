@@ -6,7 +6,7 @@ index 94a0350c..e4f6934a 100644
  PKG_SITE="https://github.com/navy1978/retrorun"
  PKG_URL="${PKG_SITE}.git"
 -PKG_DEPENDS_TARGET="toolchain libdrm libpng linux libevdev librga openal-soft"
-+PKG_DEPENDS_TARGET="toolchain libdrm libpng linux libevdev librga openal-soft ${OPENGLES}"
++PKG_DEPENDS_TARGET="toolchain libdrm libpng linux libevdev librga openal-soft curl ${OPENGLES}"
  PKG_TOOLCHAIN="make"
 @@ -12,5 +12,7 @@ PKG_TOOLCHAIN="make"
  pre_configure_target() {

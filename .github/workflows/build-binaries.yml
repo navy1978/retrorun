@@ -55,9 +55,10 @@ jobs:
       - name: Build GO2/DRM with the AmberELEC toolchain
         run: |
           # The standalone RetroRun package build does not inherit the
-          # distribution-level OpenGL ES dependency. Add AmberELEC's selected
-          # target implementation (libmali on RG351P) and compile against its
-          # EGL/GLES/GBM headers instead of headers from the GitHub host.
+          # distribution-level OpenGL ES and curl dependencies. Add
+          # AmberELEC's selected target implementation (libmali on RG351P),
+          # curl, and compile against the target EGL/GLES/GBM headers instead
+          # of headers from the GitHub host.
           git -C amber apply \
             "${GITHUB_WORKSPACE}/.github/patches/amberelec-retrorun-opengles.patch"
           sed -i "s/^PKG_VERSION=.*/PKG_VERSION=\"${GITHUB_SHA}\"/" \
