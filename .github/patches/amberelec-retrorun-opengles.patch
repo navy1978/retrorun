@@ -1,0 +1,18 @@
+diff --git a/packages/games/tools/retrorun/package.mk b/packages/games/tools/retrorun/package.mk
+index 94a0350c..e4f6934a 100644
+--- a/packages/games/tools/retrorun/package.mk
++++ b/packages/games/tools/retrorun/package.mk
+@@ -7,4 +7,4 @@ PKG_LICENSE="GPLv2"
+ PKG_SITE="https://github.com/navy1978/retrorun"
+ PKG_URL="${PKG_SITE}.git"
+-PKG_DEPENDS_TARGET="toolchain libdrm libpng linux libevdev librga openal-soft"
++PKG_DEPENDS_TARGET="toolchain libdrm libpng linux libevdev librga openal-soft ${OPENGLES}"
+ PKG_TOOLCHAIN="make"
+@@ -12,5 +12,7 @@ PKG_TOOLCHAIN="make"
+ pre_configure_target() {
+   CFLAGS+=" -I$(get_build_dir libdrm)/include/drm"
++  CFLAGS+=" -I$(get_build_dir ${OPENGLES})/include"
++  CFLAGS+=" -I$(get_build_dir ${OPENGLES})/include/GBM"
+   CFLAGS+=" -I$(get_build_dir linux)/include/uapi"
+   CFLAGS+=" -I$(get_build_dir linux)/tools/include"
+ }
