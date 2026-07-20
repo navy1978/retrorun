@@ -8,6 +8,35 @@
                  -= Light Libretro Front-end =-
 
 =================================
+Version 3.1.1 (Jul 20, 2026)
+---------------------------------
+- Add native Miniloong Pocket 1 support, including portrait-panel rotation,
+  Tate mode, RK3566 video/input profiles, mixer handling and Menu-key hotkeys.
+- Expand and reorganize the runtime Settings menu. User-facing options are now
+  persisted safely to the active retrorun.cfg while preserving ownership and
+  permissions.
+- Add optional bounded threaded audio with safe OpenAL context ownership and
+  queue cleanup during fast-forward and save-state loading. Fixes #13.
+- Extend forced threaded video support to RG552 and the RG353 family.
+- Add configurable DRM direct scanout, disabled by default, with safe fallback
+  to the standard presenter for unsupported devices, frames or cores.
+- Add an interactive DRM diagnostics page with a temporary three-second test,
+  plane/rotation information and sampled VBlank results.
+- Improve the virtual keyboard layout.
+- Improve RetroAchievements authentication by storing the returned token and
+  removing the plaintext password after a successful login.
+- Add optional retrorun.log output beside the active configuration file, report
+  its absolute path and include the process ID in frontend and core log lines.
+- Add detailed DRM/GBM/EGL hardware-context diagnostics and a legacy GBM display
+  compatibility path.
+- Report readable battery state/percentage and the detected Rockchip SoC in the
+  device information page.
+- Reduce frame-loop and input polling overhead, improve FPS sampling and keep
+  the displayed locked FPS within the core-declared ceiling.
+- Add GitHub Actions builds for Linux GO2 ARM64, Linux SDL2 ARM64 and Apple
+  Silicon macOS, including a more reliable AmberELEC/GMP build path.
+
+=================================
 Version 3.1.0 (Jul 17, 2026)
 ---------------------------------
 - Add RetroAchievements integration with background login, game identification,
