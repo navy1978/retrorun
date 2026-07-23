@@ -19,16 +19,32 @@ ifndef AR
   AR = ar
 endif
 
+HYBRID_AUDIO ?= 0
+SDL_CONFIG ?= sdl2-config
+ifeq ($(HYBRID_AUDIO),1)
+  BUILD_SUFFIX = Hybrid
+  OUTPUT_NAME = retrorun-hybrid
+  HYBRID_DEFINES = -DRR_HYBRID_AUDIO -DRR_AUDIO_BACKEND_GO2 -DRR_AUDIO_BACKEND_SDL2
+  HYBRID_CFLAGS = $(shell $(SDL_CONFIG) --cflags)
+  HYBRID_LIBS = $(shell $(SDL_CONFIG) --libs)
+else
+  BUILD_SUFFIX =
+  OUTPUT_NAME = retrorun
+  HYBRID_DEFINES =
+  HYBRID_CFLAGS =
+  HYBRID_LIBS =
+endif
+
 ifeq ($(config),debug)
-  OBJDIR     = obj/Debug
+  OBJDIR     = obj/Debug$(BUILD_SUFFIX)
   TARGETDIR  = ../..
-  TARGET     = $(TARGETDIR)/retrorun
-  DEFINES   += -DDEBUG -DRR_PLATFORM_GO2 -DRC_CLIENT_SUPPORTS_HASH
+  TARGET     = $(TARGETDIR)/$(OUTPUT_NAME)
+  DEFINES   += -DDEBUG -DRR_PLATFORM_GO2 -DRC_CLIENT_SUPPORTS_HASH $(HYBRID_DEFINES)
   INCLUDES  += -I../../src -I../.. -I../../src/go2 -I../../src/menu -I../../deps/rcheevos/include -I../../deps/rcheevos/src
   CPPFLAGS  += -MMD -MP $(DEFINES) $(INCLUDES)
   CFLAGS    += $(CPPFLAGS) $(ARCH) -g -Wall -D__GBM__
-  CXXFLAGS  += $(CFLAGS) -std=c++2a
-  LDFLAGS   += -Wl,-rpath=. -L../../. -ldl -lEGL -lGLESv2 -lrga -pthread -ffast-math -levdev -lgbm -ldrm -lpng -lasound -lopenal -lcurl -lz
+  CXXFLAGS  += $(CFLAGS) -std=c++2a $(HYBRID_CFLAGS)
+  LDFLAGS   += -Wl,-rpath=. -L../../. -ldl -lEGL -lGLESv2 -lrga -pthread -ffast-math -levdev -lgbm -ldrm -lpng -lasound -lopenal -lcurl -lz $(HYBRID_LIBS)
   LIBS      += 
   RESFLAGS  += $(DEFINES) $(INCLUDES) 
   LDDEPS    += 
@@ -42,15 +58,15 @@ ifeq ($(config),debug)
 endif
 
 ifeq ($(config),release)
-  OBJDIR     = obj/Release
+  OBJDIR     = obj/Release$(BUILD_SUFFIX)
   TARGETDIR  = ../..
-  TARGET     = $(TARGETDIR)/retrorun
-  DEFINES   += -DNDEBUG -DRR_PLATFORM_GO2 -DRC_CLIENT_SUPPORTS_HASH
+  TARGET     = $(TARGETDIR)/$(OUTPUT_NAME)
+  DEFINES   += -DNDEBUG -DRR_PLATFORM_GO2 -DRC_CLIENT_SUPPORTS_HASH $(HYBRID_DEFINES)
   INCLUDES  += -I../../src -I../.. -I../../src/go2 -I../../src/menu -I../../deps/rcheevos/include -I../../deps/rcheevos/src
   CPPFLAGS  += -MMD -MP $(DEFINES) $(INCLUDES)
   CFLAGS    += $(CPPFLAGS) $(ARCH) -O3 -ffast-math -flto -Wall -D__GBM__
-  CXXFLAGS  += $(CFLAGS) -std=c++2a
-  LDFLAGS   += -s -flto -Wl,-rpath=. -L../../. -ldl -lEGL -lGLESv2 -lrga -pthread -ffast-math -levdev -lgbm -ldrm -lpng -lasound -lopenal -lcurl -lz
+  CXXFLAGS  += $(CFLAGS) -std=c++2a $(HYBRID_CFLAGS)
+  LDFLAGS   += -s -flto -Wl,-rpath=. -L../../. -ldl -lEGL -lGLESv2 -lrga -pthread -ffast-math -levdev -lgbm -ldrm -lpng -lasound -lopenal -lcurl -lz $(HYBRID_LIBS)
   LIBS      += 
   RESFLAGS  += $(DEFINES) $(INCLUDES) 
   LDDEPS    += 
@@ -73,6 +89,7 @@ OBJECTS := \
 	$(OBJDIR)/menu/menu_manager.o \
 	$(OBJDIR)/fonts.o \
 	$(OBJDIR)/input.o \
+	$(OBJDIR)/benchmark.o \
 	$(OBJDIR)/audio.o \
 	$(OBJDIR)/video-helper.o \
 	$(OBJDIR)/decoration.o \
@@ -98,6 +115,13 @@ OBJECTS := \
 	$(OBJDIR)/js2xbox/joypads.o \
 	$(OBJDIR)/js2xbox/js2xbox.o \
 	$(OBJDIR)/js2xbox/uinput.o
+
+ifeq ($(HYBRID_AUDIO),1)
+OBJECTS += \
+	$(OBJDIR)/platform_audio_hybrid.o \
+	$(OBJDIR)/audio_backend_go2.o \
+	$(OBJDIR)/audio_backend_sdl2.o
+endif
 
 RCHEEVOS_SOURCES := ../../deps/rcheevos/src/rc_client.c ../../deps/rcheevos/src/rc_compat.c \
 	../../deps/rcheevos/src/rc_libretro.c ../../deps/rcheevos/src/rc_util.c ../../deps/rcheevos/src/rc_version.c \
@@ -173,6 +197,15 @@ $(OBJDIR)/logger.o: ../../src/logger.cpp
 $(OBJDIR)/platform_go2.o: ../../src/platform_go2.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/platform_audio_hybrid.o: ../../src/platform_audio_hybrid.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/audio_backend_go2.o: ../../src/audio_backend_go2.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/audio_backend_sdl2.o: ../../src/audio_backend_sdl2.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/system-info.o: ../../src/system-info.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
@@ -192,6 +225,9 @@ $(OBJDIR)/fonts.o: ../../src/fonts.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/input.o: ../../src/input.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/benchmark.o: ../../src/benchmark.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/audio.o: ../../src/audio.cpp

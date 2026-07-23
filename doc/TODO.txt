@@ -1,0 +1,295 @@
+# RetroRun TODO
+
+## Layered configuration: global, core and game
+
+### Goal
+
+Replace the current single configuration scope with a hierarchy that allows a
+setting to be applied globally, to one libretro core, or to one game.
+
+Recommended precedence, from lowest to highest:
+
+1. RetroRun built-in defaults
+2. global `retrorun.cfg`
+3. core profile
+4. game profile
+5. command-line overrides
+
+Suggested layout next to the active `retrorun.cfg`:
+
+```
+retrorun.cfg
+retrorun.d/cores/parallel_n64.cfg
+retrorun.d/games/parallel_n64/GoldenEye 007 (Europe).cfg
+```
+
+The core identifier should come from the core filename, with suffixes such as
+`_libretro.so` removed. This identifier is available before `core_load()` and
+does not depend on the display name reported by the core. The game identifier
+should come from the content filename and be stored below its core directory
+to prevent collisions between systems.
+
+### RetroRun work
+
+- Parse and validate the core and content arguments before initializing the
+  configuration. At present `initConfig()` runs before `arg_core` and
+  `arg_rom` are assigned, so it cannot select a core or game profile.
+- Split configuration loading into ordered layers. A later layer must replace
+  an earlier value; the current `conf_map.insert()` behavior does not override
+  an existing key and therefore cannot implement profile precedence.
+- Sanitize profile filenames and handle content with spaces, punctuation,
+  multidisc descriptors and identical filenames in different core folders.
+- Log every loaded profile using its absolute path. At DEBUG level also log
+  which layer supplied the final value of each overridden setting.
+- Keep command-line options as the final, non-persistent override layer.
+- Preserve backward compatibility: an installation containing only
+  `retrorun.cfg` must behave exactly as it does now.
+- Make configuration persistence aware of a destination scope. The runtime
+  menu should offer `Save settings to: Global / Core / Game` and write only to
+  the selected profile instead of always modifying `activeConfigFile`.
+- Add an `Inherit` or `Reset override` action that removes a key from the
+  selected profile and exposes the value inherited from the lower layer.
+- Write profile files atomically and preserve their permissions and ownership,
+  as already done for the global configuration file.
+- Do not duplicate complete configuration files. Core and game profiles should
+  contain only values that differ from the inherited configuration.
+
+### Setting scopes
+
+Keep machine identity, paths, credentials and logging configuration global.
+In particular, RetroAchievements username, token and password must never be
+copied into core or game profiles.
+
+Suitable core/game overrides include:
+
+- aspect ratio, pixel-perfect mode, filters and shaders;
+- decorations and their selected source;
+- fixed/adaptive frameskip and frame pacing;
+- audio buffer, stable audio and threaded audio;
+- threaded video and DRM direct scanout;
+- controller mappings, analog-to-digital mode and Tate mode;
+- libretro core options (settings that do not begin with `retrorun_`).
+
+Concrete Flycast2021 use case found on RG351V: keep
+`flycast2021_translucent_strip_merge = inaccurate` disabled globally. Allow it
+only with the corrected sort/key implementation in manually validated Dead or
+Alive 2 and Soul Calibur profiles. The original fastest build made Soul
+Calibur menus invisible; `stripmerge-orderfix` restored them. Sonic menu text
+is readable with both the standalone and configurable corrected builds, but
+the menu graphics are still malformed despite good performance. This is a
+whitelist, not a blacklist: untested games inherit the accurate disabled
+value.
+
+For RG351V Flycast/Flycast2021 profiles also set
+`retrorun_analog_to_digital = none`. The historical `left_forced` default
+suppresses native analog axes and prevents movement in Sonic Adventure 2 even
+though Start and face buttons continue to work.
+
+### Delivery plan
+
+1. Implement and test layered loading with manually created profile files.
+2. Add logs showing profile selection and value provenance.
+3. Add menu scope selection and override removal.
+4. Add migration/documentation examples for distributions.
+5. Test global-only, core-only and game-only configurations on GO2 and SDL2,
+   including cores that change options during startup.
+
+### Acceptance criteria
+
+- A game profile overrides its core profile, which overrides `retrorun.cfg`.
+- Removing a game override immediately reveals the core/global value after the
+  required restart.
+- Two games using the same core can use different settings without rewriting
+  the global file.
+- Two cores running content with the same filename do not share a game profile.
+- Existing configurations and command lines continue to work unchanged.
+
+
+## AmberELEC: start a new session or resume a RetroRun save state
+
+### Goal
+
+When a game is launched with RetroRun and a valid automatic state exists,
+AmberELEC should offer the same useful choice it already offers for RetroArch:
+
+- `Resume saved game`
+- `Start new game`
+
+If no automatic state exists, launch the game normally without showing an
+unnecessary dialog.
+
+Here, "saved game" means a RetroRun save state (`.rrstate.auto`, or the current
+Flycast 2021 variant). SRAM, memory cards and normal in-game saves are separate:
+`Start new game` must skip only the automatic state and must still load SRAM or
+memory-card data.
+
+### Current integration gap
+
+- EmulationStation already passes launch metadata such as `autosave` and
+  `state_slot` to `/usr/bin/runemu.py`.
+- `EmuRunner.set_settings()` forwards those values to AmberELEC's RetroArch
+  configuration generator.
+- `EmuRunner.get_retrorun_command()` currently constructs only
+  `retrorun.sh <core> <rom> <platform>` and drops the requested resume/new-game
+  choice.
+- `retrorun.sh` edits `retrorun_auto_save` in the shared `retrorun.cfg`, but it
+  has no explicit per-launch auto-load override.
+- RetroRun automatic states currently live below the directory supplied with
+  `-s` and are named `<rom-stem>.rrstate.auto` (or
+  `<rom-stem>.fc2021-rrstate.auto`). RetroArch states are discovered in
+  `/storage/roms/savestates/<platform>` using RetroArch naming. EmulationStation
+  therefore cannot assume that the RetroArch state locator also finds RetroRun
+  states.
+
+### Verified EmulationStation behavior
+
+This was checked against the AmberELEC EmulationStation commit currently pinned
+by AmberELEC (`c34e9cf3f6a22afbb47266fe89db4379513d1f03`). The existing
+EmulationStation UI already provides the required save-state manager:
+
+- `GuiSaveState.cpp` already displays `START NEW GAME`, automatic states,
+  numbered states, timestamps and thumbnails.
+- `ISimpleGameListView.cpp` already opens that manager before launch when the
+  effective game supports the `autosave` feature and the AmberELEC
+  `savestates` preference requests it.
+- `FileData.cpp` and `SaveState.cpp` already translate the selected item into
+  launch arguments including `-autosave`, `-state_slot` and `-state_file`.
+
+Consequently, no new EmulationStation dialog or screen needs to be developed.
+Only its configurable state-backend support needs a small extension.
+
+There is an important limitation in the current implementation:
+
+- without `es_savestates.cfg`, EmulationStation uses its built-in RetroArch
+  layout (`<rom>.state`, `<rom>.state.auto` below the standard savestate
+  directory) and marks it as using RetroArch commands;
+- as soon as `es_savestates.cfg` exists, custom mode is enabled globally and
+  only emulators declared in that file receive save-state configurations;
+- every custom emulator read by `SaveStateConfigFile.cpp` currently gets
+  `racommands = false` unconditionally. The XML cannot preserve RetroArch's
+  existing command behavior;
+- therefore adding an XML entry only for RetroRun would disable or alter the
+  existing RetroArch save-state manager. Do not ship such a file without the
+  fallback/parser fix.
+
+The recommended solution is a very small patch to the AmberELEC EmulationStation
+fork, not a new UI implementation:
+
+1. Make `SaveStateConfigFile.cpp` accept a `racommands` boolean attribute for
+   custom emulator entries instead of always forcing it to `false`.
+2. Preserve the built-in/default RetroArch configuration when custom entries
+   are enabled, or explicitly provide an equivalent `retroarch` entry with
+   `racommands="true"`. The fallback approach is preferable because it avoids
+   duplicating RetroArch defaults in AmberELEC XML.
+3. Add a `retrorun` entry with `racommands="false"`, RetroRun's state directory,
+   `.rrstate` slot pattern and `.rrstate.auto` automatic-state pattern.
+4. Keep RetroRun and RetroArch configurations separate so switching emulator
+   for the same ROM cannot load a state created by the other frontend.
+
+This patch can be maintained as a change in the AmberELEC EmulationStation fork
+and referenced by an updated `PKG_VERSION`, or temporarily carried as an
+AmberELEC package patch. In both cases EmulationStation source is technically
+modified, but the change is limited to backend configuration and does not touch
+the existing save-state UI.
+
+An AmberELEC-only shell dialog could avoid changing EmulationStation sources,
+but it is not recommended: it would duplicate the UI, require separate gamepad
+handling and behave differently from RetroArch.
+
+### RetroRun work
+
+- Add explicit, mutually exclusive per-launch options, for example
+  `--resume-auto-state` and `--skip-auto-state`. They must override
+  `retrorun_auto_load` without modifying any configuration file.
+- Keep the existing configuration behavior when neither launch option is
+  supplied.
+- Make `--skip-auto-state` bypass only `LoadState()` at startup. It must not
+  bypass `LoadSram()` and must not delete or rename the existing state.
+- Return a clear error/log message when resume was explicitly requested but the
+  state does not exist, is unreadable or is incompatible with the current core.
+  AmberELEC may then offer to continue with a new session.
+- Provide one authoritative way for a launcher to locate the automatic state.
+  Prefer either a small query option that prints the resolved absolute state
+  path, or a documented reusable naming rule. Avoid separately reimplementing
+  special cases such as Flycast 2021 in several AmberELEC scripts.
+- Decide and document what happens after `Start new game` when automatic saving
+  is enabled. The recommended behavior is to preserve the old state at launch
+  and replace it only when the new session exits and performs its normal
+  automatic save.
+
+### AmberELEC work
+
+- In the EmulationStation launch flow, determine the effective emulator for the
+  selected game. Show the dialog only when it is `retrorun` and a valid RetroRun
+  automatic state is present.
+- Apply the small EmulationStation configuration-parser/fallback patch described
+  above; reuse `GuiSaveState` rather than adding another dialog.
+- Add and install an AmberELEC `es_savestates.cfg` entry that recognizes the
+  RetroRun state path/name, or ask RetroRun through the proposed state-path
+  query instead of assuming RetroArch's `.state` layout. Verify that the
+  standard RetroArch configuration remains active.
+- Preserve the existing RetroArch behavior and UI; the new handling must be
+  selected by emulator/backend and must not change other launchers.
+- Forward the user's choice through `runemu.py`. Update
+  `EmuRunner.get_retrorun_command()` to pass an explicit launch-mode argument to
+  `/usr/bin/retrorun.sh`.
+- Update `packages/games/tools/retrorun/retrorun.sh` to translate that launch
+  mode into the new RetroRun command-line option. Do not implement the choice by
+  repeatedly editing the shared `retrorun.cfg`.
+- Quote the core, ROM, platform and state path safely. Test filenames containing
+  spaces, apostrophes, brackets and multidisc extensions such as `.m3u`, `.gdi`
+  and `.cue`.
+- Add logging to `/tmp/logs/exec.log` showing the selected backend, state path
+  and launch mode without logging credentials or unrelated configuration data.
+- Ensure automatic save remains controlled by the existing AmberELEC game,
+  system and global settings. Resume/new-game is an auto-load decision for the
+  current launch, not a replacement for the auto-save preference.
+- Add/update the RetroRun capability entry in `es_features.cfg` if the
+  EmulationStation implementation uses emulator capabilities to enable its
+  resume dialog.
+- Package the updated RetroRun commit in AmberELEC and update the pinned
+  `PKG_VERSION` only after both sides of the interface are merged.
+
+### Optional second phase: full state picker
+
+The first phase only needs the automatic state and the two choices above. A
+later phase can expose RetroRun's numbered slots in AmberELEC like RetroArch's
+visual state picker. That requires:
+
+- a stable public naming scheme or a RetroRun API for enumerating slots;
+- timestamps and compatibility metadata for each slot;
+- screenshot/thumbnail sidecars generated when RetroRun saves a state;
+- load-by-path or load-by-slot command-line support;
+- deletion and stale-thumbnail handling in EmulationStation.
+
+This should remain separate from the initial resume/new-game implementation so
+the basic integration does not depend on thumbnail support.
+
+### Acceptance criteria
+
+- Launching a RetroRun game with no state starts immediately.
+- Launching one with a valid automatic state shows `Resume saved game` and
+  `Start new game`.
+- Resume loads the expected state for that exact core and ROM.
+- Start new game does not load the state and does not discard SRAM or memory
+  cards.
+- The choice affects only the current launch and does not rewrite the user's
+  global/core/game configuration.
+- RetroArch launch and save-state selection remain unchanged.
+- The behavior works with global, system and per-game AmberELEC auto-save
+  settings and with paths containing spaces.
+RetroAchievements and large optical-disc images
+-----------------------------------------------
+
+- Investigate RetroRun game identification for large `.cue`/multi-track images.
+  The RG351V Dead or Alive 2 test used a 366-byte CUE plus approximately
+  1.1 GB of BIN tracks. RetroRun logged the file-backed optical path but then
+  reported `source=file, bytes=0` while identifying the CUE.
+- Compare this path with RetroArch's current rcheevos integration, especially
+  its streaming/seek-based hashing of CUE/GDI tracks. Do not read an entire
+  optical image into RAM.
+- Add a reproducible test containing a small CUE descriptor and sparse/mock
+  large tracks, including files larger than 1 GiB and multi-track layouts.
+- Keep this separate from core loading: the same Dead or Alive 2 image also
+  remained on invalid frames with achievements disabled, so achievements are
+  not yet proven to be the only cause of the black screen.

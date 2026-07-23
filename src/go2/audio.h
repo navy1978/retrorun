@@ -42,8 +42,21 @@ extern "C" {
 
 go2_audio_t* go2_audio_create(int frequency);
 void go2_audio_destroy(go2_audio_t* audio);
-void go2_audio_submit(go2_audio_t* audio, const short* data, int frames);
+bool go2_audio_submit(go2_audio_t* audio, const short* data, int frames);
 void go2_audio_release_thread(go2_audio_t* audio);
+bool go2_audio_valid(go2_audio_t* audio);
+void go2_audio_flush(go2_audio_t* audio);
+void go2_audio_pause(go2_audio_t* audio, bool paused);
+void go2_audio_cancel(go2_audio_t* audio);
+void go2_audio_diagnostics_get(go2_audio_t* audio, uint64_t* underruns,
+                               uint64_t* overruns, uint64_t* frames_dropped,
+                               uint64_t* max_queue_depth,
+                               uint64_t* min_queue_depth,
+                               uint64_t* queue_depth_samples,
+                               uint64_t* queue_depth_total_frames,
+                               uint64_t* queue_empty_observations,
+                               uint64_t* queue_low_observations,
+                               uint64_t* adaptive_stretch_frames);
 uint32_t go2_audio_volume_get(go2_audio_t* audio, const char *selem_name);
 void go2_audio_volume_set(go2_audio_t* audio, uint32_t value, const char *selem_name);
 go2_audio_path_t go2_audio_path_get(go2_audio_t* audio, const char *selem_name);

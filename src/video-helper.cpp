@@ -1117,6 +1117,11 @@ void showFPSImage()
     static rr_surface_t* rendered_surface = nullptr;
     static int rendered_fps = -1;
     const int displayed_fps = std::max(0, static_cast<int>(fps));
+#ifdef RR_PLATFORM_SDL
+    const bool large_handheld_fps = getResolvedUIProfile() == UIProfile::Handheld;
+#else
+    constexpr bool large_handheld_fps = false;
+#endif
 
     // Hot path: this function is called every presented frame, while the FPS
     // value changes much less frequently. Avoid string creation, surface
@@ -1126,9 +1131,9 @@ void showFPSImage()
         return;
 
     const std::string label = "FPS: " + std::to_string(displayed_fps);
-    constexpr int horizontal_padding = 6;
-    constexpr int glyph_width = 8;
-    constexpr int surface_height = 20;
+    const int horizontal_padding = large_handheld_fps ? 8 : 6;
+    const int glyph_width = large_handheld_fps ? 16 : 8;
+    const int surface_height = large_handheld_fps ? 28 : 20;
     // Reserve three FPS digits from the first frame. If an unusually large
     // value needs more room, grow the surface but never shrink it again during
     // the session: GO2 recycles scanout buffers and a narrower replacement
@@ -1172,12 +1177,21 @@ void showFPSImage()
         destination[y * stride + 1] = 0x5acb;
         destination[y * stride + surface_width - 2] = 0x2124;
     }
-    basic_text_out16_nf_color_clipped(destination, stride, surface_width,
-                                      surface_height, horizontal_padding + 1, 7,
-                                      label.c_str(), 0x4208);
-    basic_text_out16_nf_color_clipped(destination, stride, surface_width,
-                                      surface_height, horizontal_padding, 6,
-                                      label.c_str(), WHITE);
+    if (large_handheld_fps) {
+        basic_text_out16x16_nf_color_scaled_from_8x8(
+            destination, stride, horizontal_padding + 1, 7,
+            label.c_str(), 0x4208);
+        basic_text_out16x16_nf_color_scaled_from_8x8(
+            destination, stride, horizontal_padding, 6,
+            label.c_str(), WHITE);
+    } else {
+        basic_text_out16_nf_color_clipped(destination, stride, surface_width,
+                                          surface_height, horizontal_padding + 1, 7,
+                                          label.c_str(), 0x4208);
+        basic_text_out16_nf_color_clipped(destination, stride, surface_width,
+                                          surface_height, horizontal_padding, 6,
+                                          label.c_str(), WHITE);
+    }
     rr_surface_unmap(status_surface_top_right);
 }
 

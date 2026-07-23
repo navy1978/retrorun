@@ -6,3 +6,18 @@ system/
 retrorun
 retrorun-sdl2
 .DS_Store
+
+# Local benchmark evidence is stored in a single dated archive when needed.
+/benchmarks/
+/benchmark-results-*.zip
+
+# Experimental core patches are maintained outside RetroRun commits.
+/*.patch
+
+# Device and local test artifacts.
+/-*.png
+/retrorun-hybrid
+/sonic.md
+/decorations/downloads/
+/tests/*_test
+/tests/*.dSYM/

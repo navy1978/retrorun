@@ -14,7 +14,9 @@
 #define GL_DEPTH24_STENCIL8 0x88F0
 #endif
 
+#ifndef RR_HYBRID_AUDIO
 struct rr_audio { go2_audio_t* native; };
+#endif
 struct rr_input { go2_input_t* native; };
 struct rr_input_state { go2_input_state_t* native; };
 struct rr_display { go2_display_t* native; };
@@ -104,12 +106,33 @@ void rr_input_brightness_read(rr_input_t* input, rr_brightness_state_t* state) {
 void rr_input_brightness_write(int value) { go2_input_brightness_write(value); }
 bool rr_input_set_rumble(uint16_t, uint16_t, uint32_t) { return false; }
 
+#ifndef RR_HYBRID_AUDIO
 rr_audio_t* rr_audio_create(int frequency) { go2_audio_t* native = go2_audio_create(frequency); if (!native) return NULL; rr_audio_t* a = new rr_audio_t; a->native = native; return a; }
 void rr_audio_destroy(rr_audio_t* audio) { if (audio) { go2_audio_destroy(audio->native); delete audio; } }
-void rr_audio_submit(rr_audio_t* audio, const short* data, int frames) { go2_audio_submit(audio->native, data, frames); }
+bool rr_audio_submit(rr_audio_t* audio, const short* data, int frames) { return audio && go2_audio_submit(audio->native, data, frames); }
 void rr_audio_release_thread(rr_audio_t* audio) { if (audio) go2_audio_release_thread(audio->native); }
-uint32_t rr_audio_volume_get(rr_audio_t* audio, const char* control) { return go2_audio_volume_get(audio->native, control); }
-void rr_audio_volume_set(rr_audio_t* audio, uint32_t value, const char* control) { go2_audio_volume_set(audio->native, value, control); }
+bool rr_audio_valid(rr_audio_t* audio) { return audio && go2_audio_valid(audio->native); }
+void rr_audio_flush(rr_audio_t* audio) { if (audio) go2_audio_flush(audio->native); }
+void rr_audio_pause(rr_audio_t* audio, bool paused) { if (audio) go2_audio_pause(audio->native, paused); }
+void rr_audio_cancel(rr_audio_t* audio) { if (audio) go2_audio_cancel(audio->native); }
+void rr_audio_diagnostics_get(rr_audio_t* audio, rr_audio_diagnostics_t* diagnostics) {
+    if (!diagnostics)
+        return;
+    *diagnostics = {};
+    if (!audio)
+        return;
+    go2_audio_diagnostics_get(audio->native, &diagnostics->buffer_underruns,
+        &diagnostics->buffer_overruns, &diagnostics->frames_dropped,
+        &diagnostics->max_queue_depth, &diagnostics->min_queue_depth,
+        &diagnostics->queue_depth_samples,
+        &diagnostics->queue_depth_total_frames,
+        &diagnostics->queue_empty_observations,
+        &diagnostics->queue_low_observations,
+        &diagnostics->adaptive_stretch_frames);
+}
+uint32_t rr_audio_volume_get(rr_audio_t* audio, const char* control) { return audio ? go2_audio_volume_get(audio->native, control) : 0; }
+void rr_audio_volume_set(rr_audio_t* audio, uint32_t value, const char* control) { if (audio) go2_audio_volume_set(audio->native, value, control); }
+#endif
 
 rr_display_t* rr_display_create() { go2_display_t* native = go2_display_create(); if (!native) return NULL; rr_display_t* d = new rr_display_t; d->native = native; return d; }
 void rr_display_destroy(rr_display_t* display) { if (display) { go2_display_destroy(display->native); delete display; } }
@@ -161,6 +184,7 @@ int rr_surface_save_as_png(rr_surface_t* surface, const char* filename) { return
 
 rr_presenter_t* rr_presenter_create(rr_display_t* display, uint32_t format, uint32_t background) { go2_presenter_t* native = go2_presenter_create(display->native, format, background); if (!native) return NULL; rr_presenter_t* p = new rr_presenter_t; p->native = native; return p; }
 void rr_presenter_destroy(rr_presenter_t* presenter) { if (presenter) { go2_presenter_destroy(presenter->native); delete presenter; } }
+void rr_presenter_drain(rr_presenter_t* presenter) { if (presenter) go2_presenter_drain(presenter->native); }
 void rr_presenter_post(rr_presenter_t* p, rr_surface_t* s, int sx, int sy, int sw, int sh, int dx, int dy, int dw, int dh, rr_rotation_t r) { go2_presenter_post(p->native, s->native, sx, sy, sw, sh, dx, dy, dw, dh, native_rotation(r)); }
 bool rr_presenter_post_direct(rr_presenter_t* p, rr_surface_t* s, int sx, int sy,
                               int sw, int sh, int dx, int dy, int dw, int dh,
@@ -440,6 +464,7 @@ void rr_video_sync() {
 }
 bool rr_video_vsync_set(bool) { return false; }
 bool rr_video_vsync_get() { return false; }
+bool rr_video_vsync_applied() { return false; }
 void rr_video_filter_set(rr_video_filter_t filter) { video_filter = filter; }
 rr_video_filter_t rr_video_filter_get() { return video_filter; }
 void rr_video_shader_set(rr_video_shader_t shader) { video_shader = shader; }

@@ -11,7 +11,7 @@ PLATFORM ?= auto
 
 PROJECTS := retrorun
 
-.PHONY: all build clean help macos macos-sdl2 linux-sdl2 linux-go2 sdl2 go2 $(PROJECTS)
+.PHONY: all build clean help test test-asan test-tsan macos macos-sdl2 linux-sdl2 linux-go2 linux-go2-hybrid sdl2 go2 hybrid $(PROJECTS)
 
 # Run a sub-build, preserve its exit status, and always report the elapsed time.
 # Usage: $(call timed_build,<make arguments>)
@@ -41,6 +41,13 @@ retrorun:
 
 clean:
 	@${MAKE} --no-print-directory -C build/linux-sdl -f Makefile clean
+else ifneq ($(filter $(PLATFORM),linux-go2-hybrid hybrid),)
+retrorun:
+	@echo "==== Building retrorun hybrid (GO2 platform, selectable GO2/SDL2 audio) ===="
+	$(call timed_build,-C build/gmake -f Makefile HYBRID_AUDIO=1)
+
+clean:
+	@${MAKE} --no-print-directory -C build/gmake -f Makefile HYBRID_AUDIO=1 clean
 else ifneq ($(filter $(PLATFORM),linux-go2 go2),)
 retrorun:
 	@echo "==== Building retrorun GO2/DRM ($(config)) ===="
@@ -80,12 +87,29 @@ linux-sdl2:
 linux-go2:
 	@${MAKE} --no-print-directory PLATFORM=linux-go2 config=$(config) retrorun
 
+linux-go2-hybrid:
+	@echo "==== Building retrorun hybrid (GO2 platform, selectable GO2/SDL2 audio) ===="
+	$(call timed_build,-C build/gmake -f Makefile HYBRID_AUDIO=1)
+
 # Short aliases retained for compatibility with existing scripts.
 macos: macos-sdl2
 
 sdl2: linux-sdl2
 
 go2: linux-go2
+
+hybrid: linux-go2-hybrid
+
+test:
+	@${MAKE} --no-print-directory -C tests clean run
+
+test-asan:
+	@${MAKE} --no-print-directory -C tests clean run \
+		SANITIZER="-fsanitize=address,undefined -fno-omit-frame-pointer"
+
+test-tsan:
+	@${MAKE} --no-print-directory -C tests clean run \
+		SANITIZER="-fsanitize=thread -fno-omit-frame-pointer"
 
 help:
 	@echo "Usage: make [config=name] [target]"
@@ -101,11 +125,16 @@ help:
 	@echo "   macos-sdl2  macOS with the SDL2/OpenGL backend"
 	@echo "   linux-sdl2  Linux with the SDL2/KMSDRM/OpenGL ES backend"
 	@echo "   linux-go2   Linux handhelds with the native GO2/DRM backend"
+	@echo "   linux-go2-hybrid  GO2 video/input with runtime-selectable GO2/SDL2 audio"
+	@echo "   test        Run isolated benchmark/audio worker tests"
+	@echo "   test-asan   Run isolated tests with AddressSanitizer/UBSan"
+	@echo "   test-tsan   Run isolated tests with ThreadSanitizer"
 	@echo ""
 	@echo "COMPATIBILITY ALIASES:"
 	@echo "   macos       Alias for macos-sdl2"
 	@echo "   sdl2        Alias for linux-sdl2"
 	@echo "   go2         Alias for linux-go2"
+	@echo "   hybrid      Alias for linux-go2-hybrid"
 	@echo ""
 	@echo "Future Windows builds should use the windows-sdl2 target name."
 	@echo ""

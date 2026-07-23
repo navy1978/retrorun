@@ -806,6 +806,6 @@ void restartCore(int button)
         input_info_requested = false;
         input_slot_memory_reset_done = true;
         menuManager.resetMenu();
-        g_retro.retro_reset();
+        core_reset_synchronized();
     }
 }

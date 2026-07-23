@@ -25,6 +25,7 @@ Copyright (C) 2021-present  navy1978
 #include <stdexcept>
 #include <atomic>
 #include <map>
+#include <mutex>
 
 #ifdef RR_PLATFORM_SDL
 #include <SDL.h>
@@ -52,6 +53,9 @@ static int perf_counter_count = 0;
 
 typedef std::map<std::string, std::string> varmap_t;
 static varmap_t variables;
+static std::mutex pending_av_mutex;
+static struct retro_system_av_info pending_av_info = {};
+static bool pending_av_info_valid = false;
 
 // --- Perf counters ---
 
@@ -357,6 +361,7 @@ bool core_environment(unsigned cmd, void *data)
         GLContextMajor = hw->version_major;
         GLContextMinor = hw->version_minor;
         retro_context_reset = hw->context_reset;
+        retro_context_destroy = hw->context_destroy;
 
         hw->get_current_framebuffer = core_video_get_current_framebuffer;
         hw->get_proc_address = (retro_hw_get_proc_address_t)get_proc_address;
@@ -390,8 +395,22 @@ bool core_environment(unsigned cmd, void *data)
 
     case RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO:
     {
-        logger.log(Logger::DEB, "RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO not implemented");
-        return false;
+        if (!data)
+            return false;
+        {
+            std::lock_guard<std::mutex> lock(pending_av_mutex);
+            pending_av_info = *static_cast<retro_system_av_info*>(data);
+            pending_av_info_valid = true;
+        }
+        logger.log(Logger::DEB,
+                   "RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO staged: %ux%u max=%ux%u fps=%.6f sample_rate=%.3f",
+                   pending_av_info.geometry.base_width,
+                   pending_av_info.geometry.base_height,
+                   pending_av_info.geometry.max_width,
+                   pending_av_info.geometry.max_height,
+                   pending_av_info.timing.fps,
+                   pending_av_info.timing.sample_rate);
+        return true;
     }
 
     case RETRO_ENVIRONMENT_GET_TARGET_REFRESH_RATE:
@@ -622,6 +641,7 @@ void core_load(const char *sofile)
     set_audio_sample(core_audio_sample);
     set_audio_sample_batch(core_audio_sample_batch);
 
+    g_retro.callbacks_enabled = true;
     g_retro.retro_init();
     g_retro.initialized = true;
     logger.log(Logger::DEB, "Core loaded.");
@@ -681,16 +701,26 @@ void core_load_game(const char *filename)
 
     if (!g_retro.retro_load_game(&info))
     {
+        fclose(file);
+        free(const_cast<void *>(info.data));
         logger.log(Logger::ERR, "The core failed to load the content.");
         exit(1);
     }
 
+    g_retro.game_loaded = true;
+    fclose(file);
+    free(const_cast<void *>(info.data));
+
     g_retro.retro_get_system_av_info(&av);
+    core_clear_pending_av_info();
     video_configure(&av.geometry);
-    audio_init(av.timing.sample_rate);
+    audio_init(av.timing.sample_rate, av.timing.fps);
     return;
 
 libc_error:
+    if (file)
+        fclose(file);
+    free(const_cast<void *>(info.data));
     logger.log(Logger::ERR, "Failed to load content '%s'", filename);
     exit(1);
 }
@@ -699,15 +729,96 @@ libc_error:
 
 void *core_unload(void *)
 {
+    core_deinit();
+    core_close();
+    return nullptr;
+}
+
+void core_deinit()
+{
+    core_disable_callbacks();
     rr_keyboard_clear_callback();
     rr_disk_control_clear();
+    core_unload_game();
     if (g_retro.initialized)
     {
+        logger.log(Logger::DEB, "Core lifecycle: calling retro_deinit");
         g_retro.retro_deinit();
+        g_retro.initialized = false;
+        logger.log(Logger::DEB, "Core lifecycle: retro_deinit completed");
     }
+}
+
+void core_unload_game()
+{
+    if (g_retro.game_loaded && g_retro.retro_unload_game)
+    {
+        // The legacy Flycast 2021 core shipped by ArkOS/dArkOS crashes inside
+        // retro_unload_game() on both GO2 and SDL2.  The historical GO2 path
+        // intentionally went straight to retro_deinit(), which releases the
+        // same content-owned state without taking the faulty entry point.
+        // Keep the normal exactly-once lifecycle for every other core.
+        if (isFlycast2021())
+        {
+            logger.log(Logger::WARN,
+                       "Legacy Flycast shutdown quirk: skipping crashing retro_unload_game; retro_deinit will release content state");
+            g_retro.game_loaded = false;
+            return;
+        }
+        logger.log(Logger::DEB, "Core lifecycle: calling retro_unload_game");
+        g_retro.retro_unload_game();
+        g_retro.game_loaded = false;
+        logger.log(Logger::DEB, "Core lifecycle: retro_unload_game completed");
+    }
+}
+
+void core_close()
+{
     if (g_retro.handle)
     {
         dlclose(g_retro.handle);
+        g_retro.handle = nullptr;
     }
-    return nullptr;
+    retro_context_reset = nullptr;
+    retro_context_destroy = nullptr;
+    core_clear_pending_av_info();
+}
+
+void core_disable_callbacks()
+{
+    g_retro.callbacks_enabled = false;
+}
+
+bool core_callbacks_enabled()
+{
+    return g_retro.callbacks_enabled;
+}
+
+bool core_take_pending_av_info(struct retro_system_av_info* info)
+{
+    if (!info)
+        return false;
+    std::lock_guard<std::mutex> lock(pending_av_mutex);
+    if (!pending_av_info_valid)
+        return false;
+    *info = pending_av_info;
+    pending_av_info_valid = false;
+    return true;
+}
+
+void core_clear_pending_av_info()
+{
+    std::lock_guard<std::mutex> lock(pending_av_mutex);
+    pending_av_info_valid = false;
+    pending_av_info = {};
+}
+
+bool core_reset_synchronized()
+{
+    if (!g_retro.initialized || !g_retro.retro_reset)
+        return false;
+    audio_flush();
+    video_synchronize();
+    g_retro.retro_reset();
+    return true;
 }

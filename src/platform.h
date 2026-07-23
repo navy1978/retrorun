@@ -107,10 +107,34 @@ bool rr_input_set_rumble(uint16_t low_frequency, uint16_t high_frequency,
 
 rr_audio_t* rr_audio_create(int frequency);
 void rr_audio_destroy(rr_audio_t* audio);
-void rr_audio_submit(rr_audio_t* audio, const short* data, int frames);
+bool rr_audio_submit(rr_audio_t* audio, const short* data, int frames);
 void rr_audio_release_thread(rr_audio_t* audio);
+bool rr_audio_valid(rr_audio_t* audio);
+void rr_audio_flush(rr_audio_t* audio);
+void rr_audio_pause(rr_audio_t* audio, bool paused);
+void rr_audio_cancel(rr_audio_t* audio);
+typedef struct {
+    uint64_t buffer_underruns;
+    uint64_t buffer_overruns;
+    uint64_t frames_dropped;
+    uint64_t max_queue_depth;
+    uint64_t min_queue_depth;
+    uint64_t queue_depth_samples;
+    uint64_t queue_depth_total_frames;
+    uint64_t queue_empty_observations;
+    uint64_t queue_low_observations;
+    uint64_t adaptive_stretch_frames;
+} rr_audio_diagnostics_t;
+void rr_audio_diagnostics_get(rr_audio_t* audio, rr_audio_diagnostics_t* diagnostics);
 uint32_t rr_audio_volume_get(rr_audio_t* audio, const char* control);
 void rr_audio_volume_set(rr_audio_t* audio, uint32_t value, const char* control);
+
+#ifdef RR_HYBRID_AUDIO
+// Selects the playback provider before rr_audio_create(). "auto" preserves
+// the native platform default. Backends cannot be changed while audio is live.
+bool rr_audio_backend_select(const char* backend);
+const char* rr_audio_backend_name();
+#endif
 
 typedef enum rr_rotation {
     RR_ROTATION_DEGREES_0 = 0, RR_ROTATION_DEGREES_90,
@@ -165,6 +189,7 @@ int rr_surface_save_as_png(rr_surface_t* surface, const char* filename);
 
 rr_presenter_t* rr_presenter_create(rr_display_t* display, uint32_t format, uint32_t background);
 void rr_presenter_destroy(rr_presenter_t* presenter);
+void rr_presenter_drain(rr_presenter_t* presenter);
 void rr_presenter_post(rr_presenter_t* presenter, rr_surface_t* surface,
                        int src_x, int src_y, int src_w, int src_h,
                        int dst_x, int dst_y, int dst_w, int dst_h, rr_rotation_t rotation);
@@ -198,6 +223,7 @@ void* rr_context_get_proc_address(const char* symbol);
 void rr_video_sync();
 bool rr_video_vsync_set(bool enabled);
 bool rr_video_vsync_get();
+bool rr_video_vsync_applied();
 void rr_video_filter_set(rr_video_filter_t filter);
 rr_video_filter_t rr_video_filter_get();
 void rr_video_shader_set(rr_video_shader_t shader);

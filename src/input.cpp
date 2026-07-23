@@ -27,6 +27,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "keyboard.h"
 #include "file_browser.h"
 #include "achievements.h"
+#include "benchmark.h"
 
 #include "platform.h"
 #include <stdio.h>
@@ -454,6 +455,22 @@ void input_gamepad_read()
 rr_input_state_t *input_gampad_current_get()
 {
     return gamepadState;
+}
+
+void input_deinit()
+{
+    if (gamepadState)
+        rr_input_state_destroy(gamepadState);
+    if (prevGamepadState)
+        rr_input_state_destroy(prevGamepadState);
+    if (input)
+        rr_input_destroy(input);
+    gamepadState = nullptr;
+    prevGamepadState = nullptr;
+    input = nullptr;
+    firstExecution = true;
+    has_triggers = false;
+    has_right_analog = false;
 }
 
 void manageCredits(){
@@ -985,6 +1002,8 @@ rr_button_state_t getInputRight(){
 }
 
 rr_button_state_t getInputA(){
+    if (benchmark_confirm_button_pressed(BenchmarkConfirmButton::A))
+        return RRButtonState_Pressed;
     if (!isTate()){
        return rr_input_state_button_get(gamepadState, aButton);
     }
@@ -996,6 +1015,8 @@ rr_button_state_t getInputA(){
 }
 
 rr_button_state_t getInputB(){
+    if (benchmark_confirm_button_pressed(BenchmarkConfirmButton::B))
+        return RRButtonState_Pressed;
     if (!isTate()){
        return rr_input_state_button_get(gamepadState, bButton);
     }

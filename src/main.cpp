@@ -38,6 +38,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "menu/menu.h"
 #include "menu/menu_item.h"
 #include "menu/menu_manager.h"
+#include "benchmark.h"
 
 #ifdef RR_PLATFORM_SDL
 #include <SDL.h>
@@ -47,6 +48,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <cstdio>
 #include <cstdlib>
 #include <cmath>
+#include <cerrno>
 #include <cstring>
 #include <ctime>
 #include <string>
@@ -91,7 +93,153 @@ static struct option longopts[] = {
     {"analog", no_argument, NULL, 'n'},
     {"analog-to-digital", required_argument, NULL, 'A'},
     {"fps", no_argument, NULL, 'f'},
+    {"config", required_argument, NULL, 'c'},
+    {"benchmark", required_argument, NULL, 1000},
+    {"benchmark-warmup", required_argument, NULL, 1001},
+    {"benchmark-json", required_argument, NULL, 1002},
+    {"benchmark-set", required_argument, NULL, 1003},
     {0, 0, 0, 0}};
+
+static bool parseDuration(const char* text, bool allow_zero, double* result)
+{
+    if (!text || !*text || !result)
+        return false;
+    errno = 0;
+    char* end = nullptr;
+    const double value = std::strtod(text, &end);
+    if (errno == ERANGE || end == text || *end != '\0' || !std::isfinite(value))
+        return false;
+    if (allow_zero ? value < 0.0 : value <= 0.0)
+        return false;
+    *result = value;
+    return true;
+}
+
+static bool parseBenchmarkBool(const std::string& text, bool* result)
+{
+    if (text == "true" || text == "on" || text == "enabled" || text == "1") {
+        *result = true;
+        return true;
+    }
+    if (text == "false" || text == "off" || text == "disabled" || text == "0") {
+        *result = false;
+        return true;
+    }
+    return false;
+}
+
+static bool applyBenchmarkSetting(const std::string& setting, std::string* error)
+{
+    const size_t separator = setting.find('=');
+    if (separator == std::string::npos || separator == 0 || separator + 1 >= setting.size()) {
+        if (error) *error = "expected NAME=VALUE";
+        return false;
+    }
+    const std::string name = setting.substr(0, separator);
+    const std::string value = setting.substr(separator + 1);
+#ifdef RR_HYBRID_AUDIO
+    if (name == "audio_backend") {
+        if (!rr_audio_backend_select(value.c_str())) {
+            if (error) *error = "audio_backend must be auto, go2 or sdl2";
+            return false;
+        }
+        return true;
+    }
+#endif
+    bool enabled = false;
+    if (name == "confirm_input_delay") {
+        double parsed = 0.0;
+        if (!parseDuration(value.c_str(), true, &parsed) || parsed > 60.0) {
+            if (error) *error = "confirm_input_delay must be from 0 to 60 seconds";
+            return false;
+        }
+        benchmark_set_confirm_input_delay(parsed);
+        return true;
+    }
+    if (name == "audio_buffer") {
+        errno = 0;
+        char* end = nullptr;
+        const long parsed = std::strtol(value.c_str(), &end, 10);
+        if (errno == ERANGE || end == value.c_str() || *end != '\0' ||
+            (parsed != -1 && (parsed < 64 || parsed > 8192))) {
+            if (error) *error = "audio_buffer must be -1 or an integer from 64 to 8192";
+            return false;
+        }
+        retrorun_audio_buffer = static_cast<int>(parsed);
+        new_retrorun_audio_buffer = retrorun_audio_buffer;
+        return true;
+    }
+    if (name == "sdl_audio_stretch_percent" ||
+        name == "go2_audio_stretch_percent" ||
+        name == "sdl_audio_stretch_low_ms" ||
+        name == "go2_audio_stretch_low_ms") {
+        errno = 0;
+        char* end = nullptr;
+        const long parsed = std::strtol(value.c_str(), &end, 10);
+        const bool is_percent =
+            name.find("stretch_percent") != std::string::npos;
+        const long maximum = is_percent ? 10 : 200;
+        if (errno == ERANGE || end == value.c_str() || *end != '\0' ||
+            parsed < 0 || parsed > maximum) {
+            if (error)
+                *error = is_percent
+                    ? "audio stretch percent must be from 0 to 10"
+                    : "audio stretch low watermark must be from 0 to 200 ms";
+            return false;
+        }
+        int* destination = nullptr;
+        if (name == "sdl_audio_stretch_percent")
+            destination = &retrorun_sdl_audio_stretch_percent;
+        else if (name == "go2_audio_stretch_percent")
+            destination = &retrorun_go2_audio_stretch_percent;
+        else if (name == "sdl_audio_stretch_low_ms")
+            destination = &retrorun_sdl_audio_stretch_low_ms;
+        else
+            destination = &retrorun_go2_audio_stretch_low_ms;
+        *destination = static_cast<int>(parsed);
+        return true;
+    }
+    if (name == "fixed_frameskip") {
+        errno = 0;
+        char* end = nullptr;
+        const long parsed = std::strtol(value.c_str(), &end, 10);
+        if (errno == ERANGE || end == value.c_str() || *end != '\0' || parsed < 0 || parsed > 5) {
+            if (error) *error = "fixed_frameskip must be an integer from 0 to 5";
+            return false;
+        }
+        fixedFrameSkip = static_cast<int>(parsed);
+        if (fixedFrameSkip > 0)
+            adaptiveFrameSkip = false;
+        return true;
+    }
+    if (!parseBenchmarkBool(value, &enabled)) {
+        if (error) *error = "boolean value must be true or false";
+        return false;
+    }
+    if (name == "declared_fps_pacing") runLoopAtDeclaredfps = enabled;
+    else if (name == "threaded_audio") forceAudioMultithread = enabled;
+    else if (name == "stable_audio_buffer") retrorun_audio_stable_buffer = enabled;
+    else if (name == "threaded_video") forceVideoMultithread = enabled;
+    else if (name == "direct_scanout")
+        drmDirectScanoutMode = enabled ? DRMDirectScanoutMode::Enabled
+                                       : DRMDirectScanoutMode::Disabled;
+    else if (name == "vsync") {
+        rr_video_vsync_set(enabled);
+    }
+    else if (name == "fps_overlay") input_fps_requested = enabled;
+    else if (name == "decorations") conf_map["retrorun_decorations"] = enabled ? "auto" : "off";
+    else if (name == "adaptive_frameskip") {
+        adaptiveFrameSkip = enabled;
+        if (adaptiveFrameSkip)
+            fixedFrameSkip = 0;
+    }
+    else if (name == "confirm_input") benchmark_set_confirm_input(enabled);
+    else {
+        if (error) *error = "unsupported setting name";
+        return false;
+    }
+    return true;
+}
 
 // --- Main ---
 
@@ -109,6 +257,10 @@ int main(int argc, char *argv[])
     int option_index = 0;
 
     std::string analogModeOverride;
+    BenchmarkOptions benchmarkOptions;
+    bool benchmarkOptionSeen = false;
+    bool benchmarkModifierSeen = false;
+    std::vector<std::string> benchmarkSettings;
     while ((c = getopt_long(argc, argv, "s:d:a:b:v:grtnfc:A:", longopts, &option_index)) != -1)
     {
         switch (c)
@@ -149,6 +301,30 @@ int main(int argc, char *argv[])
         case 'c':
             opt_setting_file = optarg;
             break;
+        case 1000:
+            benchmarkOptionSeen = true;
+            if (!parseDuration(optarg, false, &benchmarkOptions.duration_seconds))
+            {
+                std::fprintf(stderr, "Invalid --benchmark duration '%s'.\n", optarg);
+                return EXIT_FAILURE;
+            }
+            break;
+        case 1001:
+            benchmarkModifierSeen = true;
+            if (!parseDuration(optarg, true, &benchmarkOptions.warmup_seconds))
+            {
+                std::fprintf(stderr, "Invalid --benchmark-warmup duration '%s'.\n", optarg);
+                return EXIT_FAILURE;
+            }
+            break;
+        case 1002:
+            benchmarkModifierSeen = true;
+            benchmarkOptions.json_path = optarg;
+            break;
+        case 1003:
+            benchmarkModifierSeen = true;
+            benchmarkSettings.emplace_back(optarg);
+            break;
         default:
             logger.log(Logger::ERR, "Unknown option. '%s'", longopts[option_index].name);
             exit(EXIT_FAILURE);
@@ -157,6 +333,39 @@ int main(int argc, char *argv[])
 
     getDeviceName();
     initConfig();
+
+    if (benchmarkModifierSeen && !benchmarkOptionSeen)
+    {
+        std::fprintf(stderr, "--benchmark-warmup, --benchmark-json and --benchmark-set require --benchmark.\n");
+        return EXIT_FAILURE;
+    }
+
+    if (benchmarkOptionSeen)
+    {
+        std::string benchmarkError;
+        if (!benchmark_configure(benchmarkOptions, &benchmarkError))
+        {
+            logger.log(Logger::ERR, "%s", benchmarkError.c_str());
+            return EXIT_FAILURE;
+        }
+        // Benchmark runs are deliberately non-persistent. State loading may
+        // still be requested to make repeated runs start from the same point.
+        auto_save = false;
+        for (const std::string& setting : benchmarkSettings)
+        {
+            std::string settingError;
+            if (!applyBenchmarkSetting(setting, &settingError))
+            {
+                logger.log(Logger::ERR, "Invalid --benchmark-set '%s': %s.",
+                           setting.c_str(), settingError.c_str());
+                return EXIT_FAILURE;
+            }
+            logger.log(Logger::INF, "Benchmark override (not persisted): %s", setting.c_str());
+        }
+        logger.log(Logger::INF,
+                   "Benchmark requested: duration=%.3f seconds, warmup=%.3f seconds, saves=disabled",
+                   benchmarkOptions.duration_seconds, benchmarkOptions.warmup_seconds);
+    }
 
     if (!analogModeOverride.empty())
     {
@@ -181,9 +390,12 @@ int main(int argc, char *argv[])
     int remaining_index = optind;
     logger.log(Logger::DEB, "remaining_args=%d", remaining_args);
 
-    if (remaining_args < 2)
+    if (remaining_args != 2)
     {
-        logger.log(Logger::ERR, "Usage: %s [-s savedir] [-d systemdir] [-a aspect] core rom", argv[0]);
+        logger.log(Logger::ERR,
+                   "Usage: %s [--benchmark seconds] [--benchmark-warmup seconds] [--benchmark-json file] "
+                   "[--benchmark-set NAME=VALUE] core rom",
+                   argv[0]);
         exit(EXIT_FAILURE);
     }
 
@@ -269,6 +481,47 @@ int main(int argc, char *argv[])
     originalFps = info.timing.fps;
     if (max_fps < 1) max_fps = 60;
     if (originalFps < 1) originalFps = 60;
+
+    if (benchmark_requested())
+    {
+        BenchmarkMetadata metadata;
+        metadata.release = release;
+        metadata.device = getDeviceName();
+        metadata.backend = rr_platform_backend_name();
+#ifdef RR_HYBRID_AUDIO
+        metadata.audio_backend = rr_audio_backend_name();
+#else
+        metadata.audio_backend = metadata.backend;
+#endif
+        metadata.renderer = rr_platform_renderer_name();
+        metadata.core_name = coreName;
+        metadata.core_version = coreVersion;
+        metadata.declared_fps = info.timing.fps;
+        metadata.sample_rate = info.timing.sample_rate;
+        metadata.declared_fps_pacing = runLoopAtDeclaredfps;
+        metadata.threaded_audio = forceAudioMultithread;
+        metadata.stable_audio_buffer = retrorun_audio_stable_buffer;
+        metadata.audio_buffer = retrorun_audio_buffer;
+        metadata.sdl_audio_stretch_percent =
+            retrorun_sdl_audio_stretch_percent;
+        metadata.sdl_audio_stretch_low_ms =
+            retrorun_sdl_audio_stretch_low_ms;
+        metadata.go2_audio_stretch_percent =
+            retrorun_go2_audio_stretch_percent;
+        metadata.go2_audio_stretch_low_ms =
+            retrorun_go2_audio_stretch_low_ms;
+        metadata.threaded_video = forceVideoMultithread;
+        metadata.direct_scanout = drmDirectScanoutMode == DRMDirectScanoutMode::Enabled;
+        metadata.overlays = decoration_surface() != nullptr || opt_show_fps ||
+                            input_fps_requested;
+        metadata.vsync_requested = rr_video_vsync_get();
+        metadata.vsync_applied = rr_video_vsync_applied();
+        metadata.fixed_frameskip = fixedFrameSkip;
+        metadata.adaptive_frameskip = adaptiveFrameSkip;
+        metadata.confirm_input = benchmark_confirm_input_enabled();
+        metadata.confirm_input_delay_seconds = benchmark_confirm_input_delay();
+        benchmark_set_metadata(metadata);
+    }
 
     bool redrawInfo = true;
     g_retro.retro_set_controller_port_device(0, RETRO_DEVICE_JOYPAD);
@@ -549,16 +802,41 @@ int main(int argc, char *argv[])
     // --- Main loop ---
 
     auto frameDuration = duration_cast<nanoseconds>(seconds(1)) / max_fps;
-    const auto frameDurationTick = duration_cast<steady_clock::duration>(frameDuration);
+    auto frameDurationTick = duration_cast<steady_clock::duration>(frameDuration);
     auto nextFrameDeadline = steady_clock::now();
     auto fastForwardStatsStarted = steady_clock::now();
     uint64_t fastForwardCoreRuns = 0;
     uint64_t fastForwardCoreTimeUs = 0;
     uint64_t fastForwardAchievementsTimeUs = 0;
     bool previousFastForwardState = false;
+    bool audioTransitionPaused = false;
+
+    if (benchmark_requested())
+        benchmark_begin_warmup();
 
     while (isRunning)
     {
+        if (benchmark_requested())
+        {
+            if (benchmark_deadline_reached())
+            {
+                isRunning = false;
+                break;
+            }
+            // The benchmark owns the run window: frontend hotkeys must not
+            // pause, reset, save, or open pages midway through a sample.
+            input_info_requested = false;
+            input_credits_requested = false;
+            input_pause_requested = false;
+            input_ffwd_requested = false;
+            input_reset_requested = false;
+            input_slot_memory_load_requested = false;
+            input_slot_memory_save_requested = false;
+            pause_requested = false;
+        }
+        const bool measureBenchmarkFrame = benchmark_collecting();
+        if (measureBenchmarkFrame)
+            benchmark_frame_begin();
 #ifndef RR_PLATFORM_SDL
         if (drmDirectScanoutDiagnosticActive &&
             steady_clock::now() >= drmDiagnosticDeadline)
@@ -615,6 +893,15 @@ int main(int argc, char *argv[])
                 steady_clock::now() - achievementsStarted).count();
         bool realPause = pause_requested && input_pause_requested;
         bool showInfo = pause_requested && input_info_requested;
+        const bool shouldPauseAudio = pause_requested;
+        if (shouldPauseAudio != audioTransitionPaused)
+        {
+            if (shouldPauseAudio)
+                audio_pause();
+            else
+                audio_resume();
+            audioTransitionPaused = shouldPauseAudio;
+        }
 
         if (input_info_requested)
         {
@@ -645,7 +932,44 @@ int main(int argc, char *argv[])
                 redrawInfo = true;
             const auto coreStarted = profileFastForwardFrame
                 ? steady_clock::now() : steady_clock::time_point{};
+            if (measureBenchmarkFrame)
+                benchmark_core_begin();
             g_retro.retro_run();
+            if (measureBenchmarkFrame)
+                benchmark_core_end();
+
+            struct retro_system_av_info pendingInfo = {};
+            if (core_take_pending_av_info(&pendingInfo))
+            {
+                const bool timingValid = std::isfinite(pendingInfo.timing.fps) &&
+                    pendingInfo.timing.fps > 0.0 &&
+                    std::isfinite(pendingInfo.timing.sample_rate) &&
+                    pendingInfo.timing.sample_rate > 0.0;
+                const bool geometryApplied = video_reconfigure_geometry(&pendingInfo.geometry);
+                const bool audioApplied = timingValid &&
+                    audio_reconfigure(static_cast<int>(std::lround(pendingInfo.timing.sample_rate)),
+                                      pendingInfo.timing.fps);
+                if (!timingValid || !geometryApplied || !audioApplied)
+                {
+                    logger.log(Logger::ERR, "Unable to apply runtime system AV information safely");
+                    benchmark_abort("runtime system AV update failed");
+                    isRunning = false;
+                }
+                else
+                {
+                    info = pendingInfo;
+                    max_fps = pendingInfo.timing.fps;
+                    originalFps = pendingInfo.timing.fps;
+                    frameDuration = duration_cast<nanoseconds>(seconds(1)) / max_fps;
+                    frameDurationTick = duration_cast<steady_clock::duration>(frameDuration);
+                    nextFrameDeadline = steady_clock::now();
+                    benchmark_update_av(pendingInfo.timing.fps,
+                                        pendingInfo.timing.sample_rate);
+                    logger.log(Logger::INF,
+                               "Runtime AV timing applied: fps=%.6f sample_rate=%.3f",
+                               pendingInfo.timing.fps, pendingInfo.timing.sample_rate);
+                }
+            }
             if (profileFastForwardFrame) {
                 ++fastForwardCoreRuns;
                 fastForwardCoreTimeUs += duration_cast<microseconds>(
@@ -698,7 +1022,7 @@ int main(int argc, char *argv[])
         else if (input_reset_requested)
         {
             input_reset_requested = false;
-            g_retro.retro_reset();
+            core_reset_synchronized();
             achievements_reset();
         }
         else if (input_slot_memory_load_requested && !continueToShowSaveLoadStateImage())
@@ -753,6 +1077,10 @@ int main(int argc, char *argv[])
             skipCooldown = 0;
         }
 #endif
+
+        if (measureBenchmarkFrame)
+            benchmark_frame_end(nextFrameDeadline + frameDurationTick,
+                                runLoopAtDeclaredfps && !input_ffwd_requested);
 
         const float fastForwardSpeed = fastForwardRatio();
         if (runLoopAtDeclaredfps && !input_ffwd_requested)
@@ -847,60 +1175,66 @@ int main(int argc, char *argv[])
     // --- Cleanup ---
 
     logger.log(Logger::DEB, "Exiting from render loop...");
-    logger.log(Logger::DEB, "Saving sram into file:%s", sramPath);
-    SaveSram(sramPath);
-    free(sramPath);
-    usleep(500000);
-
-    if (auto_save)
+    if (!benchmark_requested())
     {
-        logger.log(Logger::DEB, "Saving sav into file:%s", savePath);
-        SaveState(savePath);
-        free(savePath);
-        sleep(1);
-    }
-
-    logger.log(Logger::DEB, "Unloading core and deinit audio and video...");
-    network_status_shutdown();
-    decoration_catalog_shutdown();
-    achievements_shutdown();
-    decoration_shutdown();
-    fastForwardResetOverride();
-
-#ifdef RR_PLATFORM_SDL
-    video_prepare_core_unload();
-    if (g_retro.initialized)
-    {
-        g_retro.retro_unload_game();
-        g_retro.retro_deinit();
-        g_retro.initialized = false;
-    }
-    audio_deinit();
-    video_deinit();
-    if (g_retro.handle)
-    {
-        dlclose(g_retro.handle);
-        g_retro.handle = nullptr;
-    }
-#else
-    video_deinit();
-    audio_deinit();
-
-    pthread_t threadId;
-    pthread_create(&threadId, NULL, &core_unload, NULL);
-    usleep(500000);
-    if (exitFlag == 0)
-    {
-        pthread_join(threadId, NULL);
+        logger.log(Logger::DEB, "Saving sram into file:%s", sramPath);
+        SaveSram(sramPath);
     }
     else
     {
-        pthread_kill(threadId, SIGUSR1);
-        pthread_join(threadId, NULL);
-        logger.log(Logger::DEB, "Force exiting retrorun.");
-        throw std::runtime_error("Force exiting retrorun.\n");
+        logger.log(Logger::INF, "Benchmark mode: SRAM and savestate writes skipped.");
     }
-#endif
+    free(sramPath);
+    if (!benchmark_requested())
+        usleep(500000);
 
-    return 0;
+    if (auto_save && !benchmark_requested())
+    {
+        logger.log(Logger::DEB, "Saving sav into file:%s", savePath);
+        SaveState(savePath);
+        sleep(1);
+    }
+    free(savePath);
+
+    logger.log(Logger::DEB, "Unloading core and deinit audio and video...");
+    network_status_shutdown();
+    logger.log(Logger::DEB, "Shutdown: network status stopped");
+    decoration_catalog_shutdown();
+    logger.log(Logger::DEB, "Shutdown: decoration catalog stopped");
+    achievements_shutdown();
+    logger.log(Logger::DEB, "Shutdown: achievements stopped");
+    decoration_shutdown();
+    logger.log(Logger::DEB, "Shutdown: decorations stopped");
+    fastForwardResetOverride();
+
+    core_disable_callbacks();
+    logger.log(Logger::DEB, "Shutdown: core callbacks disabled");
+    audio_deinit();
+    logger.log(Logger::DEB, "Shutdown: audio stopped");
+    video_prepare_core_unload();
+    logger.log(Logger::DEB, "Shutdown: video workers stopped and hardware context released");
+    core_unload_game();
+    logger.log(Logger::DEB, "Shutdown: game unloaded");
+    core_deinit();
+    logger.log(Logger::DEB, "Shutdown: core unloaded and deinitialized");
+    video_deinit();
+    logger.log(Logger::DEB, "Shutdown: video resources destroyed");
+    input_deinit();
+    logger.log(Logger::DEB, "Shutdown: input resources destroyed");
+
+    // The legacy Flycast 2021 shared object hangs from its ELF finalizers when
+    // dlclose() is called, even after retro_deinit() has completed. Benchmark
+    // mode has already released every frontend resource at this point, so
+    // publish the result and let process exit unload this one faulty core.
+    if (benchmark_requested() && isFlycast2021())
+    {
+        const bool benchmarkOk = benchmark_finish_and_report();
+        std::fflush(nullptr);
+        std::_Exit(benchmarkOk ? 0 : EXIT_FAILURE);
+    }
+    core_close();
+    logger.log(Logger::DEB, "Shutdown: core library closed");
+
+    const bool benchmarkOk = benchmark_finish_and_report();
+    return benchmarkOk ? 0 : EXIT_FAILURE;
 }

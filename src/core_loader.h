@@ -13,6 +13,8 @@ Copyright (C) 2021-present  navy1978
 struct RetroCore {
     void *handle;
     bool initialized;
+    bool game_loaded;
+    bool callbacks_enabled;
 
     void (*retro_init)(void);
     void (*retro_deinit)(void);
@@ -46,6 +48,14 @@ void runloop_perf_log(void);
 void core_load(const char *sofile);
 void core_load_game(const char *filename);
 void *core_unload(void *);
+void core_deinit();
+void core_unload_game();
+void core_close();
+void core_disable_callbacks();
+bool core_callbacks_enabled();
+bool core_take_pending_av_info(struct retro_system_av_info* info);
+void core_clear_pending_av_info();
+bool core_reset_synchronized();
 
 // The libretro environment callback
 bool core_environment(unsigned cmd, void *data);

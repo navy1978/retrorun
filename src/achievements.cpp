@@ -423,7 +423,7 @@ void RC_CCONV event_handler(const rc_client_event_t* event, rc_client_t*) {
             notify(std::string("RetroAchievements error: ") + event->server_error->error_message);
         break;
     case RC_CLIENT_EVENT_RESET:
-        g_retro.retro_reset();
+        core_reset_synchronized();
         break;
     default:
         break;

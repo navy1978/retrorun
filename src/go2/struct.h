@@ -53,6 +53,7 @@ typedef struct go2_frame_buffer
 {
     go2_surface_t* surface;
     uint32_t fb_id;
+    uint64_t benchmark_generation;
 } go2_frame_buffer_t;
 
 typedef struct go2_presenter
@@ -63,8 +64,10 @@ typedef struct go2_presenter
     go2_queue_t* freeFrameBuffers;
     go2_queue_t* usedFrameBuffers;
     pthread_mutex_t queueMutex;
+    pthread_cond_t drainCond;
     pthread_t renderThread;
     sem_t freeSem;
     sem_t usedSem;
-    volatile bool terminating;
+    bool terminating;
+    uint32_t pendingPresentations;
 } go2_presenter_t;

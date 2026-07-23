@@ -8,6 +8,31 @@
                  -= Light Libretro Front-end =-
 
 =================================
+Version 3.1.2 (Jul 23, 2026)
+---------------------------------
+- Add a deterministic integrated benchmark mode with warm-up control,
+  per-run configuration overrides and machine-readable JSON results.
+- Record detailed core, video, frontend and audio timing statistics, including
+  percentiles, missed deadlines, presentation paths, queue pressure, producer
+  stalls and backend submission latency.
+- Add a hybrid Linux GO2 build that retains native GO2 video/input while
+  allowing the GO2/OpenAL or SDL2 audio backend to be selected at runtime.
+- Add benchmark-only delayed A/B input injection so saved test scenes can be
+  entered reproducibly without affecting measured results.
+- Add optional low-watermark audio compensation for SDL2 and GO2/OpenAL.
+  Both implementations remain disabled by default because they trade audio
+  accuracy and some performance for fewer short queue-starvation events.
+- Improve bounded audio-worker cleanup, backend switching and diagnostic
+  accounting across fast-forward, save-state loading and shutdown.
+- Harden shutdown for legacy Flycast/Flycast2021 cores that crash during
+  `retro_unload_game`, while preserving normal core deinitialization.
+- Add regression tests for benchmark serialization, audio workers and runtime
+  transitions.
+- Add technical benchmark documentation for RG353M SDL2 rendering and
+  RK3326/Flycast2021 performance work while keeping raw device evidence
+  outside the source repository.
+
+=================================
 Version 3.1.1 (Jul 20, 2026)
 ---------------------------------
 - Add native Miniloong Pocket 1 support, including portrait-panel rotation,

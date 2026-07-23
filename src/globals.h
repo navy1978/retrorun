@@ -222,6 +222,10 @@ extern bool runLoopAtDeclaredfps;
 extern int retrorun_audio_buffer;
 extern int  new_retrorun_audio_buffer; // this is only need when we change the other one on the fly via menu
 extern bool retrorun_audio_stable_buffer;
+extern int retrorun_sdl_audio_stretch_percent;
+extern int retrorun_sdl_audio_stretch_low_ms;
+extern int retrorun_go2_audio_stretch_percent;
+extern int retrorun_go2_audio_stretch_low_ms;
 extern bool forceAudioMultithread;
 extern int retrorun_mouse_speed_factor;
 

@@ -29,6 +29,7 @@ SOURCES := \
   src/menu/menu_manager.cpp \
   src/fonts.cpp \
   src/input.cpp \
+  src/benchmark.cpp \
   src/audio.cpp \
   src/video-helper.cpp \
   src/decoration.cpp \

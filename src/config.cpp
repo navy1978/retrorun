@@ -23,6 +23,7 @@ Copyright (C) 2021-present  navy1978
 #include <cerrno>
 #include <cstdio>
 #include <filesystem>
+#include <stdexcept>
 #include <vector>
 
 // Whitespace characters for trimming
@@ -361,6 +362,22 @@ void initConfig()
             logger.log(Logger::DEB, "retrorun_core_log_level parameter not found in retrorun.cfg using default value (ERROR).");
         }
 
+#ifdef RR_HYBRID_AUDIO
+        {
+            const std::string requestedAudioBackend =
+                configValue("retrorun_audio_backend", "auto");
+            if (!rr_audio_backend_select(requestedAudioBackend.c_str())) {
+                logger.log(Logger::WARN,
+                           "Unknown or unavailable retrorun_audio_backend '%s'; using %s",
+                           requestedAudioBackend.c_str(), rr_audio_backend_name());
+                rr_audio_backend_select("auto");
+            }
+            logger.log(Logger::INF,
+                       "retrorun_audio_backend: requested=%s, resolved=%s",
+                       requestedAudioBackend.c_str(), rr_audio_backend_name());
+        }
+#endif
+
         try
         {
             const std::string &asValue = conf_map.at("retrorun_device_name");
@@ -552,6 +569,86 @@ void initConfig()
         {
             logger.log(Logger::DEB,
                        "retrorun_audio_stable_buffer parameter not found; using false.");
+        }
+
+        try
+        {
+            const std::string &value =
+                conf_map.at("retrorun_sdl_audio_stretch_percent");
+            size_t parsedCharacters = 0;
+            const int parsed = std::stoi(value, &parsedCharacters);
+            if (parsedCharacters != value.size())
+                throw std::invalid_argument("trailing characters");
+            retrorun_sdl_audio_stretch_percent = std::clamp(parsed, 0, 10);
+            logger.log(Logger::DEB,
+                       "retrorun_sdl_audio_stretch_percent: %d.",
+                       retrorun_sdl_audio_stretch_percent);
+        }
+        catch (...)
+        {
+            retrorun_sdl_audio_stretch_percent = 0;
+            logger.log(Logger::DEB,
+                       "retrorun_sdl_audio_stretch_percent parameter not found or invalid; using 0.");
+        }
+
+        try
+        {
+            const std::string &value =
+                conf_map.at("retrorun_sdl_audio_stretch_low_ms");
+            size_t parsedCharacters = 0;
+            const int parsed = std::stoi(value, &parsedCharacters);
+            if (parsedCharacters != value.size())
+                throw std::invalid_argument("trailing characters");
+            retrorun_sdl_audio_stretch_low_ms = std::clamp(parsed, 0, 200);
+            logger.log(Logger::DEB,
+                       "retrorun_sdl_audio_stretch_low_ms: %d.",
+                       retrorun_sdl_audio_stretch_low_ms);
+        }
+        catch (...)
+        {
+            retrorun_sdl_audio_stretch_low_ms = 40;
+            logger.log(Logger::DEB,
+                       "retrorun_sdl_audio_stretch_low_ms parameter not found or invalid; using 40.");
+        }
+
+        try
+        {
+            const std::string &value =
+                conf_map.at("retrorun_go2_audio_stretch_percent");
+            size_t parsedCharacters = 0;
+            const int parsed = std::stoi(value, &parsedCharacters);
+            if (parsedCharacters != value.size())
+                throw std::invalid_argument("trailing characters");
+            retrorun_go2_audio_stretch_percent = std::clamp(parsed, 0, 10);
+            logger.log(Logger::DEB,
+                       "retrorun_go2_audio_stretch_percent: %d.",
+                       retrorun_go2_audio_stretch_percent);
+        }
+        catch (...)
+        {
+            retrorun_go2_audio_stretch_percent = 0;
+            logger.log(Logger::DEB,
+                       "retrorun_go2_audio_stretch_percent parameter not found or invalid; using 0.");
+        }
+
+        try
+        {
+            const std::string &value =
+                conf_map.at("retrorun_go2_audio_stretch_low_ms");
+            size_t parsedCharacters = 0;
+            const int parsed = std::stoi(value, &parsedCharacters);
+            if (parsedCharacters != value.size())
+                throw std::invalid_argument("trailing characters");
+            retrorun_go2_audio_stretch_low_ms = std::clamp(parsed, 0, 200);
+            logger.log(Logger::DEB,
+                       "retrorun_go2_audio_stretch_low_ms: %d.",
+                       retrorun_go2_audio_stretch_low_ms);
+        }
+        catch (...)
+        {
+            retrorun_go2_audio_stretch_low_ms = 40;
+            logger.log(Logger::DEB,
+                       "retrorun_go2_audio_stretch_low_ms parameter not found or invalid; using 40.");
         }
 
         try

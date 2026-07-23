@@ -1,5 +1,7 @@
 #include "disk_control.h"
 #include "achievements.h"
+#include "audio.h"
+#include "video.h"
 
 #include <cstring>
 
@@ -34,6 +36,8 @@ bool rr_disk_control_add_and_select(const std::string& path, std::string* error)
     if (!available) return fail("Core does not support disk control");
     if (!disk.replace_image_index || !disk.add_image_index)
         return fail("Core cannot add disk images");
+    audio_flush();
+    video_synchronize();
     const bool was_ejected = disk.get_eject_state && disk.get_eject_state();
     if (!was_ejected && !disk.set_eject_state(true)) return fail("Cannot eject disk");
     const unsigned index = disk.get_num_images();

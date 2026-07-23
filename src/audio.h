@@ -23,9 +23,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <stdlib.h>
 #include <stdint.h>
 
-void audio_init(int freq);
+void audio_init(int freq, double fps);
+bool audio_reconfigure(int freq, double fps);
 void audio_deinit();
 void audio_discard_pending();
+bool audio_flush();
+bool audio_pause();
+bool audio_resume();
 void core_audio_sample(int16_t left, int16_t right);
 size_t core_audio_sample_batch(const int16_t * data, size_t frames);
 void setVolume(int value);

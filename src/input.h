@@ -55,6 +55,7 @@ extern double lastLoadSaveStateDoneTime;
 extern bool lastLoadSaveStateDoneOk;
 
 void input_gamepad_read();
+void input_deinit();
 rr_input_state_t* input_gampad_current_get();
 void core_input_poll(void);
 int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigned id);

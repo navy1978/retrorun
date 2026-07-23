@@ -4,6 +4,7 @@
 #include "keyboard.h"
 #include "status.h"
 #include "decoration.h"
+#include "benchmark.h"
 
 #include <SDL.h>
 #include <bitset>
@@ -19,6 +20,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -37,6 +39,12 @@ struct rr_audio {
     int frequency;
     int period_frames;
     bool started;
+    std::atomic<bool> cancelled;
+    std::atomic<bool> paused;
+    std::atomic<uint64_t> underruns;
+    std::atomic<uint64_t> overruns;
+    std::atomic<uint64_t> frames_dropped;
+    std::atomic<uint64_t> max_queue_depth;
     std::vector<short> mix_buffer;
     std::vector<short> silence_buffer;
 };
@@ -97,6 +105,7 @@ struct rr_context {
 static SDL_GameController* active_controller = NULL;
 static char renderer_name[128] = "SDL2";
 static bool vsync_enabled = false;
+static bool vsync_applied = false;
 static rr_video_filter_t video_filter = RR_VIDEO_FILTER_DEFAULT;
 static rr_video_shader_t video_shader = RR_VIDEO_SHADER_OFF;
 static rr_presenter_t* active_presenter = NULL;
@@ -552,6 +561,12 @@ rr_audio_t* rr_audio_create(int frequency) {
     audio->period_frames = retrorun_audio_stable_buffer && audio->device
         ? obtained.samples : wanted.samples;
     audio->started = !retrorun_audio_stable_buffer;
+    audio->cancelled = false;
+    audio->paused = false;
+    audio->underruns = 0;
+    audio->overruns = 0;
+    audio->frames_dropped = 0;
+    audio->max_queue_depth = 0;
     audio->silence_buffer.assign(static_cast<size_t>(audio->period_frames) * 2, 0);
     if (audio->device) {
         std::fprintf(stderr,
@@ -563,25 +578,33 @@ rr_audio_t* rr_audio_create(int frequency) {
             SDL_PauseAudioDevice(audio->device, 0);
     } else {
         std::fprintf(stderr, "RetroRun SDL audio open failed: %s\n", SDL_GetError());
+        delete audio;
+        return NULL;
     }
     return audio;
 }
 void rr_audio_destroy(rr_audio_t* audio) { if (audio) { if (audio->device) SDL_CloseAudioDevice(audio->device); delete audio; } }
 void rr_audio_release_thread(rr_audio_t*) {}
-void rr_audio_submit(rr_audio_t* audio, const short* data, int frames) {
-    if (!audio || !audio->device || frames <= 0) return;
+bool rr_audio_submit(rr_audio_t* audio, const short* data, int frames) {
+    if (!audio || !audio->device || !data || frames <= 0 || audio->cancelled.load()) return false;
     const size_t samples = static_cast<size_t>(frames) * 2;
 
     // Preserve RetroRun's original SDL audio clock by default.
     const Uint32 bytes_per_ms = static_cast<Uint32>(audio->frequency * 2 * sizeof(short) / 1000);
     const Uint32 target_queue = bytes_per_ms *
         (retrorun_audio_stable_buffer ? 140 : 80);
-    const Uint32 recovery_limit = bytes_per_ms * 250;
     Uint32 queued = SDL_GetQueuedAudioSize(audio->device);
+    const uint64_t queued_frames = queued / (2 * sizeof(short));
+    uint64_t current_max = audio->max_queue_depth.load(std::memory_order_relaxed);
+    while (current_max < queued_frames &&
+           !audio->max_queue_depth.compare_exchange_weak(current_max, queued_frames,
+                                                         std::memory_order_relaxed)) {}
     if (retrorun_audio_stable_buffer && (!audio->started || queued == 0)) {
         // Prebuffer roughly 40 ms on startup, one period after a later
         // underrun. Silence avoids joining non-contiguous waveforms with a
         // sharp click. On GLES a single 2048-frame period is already enough.
+        if (audio->started && queued == 0 && !audio->paused.load())
+            audio->underruns.fetch_add(1, std::memory_order_relaxed);
         const int startup_periods = std::max(1,
             (audio->frequency * 40 / 1000 + audio->period_frames - 1) /
             audio->period_frames);
@@ -591,19 +614,16 @@ void rr_audio_submit(rr_audio_t* audio, const short* data, int frames) {
                            static_cast<Uint32>(audio->silence_buffer.size() * sizeof(short)));
         queued = SDL_GetQueuedAudioSize(audio->device);
     }
-    if (queued > recovery_limit) {
-        SDL_ClearQueuedAudio(audio->device);
-        if (retrorun_audio_stable_buffer)
-            SDL_QueueAudio(audio->device, audio->silence_buffer.data(),
-                           static_cast<Uint32>(audio->silence_buffer.size() * sizeof(short)));
-    } else {
-        for (int attempt = 0; queued > target_queue && attempt < 3; ++attempt) {
-            const Uint32 excess_ms =
-                (queued - target_queue) / std::max<Uint32>(bytes_per_ms, 1);
-            SDL_Delay(std::min<Uint32>(excess_ms + 1, 8));
-            queued = SDL_GetQueuedAudioSize(audio->device);
+    bool pressure_counted = false;
+    while (queued > target_queue && !audio->cancelled.load(std::memory_order_relaxed)) {
+        if (!pressure_counted) {
+            audio->overruns.fetch_add(1, std::memory_order_relaxed);
+            pressure_counted = true;
         }
+        SDL_Delay(1);
+        queued = SDL_GetQueuedAudioSize(audio->device);
     }
+    if (audio->cancelled.load(std::memory_order_relaxed)) return false;
 
     const int volume = audio->volume.load(std::memory_order_relaxed);
     if (volume >= 100) {
@@ -619,6 +639,20 @@ void rr_audio_submit(rr_audio_t* audio, const short* data, int frames) {
         audio->started = true;
         SDL_PauseAudioDevice(audio->device, 0);
     }
+    return true;
+}
+bool rr_audio_valid(rr_audio_t* audio) { return audio && audio->device != 0; }
+void rr_audio_flush(rr_audio_t* audio) { if (audio && audio->device) { SDL_ClearQueuedAudio(audio->device); audio->started = !retrorun_audio_stable_buffer; } }
+void rr_audio_pause(rr_audio_t* audio, bool paused) { if (audio && audio->device) { audio->paused.store(paused); SDL_PauseAudioDevice(audio->device, paused ? 1 : 0); } }
+void rr_audio_cancel(rr_audio_t* audio) { if (audio) audio->cancelled.store(true); }
+void rr_audio_diagnostics_get(rr_audio_t* audio, rr_audio_diagnostics_t* diagnostics) {
+    if (!diagnostics) return;
+    *diagnostics = {};
+    if (!audio) return;
+    diagnostics->buffer_underruns = audio->underruns.load();
+    diagnostics->buffer_overruns = audio->overruns.load();
+    diagnostics->frames_dropped = audio->frames_dropped.load();
+    diagnostics->max_queue_depth = audio->max_queue_depth.load();
 }
 uint32_t rr_audio_volume_get(rr_audio_t* audio, const char*) { return audio ? audio->volume.load(std::memory_order_relaxed) : 0; }
 void rr_audio_volume_set(rr_audio_t* audio, uint32_t value, const char*) { if (audio) audio->volume.store(std::min<uint32_t>(value, 100), std::memory_order_relaxed); }
@@ -766,8 +800,14 @@ rr_presenter_t* rr_presenter_create(rr_display_t* display, uint32_t, uint32_t ba
         presenter->renderer = SDL_CreateRenderer(display->window, -1, SDL_RENDERER_SOFTWARE);
     if (presenter->renderer) {
         SDL_RendererInfo info = {};
-        if (SDL_GetRendererInfo(presenter->renderer, &info) == 0 && info.name)
-            SDL_strlcpy(renderer_name, info.name, sizeof(renderer_name));
+        if (SDL_GetRendererInfo(presenter->renderer, &info) == 0) {
+            if (info.name)
+                SDL_strlcpy(renderer_name, info.name, sizeof(renderer_name));
+            vsync_applied = !vsync_enabled ||
+                            (info.flags & SDL_RENDERER_PRESENTVSYNC) != 0;
+        } else {
+            vsync_applied = false;
+        }
         SDL_RenderSetLogicalSize(presenter->renderer, display->width, display->height);
     }
     active_presenter = presenter;
@@ -782,10 +822,18 @@ void rr_presenter_destroy(rr_presenter_t* presenter) {
     if (presenter->renderer) SDL_DestroyRenderer(presenter->renderer);
     delete presenter;
 }
+void rr_presenter_drain(rr_presenter_t*) {}
 static void clear_presenter(rr_presenter_t* p) { SDL_SetRenderDrawColor(p->renderer, 8, 8, 8, 255); SDL_RenderClear(p->renderer); }
 void rr_presenter_post(rr_presenter_t* p, rr_surface_t* s, int sx, int sy, int sw, int sh,
                        int dx, int dy, int dw, int dh, rr_rotation_t r) {
+    const uint64_t generation = benchmark_capture_generation();
+    const auto started = generation ? std::chrono::steady_clock::now()
+                                    : std::chrono::steady_clock::time_point{};
     clear_presenter(p); SDL_Rect src={sx,sy,sw,sh}, dst={dx,dy,dw,dh}; render_surface(p,s,&src,&dst,r); SDL_RenderPresent(p->renderer);
+    if (generation)
+        benchmark_presentation_completed(BenchmarkPresentation::Fallback,
+            std::chrono::duration_cast<std::chrono::microseconds>(
+                std::chrono::steady_clock::now() - started).count(), generation);
 }
 bool rr_presenter_post_direct(rr_presenter_t*, rr_surface_t*, int, int, int, int,
                               int, int, int, int, rr_rotation_t) { return false; }
@@ -813,6 +861,9 @@ void rr_presenter_wait_for_loading_screen(rr_presenter_t* presenter, unsigned mi
 void rr_presenter_post_multiple(rr_presenter_t* p, rr_surface_t* base, status* o,
                                 int sx, int sy, int sw, int sh, int dx, int dy, int dw, int dh,
                                 rr_rotation_t r, rr_rotation_t overlay_rotation, bool) {
+    const uint64_t generation = benchmark_capture_generation();
+    const auto started = generation ? std::chrono::steady_clock::now()
+                                    : std::chrono::steady_clock::time_point{};
     clear_presenter(p);
     if (o->show_decoration && o->decoration) {
         SDL_Rect decoration_dst = {0, 0, p->display->width, p->display->height};
@@ -840,6 +891,10 @@ void rr_presenter_post_multiple(rr_presenter_t* p, rr_surface_t* base, status* o
     if (o->show_bottom_right && o->bottom_right) overlay(o->bottom_right, p->display->width-o->bottom_right->width*scale, p->display->height-o->bottom_right->height*scale, o->bottom_right->width*scale, o->bottom_right->height*scale);
     if (o->show_bottom_center && o->bottom_center) overlay(o->bottom_center, (p->display->width-o->bottom_center->width*scale)/2, p->display->height-o->bottom_center->height*scale, o->bottom_center->width*scale, o->bottom_center->height*scale);
     SDL_RenderPresent(p->renderer);
+    if (generation)
+        benchmark_presentation_completed(BenchmarkPresentation::Fallback,
+            std::chrono::duration_cast<std::chrono::microseconds>(
+                std::chrono::steady_clock::now() - started).count(), generation);
 }
 
 static GLuint compile_post_shader(GLenum type, const char* source) {
@@ -1127,7 +1182,8 @@ rr_context_t* rr_context_create(rr_display_t* display, int width, int height,
 #else
     SDL_strlcpy(renderer_name, "OpenGL Core", sizeof(renderer_name));
 #endif
-    if (SDL_GL_SetSwapInterval(vsync_enabled ? 1 : 0) != 0 && vsync_enabled)
+    vsync_applied = SDL_GL_SetSwapInterval(vsync_enabled ? 1 : 0) == 0;
+    if (!vsync_applied && vsync_enabled)
         std::fprintf(stderr, "RetroRun SDL could not enable OpenGL VSync: %s\n", SDL_GetError());
     active_context = context;
 
@@ -1446,7 +1502,14 @@ void rr_context_swap_buffers(rr_context_t* context, int source_width, int source
         }
         draw_overlays(context, overlays, dest_x, dest_y, dest_width, dest_height,
                       drawable_width, drawable_height, rotation);
+        const uint64_t generation = benchmark_capture_generation();
+        const auto started = generation ? std::chrono::steady_clock::now()
+                                        : std::chrono::steady_clock::time_point{};
         SDL_GL_SwapWindow(context->window);
+        if (generation)
+            benchmark_presentation_completed(BenchmarkPresentation::Fallback,
+                std::chrono::duration_cast<std::chrono::microseconds>(
+                    std::chrono::steady_clock::now() - started).count(), generation);
         return;
     }
 
@@ -1502,7 +1565,14 @@ void rr_context_swap_buffers(rr_context_t* context, int source_width, int source
                                drawable_width, drawable_height);
     draw_overlays(context, overlays, dest_x, dest_y, dest_width, dest_height,
                   drawable_width, drawable_height, rotation);
+    const uint64_t generation = benchmark_capture_generation();
+    const auto started = generation ? std::chrono::steady_clock::now()
+                                    : std::chrono::steady_clock::time_point{};
     SDL_GL_SwapWindow(context->window);
+    if (generation)
+        benchmark_presentation_completed(BenchmarkPresentation::Fallback,
+            std::chrono::duration_cast<std::chrono::microseconds>(
+                std::chrono::steady_clock::now() - started).count(), generation);
     glUseProgram(static_cast<GLuint>(previous_program));
     glBindVertexArray(static_cast<GLuint>(previous_vao));
     glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(previous_texture));
@@ -1564,18 +1634,26 @@ void rr_video_sync() {
 }
 bool rr_video_vsync_set(bool enabled) {
     vsync_enabled = enabled;
-    bool applied = true;
+    bool applied = false;
+    bool attempted = false;
     if (active_context && active_context->gl) {
+        attempted = true;
         SDL_GL_MakeCurrent(active_context->window, active_context->gl);
-        applied = SDL_GL_SetSwapInterval(enabled ? 1 : 0) == 0 && applied;
+        applied = SDL_GL_SetSwapInterval(enabled ? 1 : 0) == 0;
     }
 #if SDL_VERSION_ATLEAST(2, 0, 18)
-    if (active_presenter && active_presenter->renderer)
-        applied = SDL_RenderSetVSync(active_presenter->renderer, enabled ? 1 : 0) == 0 && applied;
+    if (active_presenter && active_presenter->renderer) {
+        attempted = true;
+        const bool renderer_applied =
+            SDL_RenderSetVSync(active_presenter->renderer, enabled ? 1 : 0) == 0;
+        applied = applied || renderer_applied;
+    }
 #endif
+    vsync_applied = attempted && applied;
     return applied;
 }
 bool rr_video_vsync_get() { return vsync_enabled; }
+bool rr_video_vsync_applied() { return vsync_applied; }
 void rr_video_filter_set(rr_video_filter_t filter) { video_filter = filter; }
 rr_video_filter_t rr_video_filter_get() { return video_filter; }
 void rr_video_shader_set(rr_video_shader_t shader) { video_shader = shader; }

@@ -127,6 +127,7 @@ go2_surface_t* go2_frame_buffer_surface_get(go2_frame_buffer_t* frame_buffer);
 
 go2_presenter_t* go2_presenter_create(go2_display_t* display, uint32_t format, uint32_t background_color);
 void go2_presenter_destroy(go2_presenter_t* presenter);
+void go2_presenter_drain(go2_presenter_t* presenter);
 void go2_presenter_post(go2_presenter_t* presenter, go2_surface_t* surface, int srcX, int srcY, int srcWidth, int srcHeight, int dstX, int dstY, int dstWidth, int dstHeight, go2_rotation_t rotation);
 bool go2_presenter_post_direct(go2_presenter_t* presenter, go2_surface_t* surface,
                                int srcX, int srcY, int srcWidth, int srcHeight,

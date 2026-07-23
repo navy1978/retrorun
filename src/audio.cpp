@@ -1,313 +1,602 @@
 /*
-retrorun - libretro frontend for Anbernic Devices
-Copyright (C) 2020  OtherCrashOverride
-Copyright (C) 2021-present  navy1978
-
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-as published by the Free Software Foundation; either version 2
-of the License, or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+retrorun - lightweight cross-platform libretro frontend
+Copyright (C) 2020 OtherCrashOverride
+Copyright (C) 2021-present navy1978
 */
 
 #include "audio.h"
-#include "input.h"
+#include "benchmark.h"
+#include "core_loader.h"
 #include "globals.h"
-#include <unistd.h>
-#include <stdio.h>
-#include <cstring>
-
+#include "input.h"
 #include "platform.h"
+
 #include <algorithm>
-#include <mutex> // std::mutex
-#include <condition_variable>
-#include <deque>
+#include <atomic>
 #include <chrono>
+#include <cmath>
+#include <condition_variable>
+#include <cstdint>
+#include <deque>
+#include <mutex>
+#include <stdexcept>
+#include <string>
 #include <thread>
 #include <vector>
-#include <cmath>
-#include <atomic>
-
-#define FRAMES_MAX (48000)
-#define CHANNELS (2)
-
-// Calculate the size of the audioBuffer array
-#define AUDIO_BUFFER_SIZE (FRAMES_MAX * CHANNELS)
 
 extern int opt_volume;
 
-static rr_audio_t *audio;
-static u_int16_t audioBuffer[AUDIO_BUFFER_SIZE];
+namespace {
 
-static int audioFrameCount;
-static int audioFrameLimit;
-static int prevVolume;
-static std::atomic<uint64_t> fastForwardAudioDroppedFrames{0};
+constexpr size_t CHANNELS = 2;
 
-struct QueuedAudio
-{
+enum class AudioCommandType { Data, Flush, Pause, Resume, Stop };
+enum class AudioEngineState { Stopped, Running, Paused, Stopping };
+
+struct AudioCommand {
+    AudioCommandType type = AudioCommandType::Data;
+    uint64_t id = 0;
     std::vector<short> samples;
-    int frames;
+    size_t frames = 0;
 };
 
-static std::mutex audioQueueMutex;
-static std::condition_variable audioQueueReady;
-static std::condition_variable audioQueueSpace;
-static std::deque<QueuedAudio> audioQueue;
-static std::thread audioThread;
-static size_t queuedAudioFrames = 0;
-static size_t maxQueuedAudioFrames = 0;
-static bool stopAudioThread = false;
+struct AudioEngine {
+    rr_audio_t* backend = nullptr;
+    int frequency = 0;
+    size_t target_frames = 1;
+    size_t capacity_frames = 0;
+    std::vector<short> staging;
+    // Libretro normally invokes audio callbacks from retro_run(), but cores
+    // such as Flycast may produce audio from an internal worker. Keep the
+    // staging vector and the per-callback buffer threshold single-owner even
+    // when the core calls the frontend concurrently.
+    std::mutex callback_mutex;
 
-bool firstTime = true;
-int init_freq;
+    std::mutex mutex;
+    std::condition_variable ready;
+    std::condition_variable space;
+    std::condition_variable acknowledged;
+    std::deque<AudioCommand> commands;
+    std::thread worker;
+    AudioEngineState state = AudioEngineState::Stopped;
+    size_t queued_frames = 0;
+    size_t in_flight_frames = 0;
+    uint64_t next_command_id = 1;
+    uint64_t acknowledged_id = 0;
 
+    std::atomic<uint64_t> buffer_underruns{0};
+    std::atomic<uint64_t> buffer_overruns{0};
+    std::atomic<uint64_t> frames_dropped{0};
+    std::atomic<uint64_t> intentional_muted_frames{0};
+    std::atomic<uint64_t> flush_discarded_frames{0};
+    std::atomic<uint64_t> backpressure_events{0};
+    std::atomic<uint64_t> max_queue_depth{0};
+    std::atomic<uint64_t> callback_max_duration_us{0};
+    std::atomic<uint64_t> producer_gap_max_us{0};
+    std::atomic<uint64_t> producer_late_max_us{0};
+    std::atomic<uint64_t> producer_late_over_1ms{0};
+    std::atomic<uint64_t> producer_late_over_5ms{0};
+    std::atomic<uint64_t> producer_late_over_10ms{0};
+    std::atomic<uint64_t> producer_late_over_20ms{0};
+    std::atomic<uint64_t> last_callback_ns{0};
+    std::atomic<uint64_t> last_callback_frames{0};
+    std::atomic<uint64_t> backend_submit_time_us{0};
+    std::atomic<uint64_t> backend_submit_max_duration_us{0};
+    std::atomic<uint64_t> backend_submit_over_1ms{0};
+    std::atomic<uint64_t> backend_submit_over_5ms{0};
+    std::atomic<uint64_t> backend_submit_over_10ms{0};
+    std::atomic<uint64_t> backend_submit_over_20ms{0};
+};
+
+AudioEngine engine;
+std::atomic<uint64_t> fastForwardAudioDroppedFrames{0};
+int previousVolume = -1;
 std::string soundCardName;
 
-static void audioThreadLoop()
+void update_max(std::atomic<uint64_t>& target, uint64_t value)
 {
-    for (;;)
-    {
-        QueuedAudio chunk;
-        {
-            std::unique_lock<std::mutex> lock(audioQueueMutex);
-            audioQueueReady.wait(lock, [] {
-                return stopAudioThread || !audioQueue.empty();
-            });
+    uint64_t current = target.load(std::memory_order_relaxed);
+    while (current < value &&
+           !target.compare_exchange_weak(current, value, std::memory_order_relaxed)) {}
+}
 
-            if (stopAudioThread && audioQueue.empty())
-            {
-                rr_audio_release_thread(audio);
-                return;
+void record_thresholds(uint64_t value_us,
+                       std::atomic<uint64_t>& over_1ms,
+                       std::atomic<uint64_t>& over_5ms,
+                       std::atomic<uint64_t>& over_10ms,
+                       std::atomic<uint64_t>& over_20ms)
+{
+    if (value_us >= 1000) over_1ms.fetch_add(1, std::memory_order_relaxed);
+    if (value_us >= 5000) over_5ms.fetch_add(1, std::memory_order_relaxed);
+    if (value_us >= 10000) over_10ms.fetch_add(1, std::memory_order_relaxed);
+    if (value_us >= 20000) over_20ms.fetch_add(1, std::memory_order_relaxed);
+}
+
+void record_producer_gap(uint64_t frames,
+                         std::chrono::steady_clock::time_point now)
+{
+    const uint64_t now_ns = static_cast<uint64_t>(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(
+            now.time_since_epoch()).count());
+    const uint64_t previous_ns = engine.last_callback_ns.exchange(
+        now_ns, std::memory_order_relaxed);
+    const uint64_t previous_frames = engine.last_callback_frames.exchange(
+        frames, std::memory_order_relaxed);
+    if (previous_ns == 0 || now_ns <= previous_ns || engine.frequency <= 0)
+        return;
+
+    const uint64_t interval_us = (now_ns - previous_ns) / 1000;
+    const uint64_t expected_us = previous_frames * 1000000ULL /
+                                 static_cast<uint64_t>(engine.frequency);
+    const uint64_t late_us = interval_us > expected_us
+        ? interval_us - expected_us : 0;
+    update_max(engine.producer_gap_max_us, interval_us);
+    update_max(engine.producer_late_max_us, late_us);
+    record_thresholds(late_us,
+                      engine.producer_late_over_1ms,
+                      engine.producer_late_over_5ms,
+                      engine.producer_late_over_10ms,
+                      engine.producer_late_over_20ms);
+}
+
+void record_backend_submit(std::chrono::steady_clock::time_point started)
+{
+    if (started.time_since_epoch().count() == 0)
+        return;
+    const uint64_t elapsed = static_cast<uint64_t>(
+        std::chrono::duration_cast<std::chrono::microseconds>(
+            std::chrono::steady_clock::now() - started).count());
+    engine.backend_submit_time_us.fetch_add(elapsed, std::memory_order_relaxed);
+    update_max(engine.backend_submit_max_duration_us, elapsed);
+    record_thresholds(elapsed,
+                      engine.backend_submit_over_1ms,
+                      engine.backend_submit_over_5ms,
+                      engine.backend_submit_over_10ms,
+                      engine.backend_submit_over_20ms);
+}
+
+struct AudioCallbackScope {
+    bool measured;
+    uint64_t frames;
+    std::chrono::steady_clock::time_point started;
+    AudioCallbackScope(uint64_t frame_count)
+        : measured(benchmark_collecting()), frames(frame_count),
+          started(measured ? std::chrono::steady_clock::now()
+                           : std::chrono::steady_clock::time_point{})
+    {
+        if (measured) {
+            benchmark_audio_callback_begin();
+            record_producer_gap(frames, started);
+        }
+    }
+    ~AudioCallbackScope()
+    {
+        if (!measured) return;
+        const uint64_t elapsed = static_cast<uint64_t>(
+            std::chrono::duration_cast<std::chrono::microseconds>(
+                std::chrono::steady_clock::now() - started).count());
+        update_max(engine.callback_max_duration_us, elapsed);
+        benchmark_audio_callback_end(frames);
+    }
+};
+
+void acknowledge(uint64_t id)
+{
+    std::lock_guard<std::mutex> lock(engine.mutex);
+    engine.acknowledged_id = std::max(engine.acknowledged_id, id);
+    engine.acknowledged.notify_all();
+}
+
+void audio_worker_loop()
+{
+    for (;;) {
+        AudioCommand command;
+        {
+            std::unique_lock<std::mutex> lock(engine.mutex);
+            engine.ready.wait(lock, [] { return !engine.commands.empty(); });
+            command = std::move(engine.commands.front());
+            engine.commands.pop_front();
+            if (command.type == AudioCommandType::Data) {
+                engine.queued_frames -= command.frames;
+                engine.in_flight_frames = command.frames;
             }
-
-            chunk = std::move(audioQueue.front());
-            audioQueue.pop_front();
-            queuedAudioFrames -= static_cast<size_t>(chunk.frames);
         }
-        audioQueueSpace.notify_all();
-        rr_audio_submit(audio, chunk.samples.data(), chunk.frames);
+        engine.space.notify_all();
+
+        if (command.type == AudioCommandType::Data) {
+            const auto started = benchmark_collecting()
+                ? std::chrono::steady_clock::now()
+                : std::chrono::steady_clock::time_point{};
+            const bool accepted = rr_audio_submit(engine.backend, command.samples.data(),
+                                                  static_cast<int>(command.frames));
+            if (!accepted)
+                engine.frames_dropped.fetch_add(command.frames, std::memory_order_relaxed);
+            record_backend_submit(started);
+            {
+                std::lock_guard<std::mutex> lock(engine.mutex);
+                engine.in_flight_frames = 0;
+            }
+            engine.space.notify_all();
+            continue;
+        }
+
+        if (command.type == AudioCommandType::Flush) {
+            rr_audio_flush(engine.backend);
+            acknowledge(command.id);
+            continue;
+        }
+        if (command.type == AudioCommandType::Pause) {
+            rr_audio_pause(engine.backend, true);
+            {
+                std::lock_guard<std::mutex> lock(engine.mutex);
+                engine.state = AudioEngineState::Paused;
+            }
+            acknowledge(command.id);
+            continue;
+        }
+        if (command.type == AudioCommandType::Resume) {
+            rr_audio_pause(engine.backend, false);
+            {
+                std::lock_guard<std::mutex> lock(engine.mutex);
+                engine.state = AudioEngineState::Running;
+            }
+            acknowledge(command.id);
+            continue;
+        }
+
+        rr_audio_release_thread(engine.backend);
+        acknowledge(command.id);
+        return;
     }
 }
 
-static void submitAudio(const short *data, int frames)
+uint64_t enqueue_control(AudioCommandType type, bool front = false)
 {
-    if (!audio || !data || frames <= 0)
-        return;
-
-    if (!forceAudioMultithread)
-    {
-        rr_audio_submit(audio, data, frames);
-        return;
-    }
-
-    QueuedAudio chunk;
-    chunk.frames = frames;
-    chunk.samples.assign(data, data + static_cast<size_t>(frames) * CHANNELS);
-
-    std::unique_lock<std::mutex> lock(audioQueueMutex);
-    audioQueueSpace.wait(lock, [frames] {
-        return stopAudioThread || audioQueue.empty() ||
-               queuedAudioFrames + static_cast<size_t>(frames) <= maxQueuedAudioFrames;
-    });
-    if (stopAudioThread)
-        return;
-
-    queuedAudioFrames += static_cast<size_t>(frames);
-    audioQueue.push_back(std::move(chunk));
-    lock.unlock();
-    audioQueueReady.notify_one();
+    std::lock_guard<std::mutex> lock(engine.mutex);
+    AudioCommand command;
+    command.type = type;
+    command.id = engine.next_command_id++;
+    const uint64_t id = command.id;
+    if (front) engine.commands.push_front(std::move(command));
+    else engine.commands.push_back(std::move(command));
+    engine.ready.notify_one();
+    return id;
 }
 
-void audio_init(int freq)
+bool wait_ack(uint64_t id)
 {
-    // Note: audio stutters in OpenAL unless the buffer frequency at upload
-    // is the same as during creation.
-    init_freq = freq;
-    audio = rr_audio_create(freq);
-    audioFrameCount = 0;
-    firstTime = true;
+    std::unique_lock<std::mutex> lock(engine.mutex);
+    engine.acknowledged.wait(lock, [id] { return engine.acknowledged_id >= id; });
+    return true;
+}
 
-    if (forceAudioMultithread && audio)
-    {
-        // Four nominal 60 Hz chunks keep the core decoupled from backend
-        // waits without allowing latency to grow without limit.
-        maxQueuedAudioFrames = std::max<size_t>(2048, static_cast<size_t>(freq) / 15);
-        {
-            std::lock_guard<std::mutex> lock(audioQueueMutex);
-            audioQueue.clear();
-            queuedAudioFrames = 0;
-            stopAudioThread = false;
+void record_depth_locked()
+{
+    update_max(engine.max_queue_depth,
+               static_cast<uint64_t>(engine.queued_frames + engine.in_flight_frames));
+}
+
+void submit_chunk(const short* samples, size_t frames)
+{
+    if (!engine.backend || frames == 0) return;
+
+    if (!forceAudioMultithread) {
+        const auto started = benchmark_collecting()
+            ? std::chrono::steady_clock::now()
+            : std::chrono::steady_clock::time_point{};
+        if (!rr_audio_submit(engine.backend, samples, static_cast<int>(frames)))
+            engine.frames_dropped.fetch_add(frames, std::memory_order_relaxed);
+        record_backend_submit(started);
+        return;
+    }
+
+    size_t offset = 0;
+    while (offset < frames) {
+        const size_t part = std::min(engine.capacity_frames, frames - offset);
+        AudioCommand command;
+        command.type = AudioCommandType::Data;
+        command.frames = part;
+        command.samples.assign(samples + offset * CHANNELS,
+                               samples + (offset + part) * CHANNELS);
+        std::unique_lock<std::mutex> lock(engine.mutex);
+        if (engine.queued_frames + engine.in_flight_frames + part > engine.capacity_frames)
+            engine.backpressure_events.fetch_add(1, std::memory_order_relaxed);
+        engine.space.wait(lock, [part] {
+            return engine.state == AudioEngineState::Stopping ||
+                   engine.queued_frames + engine.in_flight_frames + part <= engine.capacity_frames;
+        });
+        if (engine.state == AudioEngineState::Stopping) {
+            engine.frames_dropped.fetch_add(frames - offset, std::memory_order_relaxed);
+            return;
         }
-        audioThread = std::thread(audioThreadLoop);
-        logger.log(Logger::INF,
-                   "Threaded audio enabled: queue=%zu frames (%.1f ms)",
-                   maxQueuedAudioFrames,
-                   freq > 0 ? maxQueuedAudioFrames * 1000.0 / freq : 0.0);
+        engine.queued_frames += part;
+        engine.commands.push_back(std::move(command));
+        record_depth_locked();
+        lock.unlock();
+        engine.ready.notify_one();
+        offset += part;
     }
-    // The Pocket 1 uses the RK3566 mixer layout, like the RG353 family:
-    // its playback volume control is named "Master", not "Playback".
-    bool is503AudioDeviceLike = isRK3566Device();
-    soundCardName = isRG552() ? "DAC" : is503AudioDeviceLike ? "Master"
-                                                  : "Playback";
+}
 
-    if (opt_volume > -1)
-    {
-        rr_audio_volume_set(audio, (uint32_t)opt_volume, soundCardName.c_str());
+void flush_staging_chunks()
+{
+    const size_t target = std::max<size_t>(1, engine.target_frames);
+    while (engine.staging.size() / CHANNELS >= target) {
+        submit_chunk(engine.staging.data(), target);
+        engine.staging.erase(engine.staging.begin(),
+                             engine.staging.begin() + target * CHANNELS);
     }
+}
+
+void update_volume()
+{
+    if (!engine.backend || opt_volume == previousVolume) return;
+    rr_audio_volume_set(engine.backend, static_cast<uint32_t>(opt_volume), soundCardName.c_str());
+    previousVolume = opt_volume;
+}
+
+BenchmarkAudioDiagnostics snapshot_diagnostics()
+{
+    rr_audio_diagnostics_t backend{};
+    rr_audio_diagnostics_get(engine.backend, &backend);
+    BenchmarkAudioDiagnostics result;
+    {
+        std::lock_guard<std::mutex> lock(engine.mutex);
+        result.queued_frames = engine.queued_frames;
+        result.in_flight_frames = engine.in_flight_frames;
+    }
+    result.buffer_underruns = engine.buffer_underruns.load() + backend.buffer_underruns;
+    result.buffer_overruns = engine.buffer_overruns.load() + backend.buffer_overruns;
+    result.frames_dropped = engine.frames_dropped.load() + backend.frames_dropped;
+    result.intentional_muted_frames = engine.intentional_muted_frames.load();
+    result.flush_discarded_frames = engine.flush_discarded_frames.load();
+    result.backpressure_events = engine.backpressure_events.load();
+    result.max_queue_depth = std::max(engine.max_queue_depth.load(), backend.max_queue_depth);
+    result.min_queue_depth = backend.min_queue_depth;
+    result.queue_depth_samples = backend.queue_depth_samples;
+    result.queue_depth_total_frames = backend.queue_depth_total_frames;
+    result.queue_empty_observations = backend.queue_empty_observations;
+    result.queue_low_observations = backend.queue_low_observations;
+    result.adaptive_stretch_frames = backend.adaptive_stretch_frames;
+    result.callback_max_duration_us = engine.callback_max_duration_us.load();
+    result.producer_gap_max_us = engine.producer_gap_max_us.load();
+    result.producer_late_max_us = engine.producer_late_max_us.load();
+    result.producer_late_over_1ms = engine.producer_late_over_1ms.load();
+    result.producer_late_over_5ms = engine.producer_late_over_5ms.load();
+    result.producer_late_over_10ms = engine.producer_late_over_10ms.load();
+    result.producer_late_over_20ms = engine.producer_late_over_20ms.load();
+    result.backend_submit_time_us = engine.backend_submit_time_us.load();
+    result.backend_submit_max_duration_us = engine.backend_submit_max_duration_us.load();
+    result.backend_submit_over_1ms = engine.backend_submit_over_1ms.load();
+    result.backend_submit_over_5ms = engine.backend_submit_over_5ms.load();
+    result.backend_submit_over_10ms = engine.backend_submit_over_10ms.load();
+    result.backend_submit_over_20ms = engine.backend_submit_over_20ms.load();
+    return result;
+}
+
+} // namespace
+
+void audio_init(int frequency, double fps)
+{
+    engine.backend = rr_audio_create(frequency);
+    if (!engine.backend || !rr_audio_valid(engine.backend))
+        throw std::runtime_error("audio backend initialization failed");
+    engine.frequency = frequency;
+    engine.target_frames = static_cast<size_t>(std::max(1.0, frequency / std::max(1.0, fps)));
+    if (retrorun_audio_buffer < 1)
+        retrorun_audio_buffer = static_cast<int>(engine.target_frames);
     else
-    {
-        opt_volume = rr_audio_volume_get(audio, soundCardName.c_str());
+        engine.target_frames = static_cast<size_t>(retrorun_audio_buffer);
+    engine.capacity_frames = std::max<size_t>(2048, static_cast<size_t>(frequency) / 15);
+    engine.staging.clear();
+    engine.commands.clear();
+    engine.queued_frames = 0;
+    engine.in_flight_frames = 0;
+    engine.state = AudioEngineState::Running;
+    engine.acknowledged_id = 0;
+    engine.next_command_id = 1;
+
+    engine.buffer_underruns = 0;
+    engine.buffer_overruns = 0;
+    engine.frames_dropped = 0;
+    engine.intentional_muted_frames = 0;
+    engine.flush_discarded_frames = 0;
+    engine.backpressure_events = 0;
+    engine.max_queue_depth = 0;
+    engine.callback_max_duration_us = 0;
+    engine.producer_gap_max_us = 0;
+    engine.producer_late_max_us = 0;
+    engine.producer_late_over_1ms = 0;
+    engine.producer_late_over_5ms = 0;
+    engine.producer_late_over_10ms = 0;
+    engine.producer_late_over_20ms = 0;
+    engine.last_callback_ns = 0;
+    engine.last_callback_frames = 0;
+    engine.backend_submit_time_us = 0;
+    engine.backend_submit_max_duration_us = 0;
+    engine.backend_submit_over_1ms = 0;
+    engine.backend_submit_over_5ms = 0;
+    engine.backend_submit_over_10ms = 0;
+    engine.backend_submit_over_20ms = 0;
+
+    if (forceAudioMultithread) {
+        engine.worker = std::thread(audio_worker_loop);
+        logger.log(Logger::INF, "Threaded audio enabled: capacity=%zu frames (%.1f ms)",
+                   engine.capacity_frames,
+                   frequency > 0 ? engine.capacity_frames * 1000.0 / frequency : 0.0);
     }
-    prevVolume = opt_volume;
+
+    soundCardName = isRG552() ? "DAC" : isRK3566Device() ? "Master" : "Playback";
+    if (opt_volume > -1)
+        rr_audio_volume_set(engine.backend, static_cast<uint32_t>(opt_volume), soundCardName.c_str());
+    else
+        opt_volume = static_cast<int>(rr_audio_volume_get(engine.backend, soundCardName.c_str()));
+    previousVolume = opt_volume;
 }
+
+bool audio_reconfigure(int frequency, double fps)
+{
+    if (frequency <= 0 || !std::isfinite(fps) || fps <= 0.0)
+        return false;
+    if (engine.backend && engine.frequency == frequency) {
+        audio_flush();
+        engine.target_frames = static_cast<size_t>(std::max(1.0, frequency / fps));
+        if (retrorun_audio_buffer > 0)
+            engine.target_frames = static_cast<size_t>(retrorun_audio_buffer);
+        return true;
+    }
+    audio_deinit();
+    audio_init(frequency, fps);
+    return true;
+}
+
+bool audio_flush()
+{
+    size_t staged = 0;
+    {
+        std::lock_guard<std::mutex> callback_lock(engine.callback_mutex);
+        staged = engine.staging.size() / CHANNELS;
+        engine.staging.clear();
+    }
+    engine.flush_discarded_frames.fetch_add(staged, std::memory_order_relaxed);
+    if (!engine.backend) return true;
+    if (!forceAudioMultithread) {
+        rr_audio_flush(engine.backend);
+        return true;
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(engine.mutex);
+        for (auto it = engine.commands.begin(); it != engine.commands.end();) {
+            if (it->type == AudioCommandType::Data) {
+                engine.queued_frames -= it->frames;
+                engine.flush_discarded_frames.fetch_add(it->frames, std::memory_order_relaxed);
+                it = engine.commands.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+    engine.space.notify_all();
+    return wait_ack(enqueue_control(AudioCommandType::Flush));
+}
+
+bool audio_pause()
+{
+    if (!engine.backend) return true;
+    audio_flush();
+    if (!forceAudioMultithread) {
+        rr_audio_pause(engine.backend, true);
+        engine.state = AudioEngineState::Paused;
+        return true;
+    }
+    return wait_ack(enqueue_control(AudioCommandType::Pause));
+}
+
+bool audio_resume()
+{
+    if (!engine.backend) return true;
+    if (!forceAudioMultithread) {
+        rr_audio_pause(engine.backend, false);
+        engine.state = AudioEngineState::Running;
+        return true;
+    }
+    return wait_ack(enqueue_control(AudioCommandType::Resume));
+}
+
+void audio_discard_pending() { (void)audio_flush(); }
 
 void audio_deinit()
 {
-    if (audioThread.joinable())
+    if (!engine.backend) return;
+    size_t staged = 0;
     {
+        std::lock_guard<std::mutex> callback_lock(engine.callback_mutex);
+        staged = engine.staging.size() / CHANNELS;
+        engine.staging.clear();
+    }
+    engine.flush_discarded_frames.fetch_add(staged, std::memory_order_relaxed);
+    if (forceAudioMultithread && engine.worker.joinable()) {
+        rr_audio_cancel(engine.backend);
         {
-            std::lock_guard<std::mutex> lock(audioQueueMutex);
-            stopAudioThread = true;
-            audioQueue.clear();
-            queuedAudioFrames = 0;
+            std::lock_guard<std::mutex> lock(engine.mutex);
+            engine.state = AudioEngineState::Stopping;
+            for (const auto& command : engine.commands)
+                if (command.type == AudioCommandType::Data)
+                    engine.flush_discarded_frames.fetch_add(command.frames, std::memory_order_relaxed);
+            engine.commands.clear();
+            engine.queued_frames = 0;
         }
-        audioQueueReady.notify_all();
-        audioQueueSpace.notify_all();
-        audioThread.join();
+        engine.space.notify_all();
+        const uint64_t stop = enqueue_control(AudioCommandType::Stop, true);
+        wait_ack(stop);
+        engine.worker.join();
+    } else {
+        rr_audio_cancel(engine.backend);
     }
-
-    if (audio != NULL)
-    {
-        rr_audio_destroy(audio);
-        audio = NULL;
-    }
-}
-
-void audio_discard_pending()
-{
-    audioFrameCount = 0;
-    if (!forceAudioMultithread)
-        return;
-
-    {
-        std::lock_guard<std::mutex> lock(audioQueueMutex);
-        audioQueue.clear();
-        queuedAudioFrames = 0;
-    }
-    audioQueueSpace.notify_all();
-}
-
-static void SetVolume()
-{
-    if (opt_volume != prevVolume)
-    {
-        rr_audio_volume_set(audio, (uint32_t)opt_volume, soundCardName.c_str());
-        prevVolume = opt_volume;
-    }
-}
-
-int getVolume()
-{
-    int value = rr_audio_volume_get(audio, soundCardName.c_str());
-    return value;
+    benchmark_set_audio_diagnostics(snapshot_diagnostics());
+    rr_audio_destroy(engine.backend);
+    engine.backend = nullptr;
+    engine.staging.clear();
+    engine.state = AudioEngineState::Stopped;
 }
 
 uint64_t fastForwardAudioFramesDropped()
 {
-    return fastForwardAudioDroppedFrames.exchange(0);
+    return fastForwardAudioDroppedFrames.exchange(0, std::memory_order_relaxed);
 }
 
 void setVolume(int value)
 {
-    rr_audio_volume_set(audio, (uint32_t)value, soundCardName.c_str());
+    opt_volume = value;
+    update_volume();
+}
+
+int getVolume()
+{
+    return engine.backend
+        ? static_cast<int>(rr_audio_volume_get(engine.backend, soundCardName.c_str())) : 0;
 }
 
 void core_audio_sample(int16_t left, int16_t right)
 {
-    
-    if (input_ffwd_requested || audio_disabled)
-    {
-        if (input_ffwd_requested)
-            ++fastForwardAudioDroppedFrames;
+    if (!core_callbacks_enabled()) return;
+    AudioCallbackScope scope(1);
+    if (input_ffwd_requested || audio_disabled) {
+        if (input_ffwd_requested) {
+            fastForwardAudioDroppedFrames.fetch_add(1, std::memory_order_relaxed);
+            engine.intentional_muted_frames.fetch_add(1, std::memory_order_relaxed);
+        }
         return;
     }
-
-    SetVolume();
-
-    u_int32_t *ptr = (u_int32_t *)audioBuffer;
-    ptr[audioFrameCount++] = (left << 16) | right;
-
-    if (audioFrameCount >= retrorun_audio_buffer)
-    {
-        submitAudio((const short *)audioBuffer, audioFrameCount);
-        audioFrameCount = 0;
-        retrorun_audio_buffer = new_retrorun_audio_buffer==-1 ? audioFrameLimit:new_retrorun_audio_buffer;
-    }
+    std::lock_guard<std::mutex> callback_lock(engine.callback_mutex);
+    if (!core_callbacks_enabled() || !engine.backend)
+        return;
+    update_volume();
+    engine.staging.push_back(left);
+    engine.staging.push_back(right);
+    flush_staging_chunks();
 }
 
-#include <stdint.h>
-#include <string.h>
-
-size_t core_audio_sample_batch(const int16_t *data, size_t frames)
+size_t core_audio_sample_batch(const int16_t* data, size_t frames)
 {
-    if (input_ffwd_requested || audio_disabled)
-        {
-            if (input_ffwd_requested)
-                fastForwardAudioDroppedFrames += frames;
-            return frames;
+    if (!core_callbacks_enabled()) return frames;
+    AudioCallbackScope scope(frames);
+    if (!data || frames == 0) return frames;
+    if (input_ffwd_requested || audio_disabled) {
+        if (input_ffwd_requested) {
+            fastForwardAudioDroppedFrames.fetch_add(frames, std::memory_order_relaxed);
+            engine.intentional_muted_frames.fetch_add(frames, std::memory_order_relaxed);
         }
-
-    if (firstTime && originalFps > 0)
-    {
-        logger.log(Logger::DEB, "(Audio init) config...");
-        audioFrameLimit = 1.0 / originalFps * init_freq;
-
-        if (retrorun_audio_buffer == -1)
-        {
-            retrorun_audio_buffer = audioFrameLimit;
-        }
-        logger.log(Logger::DEB, "(Audio init)- originalFps:%f", originalFps);
-        logger.log(Logger::DEB, "(Audio init)- audioFrameLimit:%d", audioFrameLimit);
-        logger.log(Logger::DEB, "(Audio init)- retrorun_audio_buffer:%d", retrorun_audio_buffer);
-        firstTime = false;
-    }
-
-    if (originalFps < 1)
-    {
-        logger.log(Logger::DEB, "ORIGINAL FPS NOT VALID! skipping audio");
         return frames;
     }
-    SetVolume();
-
-    int currentFrame = (int)frames;
-
-    if (currentFrame > FRAMES_MAX || currentFrame < 1)
-    {
-        logger.log(Logger::DEB, "AUDIO FRAME NOT VALID! skipping audio");
+    std::lock_guard<std::mutex> callback_lock(engine.callback_mutex);
+    if (!core_callbacks_enabled() || !engine.backend)
         return frames;
-    }
-
-    if (audioFrameCount + frames > static_cast<size_t>(retrorun_audio_buffer))
-    // if (audioFrameCount + frames > retrorun_audio_buffer)
-    {
-        submitAudio((const short *)audioBuffer, audioFrameCount);
-        audioFrameCount = 0;
-        retrorun_audio_buffer = new_retrorun_audio_buffer==-1 ? audioFrameLimit :new_retrorun_audio_buffer;
-    }
- 
-    size_t size = frames * sizeof(int16_t) * CHANNELS;
-    // libc selects the best implementation for the active ARM/x86 CPU and
-    // safely handles alignment that the former uint64_t loop assumed.
-    std::memcpy(audioBuffer + (audioFrameCount * CHANNELS), data, size);
-    audioFrameCount += frames;
+    update_volume();
+    if (new_retrorun_audio_buffer > 0)
+        engine.target_frames = static_cast<size_t>(new_retrorun_audio_buffer);
+    engine.staging.insert(engine.staging.end(), data, data + frames * CHANNELS);
+    flush_staging_chunks();
     return frames;
 }

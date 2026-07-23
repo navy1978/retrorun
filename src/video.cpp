@@ -25,6 +25,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "keyboard.h"
 #include "file_browser.h"
 #include "achievements.h"
+#include "benchmark.h"
+#include "core_loader.h"
 
 #include "input.h"
 #include "libretro.h"
@@ -44,6 +46,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include <chrono>
 #include <atomic>
+#include <condition_variable>
+#include <mutex>
 #include <thread>
 #include "video-helper.h"
 
@@ -125,6 +129,8 @@ bool drawOneFrame;
 // display controller scans it out. It is released only after the following
 // plane update has crossed a vblank.
 static rr_surface_t *directScanoutSurface = nullptr;
+static void video_worker_stop();
+namespace { void video_worker_drain(); }
 #endif
 
 
@@ -330,19 +336,77 @@ void video_configure(struct retro_game_geometry *geom)
 
 void video_prepare_core_unload()
 {
-#ifdef RR_PLATFORM_SDL
+#ifndef RR_PLATFORM_SDL
+    video_worker_stop();
+    if (presenter)
+        rr_presenter_drain(presenter);
+#endif
     if (isOpenGL && context3D != NULL && retro_context_destroy != NULL)
     {
         rr_context_make_current(context3D);
         retro_context_destroy();
         retro_context_destroy = NULL;
     }
+}
+
+void video_synchronize()
+{
+#ifndef RR_PLATFORM_SDL
+    video_worker_drain();
+    if (presenter)
+        rr_presenter_drain(presenter);
 #endif
+    if (isOpenGL && context3D)
+        rr_video_sync();
+}
+
+bool video_reconfigure_geometry(const struct retro_game_geometry* geom)
+{
+    if (!geom || geom->base_width == 0 || geom->base_height == 0 ||
+        geom->max_width == 0 || geom->max_height == 0)
+        return false;
+
+    video_synchronize();
+    const int requested_max_width = static_cast<int>(geom->max_width);
+    const int requested_max_height = static_cast<int>(geom->max_height);
+    if (isOpenGL && (requested_max_width > max_width || requested_max_height > max_height)) {
+        logger.log(Logger::ERR,
+                   "Runtime geometry %dx%d exceeds the live hardware context %dx%d",
+                   requested_max_width, requested_max_height, max_width, max_height);
+        return false;
+    }
+
+    if (!isOpenGL && surface &&
+        (requested_max_width > max_width || requested_max_height > max_height)) {
+        rr_surface_destroy(surface);
+        const int aw = ALIGN(requested_max_width, 32);
+        const int ah = ALIGN(requested_max_height, 32);
+        surface = rr_surface_create(display, aw, ah,
+            color_format == RR_PIXEL_FORMAT_RGBA5551 ? format_565 : color_format);
+        if (!surface)
+            return false;
+    }
+
+    base_width = static_cast<int>(geom->base_width);
+    base_height = static_cast<int>(geom->base_height);
+    max_width = requested_max_width;
+    max_height = requested_max_height;
+    game_aspect_ratio = geom->aspect_ratio;
+    if (opt_aspect == 0.0f && geom->aspect_ratio > 0.0f)
+        aspect_ratio = geom->aspect_ratio;
+    first_video_refresh = true;
+    logger.log(Logger::INF,
+               "Runtime video geometry applied: %dx%d max=%dx%d aspect=%.6f",
+               base_width, base_height, max_width, max_height, game_aspect_ratio);
+    return true;
 }
 
 void video_deinit()
 {
 #ifndef RR_PLATFORM_SDL
+    video_worker_stop();
+    if (presenter)
+        rr_presenter_drain(presenter);
     if (directScanoutSurface && context3D)
     {
         rr_presenter_direct_disable(presenter);
@@ -371,6 +435,16 @@ void video_deinit()
         rr_presenter_destroy(presenter);
     if (display != NULL)
         rr_display_destroy(display);
+    status_surface_bottom_right = NULL;
+    status_surface_bottom_left = NULL;
+    status_surface_bottom_center = NULL;
+    status_surface_top_right = NULL;
+    status_surface_top_left = NULL;
+    status_surface_full = NULL;
+    surface = NULL;
+    context3D = NULL;
+    presenter = NULL;
+    display = NULL;
 }
 
 uintptr_t core_video_get_current_framebuffer()
@@ -908,12 +982,126 @@ inline void core_video_refresh_OPENGL(rr_surface_t *frame_surface, const void *d
     }
 }
 
+#ifndef RR_PLATFORM_SDL
+namespace {
+struct VideoWorkerJob {
+    rr_surface_t* surface = nullptr;
+    const void* data = nullptr;
+    unsigned width = 0;
+    unsigned height = 0;
+    size_t pitch = 0;
+};
+
+std::mutex videoWorkerMutex;
+std::condition_variable videoWorkerReady;
+std::condition_variable videoWorkerSpace;
+std::thread videoWorkerThread;
+VideoWorkerJob videoWorkerJob;
+bool videoWorkerStarted = false;
+bool videoWorkerStopping = false;
+bool videoWorkerPending = false;
+bool videoWorkerInFlight = false;
+
+void video_worker_loop()
+{
+    for (;;) {
+        VideoWorkerJob job;
+        {
+            std::unique_lock<std::mutex> lock(videoWorkerMutex);
+            videoWorkerReady.wait(lock, [] { return videoWorkerStopping || videoWorkerPending; });
+            if (videoWorkerStopping && !videoWorkerPending)
+                return;
+            job = videoWorkerJob;
+            videoWorkerJob = {};
+            videoWorkerPending = false;
+            videoWorkerInFlight = true;
+        }
+        videoWorkerSpace.notify_all();
+
+        core_video_refresh_OPENGL(job.surface, job.data, job.width, job.height, job.pitch);
+        rr_context_surface_unlock(context3D, job.surface);
+
+        {
+            std::lock_guard<std::mutex> lock(videoWorkerMutex);
+            videoWorkerInFlight = false;
+        }
+        videoWorkerSpace.notify_all();
+    }
+}
+
+void video_worker_submit(VideoWorkerJob job)
+{
+    std::unique_lock<std::mutex> lock(videoWorkerMutex);
+    if (!videoWorkerStarted) {
+        videoWorkerStopping = false;
+        videoWorkerStarted = true;
+        videoWorkerThread = std::thread(video_worker_loop);
+    }
+    // Capacity is two locked surfaces: one in flight and one pending. Normal
+    // operation applies backpressure instead of silently replacing a frame.
+    videoWorkerSpace.wait(lock, [] { return videoWorkerStopping || !videoWorkerPending; });
+    if (videoWorkerStopping) {
+        lock.unlock();
+        rr_context_surface_unlock(context3D, job.surface);
+        return;
+    }
+    videoWorkerJob = job;
+    videoWorkerPending = true;
+    lock.unlock();
+    videoWorkerReady.notify_one();
+}
+
+void video_worker_drain()
+{
+    std::unique_lock<std::mutex> lock(videoWorkerMutex);
+    videoWorkerSpace.wait(lock, [] { return !videoWorkerPending && !videoWorkerInFlight; });
+}
+} // namespace
+
+static void video_worker_stop()
+{
+    {
+        std::lock_guard<std::mutex> lock(videoWorkerMutex);
+        if (!videoWorkerStarted)
+            return;
+    }
+    video_worker_drain();
+    {
+        std::lock_guard<std::mutex> lock(videoWorkerMutex);
+        videoWorkerStopping = true;
+    }
+    videoWorkerReady.notify_all();
+    videoWorkerSpace.notify_all();
+    if (videoWorkerThread.joinable())
+        videoWorkerThread.join();
+    std::lock_guard<std::mutex> lock(videoWorkerMutex);
+    videoWorkerStarted = false;
+    videoWorkerStopping = false;
+    videoWorkerPending = false;
+    videoWorkerInFlight = false;
+    videoWorkerJob = {};
+}
+#endif
+
 
 const void *lastData;
 size_t lastPitch;
 //bool lastPixelPerfect= pixel_perfect;
 void core_video_refresh(const void *data, unsigned width, unsigned height, size_t pitch)
 {
+    if (!core_callbacks_enabled())
+        return;
+    const bool measureBenchmark = benchmark_collecting();
+    if (measureBenchmark)
+        benchmark_video_callback_begin();
+    struct BenchmarkCallbackTimer {
+        bool enabled;
+        ~BenchmarkCallbackTimer() { if (enabled) benchmark_video_callback_end(); }
+    } benchmarkCallbackTimer{measureBenchmark};
+    if (measureBenchmark &&
+        (isOpenGL ? data != RETRO_HW_FRAME_BUFFER_VALID : data == nullptr))
+        benchmark_video_duplicate();
+
     const bool measureFastForward = input_ffwd_requested;
     const auto callbackStarted = measureFastForward
         ? std::chrono::steady_clock::now()
@@ -947,6 +1135,8 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
     else if (fixedFramesRemaining > 0)
     {
         --fixedFramesRemaining;
+        if (measureBenchmark)
+            benchmark_video_skipped(BenchmarkSkipReason::Fixed);
         return;
     }
     else
@@ -996,6 +1186,8 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         !input_message && !input_ffwd_requested)
     {
         skipNextVideoFrame = false;
+        if (measureBenchmark)
+            benchmark_video_skipped(BenchmarkSkipReason::Adaptive);
         return;
     }
 #endif
@@ -1020,6 +1212,8 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         if (lastFastForwardPresentation.time_since_epoch().count() != 0 &&
             now - lastFastForwardPresentation < minimumInterval) {
             ++fastForwardVideoDroppedCount;
+            if (measureBenchmark)
+                benchmark_video_skipped(BenchmarkSkipReason::FastForward);
             return;
         }
         lastFastForwardPresentation = now;
@@ -1139,8 +1333,9 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         }
         const bool allowDirectScanout = directScanoutCandidate && directScanoutEnabled &&
             (drmDirectScanoutDiagnosticActive || decoration_surface() == nullptr);
-        if (allowDirectScanout &&
-            rr_presenter_post_direct(presenter, gles_surface,
+        if (allowDirectScanout)
+            video_worker_drain();
+        if (allowDirectScanout && rr_presenter_post_direct(presenter, gles_surface,
                                      0, rr_surface_height_get(gles_surface) - height,
                                      width, height, x, y, w, h, getRotation()))
         {
@@ -1172,11 +1367,9 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
             !achievements_notification_visible() && !showLoading;
         if (threadedVideo) {
             rr_surface_t *frame_surface = gles_surface;
-            std::thread([frame_surface, data, width, height, pitch]() {
-                core_video_refresh_OPENGL(frame_surface, data, width, height, pitch);
-                rr_context_surface_unlock(context3D, frame_surface);
-            }).detach();
+            video_worker_submit({frame_surface, data, width, height, pitch});
         } else {
+            video_worker_drain();
             core_video_refresh_OPENGL(gles_surface, data, width, height, pitch);
             rr_context_surface_unlock(context3D, gles_surface);
         }

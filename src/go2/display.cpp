@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "queue.h"
 #include "../globals.h"
+#include "../benchmark.h"
 
 #include <xf86drm.h>
 #include <xf86drmMode.h>
@@ -1283,11 +1284,13 @@ static void *go2_presenter_renderloop(void *arg)
     go2_presenter_t *presenter = (go2_presenter_t *)arg;
     go2_frame_buffer_t *prevFrameBuffer = NULL;
 
-    presenter->terminating = false;
-    while (!presenter->terminating)
+    for (;;)
     {
-        sem_wait(&presenter->usedSem);
-        if (presenter->terminating)
+        while (sem_wait(&presenter->usedSem) != 0 && errno == EINTR) {}
+        pthread_mutex_lock(&presenter->queueMutex);
+        const bool terminating = presenter->terminating;
+        pthread_mutex_unlock(&presenter->queueMutex);
+        if (terminating)
             break;
 
         pthread_mutex_lock(&presenter->queueMutex);
@@ -1302,7 +1305,24 @@ static void *go2_presenter_renderloop(void *arg)
 
         pthread_mutex_unlock(&presenter->queueMutex);
 
+        const auto benchmark_started = dstFrameBuffer->benchmark_generation
+            ? std::chrono::steady_clock::now()
+            : std::chrono::steady_clock::time_point{};
         go2_display_present(presenter->display, dstFrameBuffer);
+        if (dstFrameBuffer->benchmark_generation)
+        {
+            benchmark_presentation_completed(
+                BenchmarkPresentation::Fallback,
+                std::chrono::duration_cast<std::chrono::microseconds>(
+                    std::chrono::steady_clock::now() - benchmark_started).count(),
+                dstFrameBuffer->benchmark_generation);
+            dstFrameBuffer->benchmark_generation = 0;
+        }
+        pthread_mutex_lock(&presenter->queueMutex);
+        if (presenter->pendingPresentations > 0)
+            --presenter->pendingPresentations;
+        pthread_cond_broadcast(&presenter->drainCond);
+        pthread_mutex_unlock(&presenter->queueMutex);
 
         if (prevFrameBuffer)
         {
@@ -1361,6 +1381,7 @@ go2_presenter_t *go2_presenter_create(go2_display_t *display, uint32_t format, u
     sem_init(&result->freeSem, 0, BUFFER_COUNT);
 
     pthread_mutex_init(&result->queueMutex, NULL);
+    pthread_cond_init(&result->drainCond, NULL);
 
     pthread_create(&result->renderThread, NULL, go2_presenter_renderloop, result);
 
@@ -1369,10 +1390,16 @@ go2_presenter_t *go2_presenter_create(go2_display_t *display, uint32_t format, u
 
 void go2_presenter_destroy(go2_presenter_t *presenter)
 {
+    if (!presenter)
+        return;
+    go2_presenter_drain(presenter);
+    pthread_mutex_lock(&presenter->queueMutex);
     presenter->terminating = true;
+    pthread_mutex_unlock(&presenter->queueMutex);
     sem_post(&presenter->usedSem);
 
     pthread_join(presenter->renderThread, NULL);
+    pthread_cond_destroy(&presenter->drainCond);
     pthread_mutex_destroy(&presenter->queueMutex);
 
     sem_destroy(&presenter->freeSem);
@@ -1401,14 +1428,27 @@ void go2_presenter_destroy(go2_presenter_t *presenter)
     free(presenter);
 }
 
+void go2_presenter_drain(go2_presenter_t *presenter)
+{
+    if (!presenter)
+        return;
+    pthread_mutex_lock(&presenter->queueMutex);
+    while (presenter->pendingPresentations > 0 && !presenter->terminating)
+        pthread_cond_wait(&presenter->drainCond, &presenter->queueMutex);
+    pthread_mutex_unlock(&presenter->queueMutex);
+}
+
 void go2_presenter_post(go2_presenter_t *presenter, go2_surface_t *surface, int srcX, int srcY, int srcWidth, int srcHeight, int dstX, int dstY, int dstWidth, int dstHeight, go2_rotation_t rotation)
 {
     // During fast-forward the core must never be paced by the display queue.
     // If all scanout buffers are busy, discard this presentation attempt and
     // let retro_run() continue immediately. Normal gameplay remains blocking.
     if (input_ffwd_requested) {
-        if (sem_trywait(&presenter->freeSem) != 0)
+        if (sem_trywait(&presenter->freeSem) != 0) {
+            if (benchmark_collecting())
+                benchmark_presentation_rejected();
             return;
+        }
     } else {
         while (sem_wait(&presenter->freeSem) != 0 && errno == EINTR) {
         }
@@ -1423,16 +1463,21 @@ void go2_presenter_post(go2_presenter_t *presenter, go2_surface_t *surface, int 
     }
 
     go2_surface_t *dstSurface = go2_frame_buffer_surface_get(dstFrameBuffer);
+    dstFrameBuffer->benchmark_generation = benchmark_capture_generation();
 
    
     go2_surface_blit(surface, srcX, srcY, srcWidth, srcHeight, dstSurface, dstX, dstY, dstWidth, dstHeight, rotation);
 
+    pthread_mutex_lock(&presenter->queueMutex);
     int push_result = go2_queue_push(presenter->usedFrameBuffers, dstFrameBuffer);
     if (push_result != 0)
     {
+        pthread_mutex_unlock(&presenter->queueMutex);
         logger.log(Logger::ERR,"queue push failed.\n");
         exit(1);
     }
+    ++presenter->pendingPresentations;
+    pthread_mutex_unlock(&presenter->queueMutex);
 
     sem_post(&presenter->usedSem);
 }
@@ -1444,15 +1489,27 @@ bool go2_presenter_post_direct(go2_presenter_t *presenter, go2_surface_t *surfac
 {
     if (!presenter)
         return false;
-    return go2_display_present_surface(presenter->display, surface, srcX, srcY,
-                                       srcWidth, srcHeight, dstX, dstY,
-                                       dstWidth, dstHeight, rotation);
+    go2_presenter_drain(presenter);
+    const uint64_t generation = benchmark_capture_generation();
+    const auto started = generation ? std::chrono::steady_clock::now()
+                                    : std::chrono::steady_clock::time_point{};
+    const bool presented = go2_display_present_surface(
+        presenter->display, surface, srcX, srcY, srcWidth, srcHeight,
+        dstX, dstY, dstWidth, dstHeight, rotation);
+    if (presented && generation)
+        benchmark_presentation_completed(
+            BenchmarkPresentation::Direct,
+            std::chrono::duration_cast<std::chrono::microseconds>(
+                std::chrono::steady_clock::now() - started).count(), generation);
+    return presented;
 }
 
 void go2_presenter_direct_disable(go2_presenter_t *presenter)
 {
-    if (presenter)
+    if (presenter) {
+        go2_presenter_drain(presenter);
         go2_display_direct_disable(presenter->display);
+    }
 }
 
 void go2_presenter_black(go2_presenter_t *presenter, int dstX, int dstY, int dstWidth, int dstHeight, go2_rotation_t rotation)
@@ -1469,12 +1526,16 @@ void go2_presenter_black(go2_presenter_t *presenter, int dstX, int dstY, int dst
 
     
 
+    pthread_mutex_lock(&presenter->queueMutex);
     int push_result = go2_queue_push(presenter->usedFrameBuffers, dstFrameBuffer);
     if (push_result != 0)
     {
+        pthread_mutex_unlock(&presenter->queueMutex);
         logger.log(Logger::ERR,"queue push failed.\n");
         exit(1);
     }
+    ++presenter->pendingPresentations;
+    pthread_mutex_unlock(&presenter->queueMutex);
 
     sem_post(&presenter->usedSem);
 }
@@ -1669,8 +1730,11 @@ void go2_presenter_post_multiple(go2_presenter_t *presenter, go2_surface_t *surf
     // Keep the emulation thread non-blocking while fast-forwarding. This path
     // is used whenever status elements or screen decorations are composited.
     if (input_ffwd_requested) {
-        if (sem_trywait(&presenter->freeSem) != 0)
+        if (sem_trywait(&presenter->freeSem) != 0) {
+            if (benchmark_collecting())
+                benchmark_presentation_rejected();
             return;
+        }
     } else {
         while (sem_wait(&presenter->freeSem) != 0 && errno == EINTR) {
         }
@@ -1689,6 +1753,7 @@ void go2_presenter_post_multiple(go2_presenter_t *presenter, go2_surface_t *surf
     }
 
     go2_surface_t *dstSurface = go2_frame_buffer_surface_get(dstFrameBuffer);
+    dstFrameBuffer->benchmark_generation = benchmark_capture_generation();
     const bool rotated_canvas = rotation == GO2_ROTATION_DEGREES_90 ||
                                 rotation == GO2_ROTATION_DEGREES_270;
     const int canvas_width = rotated_canvas ? dstSurface->height : dstSurface->width;
@@ -1821,6 +1886,7 @@ void go2_presenter_post_multiple(go2_presenter_t *presenter, go2_surface_t *surf
 
     pthread_mutex_lock(&presenter->queueMutex);
     go2_queue_push(presenter->usedFrameBuffers, dstFrameBuffer);
+    ++presenter->pendingPresentations;
     pthread_mutex_unlock(&presenter->queueMutex);
 
     sem_post(&presenter->usedSem);
