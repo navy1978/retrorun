@@ -26,6 +26,11 @@ Version 3.1.2 (Jul 23, 2026)
   accounting across fast-forward, save-state loading and shutdown.
 - Harden shutdown for legacy Flycast/Flycast2021 cores that crash during
   `retro_unload_game`, while preserving normal core deinitialization.
+- Move RetroAchievements fallback hashing for large CDI images to a background
+  worker so unsupported optical-disc images no longer stall the render thread
+  during game identification.
+- Add diagnostics and helper tooling for RetroAchievements large-content
+  startup and exit-during-hash regression testing.
 - Add regression tests for benchmark serialization, audio workers and runtime
   transitions.
 - Add technical benchmark documentation for RG353M SDL2 rendering and
