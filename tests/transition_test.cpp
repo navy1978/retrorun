@@ -4,28 +4,42 @@
 #include "savestate.h"
 
 #include <cassert>
+#include <chrono>
 #include <cstdio>
 #include <cstring>
 #include <pthread.h>
 #include <string>
+#include <thread>
 
 Logger logger(Logger::ERR);
 RetroCore g_retro = {};
 pthread_t main_thread_id;
 bool input_slot_memory_save_done = false;
+bool input_slot_memory_load_done = false;
+bool input_slot_memory_load_requested = false;
+bool input_pause_requested = false;
+bool pause_requested = false;
+bool lastLoadSaveStateDoneOk = true;
 double lastLoadSaveStateDoneTime = 0.0;
 
 namespace {
 int audio_flushes = 0;
 int video_barriers = 0;
 int unserializes = 0;
+int serialize_size_calls = 0;
 int disk_step = 0;
 bool ejected = false;
 
+size_t fake_serialize_size()
+{
+    ++serialize_size_calls;
+    return 8;
+}
+
 bool fake_unserialize(const void*, size_t)
 {
-    assert(audio_flushes == 1);
-    assert(video_barriers == 1);
+    assert(audio_flushes == unserializes + 1);
+    assert(video_barriers == unserializes + 1);
     ++unserializes;
     return true;
 }
@@ -33,8 +47,8 @@ bool fake_unserialize(const void*, size_t)
 bool set_eject(bool value)
 {
     if (value) {
-        assert(audio_flushes == 2);
-        assert(video_barriers == 2);
+        assert(audio_flushes == unserializes + 1);
+        assert(video_barriers == unserializes + 1);
         assert(disk_step == 0);
         disk_step = 1;
     } else {
@@ -86,6 +100,25 @@ int main()
     std::fclose(file);
     assert(LoadState(state_path) == 0);
     assert(unserializes == 1);
+    std::remove(state_path);
+
+    // A core may report a dynamic serialization size. Loading must pass the
+    // complete file to retro_unserialize() instead of rejecting a valid state
+    // by comparing it with the current frame's size.
+    g_retro.retro_serialize_size = fake_serialize_size;
+    file = std::fopen(state_path, "wb");
+    assert(file);
+    assert(std::fwrite(state, 1, sizeof(state), file) == sizeof(state));
+    std::fclose(file);
+    assert(StartLoadStateAsync(state_path, 0, true));
+    while (LoadStateProgress() < 100)
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    PumpLoadStateAsync();
+    assert(lastLoadSaveStateDoneOk);
+    assert(input_slot_memory_load_done);
+    assert(unserializes == 2);
+    assert(serialize_size_calls == 0);
+    ShutdownLoadStateAsync();
     std::remove(state_path);
 
     retro_disk_control_ext_callback disk = {};

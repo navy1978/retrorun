@@ -855,7 +855,7 @@ static void finishLoadingScreenWhenReady(const char *frame_type)
         return;
 
     logger.log(Logger::DEB,
-               "Loading screen: disabled after %d valid %s frames and at least 700 ms",
+               "Loading screen: disabled after %d valid %s frames and at least 450 ms",
                timeCorrectFrame, frame_type);
     showLoading = false;
     twiceTimeCorrectFrame = false;

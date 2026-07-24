@@ -771,18 +771,7 @@ void loadSaveSlotWrapper(int button, int slotNumber, std::string type)
         if (type == "Load")
         {
             logger.log(Logger::DEB, "loading file :%s\n", savePath1.c_str());
-            int loaded = LoadState(savePath1.c_str());
-            lastLoadSaveStateDoneOk = (loaded >= 0);
-            input_slot_memory_load_done = true;
-            lastLoadSaveStateDoneTime = (double)time(NULL);
-            if (loaded >= 0)
-            {
-                // Loading while the game is paused must resume execution so
-                // the core can expose and present the restored frame. Keeping
-                // either flag set leaves the confirmation menu frozen.
-                input_pause_requested = false;
-                pause_requested = false;
-            }
+            StartLoadStateAsync(savePath1.c_str(), slotNumber, false);
         }
         else
         {

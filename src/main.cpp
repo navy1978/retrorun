@@ -448,15 +448,9 @@ int main(int argc, char *argv[])
             input_message = true;
             status_message = "Loading saved game...";
             logger.log(Logger::DEB, "Loading saved state - File '%s'", savePath);
-
-            if (isParalleln64() || isDosBox() || isFlycast2021())
-            {
-                sleep(1);
-                g_retro.retro_run();
-            }
-
-            LoadState(savePath);
-            sleep(3);
+            input_slot_memory_load_requested = true;
+            lastLoadSaveStateRequestTime = static_cast<double>(time(NULL));
+            StartLoadStateAsync(savePath, 0, true);
         }
     }
 
@@ -937,6 +931,7 @@ int main(int argc, char *argv[])
             g_retro.retro_run();
             if (measureBenchmarkFrame)
                 benchmark_core_end();
+            PumpLoadStateAsync();
 
             struct retro_system_av_info pendingInfo = {};
             if (core_take_pending_av_info(&pendingInfo))
@@ -976,6 +971,7 @@ int main(int argc, char *argv[])
                     steady_clock::now() - coreStarted).count();
             }
         }
+        PumpLoadStateAsync();
 
         if (input_ffwd_requested != previousFastForwardState) {
             if (input_ffwd_requested)
@@ -1025,7 +1021,8 @@ int main(int argc, char *argv[])
             core_reset_synchronized();
             achievements_reset();
         }
-        else if (input_slot_memory_load_requested && !continueToShowSaveLoadStateImage())
+        else if (input_slot_memory_load_requested && !LoadStateAsyncBusy() &&
+                 !continueToShowSaveLoadStateImage())
         {
             loadSaveSlotWrapper(A_BUTTON, currentSlot, "Load");
         }
@@ -1034,7 +1031,7 @@ int main(int argc, char *argv[])
             loadSaveSlotWrapper(A_BUTTON, currentSlot, "Save");
         }
 
-        if (!continueToShowSaveLoadStateImage())
+        if (!LoadStateAsyncBusy() && !continueToShowSaveLoadStateImage())
         {
             input_slot_memory_load_requested = false;
             input_slot_memory_save_requested = false;
@@ -1197,6 +1194,8 @@ int main(int argc, char *argv[])
     free(savePath);
 
     logger.log(Logger::DEB, "Unloading core and deinit audio and video...");
+    ShutdownLoadStateAsync();
+    logger.log(Logger::DEB, "Shutdown: save-state loader stopped");
     network_status_shutdown();
     logger.log(Logger::DEB, "Shutdown: network status stopped");
     decoration_catalog_shutdown();

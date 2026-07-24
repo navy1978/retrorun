@@ -31,6 +31,8 @@ Version 3.1.2 (Jul 23, 2026)
   during game identification.
 - Add diagnostics and helper tooling for RetroAchievements large-content
   startup and exit-during-hash regression testing.
+- Load save states asynchronously from disk, with on-screen progress and clear
+  failure messages for missing, empty, truncated or core-rejected state files.
 - Add regression tests for benchmark serialization, audio workers and runtime
   transitions.
 - Add technical benchmark documentation for RG353M SDL2 rendering and

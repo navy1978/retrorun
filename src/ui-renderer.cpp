@@ -9,6 +9,7 @@
 #include "file_browser.h"
 #include "achievements.h"
 #include "decoration.h"
+#include "savestate.h"
 #include "fonts.h"
 
 #include "imgs/imgs_retrorun.h"
@@ -35,8 +36,9 @@ enum class PopupIcon { Pause, FastForward, Camera, Exit, Save, Load, Success,
 
 class PopupMessage {
 public:
-    PopupMessage(PopupIcon icon, std::string text, uint16_t color = 0xffff)
-        : icon_(icon), text_(std::move(text)), color_(color) {}
+    PopupMessage(PopupIcon icon, std::string text, uint16_t color = 0xffff,
+                 int progress = -1)
+        : icon_(icon), text_(std::move(text)), color_(color), progress_(progress) {}
 
     int width() const {
         constexpr int text_x = 48;
@@ -80,6 +82,18 @@ public:
                                          text_.c_str(), 0x0000);
         basic_text_out16_nf_color_clipped(pixels, stride, w, h, 48, 18,
                                          text_.c_str(), color_);
+        if (progress_ >= 0) {
+            const int clamped = std::clamp(progress_, 0, 100);
+            const int x0 = 48;
+            const int y0 = 34;
+            const int x1 = w - 10;
+            const int y1 = 39;
+            fillRect(pixels, stride, w, h, x0, y0, x1, y1, 0x2104);
+            fillRect(pixels, stride, w, h, x0 + 1, y0 + 1, x1 - 1, y1 - 1, 0x0000);
+            const int fill = (x1 - x0 - 2) * clamped / 100;
+            if (fill > 0)
+                fillRect(pixels, stride, w, h, x0 + 1, y0 + 1, x0 + fill, y1 - 1, 0xfbe4);
+        }
         rr_surface_unmap(target);
     }
 
@@ -87,6 +101,7 @@ private:
     PopupIcon icon_;
     std::string text_;
     uint16_t color_;
+    int progress_;
 
     static void pixel(uint16_t* p, int stride, int w, int h, int x, int y, uint16_t c) {
         if (x >= 0 && x < w && y >= 0 && y < h) p[y * stride + x] = c;
@@ -279,8 +294,10 @@ void renderStateMessage() {
     unsigned short color = WHITE;
     PopupIcon icon = PopupIcon::Slot;
     if (input_slot_memory_load_done) {
-        label = lastLoadSaveStateDoneOk ? "Slot " + std::to_string(currentSlot) + " loaded"
-                                        : "Load failed";
+        label = LoadStateStatusMessage();
+        if (label.empty())
+            label = lastLoadSaveStateDoneOk ? "Slot " + std::to_string(currentSlot) + " loaded"
+                                            : "Load failed";
         icon = lastLoadSaveStateDoneOk ? PopupIcon::Success : PopupIcon::Error;
         if (!lastLoadSaveStateDoneOk) color = RED;
     } else if (input_slot_memory_save_done) {
@@ -290,7 +307,9 @@ void renderStateMessage() {
         label = "Core reset";
         icon = PopupIcon::Reset;
     } else if (input_slot_memory_load_requested) {
-        label = "Loading slot " + std::to_string(currentSlot) + "...";
+        label = LoadStateStatusMessage();
+        if (label.empty())
+            label = "Loading slot " + std::to_string(currentSlot) + "...";
         color = ORANGE;
         icon = PopupIcon::Load;
     } else if (input_slot_memory_save_requested) {
@@ -300,9 +319,11 @@ void renderStateMessage() {
     } else {
         label = "Slot " + std::to_string(currentSlot) + " selected";
     }
+    const int progress = input_slot_memory_load_requested ? LoadStateProgress() : -1;
     if (rendered_surface != status_surface_bottom_center ||
-        rendered_label != label || rendered_color != color) {
-        renderPopup(status_surface_bottom_center, PopupMessage(icon, label, color));
+        rendered_label != label || rendered_color != color ||
+        progress >= 0) {
+        renderPopup(status_surface_bottom_center, PopupMessage(icon, label, color, progress));
         rendered_surface = status_surface_bottom_center;
         rendered_label = label;
         rendered_color = color;
@@ -433,7 +454,7 @@ bool uiRenderOverlays(const void* frame, unsigned width, unsigned height, size_t
                               0, 0, overlay_width, overlay_height,
                               x, y, w, h, getRotation());
             uiNotifyLoadingPresented();
-            rr_presenter_wait_for_loading_screen(presenter, 700);
+            rr_presenter_wait_for_loading_screen(presenter, 450);
         } else {
             rr_surface_t* base = isOpenGL ? gles_surface : surface;
             const int source_y = isOpenGL ? gs_h - static_cast<int>(height) : 0;
@@ -466,7 +487,7 @@ void uiNotifyLoadingPresented() {
 }
 
 bool uiLoadingMinimumDurationElapsed() {
-    constexpr int64_t minimum_duration_ns = 700LL * 1000LL * 1000LL;
+    constexpr int64_t minimum_duration_ns = 450LL * 1000LL * 1000LL;
     const int64_t started = loading_started_ns.load();
     return started != 0 && steadyNowNs() - started >= minimum_duration_ns;
 }

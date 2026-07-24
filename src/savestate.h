@@ -10,6 +10,12 @@ Copyright (C) 2021-present  navy1978
 
 // Save state operations
 int LoadState(const char *saveName);
+bool StartLoadStateAsync(const char *saveName, int slotNumber, bool autoLoad);
+void PumpLoadStateAsync();
+bool LoadStateAsyncBusy();
+int LoadStateProgress();
+std::string LoadStateStatusMessage();
+void ShutdownLoadStateAsync();
 void SaveState(const char *saveName);
 int LoadSram(const char *saveName);
 void SaveSram(const char *saveName);
