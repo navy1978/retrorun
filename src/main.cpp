@@ -1223,12 +1223,16 @@ int main(int argc, char *argv[])
     logger.log(Logger::DEB, "Shutdown: input resources destroyed");
 
     // The legacy Flycast 2021 shared object hangs from its ELF finalizers when
-    // dlclose() is called, even after retro_deinit() has completed. Benchmark
-    // mode has already released every frontend resource at this point, so
-    // publish the result and let process exit unload this one faulty core.
-    if (benchmark_requested() && isFlycast2021())
+    // dlclose() is called, even after retro_deinit() has completed. Every
+    // frontend resource and persistent save has already been released at this
+    // point, so let process exit unload this one faulty core. This is the safe
+    // equivalent of the historical GO2 SIGUSR1 shutdown workaround and is
+    // required for interactive sessions as well as benchmarks.
+    if (isFlycast2021())
     {
         const bool benchmarkOk = benchmark_finish_and_report();
+        logger.log(Logger::WARN,
+                   "Legacy Flycast shutdown complete; exiting without dlclose to avoid hanging ELF finalizers");
         std::fflush(nullptr);
         std::_Exit(benchmarkOk ? 0 : EXIT_FAILURE);
     }

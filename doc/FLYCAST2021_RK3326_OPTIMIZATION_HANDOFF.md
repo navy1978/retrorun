@@ -1,6 +1,6 @@
 # Flycast 2021 RK3326 optimization handoff
 
-Last update: 2026-07-23
+Last update: 2026-07-24
 
 This document is the self-contained continuation point for the Flycast 2021
 performance work. It incorporates
@@ -95,6 +95,15 @@ atomic and audio/vblank groups reduced OpenAL overruns but also reduced
 emulation throughput and moved the pressure into producer-late events. Do not
 update the low-end core wholesale for performance. Full evidence is in
 `benchmarks/rg351v-amberelec-flycast2021-upstream-2026-sonic-adventure-2-2026-07-23/REPORT.md`.
+
+The configurable SH4-clock option from the fork audit was tested on
+2026-07-24 using the same saved Sonic scene. Two matched 90-second runs averaged
+37.013 emulated frames/s at the accurate 200 MHz default and 36.818 at
+180 MHz, making 180 MHz 0.53% slower. Mean core time and audio underruns were
+also slightly worse at 180 MHz. Single 160 and 140 MHz runs did not recover a
+gain; 140 MHz fell to 36.372 frames/s. Keep 200 MHz and reject SH4 downclocking
+as a performance option for this workload. Results are in
+`benchmarks/rg351v-amberelec-flycast2021-sonic-adventure-2-sh4-clock-2026-07-24/`.
 
 The same final configurable build also passed its manual Sonic visual gate
 with adjacent state elision enabled and strip merge disabled: gameplay,
@@ -837,11 +846,13 @@ absolute timing values.
 
 ## Experimental patches archived in the Flycast fork
 
-The 27 Flycast/Flycast 2021 patches produced during this campaign are stored,
+The 28 Flycast/Flycast 2021 patches produced during this campaign are stored,
 together with a SHA-256 manifest, in
 [`navy1978/flycast2021-lowend`](https://github.com/navy1978/flycast2021-lowend/blob/master/docs/PATCH_ARCHIVE.md)
-at commit `9f1d885a`. The archive includes the renderer, GL diagnostic,
-buffer-streaming, AICA/audio and AmberELEC packaging experiments.
+locally after commit `9f1d885a`. The updated archive includes the renderer, GL
+diagnostic, buffer-streaming, AICA/audio, AmberELEC packaging and configurable
+SH4-clock experiments. The 2026-07-24 fork audit and SH4 test procedure are
+staged in that fork's `docs` directory and are not yet committed.
 
 The shipping implementation at commit `aaf6d44c` is functionally identical to
 applying `flycast2021-configurable-render-options.patch` to base revision
@@ -889,6 +900,7 @@ complete requested Cortex-A35 flag set and are superseded.
 | state elision + 256-frame core audio batch, RGB565 | `/home/navy78/flycast2021_4c293f3_state_elision_audio256_rgb565_a35_libretro.so` | `92010ef1648b8470ea572d94bd51b065df7868b72dffbcc20c2e9d98b911dfdc` |
 | state elision + 1024-frame core audio batch, RGB565 | `/home/navy78/flycast2021_4c293f3_state_elision_audio1024_rgb565_a35_libretro.so` | `32fe0c3ab642f4bdad48d0497e9d708801ef3725728f256cb5df678a5c6b1017` |
 | state elision + AICA invariant hoist, RGB565 | `/home/navy78/flycast2021_4c293f3_state_elision_aica_hoist_rgb565_a35_libretro.so` | `006ff9ef706bff468dc9acfb9a1a0ac65b4940cc5bc34d183b4a6f2915e4c5bf` |
+| integrated configurable SH4 clock, experimental timing hack | `/home/navy78/flycast-candidates-20260724/flycast2021_lowend_integrated_sh4clock_a35_libretro.so` | `7ed7aca13fabddec62d12b257b4a29d7521b1c566de76af31ab91a2f01f72e52` |
 
 The float-parameter cache, 256/1024 batch builds and AICA-hoist build are
 measured rejected candidates, not release artifacts. The frontend binary used
@@ -907,6 +919,17 @@ did not replace the installed or previous test executable.
 All current A35 candidates compiled successfully as AArch64 ELF shared objects
 with the AmberELEC identity, RGB565 libretro format and the established target
 flags. Compilation is not functional validation.
+
+The integrated SH4-clock option is deliberately outside the normal
+optimization invariant:
+values other than its 200 MHz default alter emulated timing to reduce or
+increase guest CPU work. At 200 MHz it executes the exact original decoder
+path. It changes no serialization structures and retains both low-end renderer
+options, but it must be evaluated as an explicit compatibility/performance
+hack rather than evidence of a faster accurate emulator. Test 200, 180, 160
+and optionally 140 MHz in isolation before combining it with inaccurate strip
+merge. The patch and detailed test order are documented in the Flycast fork's
+`docs/SH4_CLOCK_EXPERIMENT.md`.
 
 VM source worktrees:
 
@@ -951,6 +974,11 @@ VM source worktrees:
 11. Do not import the 2026 Flycast2021 upstream bundle for speed. Corrected
     low-end ablations found the safe-audio group neutral; dynarec, TexCache,
     atomic-only and audio/vblank groups all reduced Sonic throughput.
+12. The configurable SH4-clock implementation is complete and retained as an
+    opt-in core option. Repeated 200/180 MHz
+    testing plus single 160/140 MHz runs found no gain; 180 MHz averaged 0.53%
+    slower and 140 MHz regressed further. Keep 200 MHz and do not promote
+    downclocking as a performance option for the Sonic/RK3326 workload.
 
 For visual validation include, where locally available and legally owned:
 
@@ -1019,6 +1047,7 @@ flycast2021_enable_dsp = disabled
 flycast2021_delay_frame_swapping = disabled
 flycast2021_frame_skipping = disabled
 flycast2021_framerate = fullspeed
+flycast2021_sh4clock = 200
 flycast2021_adjacent_state_elision = disabled
 flycast2021_translucent_strip_merge = disabled
 ```

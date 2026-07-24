@@ -281,13 +281,22 @@ the basic integration does not depend on thumbnail support.
 RetroAchievements and large optical-disc images
 -----------------------------------------------
 
-- Investigate RetroRun game identification for large `.cue`/multi-track images.
-  The RG351V Dead or Alive 2 test used a 366-byte CUE plus approximately
-  1.1 GB of BIN tracks. RetroRun logged the file-backed optical path but then
-  reported `source=file, bytes=0` while identifying the CUE.
-- Compare this path with RetroArch's current rcheevos integration, especially
-  its streaming/seek-based hashing of CUE/GDI tracks. Do not read an entire
-  optical image into RAM.
+- The reported large-CDI startup stall is now understood. Bundled rcheevos has
+  no CDI mapping/reader, falls back to `rc_hash_whole_file()`, and reads at
+  most its first 64 MiB synchronously. RetroRun previously performed that work
+  from a login completion callback pumped on the emulation/render thread.
+- The local mitigation hashes that CDI fallback on a worker and submits the
+  result to `rc_client_begin_load_game()` on the main thread. Complete the
+  on-device regression matrix described in
+  `doc/RETROACHIEVEMENTS_LARGE_CONTENT.md` before release.
+- Current RetroArch uses the same synchronous initial rcheevos identification
+  entry point and its bundled rcheevos also has no CDI mapping. Its lifecycle
+  generation checks do not provide a native CDI hash. GDI, CUE or CHD remains
+  preferable when achievements are required.
+- Keep investigating the distinct `.cue`/multi-track Dead or Alive 2 case. It
+  used a 366-byte CUE plus approximately 1.1 GB of BIN tracks. The log's
+  `source=file, bytes=0` is expected for file-backed optical hashing; rcheevos
+  must follow the descriptor and read the required track sectors.
 - Add a reproducible test containing a small CUE descriptor and sparse/mock
   large tracks, including files larger than 1 GiB and multi-track layouts.
 - Keep this separate from core loading: the same Dead or Alive 2 image also

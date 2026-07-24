@@ -11,6 +11,7 @@
 extern "C" {
 #include "rc_client.h"
 #include "rc_error.h"
+#include "rc_hash.h"
 #include "rc_libretro.h"
 }
 
@@ -98,8 +99,21 @@ std::mutex http_mutex;
 std::vector<std::unique_ptr<HttpResult>> http_completed;
 std::atomic<unsigned> http_results_pending{0};
 std::vector<std::thread> http_workers;
+struct HashResult {
+    std::string hash;
+    uint64_t elapsed_ms = 0;
+    bool success = false;
+};
+std::mutex hash_mutex;
+std::unique_ptr<HashResult> hash_completed;
+std::atomic<bool> hash_result_pending{false};
+std::atomic<bool> hash_in_progress{false};
+std::thread hash_worker;
+bool use_background_fallback_hash = false;
 
 void RC_CCONV core_memory_info(uint32_t id, rc_libretro_core_memory_info_t* info);
+void RC_CCONV game_loaded(int result, const char* error,
+                          rc_client_t* active_client, void* userdata);
 
 void fill_notification_rect(uint16_t* pixels, int stride, int width, int height,
                             int x0, int y0, int x1, int y1, uint16_t color) {
@@ -256,6 +270,32 @@ void pump_http() {
             result->body.c_str(), result->body.size(), result->status};
         result->callback(&response, result->callback_data);
     }
+}
+
+void pump_background_hash() {
+    if (!hash_result_pending.load(std::memory_order_acquire)) return;
+
+    std::unique_ptr<HashResult> result;
+    {
+        std::lock_guard<std::mutex> lock(hash_mutex);
+        result = std::move(hash_completed);
+        hash_result_pending.store(false, std::memory_order_release);
+    }
+    if (hash_worker.joinable()) hash_worker.join();
+    if (!result || !client) return;
+
+    logger.log(Logger::INF,
+               "RetroAchievements background hash: result=%s, elapsed_ms=%llu",
+               result->success ? result->hash.c_str() : "failed",
+               static_cast<unsigned long long>(result->elapsed_ms));
+    if (!result->success) {
+        game_load_error = "hash generation failed";
+        notify("Achievements unavailable: hash generation failed");
+        return;
+    }
+
+    game_load_error.clear();
+    rc_client_begin_load_game(client, result->hash.c_str(), game_loaded, nullptr);
 }
 
 bool decode_badge_png(const std::vector<unsigned char>& data, BadgeImage& badge) {
@@ -460,6 +500,44 @@ void identify_game() {
                "RetroAchievements identify: path='%s', source=%s, bytes=%zu",
                content.c_str(), data ? "memory" : "file", content_data.size());
     game_load_error.clear();
+
+    // rcheevos does not currently have a CDI reader or extension mapping. Its
+    // generic fallback hashes up to the first 64 MiB of the file. Even that
+    // sequential read can block the render thread long enough to look like a
+    // frontend hang on low-end storage. Preserve the fallback hash, but
+    // calculate it away from the emulation thread.
+    if (use_background_fallback_hash) {
+        const std::string path = content;
+        hash_in_progress.store(true, std::memory_order_release);
+        hash_worker = std::thread([path]() {
+            const auto started = std::chrono::steady_clock::now();
+            auto result = std::make_unique<HashResult>();
+            rc_hash_iterator_t iterator = {};
+            char hash[33] = {};
+            rc_hash_initialize_iterator(&iterator, path.c_str(), nullptr, 0);
+            // The global rcheevos message callbacks write through RetroRun's
+            // logger. Suppress them here to avoid concurrent log writes from
+            // the hash worker; the main thread reports success/failure below.
+            iterator.callbacks.verbose_message = nullptr;
+            iterator.callbacks.error_message = nullptr;
+            result->success = rc_hash_iterate(hash, &iterator) != 0;
+            if (result->success) result->hash = hash;
+            rc_hash_destroy_iterator(&iterator);
+            result->elapsed_ms = static_cast<uint64_t>(
+                std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::steady_clock::now() - started).count());
+            {
+                std::lock_guard<std::mutex> lock(hash_mutex);
+                hash_completed = std::move(result);
+            }
+            hash_in_progress.store(false, std::memory_order_release);
+            hash_result_pending.store(true, std::memory_order_release);
+        });
+        logger.log(Logger::INF,
+                   "RetroAchievements: hashing unsupported image fallback in background");
+        return;
+    }
+
     rc_client_begin_identify_and_load_game(client, 0, content.c_str(), data, content_data.size(),
                                            game_loaded, nullptr);
 }
@@ -542,7 +620,10 @@ void achievements_init(const char* content_path) {
     const bool file_backed_content = extension == ".cue" || extension == ".gdi" ||
                                      extension == ".m3u" || extension == ".ccd" ||
                                      extension == ".toc" || extension == ".chd" ||
-                                     extension == ".iso" || extension == ".pbp";
+                                     extension == ".iso" || extension == ".pbp" ||
+                                     extension == ".cdi";
+    use_background_fallback_hash =
+        extension == ".cdi" && !path_error && content_size > maximum_buffered_content;
     if (!path_error && !file_backed_content && content_size > 0 &&
         content_size <= maximum_buffered_content) {
         std::ifstream input(content, std::ios::binary);
@@ -608,6 +689,7 @@ void achievements_frame() {
         badge_results_pending.load(std::memory_order_relaxed) == 0)
         return;
     pump_http();
+    pump_background_hash();
     pump_badges();
     if (client && rc_client_is_game_loaded(client)) {
 #ifdef DEBUG
@@ -645,6 +727,7 @@ void achievements_idle() {
         badge_results_pending.load(std::memory_order_relaxed) == 0)
         return;
     pump_http();
+    pump_background_hash();
     pump_badges();
     if (client) rc_client_idle(client);
     if (!notification_text.empty()) update_notification();
@@ -834,8 +917,10 @@ void achievements_view_render(rr_surface_t* surface, int width, int height) {
                                       "Fetching game data", "Starting session", "Loaded", "Aborted"};
         const int state = client ? rc_client_get_load_game_state(client)
                                  : RC_CLIENT_LOAD_GAME_STATE_NONE;
-        const std::string state_text = std::string("State: ") +
-            ((state >= 0 && state <= RC_CLIENT_LOAD_GAME_STATE_ABORTED) ? states[state] : "Unknown");
+        const std::string state_text = hash_in_progress.load(std::memory_order_acquire)
+            ? "State: Hashing game in background"
+            : std::string("State: ") +
+                ((state >= 0 && state <= RC_CLIENT_LOAD_GAME_STATE_ABORTED) ? states[state] : "Unknown");
         draw_wrapped(pixels, stride, width, height, 8, y, state_text, 0xbdf7, 2);
         if (!game_load_error.empty())
             draw_wrapped(pixels, stride, width, height, 8, y,
@@ -1024,6 +1109,13 @@ void achievements_change_media(const char* path) {
 }
 
 void achievements_shutdown() {
+    if (hash_worker.joinable()) hash_worker.join();
+    hash_in_progress.store(false, std::memory_order_relaxed);
+    hash_result_pending.store(false, std::memory_order_relaxed);
+    {
+        std::lock_guard<std::mutex> lock(hash_mutex);
+        hash_completed.reset();
+    }
     for (std::thread& worker : http_workers) if (worker.joinable()) worker.join();
     http_workers.clear();
     http_results_pending.store(0, std::memory_order_relaxed);
@@ -1036,6 +1128,7 @@ void achievements_shutdown() {
     rc_libretro_memory_destroy(&memory);
     content.clear(); enabled = false;
     content_data.clear();
+    use_background_fallback_hash = false;
     used_password_login = false;
     login_pending = false;
     login_error.clear();
