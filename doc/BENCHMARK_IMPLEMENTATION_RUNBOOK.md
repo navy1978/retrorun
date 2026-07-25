@@ -83,29 +83,29 @@ names.
 | `src/main.cpp:847-860` | persistent cleanup | Benchmark must not save SRAM or savestates. |
 | `src/main.cpp:870-884` | SDL cleanup | Stop/join workers before core unload while keeping callback-safe backend state until core deinit. |
 | `src/main.cpp:885-902` | GO2 cleanup | Audio/video are destroyed before core deinit. `exitFlag` stays `-1`, so the forced `SIGUSR1` branch is always selected. Remove it. |
-| `src/core_loader.h:13-32` | `RetroCore` | Track initialized/game-loaded/deinitialized state sufficiently to guarantee exactly-once lifecycle calls. |
-| `src/core_loader.cpp:308-366` | HW-render environment | SDL stores `context_destroy`; GO2 stores only `context_reset`. Store and call the GO2 destroy callback too. |
-| `src/core_loader.cpp:391-395` | `SET_SYSTEM_AV_INFO` | Currently rejected. Stage new AV info and apply FPS, sample rate, and geometry after `retro_run()`. |
-| `src/core_loader.cpp:575-626` | `core_load()` | Gate late callbacks during shutdown before unloading callback code. |
-| `src/core_loader.cpp:657-691` | `core_load_game()` | Close the ROM file and free temporary full-content data after `retro_load_game()`; initialize audio with complete FPS/sample-rate timing. |
-| `src/core_loader.cpp:700-712` | `core_unload()` | Missing `retro_unload_game()`, state clearing, and handle clearing. Replace with the unified synchronous lifecycle. |
+| `src/core/core_loader.h:13-32` | `RetroCore` | Track initialized/game-loaded/deinitialized state sufficiently to guarantee exactly-once lifecycle calls. |
+| `src/core/core_loader.cpp:308-366` | HW-render environment | SDL stores `context_destroy`; GO2 stores only `context_reset`. Store and call the GO2 destroy callback too. |
+| `src/core/core_loader.cpp:391-395` | `SET_SYSTEM_AV_INFO` | Currently rejected. Stage new AV info and apply FPS, sample rate, and geometry after `retro_run()`. |
+| `src/core/core_loader.cpp:575-626` | `core_load()` | Gate late callbacks during shutdown before unloading callback code. |
+| `src/core/core_loader.cpp:657-691` | `core_load_game()` | Close the ROM file and free temporary full-content data after `retro_load_game()`; initialize audio with complete FPS/sample-rate timing. |
+| `src/core/core_loader.cpp:700-712` | `core_unload()` | Missing `retro_unload_game()`, state clearing, and handle clearing. Replace with the unified synchronous lifecycle. |
 
 ### Shared audio engine and state transitions
 
 | Location | Owner | Finding / required change |
 | --- | --- | --- |
-| `src/audio.cpp:39-68` | global audio state | Replace fixed/scattered globals with one owned engine: dynamic staging, worker, bounded command queue, state, and diagnostics. |
-| `src/audio.cpp:75-99` | `audioThreadLoop()` | Queue mutexing is sound, but depth excludes in-flight data and backend wait is not cancellable. |
-| `src/audio.cpp:101-128` | `submitAudio()` | Empty queue permits an oversized chunk; backpressure is not counted. Bound queued plus in-flight frames. |
-| `src/audio.cpp:130-171` | `audio_init()` | Reset diagnostics and receive complete timing. Current `originalFps` is assigned later in `main`. |
-| `src/audio.cpp:173-193` | `audio_deinit()` | `join()` can hang if backend submission never returns. Request cancellation, acknowledge `Stop`, then join. |
-| `src/audio.cpp:195-207` | `audio_discard_pending()` | Clears staging/deque only, not in-flight or backend buffers. Replace with acknowledged end-to-end `Flush`. |
-| `src/audio.cpp:209-215` | `SetVolume()` | A late callback can reach a destroyed/null backend. Gate callbacks and make wrappers null-safe. |
-| `src/audio.cpp:234-255` | `core_audio_sample()` | Default buffer threshold is uninitialized for single-sample cores, causing tiny submissions. Replace packed signed shift with defined sample writes. |
-| `src/audio.cpp:260-312` | `core_audio_sample_batch()` | Threshold initialization exists only here; use bounds-checked dynamic staging and deliberate split/submission. |
-| `src/savestate.cpp:108-118` | `LoadState()` | Frontend audio clearing is incomplete; wait for acknowledged audio/video barriers before `retro_unserialize()`. |
-| `src/disk_control.cpp:32-52` | disk change | Does not reset queued/backend audio. Flush at the media-transition boundary. |
-| `src/achievements.cpp:425-427` | achievement reset | Calls `retro_reset()` directly; route it through the common reset operation. |
+| `src/audio/audio.cpp:39-68` | global audio state | Replace fixed/scattered globals with one owned engine: dynamic staging, worker, bounded command queue, state, and diagnostics. |
+| `src/audio/audio.cpp:75-99` | `audioThreadLoop()` | Queue mutexing is sound, but depth excludes in-flight data and backend wait is not cancellable. |
+| `src/audio/audio.cpp:101-128` | `submitAudio()` | Empty queue permits an oversized chunk; backpressure is not counted. Bound queued plus in-flight frames. |
+| `src/audio/audio.cpp:130-171` | `audio_init()` | Reset diagnostics and receive complete timing. Current `originalFps` is assigned later in `main`. |
+| `src/audio/audio.cpp:173-193` | `audio_deinit()` | `join()` can hang if backend submission never returns. Request cancellation, acknowledge `Stop`, then join. |
+| `src/audio/audio.cpp:195-207` | `audio_discard_pending()` | Clears staging/deque only, not in-flight or backend buffers. Replace with acknowledged end-to-end `Flush`. |
+| `src/audio/audio.cpp:209-215` | `SetVolume()` | A late callback can reach a destroyed/null backend. Gate callbacks and make wrappers null-safe. |
+| `src/audio/audio.cpp:234-255` | `core_audio_sample()` | Default buffer threshold is uninitialized for single-sample cores, causing tiny submissions. Replace packed signed shift with defined sample writes. |
+| `src/audio/audio.cpp:260-312` | `core_audio_sample_batch()` | Threshold initialization exists only here; use bounds-checked dynamic staging and deliberate split/submission. |
+| `src/core/savestate.cpp:108-118` | `LoadState()` | Frontend audio clearing is incomplete; wait for acknowledged audio/video barriers before `retro_unserialize()`. |
+| `src/core/disk_control.cpp:32-52` | disk change | Does not reset queued/backend audio. Flush at the media-transition boundary. |
+| `src/services/achievements.cpp:425-427` | achievement reset | Calls `retro_reset()` directly; route it through the common reset operation. |
 | `src/menu_setup.cpp:780-809` | state/reset menu | Centralize pause/resume/load/reset transitions so core, audio, and worker states cannot diverge. |
 
 ### GO2/OpenAL and SDL audio backends
@@ -116,34 +116,34 @@ names.
 | `src/go2/audio.cpp:58-115` | `go2_audio_create()` | Context detachment supports worker ownership, but initial/prebuffer state and OpenAL error handling are incomplete. |
 | `src/go2/audio.cpp:136-179` | `playAudio()` | Polls forever for `AL_BUFFERS_PROCESSED`. Add cancellation/timeout, underrun detection, queue depth, and recovery accounting. |
 | `src/go2/audio.cpp:184-204` | `go2_audio_submit()` | Return/report submission result and duration; remove obsolete timing globals. |
-| `src/platform_go2.cpp:107-112` | audio wrappers | Volume get/set dereference null `audio`; make the abstraction shutdown-safe. |
-| `src/platform_sdl.cpp:35-43` | `rr_audio` | Add pause, flush, cancel, validity, diagnostics, and submitted-state tracking. |
-| `src/platform_sdl.cpp:540-570` | `rr_audio_create()` | Returns an object even if `SDL_OpenAudioDevice()` fails; propagate initialization failure. |
-| `src/platform_sdl.cpp:572-623` | `rr_audio_submit()` | Clears queues beyond 250 ms without counting lost frames; count underrun, overrun, drops, max depth, and duration. |
+| `src/platform/platform_go2.cpp:107-112` | audio wrappers | Volume get/set dereference null `audio`; make the abstraction shutdown-safe. |
+| `src/platform/platform_sdl.cpp:35-43` | `rr_audio` | Add pause, flush, cancel, validity, diagnostics, and submitted-state tracking. |
+| `src/platform/platform_sdl.cpp:540-570` | `rr_audio_create()` | Returns an object even if `SDL_OpenAudioDevice()` fails; propagate initialization failure. |
+| `src/platform/platform_sdl.cpp:572-623` | `rr_audio_submit()` | Clears queues beyond 250 ms without counting lost frames; count underrun, overrun, drops, max depth, and duration. |
 
 ### Video, presenter, and direct scanout
 
 | Location | Owner | Finding / required change |
 | --- | --- | --- |
-| `src/video.cpp:54-66` | fast-forward counters | `presented` means accepted too early. Benchmark completion must originate in the backend. |
-| `src/video.cpp:135-329` | `video_configure()` | Runtime geometry change needs an orderly drain/reconfiguration path. |
-| `src/video.cpp:331-340` | `video_prepare_core_unload()` | Calls core `context_destroy` only on SDL; extend to GO2. |
-| `src/video.cpp:343-374` | `video_deinit()` | Can destroy resources while detached workers use them. Drain/join first and clear pointers. |
-| `src/video.cpp:790-840` | software refresh | Null data is a duplicate/no-new-frame callback, not a valid skipped frame. |
-| `src/video.cpp:842-909` | hardware refresh | A no-frame callback may re-present the prior GPU buffer; count duplicate and presentation independently. |
-| `src/video.cpp:915-956` | callback/fixed skip | General callback timing is absent and fixed skip returns before accounting. Add benchmark scopes and reason codes. |
-| `src/video.cpp:994-1000` | adaptive skip | Early return is uncounted; record it explicitly. |
-| `src/video.cpp:1003-1031` | FF throttle | Acceptance is counted before GO2 can reject a full queue. Separate accepted, queued, completed, and dropped. |
-| `src/video.cpp:1097-1114` | SDL HW path | Count completion after `rr_context_swap_buffers()` returns. |
-| `src/video.cpp:1124-1158` | direct selection | Add candidate/rejection/fallback counters; direct eligibility correctly excludes overlays and shaders. |
-| `src/video.cpp:1164-1178` | threaded GO2 video | One detached thread per frame can outlive `context3D`. Replace with one bounded joinable worker. |
-| `src/ui-renderer.cpp:313-455` | `uiRenderOverlays()` | Overlay/decoration state changes routing and direct eligibility; include effective state in benchmark metadata. |
-| `src/platform.h:70-90` | display diagnostics | Direct/vblank-only structure lacks standard/fallback/completed/drop accounting. Extend it or add a benchmark snapshot API. |
-| `src/platform.h:108-113` | audio abstraction | Add validity, pause, flush, cancellation, and diagnostic APIs with matching backend semantics. |
-| `src/platform_sdl.cpp:757-790` | SDL presenter | Standard completion point is after `SDL_RenderPresent()`; return/report outcome. |
-| `src/platform_sdl.cpp:1116-1133` | GL/VSync setup | Record requested and successfully applied swap interval separately. |
-| `src/platform_sdl.cpp:1420-1581` | GL presentation | Hardware completion is after `SDL_GL_SwapWindow()`; instrument completion and blocking duration there. |
-| `src/platform_sdl.cpp:1632-1645` | runtime VSync | Use a fresh process per matrix setting and report application failure. |
+| `src/video/video.cpp:54-66` | fast-forward counters | `presented` means accepted too early. Benchmark completion must originate in the backend. |
+| `src/video/video.cpp:135-329` | `video_configure()` | Runtime geometry change needs an orderly drain/reconfiguration path. |
+| `src/video/video.cpp:331-340` | `video_prepare_core_unload()` | Calls core `context_destroy` only on SDL; extend to GO2. |
+| `src/video/video.cpp:343-374` | `video_deinit()` | Can destroy resources while detached workers use them. Drain/join first and clear pointers. |
+| `src/video/video.cpp:790-840` | software refresh | Null data is a duplicate/no-new-frame callback, not a valid skipped frame. |
+| `src/video/video.cpp:842-909` | hardware refresh | A no-frame callback may re-present the prior GPU buffer; count duplicate and presentation independently. |
+| `src/video/video.cpp:915-956` | callback/fixed skip | General callback timing is absent and fixed skip returns before accounting. Add benchmark scopes and reason codes. |
+| `src/video/video.cpp:994-1000` | adaptive skip | Early return is uncounted; record it explicitly. |
+| `src/video/video.cpp:1003-1031` | FF throttle | Acceptance is counted before GO2 can reject a full queue. Separate accepted, queued, completed, and dropped. |
+| `src/video/video.cpp:1097-1114` | SDL HW path | Count completion after `rr_context_swap_buffers()` returns. |
+| `src/video/video.cpp:1124-1158` | direct selection | Add candidate/rejection/fallback counters; direct eligibility correctly excludes overlays and shaders. |
+| `src/video/video.cpp:1164-1178` | threaded GO2 video | One detached thread per frame can outlive `context3D`. Replace with one bounded joinable worker. |
+| `src/video/ui-renderer.cpp:313-455` | `uiRenderOverlays()` | Overlay/decoration state changes routing and direct eligibility; include effective state in benchmark metadata. |
+| `src/platform/platform.h:70-90` | display diagnostics | Direct/vblank-only structure lacks standard/fallback/completed/drop accounting. Extend it or add a benchmark snapshot API. |
+| `src/platform/platform.h:108-113` | audio abstraction | Add validity, pause, flush, cancellation, and diagnostic APIs with matching backend semantics. |
+| `src/platform/platform_sdl.cpp:757-790` | SDL presenter | Standard completion point is after `SDL_RenderPresent()`; return/report outcome. |
+| `src/platform/platform_sdl.cpp:1116-1133` | GL/VSync setup | Record requested and successfully applied swap interval separately. |
+| `src/platform/platform_sdl.cpp:1420-1581` | GL presentation | Hardware completion is after `SDL_GL_SwapWindow()`; instrument completion and blocking duration there. |
+| `src/platform/platform_sdl.cpp:1632-1645` | runtime VSync | Use a fresh process per matrix setting and report application failure. |
 | `src/go2/struct.h:9-35` | `go2_display_t` | Direct diagnostics are shared across main/render threads without display-level synchronization. |
 | `src/go2/struct.h:58-70` | `go2_presenter_t` | Add drain/barrier and completion counters; replace `volatile bool` termination with synchronized state. |
 | `src/go2/display.cpp:252-301` | diagnostics | Reset covers direct stats only; include standard/fallback/presenter stats. |
@@ -159,11 +159,11 @@ names.
 
 | Location | Owner | Finding / required change |
 | --- | --- | --- |
-| `src/config.cpp:285-310` | `initConfig()` | CWD `retrorun.cfg` overrides `-c`; use a clean temporary CWD or nonpersistent CLI overrides for remote matrices. |
-| `src/config.cpp:399-419` | SDL renderer/VSync | Renderer requires restart and VSync is applied during initialization; record requested/applied values. |
-| `src/config.cpp:510-514` | declared-FPS pacing | Run separately labelled realtime-paced and throughput benchmarks. |
-| `src/config.cpp:534-567` | audio settings | Record buffer/stable/threaded effective values; keep threaded default false. |
-| `src/config.cpp:640-692` | video performance settings | Record threaded/direct/frameskip effective values and overridden combinations; keep safe defaults. |
+| `src/config/config.cpp:285-310` | `initConfig()` | An explicit `-c` now wins over a CWD `retrorun.cfg`; keep remote matrices on isolated config files. |
+| `src/config/config.cpp:399-419` | SDL renderer/VSync | Renderer requires restart and VSync is applied during initialization; record requested/applied values. |
+| `src/config/config.cpp:510-514` | declared-FPS pacing | Run separately labelled realtime-paced and throughput benchmarks. |
+| `src/config/config.cpp:534-567` | audio settings | Record buffer/stable/threaded effective values; keep threaded default false. |
+| `src/config/config.cpp:640-692` | video performance settings | Record threaded/direct/frameskip effective values and overridden combinations; keep safe defaults. |
 | `src/menu_setup.cpp:521-589` | runtime settings | Some settings persist for restart while others mutate live state; automation must use per-process nonpersistent settings. |
 
 The repository has build workflows and manual game-launch scripts, but no

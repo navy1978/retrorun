@@ -158,14 +158,11 @@ void draw_notification_trophy(uint16_t* pixels, int stride, int width, int heigh
 }
 
 bool config_bool(const char* key, bool fallback = false) {
-    const auto it = conf_map.find(key);
-    if (it == conf_map.end()) return fallback;
-    return it->second == "true" || it->second == "enabled" || it->second == "1";
+    return configValueIsTrue(key, fallback);
 }
 
 std::string config_string(const char* key) {
-    const auto it = conf_map.find(key);
-    return it == conf_map.end() ? std::string() : it->second;
+    return configValue(key);
 }
 
 void notify(const std::string& text, const std::string& badge_url = {}) {

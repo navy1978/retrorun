@@ -22,11 +22,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include "struct.h"
 
 #include "../status.h"
-#include "../input.h"
+#include "input/input.h"
 
 #include "queue.h"
 #include "../globals.h"
-#include "../benchmark.h"
+#include "diagnostics/benchmark.h"
 
 #include <xf86drm.h>
 #include <xf86drmMode.h>

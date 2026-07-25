@@ -29,7 +29,7 @@
 #include <thread>
 #include <future>
 
-#include "../logger.h"
+#include "diagnostics/logger.h"
 #include "../globals.h"
 
 namespace {

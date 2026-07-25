@@ -300,6 +300,7 @@ int main(int argc, char *argv[])
             break;
         case 'c':
             opt_setting_file = optarg;
+            opt_setting_file_explicit = true;
             break;
         case 1000:
             benchmarkOptionSeen = true;
@@ -450,6 +451,15 @@ int main(int argc, char *argv[])
             logger.log(Logger::DEB, "Loading saved state - File '%s'", savePath);
             input_slot_memory_load_requested = true;
             lastLoadSaveStateRequestTime = static_cast<double>(time(NULL));
+
+            // Preserve the established startup barrier for cores which finish
+            // initialising execution/render threads on their first frame. It
+            // applies even on the first run, when no auto-state exists.
+            if (isParalleln64() || isDosBox() || isFlycast2021())
+            {
+                sleep(1);
+                g_retro.retro_run();
+            }
             StartLoadStateAsync(savePath, 0, true);
         }
     }

@@ -28,7 +28,7 @@
 #include <string.h>
 #include <sys/epoll.h>
 
-#include "../logger.h"
+#include "diagnostics/logger.h"
 #include "../globals.h"
 
 /*

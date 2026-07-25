@@ -121,6 +121,19 @@ int main()
     ShutdownLoadStateAsync();
     std::remove(state_path);
 
+    // A missing auto-state is a normal first-run condition. It must be
+    // completed synchronously without creating a worker or touching the core.
+    input_slot_memory_load_done = false;
+    input_slot_memory_load_requested = true;
+    lastLoadSaveStateDoneOk = true;
+    assert(!StartLoadStateAsync("missing-transition-test.state", 0, true));
+    assert(!LoadStateAsyncBusy());
+    assert(input_slot_memory_load_done);
+    assert(!input_slot_memory_load_requested);
+    assert(!lastLoadSaveStateDoneOk);
+    assert(LoadStateStatusMessage() == "State file not found");
+    assert(unserializes == 2);
+
     retro_disk_control_ext_callback disk = {};
     disk.set_eject_state = set_eject;
     disk.get_eject_state = get_eject;

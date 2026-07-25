@@ -33,8 +33,15 @@ Version 3.1.2 (Jul 23, 2026)
   startup and exit-during-hash regression testing.
 - Load save states asynchronously from disk, with on-screen progress and clear
   failure messages for missing, empty, truncated or core-rejected state files.
+- Replace the fragile configuration reader with a line-oriented parser that
+  supports quoted values, comments, duplicate diagnostics and strict typed
+  validation; explicit `-c` configuration paths now always take precedence.
+- Register libretro international core-option definitions and their defaults,
+  fixing cores that expose options only through `SET_CORE_OPTIONS_INTL`.
+- Reorganize frontend sources into audio, config, core, input, video, service,
+  diagnostic and platform modules while retaining all supported build targets.
 - Add regression tests for benchmark serialization, audio workers and runtime
-  transitions.
+  transitions, configuration parsing and missing auto-state handling.
 - Add technical benchmark documentation for RG353M SDL2 rendering and
   RK3326/Flycast2021 performance work while keeping raw device evidence
   outside the source repository.

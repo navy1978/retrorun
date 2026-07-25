@@ -40,7 +40,12 @@ ifeq ($(config),debug)
   TARGETDIR  = ../..
   TARGET     = $(TARGETDIR)/$(OUTPUT_NAME)
   DEFINES   += -DDEBUG -DRR_PLATFORM_GO2 -DRC_CLIENT_SUPPORTS_HASH $(HYBRID_DEFINES)
-  INCLUDES  += -I../../src -I../.. -I../../src/go2 -I../../src/menu -I../../deps/rcheevos/include -I../../deps/rcheevos/src
+  INCLUDES  += -I../../src -I../.. \
+               -I../../src/audio -I../../src/config -I../../src/core \
+               -I../../src/input -I../../src/video -I../../src/services \
+               -I../../src/diagnostics -I../../src/platform \
+               -I../../src/go2 -I../../src/menu \
+               -I../../deps/rcheevos/include -I../../deps/rcheevos/src
   CPPFLAGS  += -MMD -MP $(DEFINES) $(INCLUDES)
   CFLAGS    += $(CPPFLAGS) $(ARCH) -g -Wall -D__GBM__
   CXXFLAGS  += $(CFLAGS) -std=c++2a $(HYBRID_CFLAGS)
@@ -62,7 +67,12 @@ ifeq ($(config),release)
   TARGETDIR  = ../..
   TARGET     = $(TARGETDIR)/$(OUTPUT_NAME)
   DEFINES   += -DNDEBUG -DRR_PLATFORM_GO2 -DRC_CLIENT_SUPPORTS_HASH $(HYBRID_DEFINES)
-  INCLUDES  += -I../../src -I../.. -I../../src/go2 -I../../src/menu -I../../deps/rcheevos/include -I../../deps/rcheevos/src
+  INCLUDES  += -I../../src -I../.. \
+               -I../../src/audio -I../../src/config -I../../src/core \
+               -I../../src/input -I../../src/video -I../../src/services \
+               -I../../src/diagnostics -I../../src/platform \
+               -I../../src/go2 -I../../src/menu \
+               -I../../deps/rcheevos/include -I../../deps/rcheevos/src
   CPPFLAGS  += -MMD -MP $(DEFINES) $(INCLUDES)
   CFLAGS    += $(CPPFLAGS) $(ARCH) -O3 -ffast-math -flto -Wall -D__GBM__
   CXXFLAGS  += $(CFLAGS) -std=c++2a $(HYBRID_CFLAGS)
@@ -80,32 +90,33 @@ ifeq ($(config),release)
 endif
 
 OBJECTS := \
-	$(OBJDIR)/logger.o \
-	$(OBJDIR)/platform_go2.o \
-	$(OBJDIR)/system-info.o \
-	$(OBJDIR)/ui-renderer.o \
+	$(OBJDIR)/diagnostics/logger.o \
+	$(OBJDIR)/platform/platform_go2.o \
+	$(OBJDIR)/services/system-info.o \
+	$(OBJDIR)/video/ui-renderer.o \
 	$(OBJDIR)/menu/menu_item.o \
 	$(OBJDIR)/menu/menu.o \
 	$(OBJDIR)/menu/menu_manager.o \
-	$(OBJDIR)/fonts.o \
-	$(OBJDIR)/input.o \
-	$(OBJDIR)/benchmark.o \
-	$(OBJDIR)/audio.o \
-	$(OBJDIR)/video-helper.o \
-	$(OBJDIR)/decoration.o \
-	$(OBJDIR)/decoration_catalog.o \
-	$(OBJDIR)/video.o \
+	$(OBJDIR)/video/fonts.o \
+	$(OBJDIR)/input/input.o \
+	$(OBJDIR)/diagnostics/benchmark.o \
+	$(OBJDIR)/audio/audio.o \
+	$(OBJDIR)/video/video-helper.o \
+	$(OBJDIR)/video/decoration.o \
+	$(OBJDIR)/video/decoration_catalog.o \
+	$(OBJDIR)/video/video.o \
 	$(OBJDIR)/globals.o \
-	$(OBJDIR)/rumble.o \
-	$(OBJDIR)/config.o \
-	$(OBJDIR)/core_loader.o \
-	$(OBJDIR)/savestate.o \
+	$(OBJDIR)/input/rumble.o \
+	$(OBJDIR)/config/config.o \
+	$(OBJDIR)/config/config_file.o \
+	$(OBJDIR)/core/core_loader.o \
+	$(OBJDIR)/core/savestate.o \
 	$(OBJDIR)/menu_setup.o \
-	$(OBJDIR)/keyboard.o \
-	$(OBJDIR)/disk_control.o \
-	$(OBJDIR)/file_browser.o \
-	$(OBJDIR)/achievements.o \
-	$(OBJDIR)/network_status.o \
+	$(OBJDIR)/input/keyboard.o \
+	$(OBJDIR)/core/disk_control.o \
+	$(OBJDIR)/services/file_browser.o \
+	$(OBJDIR)/services/achievements.o \
+	$(OBJDIR)/services/network_status.o \
 	$(OBJDIR)/main.o \
   	$(OBJDIR)/go2/audio.o \
 	$(OBJDIR)/go2/display.o \
@@ -118,9 +129,9 @@ OBJECTS := \
 
 ifeq ($(HYBRID_AUDIO),1)
 OBJECTS += \
-	$(OBJDIR)/platform_audio_hybrid.o \
-	$(OBJDIR)/audio_backend_go2.o \
-	$(OBJDIR)/audio_backend_sdl2.o
+	$(OBJDIR)/audio/platform_audio_hybrid.o \
+	$(OBJDIR)/audio/audio_backend_go2.o \
+	$(OBJDIR)/audio/audio_backend_sdl2.o
 endif
 
 RCHEEVOS_SOURCES := ../../deps/rcheevos/src/rc_client.c ../../deps/rcheevos/src/rc_compat.c \
@@ -165,6 +176,14 @@ ifeq (posix,$(SHELLTYPE))
 	$(SILENT) mkdir -p $(OBJDIR)/go2
 	$(SILENT) mkdir -p $(OBJDIR)/menu
 	$(SILENT) mkdir -p $(OBJDIR)/js2xbox
+	$(SILENT) mkdir -p $(OBJDIR)/config
+	$(SILENT) mkdir -p $(OBJDIR)/audio
+	$(SILENT) mkdir -p $(OBJDIR)/core
+	$(SILENT) mkdir -p $(OBJDIR)/input
+	$(SILENT) mkdir -p $(OBJDIR)/video
+	$(SILENT) mkdir -p $(OBJDIR)/services
+	$(SILENT) mkdir -p $(OBJDIR)/diagnostics
+	$(SILENT) mkdir -p $(OBJDIR)/platform
 else
 	$(SILENT) mkdir $(subst /,\\,$(OBJDIR))
 endif
@@ -191,125 +210,19 @@ $(GCH): $(PCH)
 	-$(SILENT) cp $< $(OBJDIR)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 endif
-$(OBJDIR)/logger.o: ../../src/logger.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"	
-$(OBJDIR)/platform_go2.o: ../../src/platform_go2.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/platform_audio_hybrid.o: ../../src/platform_audio_hybrid.cpp
+
+# Directory-preserving rule used by the reorganised source tree. The older
+# explicit rules below are retained for compatibility with existing targets.
+$(OBJDIR)/%.o: ../../src/%.cpp
+	@mkdir -p $(dir $@)
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/audio_backend_go2.o: ../../src/audio_backend_go2.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/audio_backend_sdl2.o: ../../src/audio_backend_sdl2.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/system-info.o: ../../src/system-info.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/ui-renderer.o: ../../src/ui-renderer.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/menu/menu_item.o: ../../src/menu/menu_item.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"	
-$(OBJDIR)/menu/menu.o: ../../src/menu/menu.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/menu/menu_manager.o: ../../src/menu/menu_manager.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"	
-$(OBJDIR)/fonts.o: ../../src/fonts.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/input.o: ../../src/input.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/benchmark.o: ../../src/benchmark.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/audio.o: ../../src/audio.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/video-helper.o: ../../src/video-helper.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/decoration.o: ../../src/decoration.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/decoration_catalog.o: ../../src/decoration_catalog.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/video.o: ../../src/video.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/globals.o: ../../src/globals.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/rumble.o: ../../src/rumble.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"	
-$(OBJDIR)/config.o: ../../src/config.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/core_loader.o: ../../src/core_loader.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/savestate.o: ../../src/savestate.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/menu_setup.o: ../../src/menu_setup.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/keyboard.o: ../../src/keyboard.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/disk_control.o: ../../src/disk_control.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/file_browser.o: ../../src/file_browser.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/achievements.o: ../../src/achievements.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/network_status.o: ../../src/network_status.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
 $(OBJDIR)/rcheevos/%.o: ../../deps/rcheevos/src/%.c
 	@mkdir -p $(dir $@)
 	@echo $(notdir $<)
 	$(SILENT) $(CC) $(CFLAGS) -std=c99 -D_POSIX_C_SOURCE=200809L -include strings.h \
 		-Werror=implicit-function-declaration -o "$@" -c "$<"
-$(OBJDIR)/main.o: ../../src/main.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/go2/audio.o: ../../src/go2/audio.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/go2/display.o: ../../src/go2/display.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/go2/input.o: ../../src/go2/input.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/go2/queue.o: ../../src/go2/queue.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/js2xbox/events.o: ../../src/js2xbox/events.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/js2xbox/joypads.o: ../../src/js2xbox/joypads.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/js2xbox/js2xbox.o: ../../src/js2xbox/js2xbox.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"	
-$(OBJDIR)/js2xbox/uinput.o: ../../src/js2xbox/uinput.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"					
 
 
 -include $(OBJECTS:%.o=%.d)

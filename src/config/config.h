@@ -37,6 +37,8 @@ bool persistVideoSetting(const std::string &setting, const std::string &value);
 
 bool configValueIsTrue(const std::string &setting, bool fallback = false);
 std::string configValue(const std::string &setting, const std::string &fallback = "");
+int configValueInteger(const std::string &setting, int fallback,
+                       int minimum, int maximum);
 
 // Active config file path (set during initConfig)
 extern std::string activeConfigFile;
@@ -49,6 +51,7 @@ extern bool sdlVsync;
 #endif
 
 extern const char *opt_setting_file;
+extern bool opt_setting_file_explicit;
 extern bool opt_show_fps;
 extern bool auto_save;
 extern bool auto_load;

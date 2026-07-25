@@ -57,6 +57,32 @@ static std::mutex pending_av_mutex;
 static struct retro_system_av_info pending_av_info = {};
 static bool pending_av_info_valid = false;
 
+static bool registerCoreOptions(
+    const struct retro_core_option_definition *options)
+{
+    if (!options)
+        return false;
+
+    for (std::size_t index = 0; options[index].key != nullptr; ++index)
+    {
+        const retro_core_option_definition &option = options[index];
+        const char *defaultValue = option.default_value;
+        if (!defaultValue && option.values[0].value)
+            defaultValue = option.values[0].value;
+        if (!defaultValue)
+        {
+            logger.log(Logger::WARN,
+                       "Core option '%s' has no valid default value; ignored.",
+                       option.key);
+            continue;
+        }
+        variables[option.key] = defaultValue;
+        logger.log(Logger::DEB, "OPTION: key=%s, value=%s",
+                   option.key, defaultValue);
+    }
+    return true;
+}
+
 // --- Perf counters ---
 
 retro_time_t cpu_features_get_time_usec(void)
@@ -374,11 +400,31 @@ bool core_environment(unsigned cmd, void *data)
     case RETRO_ENVIRONMENT_SET_VARIABLES:
     {
         retro_variable *var = (retro_variable *)data;
+        if (!var)
+            return false;
         while (var->key != NULL)
         {
             std::string key = var->key;
-            const char *start = strchr(var->value, ';');
-            start += 2;
+            if (!var->value)
+            {
+                logger.log(Logger::WARN,
+                           "Legacy core option '%s' has no value definition; ignored.",
+                           var->key);
+                ++var;
+                continue;
+            }
+            const char *separator = strchr(var->value, ';');
+            if (!separator)
+            {
+                logger.log(Logger::WARN,
+                           "Legacy core option '%s' is malformed; ignored.",
+                           var->key);
+                ++var;
+                continue;
+            }
+            const char *start = separator + 1;
+            while (*start == ' ' || *start == '\t')
+                ++start;
 
             std::string value;
             while (*start != '|' && *start != 0)
@@ -457,8 +503,10 @@ bool core_environment(unsigned cmd, void *data)
 
     case RETRO_ENVIRONMENT_GET_LANGUAGE:
     {
-        logger.log(Logger::DEB, "RETRO_ENVIRONMENT_GET_LANGUAGE not implemented");
-        return false;
+        if (!data)
+            return false;
+        *static_cast<unsigned *>(data) = RETRO_LANGUAGE_ENGLISH;
+        return true;
     }
 
     case RETRO_ENVIRONMENT_SET_KEYBOARD_CALLBACK:
@@ -508,8 +556,12 @@ bool core_environment(unsigned cmd, void *data)
 
     case RETRO_ENVIRONMENT_SET_CORE_OPTIONS_INTL:
     {
-        logger.log(Logger::DEB, "RETRO_ENVIRONMENT_SET_CORE_OPTIONS_INTL not implemented");
-        return false;
+        const retro_core_options_intl *options =
+            static_cast<const retro_core_options_intl *>(data);
+        // RetroRun currently exposes an English UI. Localised descriptions are
+        // not displayed, but registering the US definitions is essential:
+        // cores use the resulting defaults through GET_VARIABLE.
+        return options && registerCoreOptions(options->us);
     }
 
     case RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY:
@@ -568,17 +620,8 @@ bool core_environment(unsigned cmd, void *data)
 
     case RETRO_ENVIRONMENT_SET_CORE_OPTIONS:
     {
-        const struct retro_core_option_definition *options = ((const struct retro_core_option_definition *)data);
-        int i = 0;
-        while (options[i].key != nullptr && options[i].default_value != nullptr)
-        {
-            std::string key = options[i].key;
-            std::string value = options[i].default_value;
-            variables[key] = value;
-            logger.log(Logger::DEB, "OPTION: key=%s, value=%s", key.c_str(), value.c_str());
-            ++i;
-        }
-        return true;
+        return registerCoreOptions(
+            static_cast<const retro_core_option_definition *>(data));
     }
 
     default:

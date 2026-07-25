@@ -5,12 +5,13 @@ Copyright (C) 2021-present  navy1978
 */
 
 #include "config.h"
+#include "config/config_file.h"
 #include "globals.h"
 #include "video-helper.h"
 #include "input.h"
 #include "rumble.h"
 #include "platform.h"
-#include "./js2xbox/events.h"
+#include "js2xbox/events.h"
 
 #include <fstream>
 #include <sstream>
@@ -24,6 +25,7 @@ Copyright (C) 2021-present  navy1978
 #include <cstdio>
 #include <filesystem>
 #include <stdexcept>
+#include <unordered_set>
 #include <vector>
 
 // Whitespace characters for trimming
@@ -40,6 +42,7 @@ const char *opt_setting_file = "./retrorun.cfg";
 #else
 const char *opt_setting_file = "/storage/.config/distribution/configs/retrorun.cfg";
 #endif
+bool opt_setting_file_explicit = false;
 
 bool opt_show_fps = false;
 bool auto_save = false;
@@ -47,6 +50,114 @@ bool auto_load = false;
 
 rr_video_filter_t videoFilter = RR_VIDEO_FILTER_DEFAULT;
 rr_video_shader_t videoShader = RR_VIDEO_SHADER_OFF;
+
+static std::map<std::string, std::size_t> configSourceLines;
+
+static const std::unordered_set<std::string> &knownRetroRunSettings()
+{
+    static const std::unordered_set<std::string> settings = {
+        "retrorun_achievements_enabled", "retrorun_achievements_encore",
+        "retrorun_achievements_password", "retrorun_achievements_token",
+        "retrorun_achievements_unofficial", "retrorun_achievements_username",
+        "retrorun_adaptive_frameskip", "retrorun_alternative_input_mode",
+        "retrorun_analog_to_digital", "retrorun_aspect_ratio",
+        "retrorun_audio_backend", "retrorun_audio_buffer",
+        "retrorun_audio_stable_buffer", "retrorun_auto_load",
+        "retrorun_auto_save", "retrorun_core_log_level",
+        "retrorun_decoration_pack", "retrorun_decoration_source",
+        "retrorun_decorations", "retrorun_decorations_path",
+        "retrorun_device_name", "retrorun_disable_rumble",
+        "retrorun_drm_direct_scanout", "retrorun_enable_key_log",
+        "retrorun_extra_evdev_name", "retrorun_extra_osh_name",
+        "retrorun_extra_retrogame_name", "retrorun_force_audio_multithread",
+        "retrorun_force_left_analog_stick", "retrorun_force_video_multithread",
+        "retrorun_fps_counter", "retrorun_frameskip",
+        "retrorun_go2_audio_stretch_low_ms",
+        "retrorun_go2_audio_stretch_percent", "retrorun_log_level",
+        "retrorun_log_to_file", "retrorun_loop_declared_fps",
+        "retrorun_mouse_speed_factor", "retrorun_pixel_perfect",
+        "retrorun_rumble_event", "retrorun_rumble_pwm_file",
+        "retrorun_rumble_type", "retrorun_screenshot_folder",
+        "retrorun_sdl_audio_stretch_low_ms",
+        "retrorun_sdl_audio_stretch_percent", "retrorun_show_loading_screen",
+        "retrorun_swap_l1r1_with_l2r2", "retrorun_swap_sticks",
+        "retrorun_tate_mode", "retrorun_ui_profile",
+        "retrorun_video_filter", "retrorun_video_renderer",
+        "retrorun_video_shader", "retrorun_vsync"
+    };
+    return settings;
+}
+
+static bool isButtonMappingSetting(const std::string &setting)
+{
+    constexpr const char *prefix = "retrorun_mapping_button_";
+    return setting.compare(0, std::strlen(prefix), prefix) == 0;
+}
+
+static std::size_t editDistance(const std::string &left,
+                                const std::string &right)
+{
+    std::vector<std::size_t> previous(right.size() + 1);
+    std::vector<std::size_t> current(right.size() + 1);
+    for (std::size_t index = 0; index <= right.size(); ++index)
+        previous[index] = index;
+
+    for (std::size_t row = 1; row <= left.size(); ++row)
+    {
+        current[0] = row;
+        for (std::size_t column = 1; column <= right.size(); ++column)
+        {
+            const std::size_t substitution =
+                previous[column - 1] +
+                (left[row - 1] == right[column - 1] ? 0 : 1);
+            current[column] = std::min({
+                previous[column] + 1,
+                current[column - 1] + 1,
+                substitution
+            });
+        }
+        previous.swap(current);
+    }
+    return previous.back();
+}
+
+static void warnAboutUnknownRetroRunSettings()
+{
+    const auto &known = knownRetroRunSettings();
+    for (const auto &[setting, value] : conf_map)
+    {
+        (void)value;
+        if (known.find(setting) != known.end() ||
+            isButtonMappingSetting(setting))
+            continue;
+
+        const std::string *suggestion = nullptr;
+        std::size_t bestDistance = 3;
+        for (const std::string &candidate : known)
+        {
+            const std::size_t distance = editDistance(setting, candidate);
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                suggestion = &candidate;
+            }
+        }
+        if (setting.compare(0, 9, "retrorun_") == 0 || suggestion)
+        {
+            const auto line = configSourceLines.find(setting);
+            const std::size_t lineNumber =
+                line == configSourceLines.end() ? 0 : line->second;
+            if (suggestion)
+                logger.log(Logger::WARN,
+                           "Unknown RetroRun setting '%s' at line %zu; did you mean '%s'?",
+                           setting.c_str(), lineNumber, suggestion->c_str());
+            else
+                logger.log(Logger::WARN,
+                           "Unknown RetroRun setting '%s' at line %zu.",
+                           setting.c_str(), lineNumber);
+        }
+    }
+}
 
 // --- String utilities ---
 
@@ -71,34 +182,32 @@ std::string &trim(std::string &s)
 
 void initMapConfig(std::string pathConfFile)
 {
-    std::ifstream file_in(pathConfFile);
-
-    std::string key;
-    std::string value;
-
-    while (std::getline(file_in, key, '=') && std::getline(file_in, value))
+    rr::config::Document document;
+    std::string error;
+    if (!rr::config::load(pathConfFile, document, error))
     {
-        try
-        {
-            std::size_t pos_sharp = key.find("#");
-            if (pos_sharp == 0)
-            {
-                key = key.substr(key.find("\n") + 1, key.length());
-                std::istringstream iss(key);
-                std::getline(iss, key, '=');
-                std::getline(iss, value);
-            }
-            key = trim(key);
-            value = trim(value);
-            conf_map.insert(std::pair<std::string, std::string>(key, value));
-        }
-        catch (...)
-        {
-            logger.log(Logger::ERR, "Error reading configuration file, key:%s", key.c_str());
-        }
+        conf_map.clear();
+        configSourceLines.clear();
+        logger.log(Logger::ERR, "Unable to read configuration file '%s': %s",
+                   pathConfFile.c_str(), error.c_str());
+        return;
     }
-    logger.log(Logger::DEB, "Configuration loaded!");
-    file_in.close();
+
+    conf_map = std::move(document.values);
+    configSourceLines = std::move(document.source_lines);
+    for (const rr::config::Diagnostic &diagnostic : document.diagnostics)
+    {
+        const Logger::LogLevel level =
+            diagnostic.level == rr::config::DiagnosticLevel::Error
+                ? Logger::ERR : Logger::WARN;
+        logger.log(level, "Configuration '%s', line %zu: %s",
+                   pathConfFile.c_str(), diagnostic.line,
+                   diagnostic.message.c_str());
+    }
+    logger.log(Logger::DEB,
+               "Configuration loaded: %zu setting(s), %zu diagnostic(s).",
+               conf_map.size(), document.diagnostics.size());
+    warnAboutUnknownRetroRunSettings();
 }
 
 // --- Config helpers ---
@@ -213,7 +322,17 @@ bool configValueIsTrue(const std::string &setting, bool fallback)
     const auto value = conf_map.find(setting);
     if (value == conf_map.end())
         return fallback;
-    return value->second == "true" || value->second == "enabled" || value->second == "1";
+
+    bool parsed = false;
+    if (!rr::config::parseBoolean(value->second, parsed))
+    {
+        logger.log(Logger::WARN,
+                   "Invalid boolean value '%s' for '%s'; using %s.",
+                   value->second.c_str(), setting.c_str(),
+                   fallback ? "true" : "false");
+        return fallback;
+    }
+    return parsed;
 }
 
 std::string configValue(const std::string &setting, const std::string &fallback)
@@ -222,11 +341,31 @@ std::string configValue(const std::string &setting, const std::string &fallback)
     return value == conf_map.end() ? fallback : value->second;
 }
 
+int configValueInteger(const std::string &setting, int fallback,
+                       int minimum, int maximum)
+{
+    const auto value = conf_map.find(setting);
+    if (value == conf_map.end())
+        return fallback;
+
+    int parsed = 0;
+    if (!rr::config::parseInteger(value->second, minimum, maximum, parsed))
+    {
+        logger.log(Logger::WARN,
+                   "Invalid integer value '%s' for '%s'; expected %d..%d, using %d.",
+                   value->second.c_str(), setting.c_str(),
+                   minimum, maximum, fallback);
+        return fallback;
+    }
+    return parsed;
+}
+
 bool persistConfigSetting(const std::string &setting, const std::string &value)
 {
     std::ifstream input(activeConfigFile);
     if (!input.good()) return false;
 
+    const std::string encodedValue = rr::config::encodeValue(value);
     std::vector<std::string> lines;
     std::string line;
     bool replaced = false;
@@ -234,14 +373,14 @@ bool persistConfigSetting(const std::string &setting, const std::string &value)
         std::string key = line.substr(0, line.find('='));
         trim(key);
         if (key == setting) {
-            line = setting + (value.empty() ? " =" : " = " + value);
+            line = setting + (encodedValue.empty() ? " =" : " = " + encodedValue);
             replaced = true;
         }
         lines.push_back(line);
     }
     input.close();
     if (!replaced)
-        lines.push_back(setting + (value.empty() ? " =" : " = " + value));
+        lines.push_back(setting + (encodedValue.empty() ? " =" : " = " + encodedValue));
 
     const std::string temporary = activeConfigFile + ".tmp";
     std::ofstream output(temporary, std::ios::trunc);
@@ -287,10 +426,17 @@ void initConfig()
 {
     logger.log(Logger::INF, "Searching config file... ");
 
-    std::string config_file = "retrorun.cfg";
-
-    if (fileExists(config_file.c_str()))
+    std::string config_file;
+    if (opt_setting_file_explicit)
     {
+        config_file = opt_setting_file;
+        logger.log(Logger::INF,
+                   "Using command-line configuration file: '%s'",
+                   config_file.c_str());
+    }
+    else if (fileExists("retrorun.cfg"))
+    {
+        config_file = "retrorun.cfg";
         logger.log(Logger::INF, "Using local configuration file: '%s'", config_file.c_str());
     }
     else
@@ -316,8 +462,7 @@ void initConfig()
         const auto logToFileSetting = conf_map.find("retrorun_log_to_file");
         if (logToFileSetting != conf_map.end())
         {
-            const std::string &value = logToFileSetting->second;
-            logToFile = value == "true" || value == "enabled" || value == "1";
+            logToFile = configValueIsTrue("retrorun_log_to_file", false);
             if (logToFile)
             {
                 const std::filesystem::path configLogPath =
@@ -406,9 +551,8 @@ void initConfig()
 
         try
         {
-            const std::string &ssFps_counter = conf_map.at("retrorun_fps_counter");
-            input_fps_requested = ssFps_counter == "true" || ssFps_counter == "enabled" ||
-                                  ssFps_counter == "1";
+            conf_map.at("retrorun_fps_counter");
+            input_fps_requested = configValueIsTrue("retrorun_fps_counter", false);
             logger.log(Logger::DEB, "retrorun_fps_counter :%s", input_fps_requested ? "TRUE" : "FALSE");
         }
         catch (...) { logger.log(Logger::DEB, "retrorun_fps_counter parameter not found in retrorun.cfg using defaulf value (disabled)."); input_fps_requested = false; }
@@ -428,8 +572,8 @@ void initConfig()
 
         try
         {
-            const std::string &value = conf_map.at("retrorun_vsync");
-            sdlVsync = value == "true" || value == "enabled" || value == "1";
+            conf_map.at("retrorun_vsync");
+            sdlVsync = configValueIsTrue("retrorun_vsync", false);
             logger.log(Logger::DEB, "retrorun_vsync: %s", sdlVsync ? "true" : "false");
         }
         catch (...) { logger.log(Logger::DEB, "retrorun_vsync not found; using false"); }
@@ -477,16 +621,16 @@ void initConfig()
 
         try
         {
-            const std::string &asValue = conf_map.at("retrorun_auto_save");
-            auto_save = asValue == "true" ? true : false;
+            conf_map.at("retrorun_auto_save");
+            auto_save = configValueIsTrue("retrorun_auto_save", auto_save);
             logger.log(Logger::DEB, "retrorun_auto_save: %s.", auto_save ? "true" : "false");
         }
         catch (...) { logger.log(Logger::DEB, "retrorun_auto_save parameter not found in retrorun.cfg using default value (%s).", auto_save ? "true" : "false"); }
 
         try
         {
-            const std::string &asValue = conf_map.at("retrorun_auto_load");
-            auto_load = asValue == "true" ? true : false;
+            conf_map.at("retrorun_auto_load");
+            auto_load = configValueIsTrue("retrorun_auto_load", auto_save);
             logger.log(Logger::DEB, "retrorun_auto_load: %s.", auto_load ? "true" : "false");
         }
         catch (...)
@@ -514,7 +658,8 @@ void initConfig()
             // stick mapping and disabled native analog input.
             const auto legacyAnalogSetting = conf_map.find("retrorun_force_left_analog_stick");
             if (legacyAnalogSetting != conf_map.end())
-                setAnalogToDigitalMode(legacyAnalogSetting->second == "true"
+                setAnalogToDigitalMode(configValueIsTrue(
+                                           "retrorun_force_left_analog_stick", false)
                                            ? "left_forced" : "none");
             logger.log(Logger::DEB,
                        "retrorun_analog_to_digital parameter not found; using %s%s.",
@@ -524,44 +669,45 @@ void initConfig()
 
         try
         {
-            const std::string &tflValue = conf_map.at("retrorun_loop_declared_fps");
-            runLoopAtDeclaredfps = tflValue == "false" ? false : true;
+            conf_map.at("retrorun_loop_declared_fps");
+            runLoopAtDeclaredfps = configValueIsTrue(
+                "retrorun_loop_declared_fps", runLoopAtDeclaredfps);
             logger.log(Logger::DEB, "retrorun_loop_declared_fps: %s.", runLoopAtDeclaredfps ? "true" : "false");
         }
         catch (...) { logger.log(Logger::DEB, "retrorun_loop_declared_fps parameter not found in retrorun.cfg using default value (%s).", runLoopAtDeclaredfps ? "true" : "false"); }
 
         try
         {
-            const std::string &asValue = conf_map.at("retrorun_swap_l1r1_with_l2r2");
-            swapL1R1WithL2R2 = asValue == "true" ? true : false;
+            conf_map.at("retrorun_swap_l1r1_with_l2r2");
+            swapL1R1WithL2R2 = configValueIsTrue(
+                "retrorun_swap_l1r1_with_l2r2", swapL1R1WithL2R2);
             logger.log(Logger::DEB, "retrorun_swap_l1r1_with_l2r2: %s.", swapL1R1WithL2R2 ? "true" : "false");
         }
         catch (...) { logger.log(Logger::DEB, "retrorun_swap_l1r1_with_l2r2 parameter not found in retrorun.cfg using default value (%s).", swapL1R1WithL2R2 ? "true" : "false"); }
 
         try
         {
-            const std::string &asValue = conf_map.at("retrorun_swap_sticks");
-            swapSticks = asValue == "true" ? true : false;
+            conf_map.at("retrorun_swap_sticks");
+            swapSticks = configValueIsTrue("retrorun_swap_sticks", swapSticks);
             logger.log(Logger::DEB, "retrorun_swap_sticks: %s.", swapSticks ? "true" : "false");
         }
         catch (...) { logger.log(Logger::DEB, "retrorun_swap_sticks parameter not found in retrorun.cfg using default value (%s).", swapSticks ? "true" : "false"); }
 
         try
         {
-            const std::string &audioBufferValue = conf_map.at("retrorun_audio_buffer");
-            if (!audioBufferValue.empty())
-            {
-                retrorun_audio_buffer = stoi(audioBufferValue);
-                new_retrorun_audio_buffer = retrorun_audio_buffer;
-                logger.log(Logger::DEB, "retrorun_audio_buffer: %d.", retrorun_audio_buffer);
-            }
+            conf_map.at("retrorun_audio_buffer");
+            retrorun_audio_buffer = configValueInteger(
+                "retrorun_audio_buffer", retrorun_audio_buffer, -1, 65536);
+            new_retrorun_audio_buffer = retrorun_audio_buffer;
+            logger.log(Logger::DEB, "retrorun_audio_buffer: %d.", retrorun_audio_buffer);
         }
         catch (...) { logger.log(Logger::DEB, "retrorun_audio_buffer parameter not found in retrorun.cfg using default value (-1)."); }
 
         try
         {
-            const std::string &value = conf_map.at("retrorun_audio_stable_buffer");
-            retrorun_audio_stable_buffer = value == "true";
+            conf_map.at("retrorun_audio_stable_buffer");
+            retrorun_audio_stable_buffer = configValueIsTrue(
+                "retrorun_audio_stable_buffer", retrorun_audio_stable_buffer);
             logger.log(Logger::DEB, "retrorun_audio_stable_buffer: %s.",
                        retrorun_audio_stable_buffer ? "true" : "false");
         }
@@ -573,13 +719,9 @@ void initConfig()
 
         try
         {
-            const std::string &value =
-                conf_map.at("retrorun_sdl_audio_stretch_percent");
-            size_t parsedCharacters = 0;
-            const int parsed = std::stoi(value, &parsedCharacters);
-            if (parsedCharacters != value.size())
-                throw std::invalid_argument("trailing characters");
-            retrorun_sdl_audio_stretch_percent = std::clamp(parsed, 0, 10);
+            conf_map.at("retrorun_sdl_audio_stretch_percent");
+            retrorun_sdl_audio_stretch_percent = configValueInteger(
+                "retrorun_sdl_audio_stretch_percent", 0, 0, 10);
             logger.log(Logger::DEB,
                        "retrorun_sdl_audio_stretch_percent: %d.",
                        retrorun_sdl_audio_stretch_percent);
@@ -593,13 +735,9 @@ void initConfig()
 
         try
         {
-            const std::string &value =
-                conf_map.at("retrorun_sdl_audio_stretch_low_ms");
-            size_t parsedCharacters = 0;
-            const int parsed = std::stoi(value, &parsedCharacters);
-            if (parsedCharacters != value.size())
-                throw std::invalid_argument("trailing characters");
-            retrorun_sdl_audio_stretch_low_ms = std::clamp(parsed, 0, 200);
+            conf_map.at("retrorun_sdl_audio_stretch_low_ms");
+            retrorun_sdl_audio_stretch_low_ms = configValueInteger(
+                "retrorun_sdl_audio_stretch_low_ms", 40, 0, 200);
             logger.log(Logger::DEB,
                        "retrorun_sdl_audio_stretch_low_ms: %d.",
                        retrorun_sdl_audio_stretch_low_ms);
@@ -613,13 +751,9 @@ void initConfig()
 
         try
         {
-            const std::string &value =
-                conf_map.at("retrorun_go2_audio_stretch_percent");
-            size_t parsedCharacters = 0;
-            const int parsed = std::stoi(value, &parsedCharacters);
-            if (parsedCharacters != value.size())
-                throw std::invalid_argument("trailing characters");
-            retrorun_go2_audio_stretch_percent = std::clamp(parsed, 0, 10);
+            conf_map.at("retrorun_go2_audio_stretch_percent");
+            retrorun_go2_audio_stretch_percent = configValueInteger(
+                "retrorun_go2_audio_stretch_percent", 0, 0, 10);
             logger.log(Logger::DEB,
                        "retrorun_go2_audio_stretch_percent: %d.",
                        retrorun_go2_audio_stretch_percent);
@@ -633,13 +767,9 @@ void initConfig()
 
         try
         {
-            const std::string &value =
-                conf_map.at("retrorun_go2_audio_stretch_low_ms");
-            size_t parsedCharacters = 0;
-            const int parsed = std::stoi(value, &parsedCharacters);
-            if (parsedCharacters != value.size())
-                throw std::invalid_argument("trailing characters");
-            retrorun_go2_audio_stretch_low_ms = std::clamp(parsed, 0, 200);
+            conf_map.at("retrorun_go2_audio_stretch_low_ms");
+            retrorun_go2_audio_stretch_low_ms = configValueInteger(
+                "retrorun_go2_audio_stretch_low_ms", 40, 0, 200);
             logger.log(Logger::DEB,
                        "retrorun_go2_audio_stretch_low_ms: %d.",
                        retrorun_go2_audio_stretch_low_ms);
@@ -653,8 +783,9 @@ void initConfig()
 
         try
         {
-            const std::string &value = conf_map.at("retrorun_force_audio_multithread");
-            forceAudioMultithread = value == "true" || value == "enabled" || value == "1";
+            conf_map.at("retrorun_force_audio_multithread");
+            forceAudioMultithread = configValueIsTrue(
+                "retrorun_force_audio_multithread", forceAudioMultithread);
             logger.log(Logger::DEB, "retrorun_force_audio_multithread: %s.",
                        forceAudioMultithread ? "true" : "false");
         }
@@ -666,12 +797,10 @@ void initConfig()
 
         try
         {
-            const std::string &mouseSpeedValue = conf_map.at("retrorun_mouse_speed_factor");
-            if (!mouseSpeedValue.empty())
-            {
-                retrorun_mouse_speed_factor = stoi(mouseSpeedValue);
-                logger.log(Logger::DEB, "retrorun_mouse_speed_factor: %d.", retrorun_mouse_speed_factor);
-            }
+            conf_map.at("retrorun_mouse_speed_factor");
+            retrorun_mouse_speed_factor = configValueInteger(
+                "retrorun_mouse_speed_factor", retrorun_mouse_speed_factor, 1, 100);
+            logger.log(Logger::DEB, "retrorun_mouse_speed_factor: %d.", retrorun_mouse_speed_factor);
         }
         catch (...) { logger.log(Logger::DEB, "retrorun_mouse_speed_factor parameter not found in retrorun.cfg using default value (5)."); }
 
@@ -685,8 +814,9 @@ void initConfig()
 
         try
         {
-            const std::string &lasValue = conf_map.at("retrorun_disable_rumble");
-            disableRumble = lasValue == "true" ? true : false;
+            conf_map.at("retrorun_disable_rumble");
+            disableRumble = configValueIsTrue(
+                "retrorun_disable_rumble", disableRumble);
             logger.log(Logger::DEB, "retrorun_disable_rumble: %s.", disableRumble ? "true" : "false");
         }
         catch (...) { logger.log(Logger::DEB, "retrorun_disable_rumble parameter not found in retrorun.cfg using default value (%s).", disableRumble ? "true" : "false"); }
@@ -726,34 +856,30 @@ void initConfig()
 
         try
         {
-            const std::string &asValue = conf_map.at("retrorun_alternative_input_mode");
-            input_info_requested_alternative = asValue == "true" ? true : false;
+            conf_map.at("retrorun_alternative_input_mode");
+            input_info_requested_alternative = configValueIsTrue(
+                "retrorun_alternative_input_mode",
+                input_info_requested_alternative);
             logger.log(Logger::DEB, "retrorun_alternative_input_mode: %s.", input_info_requested_alternative ? "true" : "false");
         }
         catch (...) { logger.log(Logger::DEB, "retrorun_alternative_input_mode parameter not found in retrorun.cfg using default value (%s).", input_info_requested_alternative ? "true" : "false"); }
 
         try
         {
-            const std::string &asValue = conf_map.at("retrorun_force_video_multithread");
-            forceVideoMultithread = asValue == "true";
+            conf_map.at("retrorun_force_video_multithread");
+            forceVideoMultithread = configValueIsTrue(
+                "retrorun_force_video_multithread", forceVideoMultithread);
             logger.log(Logger::DEB, "retrorun_force_video_multithread: %s.", forceVideoMultithread ? "true" : "false");
         }
         catch (...) { logger.log(Logger::DEB, "retrorun_force_video_multithread parameter not found in retrorun.cfg using default value."); }
 
         try
         {
-            const std::string &value = conf_map.at("retrorun_drm_direct_scanout");
-            if (value == "true" || value == "enabled" || value == "1")
-                drmDirectScanoutMode = DRMDirectScanoutMode::Enabled;
-            else if (value == "false" || value == "disabled" || value == "0")
-                drmDirectScanoutMode = DRMDirectScanoutMode::Disabled;
-            else
-            {
-                drmDirectScanoutMode = DRMDirectScanoutMode::Disabled;
-                logger.log(Logger::WARN,
-                           "Unknown retrorun_drm_direct_scanout value '%s'; using false.",
-                           value.c_str());
-            }
+            conf_map.at("retrorun_drm_direct_scanout");
+            drmDirectScanoutMode = configValueIsTrue(
+                "retrorun_drm_direct_scanout", false)
+                    ? DRMDirectScanoutMode::Enabled
+                    : DRMDirectScanoutMode::Disabled;
             const char *mode = drmDirectScanoutMode == DRMDirectScanoutMode::Enabled
                 ? "true" : "false";
             logger.log(Logger::DEB, "retrorun_drm_direct_scanout: %s.", mode);
@@ -766,16 +892,18 @@ void initConfig()
 
         try
         {
-            const std::string &value = conf_map.at("retrorun_adaptive_frameskip");
-            adaptiveFrameSkip = value == "true";
+            conf_map.at("retrorun_adaptive_frameskip");
+            adaptiveFrameSkip = configValueIsTrue(
+                "retrorun_adaptive_frameskip", adaptiveFrameSkip);
             logger.log(Logger::DEB, "retrorun_adaptive_frameskip: %s.", adaptiveFrameSkip ? "true" : "false");
         }
         catch (...) { logger.log(Logger::DEB, "retrorun_adaptive_frameskip parameter not found; using %s.", adaptiveFrameSkip ? "true" : "false"); }
 
         try
         {
-            const std::string &value = conf_map.at("retrorun_frameskip");
-            fixedFrameSkip = std::max(0, std::min(5, stoi(value)));
+            conf_map.at("retrorun_frameskip");
+            fixedFrameSkip = configValueInteger(
+                "retrorun_frameskip", 0, 0, 5);
             logger.log(Logger::DEB, "retrorun_frameskip: %d.", fixedFrameSkip);
         }
         catch (...)
@@ -792,8 +920,9 @@ void initConfig()
 
         try
         {
-            const std::string &asValue = conf_map.at("retrorun_enable_key_log");
-            enable_key_log = asValue == "true" ? true : false;
+            conf_map.at("retrorun_enable_key_log");
+            enable_key_log = configValueIsTrue(
+                "retrorun_enable_key_log", enable_key_log);
             logger.log(Logger::DEB, "retrorun_enable_key_log: %s.", enable_key_log ? "true" : "false");
         }
         catch (...) { logger.log(Logger::DEB, "retrorun_enable_key_log parameter not found in retrorun.cfg using default value (%s)", enable_key_log ? "true" : "false"); }
@@ -824,8 +953,9 @@ void initConfig()
 
         try
         {
-            const std::string &asValue = conf_map.at("retrorun_show_loading_screen");
-            showLoading = asValue == "true" ? true : false;
+            conf_map.at("retrorun_show_loading_screen");
+            showLoading = configValueIsTrue(
+                "retrorun_show_loading_screen", showLoading);
             logger.log(Logger::DEB, "retrorun_show_loading_screen: %s.", showLoading ? "true" : "false");
         }
         catch (...) { logger.log(Logger::DEB, "retrorun_show_loading_screen parameter not found in retrorun.cfg using default value (%s)", showLoading ? "true" : "false"); }
@@ -843,8 +973,9 @@ void initConfig()
 
         try
         {
-            const std::string &asValue = conf_map.at("retrorun_pixel_perfect");
-            pixel_perfect = asValue == "true" ? true : false;
+            conf_map.at("retrorun_pixel_perfect");
+            pixel_perfect = configValueIsTrue(
+                "retrorun_pixel_perfect", pixel_perfect);
             logger.log(Logger::DEB, "retrorun_pixel_perfect: %s.", pixel_perfect ? "true" : "false");
         }
         catch (...) { logger.log(Logger::DEB, "retrorun_pixel_perfect parameter not found in retrorun.cfg using default value (%s)", pixel_perfect ? "true" : "false"); }

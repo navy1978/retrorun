@@ -9,7 +9,11 @@ PNG_CFLAGS := $(shell pkg-config --cflags libpng)
 PNG_LIBS := $(shell pkg-config --libs libpng)
 
 COMMON_FLAGS := -std=c++20 -Wall -Wextra -DRR_PLATFORM_SDL -DRC_CLIENT_SUPPORTS_HASH \
-                -I$(ROOT)/src -I$(ROOT)/src/menu -I$(ROOT)/deps/rcheevos/include \
+                -I$(ROOT)/src -I$(ROOT)/src/menu -I$(ROOT)/src/audio \
+                -I$(ROOT)/src/config -I$(ROOT)/src/core -I$(ROOT)/src/input \
+                -I$(ROOT)/src/video -I$(ROOT)/src/services \
+                -I$(ROOT)/src/diagnostics -I$(ROOT)/src/platform \
+                -I$(ROOT)/deps/rcheevos/include \
                 -I$(ROOT)/deps/rcheevos/src $(SDL_CFLAGS) $(PNG_CFLAGS)
 ifeq ($(config),release)
   CXXFLAGS := $(COMMON_FLAGS) -O3 -DNDEBUG -flto
@@ -20,33 +24,34 @@ endif
 LDFLAGS := $(SDL_LIBS) $(PNG_LIBS) -lcurl -lz -framework OpenGL $(LDFLAGS_EXTRA)
 
 SOURCES := \
-  src/logger.cpp \
-  src/platform_sdl.cpp \
-  src/system-info.cpp \
-  src/ui-renderer.cpp \
+  src/diagnostics/logger.cpp \
+  src/platform/platform_sdl.cpp \
+  src/services/system-info.cpp \
+  src/video/ui-renderer.cpp \
   src/menu/menu_item.cpp \
   src/menu/menu.cpp \
   src/menu/menu_manager.cpp \
-  src/fonts.cpp \
-  src/input.cpp \
-  src/benchmark.cpp \
-  src/audio.cpp \
-  src/video-helper.cpp \
-  src/decoration.cpp \
-  src/decoration_catalog.cpp \
-  src/video.cpp \
+  src/video/fonts.cpp \
+  src/input/input.cpp \
+  src/diagnostics/benchmark.cpp \
+  src/audio/audio.cpp \
+  src/video/video-helper.cpp \
+  src/video/decoration.cpp \
+  src/video/decoration_catalog.cpp \
+  src/video/video.cpp \
   src/globals.cpp \
-  src/rumble.cpp \
-  src/events_sdl.cpp \
-  src/config.cpp \
-  src/core_loader.cpp \
-  src/savestate.cpp \
+  src/input/rumble.cpp \
+  src/input/events_sdl.cpp \
+  src/config/config.cpp \
+  src/config/config_file.cpp \
+  src/core/core_loader.cpp \
+  src/core/savestate.cpp \
   src/menu_setup.cpp \
-  src/keyboard.cpp \
-  src/disk_control.cpp \
-  src/file_browser.cpp \
-  src/achievements.cpp \
-  src/network_status.cpp \
+  src/input/keyboard.cpp \
+  src/core/disk_control.cpp \
+  src/services/file_browser.cpp \
+  src/services/achievements.cpp \
+  src/services/network_status.cpp \
   src/main.cpp
 
 RCHEEVOS_SOURCES := deps/rcheevos/src/rc_client.c deps/rcheevos/src/rc_compat.c \
@@ -72,7 +77,8 @@ $(OBJDIR)/rcheevos/%.o: $(ROOT)/deps/rcheevos/src/%.c
 	$(CC) -std=c99 -Wall -D_POSIX_C_SOURCE=200809L -include strings.h \
 		-Werror=implicit-function-declaration \
 		-DRC_CLIENT_SUPPORTS_HASH -I$(ROOT)/deps/rcheevos/include \
-	      -I$(ROOT)/deps/rcheevos/src -I$(ROOT)/src -MMD -MP -c $< -o $@
+	      -I$(ROOT)/deps/rcheevos/src -I$(ROOT)/src -I$(ROOT)/src/core \
+	      -MMD -MP -c $< -o $@
 
 clean:
 	rm -rf obj $(TARGET)

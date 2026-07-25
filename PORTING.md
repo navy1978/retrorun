@@ -1,28 +1,41 @@
 # Porting RetroRun to another device
 
 RetroRun separates the libretro frontend from device I/O through the hardware
-abstraction layer in `src/platform.h`. The current implementation in
-`src/platform_go2.cpp` adapts that API to the bundled GO2 backend.
+abstraction layer in `src/platform/platform.h`. The current implementation in
+`src/platform/platform_go2.cpp` adapts that API to the bundled GO2 backend.
 The SDL2 implementation used on macOS and Linux/KMSDRM is in
-`src/platform_sdl.cpp`. Linux defines `RR_SDL_GLES`, selecting an OpenGL ES 3
+`src/platform/platform_sdl.cpp`. Linux defines `RR_SDL_GLES`, selecting an OpenGL ES 3
 context and GLSL ES shaders while macOS keeps its Desktop OpenGL context.
 Desktop system discovery for macOS, Linux and Windows is isolated in
-`src/system-info.cpp`. Menu and OSD composition is isolated in
-`src/ui-renderer.cpp`, independently from core frame processing in `video.cpp`.
+`src/services/system-info.cpp`. Menu and OSD composition is isolated in
+`src/video/ui-renderer.cpp`, independently from core frame processing in
+`src/video/video.cpp`.
+
+## Source layout
+
+- `src/audio`: audio engine and selectable backend adapters.
+- `src/config`: configuration parsing, validation and persistence.
+- `src/core`: libretro loading, options, save states and disk control.
+- `src/input`: logical input, keyboard, rumble and SDL events.
+- `src/video`: presentation, overlays, fonts and decorations.
+- `src/services`: achievements, networking, file browser and system discovery.
+- `src/diagnostics`: logging and benchmark instrumentation.
+- `src/platform`: portable hardware contract and backend implementations.
+- `src/menu`, `src/go2` and `src/js2xbox`: existing specialised subsystems.
 
 The frontend modules depend only on the portable API:
 
-- `input.cpp` consumes buttons, sticks, battery and brightness through `rr_input_*`;
-- `audio.cpp` sends interleaved stereo PCM and controls volume through `rr_audio_*`;
-- `video.cpp`, `video-helper.cpp` and `status.h` use opaque display, surface,
+- `src/input/input.cpp` consumes buttons, sticks, battery and brightness through `rr_input_*`;
+- `src/audio/audio.cpp` sends interleaved stereo PCM and controls volume through `rr_audio_*`;
+- `src/video/video.cpp`, `src/video/video-helper.cpp` and `src/status.h` use opaque display, surface,
   presenter and graphics-context handles through `rr_*` calls.
 
 ## Adding a backend
 
-1. Implement every function declared by `src/platform.h`. Native objects must
+1. Implement every function declared by `src/platform/platform.h`. Native objects must
    remain private to the backend implementation.
 2. Map the logical `RRInputButton_*` values to the device's physical input
-   events. Do not put device-specific key codes in `input.cpp`.
+   events. Do not put device-specific key codes in `src/input/input.cpp`.
 3. Implement audio submission as signed 16-bit, stereo, interleaved PCM. The
    sample rate is passed to `rr_audio_create`.
 4. Implement RGB565/RGB888/XRGB8888 surfaces, scaling/blitting, presentation,

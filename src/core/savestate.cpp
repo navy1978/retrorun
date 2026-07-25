@@ -188,6 +188,23 @@ bool StartLoadStateAsync(const char *saveName, int slotNumber, bool autoLoad)
     const std::string label = load_label(slotNumber, autoLoad);
     input_slot_memory_load_done = false;
     lastLoadSaveStateDoneOk = true;
+
+    // Resolve the common "no auto-state yet" case on the frontend thread.
+    // This avoids creating a needless worker during core startup and makes a
+    // missing first-run state an immediate, deterministic result.
+    FILE *probe = path.empty() ? nullptr : fopen(path.c_str(), "rb");
+    if (!probe) {
+        logger.log(Logger::ERR, "Error loading state: File '%s' not found!", path.c_str());
+        asyncLoadProgress.store(-1, std::memory_order_release);
+        set_async_load_message("State file not found");
+        lastLoadSaveStateDoneOk = false;
+        input_slot_memory_load_done = true;
+        input_slot_memory_load_requested = false;
+        lastLoadSaveStateDoneTime = static_cast<double>(time(NULL));
+        return false;
+    }
+    fclose(probe);
+
     asyncLoadProgress.store(0, std::memory_order_release);
     set_async_load_message("Loading state " + label + "...");
     asyncLoadBusy.store(true, std::memory_order_release);

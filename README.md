@@ -444,9 +444,18 @@ exec /usr/bin/retrorun-sdl2 \
 
 RetroRun reads a simple `key = value` configuration file.
 
+The parser accepts Unix or Windows line endings, UTF-8 BOMs, blank lines,
+comments beginning with `#` or `;`, inline comments after whitespace, and
+single- or double-quoted values. Quotes are useful when a value contains `#`,
+`;`, leading/trailing whitespace or escape sequences. Duplicate keys are
+reported and the last value wins. Malformed entries and invalid typed values
+produce a line-numbered warning or error instead of being silently accepted.
+
 - Native GO2 default: `/storage/.config/distribution/configs/retrorun.cfg`.
 - SDL2 default: `./retrorun.cfg` in the current working directory.
 - Every backend: pass `-c /path/to/retrorun.cfg` to select another file.
+  An explicit `-c` always takes precedence over a `retrorun.cfg` in the
+  current working directory.
 
 The configuration file (`retrorun.cfg`) contains settings for different cores.
 Example:
@@ -838,9 +847,10 @@ entries.
 
 ## Porting and current limitations
 
-The frontend accesses input, audio and graphics through [src/platform.h](src/platform.h).
-The native implementation is in `src/platform_go2.cpp`; the macOS and Linux
-implementation is in `src/platform_sdl.cpp`. Menus and OSD composition are
+The frontend accesses input, audio and graphics through
+[src/platform/platform.h](src/platform/platform.h).
+The native implementation is in `src/platform/platform_go2.cpp`; the macOS and
+Linux implementation is in `src/platform/platform_sdl.cpp`. Menus and OSD composition are
 shared by both backends. See [PORTING.md](PORTING.md) for the backend contract.
 
 Current SDL2 Linux limitations:
