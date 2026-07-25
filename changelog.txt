@@ -38,8 +38,9 @@ Version 3.1.2 (Jul 23, 2026)
   validation; explicit `-c` configuration paths now always take precedence.
 - Register libretro international core-option definitions and their defaults,
   fixing cores that expose options only through `SET_CORE_OPTIONS_INTL`.
-- Recognize the separately packaged Flycast 2021 Low-End core, retaining the
-  legacy lifecycle workarounds while keeping its save states isolated.
+- Recognize the separately packaged Flycast 2022 Low-End core (and its earlier
+  Flycast 2021 LE test identity), retaining the legacy lifecycle workarounds
+  while keeping each core's save states isolated.
 - Reorganize frontend sources into audio, config, core, input, video, service,
   diagnostic and platform modules while retaining all supported build targets.
 - Add regression tests for benchmark serialization, audio workers and runtime

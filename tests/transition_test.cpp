@@ -32,6 +32,7 @@ int disk_step = 0;
 bool ejected = false;
 bool flycast2021 = false;
 bool flycast2021LowEnd = false;
+bool flycast2022 = false;
 
 size_t fake_serialize_size()
 {
@@ -78,8 +79,9 @@ bool add_index() { assert(disk_step == 1); disk_step = 2; return true; }
 bool audio_flush() { ++audio_flushes; return true; }
 void video_synchronize() { ++video_barriers; }
 void achievements_change_media(const char*) {}
-bool isFlycast2021() { return flycast2021 || flycast2021LowEnd; }
+bool isFlycast2021() { return flycast2021 || flycast2021LowEnd || flycast2022; }
 bool isFlycast2021LowEnd() { return flycast2021LowEnd; }
+bool isFlycast2022() { return flycast2022; }
 
 std::string replace(std::string& source, const std::string& from,
                     const std::string& to)
@@ -143,6 +145,12 @@ int main()
     assert(std::string(lowEndPath) == "/saves/test.fc2021le-rrstate.auto");
     std::free(lowEndPath);
     flycast2021LowEnd = false;
+
+    flycast2022 = true;
+    char *flycast2022Path = createSavePath("/roms/test.cdi", "/saves");
+    assert(std::string(flycast2022Path) == "/saves/test.fc2022-rrstate.auto");
+    std::free(flycast2022Path);
+    flycast2022 = false;
 
     retro_disk_control_ext_callback disk = {};
     disk.set_eject_state = set_eject;

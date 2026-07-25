@@ -178,6 +178,7 @@ std::vector<std::string> exec(const char* cmd) ;
 bool isFlycast();
 bool isFlycast2021();
 bool isFlycast2021LowEnd();
+bool isFlycast2022();
 bool isParalleln64();
 bool isSwanStation();
 bool isMGBA();
