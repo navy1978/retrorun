@@ -6,6 +6,7 @@
 #include <cassert>
 #include <chrono>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <pthread.h>
 #include <string>
@@ -29,6 +30,8 @@ int unserializes = 0;
 int serialize_size_calls = 0;
 int disk_step = 0;
 bool ejected = false;
+bool flycast2021 = false;
+bool flycast2021LowEnd = false;
 
 size_t fake_serialize_size()
 {
@@ -75,7 +78,8 @@ bool add_index() { assert(disk_step == 1); disk_step = 2; return true; }
 bool audio_flush() { ++audio_flushes; return true; }
 void video_synchronize() { ++video_barriers; }
 void achievements_change_media(const char*) {}
-bool isFlycast2021() { return false; }
+bool isFlycast2021() { return flycast2021 || flycast2021LowEnd; }
+bool isFlycast2021LowEnd() { return flycast2021LowEnd; }
 
 std::string replace(std::string& source, const std::string& from,
                     const std::string& to)
@@ -133,6 +137,12 @@ int main()
     assert(!lastLoadSaveStateDoneOk);
     assert(LoadStateStatusMessage() == "State file not found");
     assert(unserializes == 2);
+
+    flycast2021LowEnd = true;
+    char *lowEndPath = createSavePath("/roms/test.cdi", "/saves");
+    assert(std::string(lowEndPath) == "/saves/test.fc2021le-rrstate.auto");
+    std::free(lowEndPath);
+    flycast2021LowEnd = false;
 
     retro_disk_control_ext_callback disk = {};
     disk.set_eject_state = set_eject;

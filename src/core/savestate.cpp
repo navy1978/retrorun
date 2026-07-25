@@ -524,7 +524,9 @@ char *createSavePath(const std::string &arg_rom, const std::string &opt_savedir)
     std::string rawname = fullNameString.substr(0, lastindex);
 
     std::string stateAutoPath = opt_savedir + "/<gameName>.rrstate.auto";
-    if (isFlycast2021())
+    if (isFlycast2021LowEnd())
+        stateAutoPath = opt_savedir + "/<gameName>.fc2021le-rrstate.auto";
+    else if (isFlycast2021())
         stateAutoPath = opt_savedir + "/<gameName>.fc2021-rrstate.auto";
 
     std::string statePathFinal = replace(stateAutoPath, "<gameName>", rawname);

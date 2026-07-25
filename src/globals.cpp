@@ -145,8 +145,13 @@ bool isFlycast()
 
 bool isFlycast2021()
 {
-    return coreName == "Flycast 2021" || 
+    return coreName == "Flycast 2021" || isFlycast2021LowEnd() ||
             (isFlycast() &&  !coreVersion.empty() && coreVersion[0] != 'v');
+}
+
+bool isFlycast2021LowEnd()
+{
+    return coreName == "Flycast 2021 LE";
 }
 
 bool isParalleln64()
