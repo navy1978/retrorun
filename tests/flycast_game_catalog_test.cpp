@@ -16,7 +16,7 @@ void testBuiltInProfiles()
 {
     const Catalog catalog = builtinCatalog();
     assert(catalog.schema_version == 1);
-    assert(catalog.catalog_version == 20260735);
+    assert(catalog.catalog_version == 20260736);
     assert(catalog.profiles.size() == 13);
     assert(normalizeProductNumber("T1401D  50 ") == "T1401D50");
 
@@ -58,6 +58,8 @@ void testBuiltInProfiles()
     assert(profile.settings.at(
                "reicast_translucent_menu_guard_draw_sorting") ==
            "per_triangle");
+    assert(profile.settings.at("reicast_framerate") == "normal");
+    assert(profile.settings.at("retrorun_loop_declared_fps") == "false");
 
     assert(selectProfile(catalog, "T1401N", Mode::BestPerformance,
                          profile, fallback));

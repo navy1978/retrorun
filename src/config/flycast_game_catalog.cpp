@@ -19,7 +19,7 @@ constexpr const char *CatalogFilename = "flycast-game-catalog.ini";
 
 const char *BuiltinCatalogText = R"catalog(
 schema_version = 1
-catalog_version = 20260735
+catalog_version = 20260736
 
 default.retrorun_vsync = false
 default.retrorun_loop_declared_fps = true
@@ -144,6 +144,8 @@ profile.T1401D50.best_validated.reicast_translucent_menu_guard_draw_sorting = pe
 profile.T1401D50.best_validated.reicast_palette_fog_storage_reuse = enabled
 profile.T1401D50.best_validated.reicast_fast_depth = vertex_fast_log
 profile.T1401D50.best_validated.reicast_audio_mixer = lowend
+profile.T1401D50.best_validated.reicast_framerate = normal
+profile.T1401D50.best_validated.retrorun_loop_declared_fps = false
 
 profile.T1401D50.best_performance.title = Soul Calibur (aggressive)
 profile.T1401D50.best_performance.inherits = best_validated
@@ -161,6 +163,8 @@ profile.T1401N.best_validated.reicast_translucent_menu_guard_draw_sorting = per_
 profile.T1401N.best_validated.reicast_palette_fog_storage_reuse = enabled
 profile.T1401N.best_validated.reicast_fast_depth = vertex_fast_log
 profile.T1401N.best_validated.reicast_audio_mixer = lowend
+profile.T1401N.best_validated.reicast_framerate = normal
+profile.T1401N.best_validated.retrorun_loop_declared_fps = false
 
 profile.T1401N.best_performance.title = Soul Calibur (North America, aggressive)
 profile.T1401N.best_performance.inherits = best_validated
@@ -178,6 +182,8 @@ profile.T1401M.best_validated.reicast_translucent_menu_guard_draw_sorting = per_
 profile.T1401M.best_validated.reicast_palette_fog_storage_reuse = enabled
 profile.T1401M.best_validated.reicast_fast_depth = vertex_fast_log
 profile.T1401M.best_validated.reicast_audio_mixer = lowend
+profile.T1401M.best_validated.reicast_framerate = normal
+profile.T1401M.best_validated.retrorun_loop_declared_fps = false
 
 profile.T1401M.best_performance.title = Soul Calibur (Japan, aggressive)
 profile.T1401M.best_performance.inherits = best_validated

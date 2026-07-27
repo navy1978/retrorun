@@ -400,7 +400,7 @@ retrorun_flycast_game_profile = best_validated
 `disabled` keeps the normal configuration, `best_validated` selects the
 visually approved profile and `best_performance` selects the fastest retained
 profile, including documented compromises. RetroRun contains catalog version
-`20260735` and checks for a strictly newer `flycast-game-catalog.ini` beside
+`20260736` and checks for a strictly newer `flycast-game-catalog.ini` beside
 its executable. With catalog updates set to `auto` (the default), an
 at-most-daily background check downloads a newer valid catalog from the
 `navy1978/retrorun` repository into the active configuration directory; it is

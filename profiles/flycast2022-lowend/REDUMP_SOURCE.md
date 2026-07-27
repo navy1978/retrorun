@@ -7,7 +7,7 @@ The retail release inventory used while maintaining
 https://raw.githubusercontent.com/libretro/libretro-database/refs/heads/master/metadat/redump/Sega%20-%20Dreamcast.dat
 ```
 
-The source version inspected for catalog `20260735` is `2026.05.02`.
+The source version inspected for catalog `20260736` is `2026.05.02`.
 `libretro-database` is distributed under CC BY-SA 4.0. This repository keeps a
 small attributed cross-reference for the games that have RetroRun performance
 profiles; it does not embed the complete upstream DAT.

@@ -9,7 +9,7 @@ See [GAME_PROFILE_MODES.md](GAME_PROFILE_MODES.md) for the implemented
 current per-game differences.
 
 `flycast-game-catalog.ini` is the editable source form of catalog version
-`20260735`. The same data is built into RetroRun, so the feature works when
+`20260736`. The same data is built into RetroRun, so the feature works when
 distributions install only the executable. A copy beside RetroRun is used only
 when its `catalog_version` is greater than the built-in version.
 
@@ -26,7 +26,7 @@ Select profiles by product number rather than by ROM filename:
 | --- | --- | --- |
 | `MK-51117`, `HDR-0165` | Sonic Adventure 2 | Retail European/North American and Japanese variants. `best_performance` adds opaque-strip merging to the shadow-safe profile: 30.35 FPS versus 23.24 FPS on the same RG351V save-state (`+30.6%`), with shadows, menus, audio and gameplay manually approved. |
 | `RDC-0140`, `RDC-0149`, `T8116D 50`, `T3602M`, `T3601M`, `T3601N` | Dead or Alive 2 | Observed CDI images plus the Redump retail regional variants. Mapping the observed `RDC-0140` image to the approved profile measured about 41.2 FPS versus 31.6 FPS without it. |
-| `T1401D  50`, `T1401M`, `T1401N` | Soul Calibur | European, Japanese and North American retail variants; visually correct `per_triangle` compatibility profile. |
+| `T1401D  50`, `T1401M`, `T1401N` | Soul Calibur | European, Japanese and North American retail variants. Both profiles require `framerate=normal` and disabled frontend pacing: on RG353M the optimized `fullspeed` configuration ran worse than the unoptimized `normal` configuration. |
 | `MK-51035`, `HDR-0053` | Crazy Taxi | European/North American and Japanese retail variants. Accurate control profile. No experimental performance candidate produced a repeatable useful gain. |
 
 `dreamcast-product-variants.tsv` is the machine-checked map between the Redump
