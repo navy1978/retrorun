@@ -239,6 +239,7 @@ at a prompt before reaching the measured scene:
 
 ```sh
 ./retrorun-hybrid --benchmark 60 --benchmark-warmup 10 \
+  --benchmark-frames 1800 \
   --benchmark-set confirm_input=true \
   --benchmark-set confirm_input_delay=4 \
   --benchmark-set audio_buffer=512 CORE ROM
@@ -248,6 +249,9 @@ This injects one A press at the requested delay and one B press 0.75 seconds
 later. Both are restricted to warm-up and therefore never enter benchmark
 metrics. The warm-up must be longer than the configured delay plus one second,
 so both synthetic presses occur before metric collection starts.
+`--benchmark-frames` stops measurement after exactly the requested number of
+core frames; the duration remains a safety deadline. This makes alternating
+comparisons independent of the performance of the candidate being measured.
 These overrides are not persisted to `retrorun.cfg`.
 
 The validated low-end compensation can be enabled in `retrorun.cfg`. It is
@@ -379,6 +383,30 @@ Common options:
 | `-A MODE`, `--analog-to-digital MODE` | Analog-to-D-pad mode: `none`, `left`, `right`, `left_forced` or `right_forced`. Overrides the configuration file. |
 | `-g` | Enable the GPIO joypad path used by some native devices. |
 | `-r`, `--restart` | Enable the restart behaviour used by distribution launchers. |
+
+Validated and retained RG351V per-game configurations for Flycast 2022
+Low-End are stored in
+[`profiles/flycast2022-lowend`](profiles/flycast2022-lowend/README.md).
+The profile filenames include the Dreamcast product number so launchers can
+select them independently of the ROM filename.
+
+The modified Flycast core can also expose the Product number to RetroRun
+before content startup. Enable automatic selection with:
+
+```ini
+retrorun_flycast_game_profile = best_validated
+```
+
+`disabled` keeps the normal configuration, `best_validated` selects the
+visually approved profile and `best_performance` selects the fastest retained
+profile, including documented compromises. RetroRun contains catalog version
+`20260735` and checks for a strictly newer `flycast-game-catalog.ini` beside
+its executable. With catalog updates set to `auto` (the default), an
+at-most-daily background check downloads a newer valid catalog from the
+`navy1978/retrorun` repository into the active configuration directory; it is
+used on the next launch. Invalid files and unknown games leave the normal
+configuration untouched. For Flycast only, `Info > Flycast catalog` shows the
+short recognition, Product number, profile, version and source status.
 
 ### macOS example
 
@@ -713,7 +741,7 @@ General and input settings:
 | `retrorun_go2_audio_stretch_low_ms` | GO2/OpenAL queue threshold for compensation, clamped to `0`–`200` ms; defaults to `40`; the experimental RG351V profile used `20`. |
 | `retrorun_force_audio_multithread` | Runs blocking audio submission on a dedicated bounded worker thread. It can help demanding cores, especially on RG552; defaults to `false`. |
 | `retrorun_auto_save` | Saves automatically during shutdown. |
-| `retrorun_auto_load` | Loads the automatic save at startup. |
+| `retrorun_auto_load` | Loads the automatic save at startup. A missing first-run state is reported as the short informational message `No auto state`, not as an error. |
 | `retrorun_analog_to_digital` | Analog-to-D-pad mode: `none`, `left`, `right`, `left_forced` or `right_forced`. Non-forced modes are disabled automatically when the core requests native analog input. Defaults to `left_forced` for backward compatibility. |
 | `retrorun_force_left_analog_stick` | Deprecated compatibility setting. `true` maps to `left_forced`, `false` maps to `none`; ignored when `retrorun_analog_to_digital` is present. |
 | `retrorun_swap_l1r1_with_l2r2` | Exchanges shoulder buttons and triggers. |
@@ -721,6 +749,8 @@ General and input settings:
 | `retrorun_alternative_input_mode` | Uses the ArkOS-style Select/F2 hotkeys. |
 | `retrorun_mouse_speed_factor` | Mouse emulation speed; default is `5`. |
 | `retrorun_force_video_multithread` | Runs hardware-frame presentation on a detached thread on RG552 and the RG353 family. Experimental on RG353 devices and ignored with a warning on unsupported devices. RG552 keeps its automatic Flycast 2021 path even when this force option is disabled. |
+| `retrorun_flycast_game_profile` | Flycast-only Product-number catalog: `disabled` (default), `best_validated` or `best_performance`. A newer valid `flycast-game-catalog.ini` beside RetroRun overrides the built-in catalog. |
+| `retrorun_flycast_catalog_update` | `auto` (default) or `disabled`. When a Flycast game profile is active, `auto` checks GitHub at most once per day in a separate process and atomically caches only a newer, valid catalog. |
 | `retrorun_enable_key_log` | Logs logical button names at `DEBUG` level. |
 
 Native-device overrides:

@@ -8,6 +8,7 @@ Copyright (C) 2021-present  navy1978
 
 #include "libretro.h"
 #include <cstddef>
+#include <string>
 
 // The g_retro struct holds all dlsym'd libretro entry points
 struct RetroCore {
@@ -56,6 +57,11 @@ bool core_callbacks_enabled();
 bool core_take_pending_av_info(struct retro_system_av_info* info);
 void core_clear_pending_av_info();
 bool core_reset_synchronized();
+
+// Optional Flycast/RetroRun private ABI. Returns false for other cores and for
+// content whose Dreamcast IP metadata cannot be read before retro_load_game().
+bool core_probe_flycast_product_number(const char *filename,
+                                       std::string &product_number);
 
 // The libretro environment callback
 bool core_environment(unsigned cmd, void *data);

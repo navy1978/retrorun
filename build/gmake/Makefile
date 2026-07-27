@@ -109,6 +109,8 @@ OBJECTS := \
 	$(OBJDIR)/input/rumble.o \
 	$(OBJDIR)/config/config.o \
 	$(OBJDIR)/config/config_file.o \
+	$(OBJDIR)/config/flycast_game_catalog.o \
+	$(OBJDIR)/config/flycast_game_catalog_update.o \
 	$(OBJDIR)/core/core_loader.o \
 	$(OBJDIR)/core/savestate.o \
 	$(OBJDIR)/menu_setup.o \

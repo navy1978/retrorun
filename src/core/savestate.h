@@ -15,6 +15,7 @@ void PumpLoadStateAsync();
 bool LoadStateAsyncBusy();
 int LoadStateProgress();
 std::string LoadStateStatusMessage();
+bool LoadStateMissingAuto();
 void ShutdownLoadStateAsync();
 void SaveState(const char *saveName);
 int LoadSram(const char *saveName);

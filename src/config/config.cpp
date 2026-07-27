@@ -68,8 +68,11 @@ static const std::unordered_set<std::string> &knownRetroRunSettings()
         "retrorun_decorations", "retrorun_decorations_path",
         "retrorun_device_name", "retrorun_disable_rumble",
         "retrorun_drm_direct_scanout", "retrorun_enable_key_log",
+        "retrorun_egl_depth_bits", "retrorun_egl_stencil_bits",
         "retrorun_extra_evdev_name", "retrorun_extra_osh_name",
         "retrorun_extra_retrogame_name", "retrorun_force_audio_multithread",
+        "retrorun_flycast_catalog_update",
+        "retrorun_flycast_game_profile",
         "retrorun_force_left_analog_stick", "retrorun_force_video_multithread",
         "retrorun_fps_counter", "retrorun_frameskip",
         "retrorun_go2_audio_stretch_low_ms",
@@ -86,6 +89,66 @@ static const std::unordered_set<std::string> &knownRetroRunSettings()
         "retrorun_video_shader", "retrorun_vsync"
     };
     return settings;
+}
+
+void applyTransientConfigOverrides(
+    const std::map<std::string, std::string> &overrides)
+{
+    for (const auto &[setting, value] : overrides)
+    {
+        conf_map[setting] = value;
+        logger.log(Logger::DEB, "Transient profile override: %s=%s",
+                   setting.c_str(), value.c_str());
+    }
+
+    if (overrides.find("retrorun_loop_declared_fps") != overrides.end())
+        runLoopAtDeclaredfps = configValueIsTrue(
+            "retrorun_loop_declared_fps", runLoopAtDeclaredfps);
+    if (overrides.find("retrorun_audio_stable_buffer") != overrides.end())
+        retrorun_audio_stable_buffer = configValueIsTrue(
+            "retrorun_audio_stable_buffer", retrorun_audio_stable_buffer);
+    if (overrides.find("retrorun_force_audio_multithread") != overrides.end())
+        forceAudioMultithread = configValueIsTrue(
+            "retrorun_force_audio_multithread", forceAudioMultithread);
+    if (overrides.find("retrorun_force_video_multithread") != overrides.end())
+        forceVideoMultithread = configValueIsTrue(
+            "retrorun_force_video_multithread", forceVideoMultithread);
+    if (overrides.find("retrorun_drm_direct_scanout") != overrides.end())
+        drmDirectScanoutMode = configValueIsTrue(
+            "retrorun_drm_direct_scanout", false)
+                ? DRMDirectScanoutMode::Enabled
+                : DRMDirectScanoutMode::Disabled;
+    if (overrides.find("retrorun_adaptive_frameskip") != overrides.end())
+        adaptiveFrameSkip = configValueIsTrue(
+            "retrorun_adaptive_frameskip", adaptiveFrameSkip);
+    if (overrides.find("retrorun_frameskip") != overrides.end())
+        fixedFrameSkip = configValueInteger(
+            "retrorun_frameskip", fixedFrameSkip, 0, 5);
+    if (fixedFrameSkip > 0)
+        adaptiveFrameSkip = false;
+
+    if (overrides.find("retrorun_go2_audio_stretch_percent") !=
+        overrides.end())
+        retrorun_go2_audio_stretch_percent = configValueInteger(
+            "retrorun_go2_audio_stretch_percent",
+            retrorun_go2_audio_stretch_percent, 0, 10);
+    if (overrides.find("retrorun_go2_audio_stretch_low_ms") !=
+        overrides.end())
+        retrorun_go2_audio_stretch_low_ms = configValueInteger(
+            "retrorun_go2_audio_stretch_low_ms",
+            retrorun_go2_audio_stretch_low_ms, 0, 200);
+    if (overrides.find("retrorun_sdl_audio_stretch_percent") !=
+        overrides.end())
+        retrorun_sdl_audio_stretch_percent = configValueInteger(
+            "retrorun_sdl_audio_stretch_percent",
+            retrorun_sdl_audio_stretch_percent, 0, 10);
+    if (overrides.find("retrorun_sdl_audio_stretch_low_ms") !=
+        overrides.end())
+        retrorun_sdl_audio_stretch_low_ms = configValueInteger(
+            "retrorun_sdl_audio_stretch_low_ms",
+            retrorun_sdl_audio_stretch_low_ms, 0, 200);
+    if (overrides.find("retrorun_vsync") != overrides.end())
+        rr_video_vsync_set(configValueIsTrue("retrorun_vsync", false));
 }
 
 static bool isButtonMappingSetting(const std::string &setting)

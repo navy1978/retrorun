@@ -44,6 +44,8 @@ SOURCES := \
   src/input/events_sdl.cpp \
   src/config/config.cpp \
   src/config/config_file.cpp \
+  src/config/flycast_game_catalog.cpp \
+  src/config/flycast_game_catalog_update.cpp \
   src/core/core_loader.cpp \
   src/core/savestate.cpp \
   src/menu_setup.cpp \

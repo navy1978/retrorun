@@ -298,8 +298,12 @@ void renderStateMessage() {
         if (label.empty())
             label = lastLoadSaveStateDoneOk ? "Slot " + std::to_string(currentSlot) + " loaded"
                                             : "Load failed";
-        icon = lastLoadSaveStateDoneOk ? PopupIcon::Success : PopupIcon::Error;
-        if (!lastLoadSaveStateDoneOk) color = RED;
+        if (LoadStateMissingAuto()) {
+            icon = PopupIcon::Info;
+        } else {
+            icon = lastLoadSaveStateDoneOk ? PopupIcon::Success : PopupIcon::Error;
+            if (!lastLoadSaveStateDoneOk) color = RED;
+        }
     } else if (input_slot_memory_save_done) {
         label = "Slot " + std::to_string(currentSlot) + " saved";
         icon = PopupIcon::Success;

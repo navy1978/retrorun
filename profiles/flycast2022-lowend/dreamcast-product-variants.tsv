@@ -1,0 +1,16 @@
+# Source: libretro/libretro-database metadat/redump/Sega - Dreamcast.dat
+# Source version inspected: 2026.05.02
+# Columns: profile_game	region	redump_name	redump_serial	flycast_product_number	status
+Sonic Adventure 2	Europe / North America	Sonic Adventure 2 (retail)	952-0161-50 / MK-51117-50 / 51117	MK-51117	retail-profile
+Sonic Adventure 2	Japan	Sonic Adventure 2 (Japan)	HDR-0165	HDR-0165	retail-profile
+Dead or Alive 2	Observed CDI	Dead or Alive 2	(not in Redump DAT)	RDC-0149	observed-profile
+Dead or Alive 2	Observed USA CDI	Dead or Alive 2 (USA)[RDC]	(not in Redump DAT)	RDC-0140	observed-profile
+Dead or Alive 2	Europe	Dead or Alive 2 (Europe)	T-8116D-50	T8116D50	retail-profile
+Dead or Alive 2	Japan	Dead or Alive 2 (Japan)	T-3602M	T3602M	retail-profile
+Dead or Alive 2	Japan	Dead or Alive 2 (Japan) (Shokai Genteiban)	T-3601M	T3601M	retail-profile
+Dead or Alive 2	North America	Dead or Alive 2 (USA)	T-3601N	T3601N	retail-profile
+Soul Calibur	Europe	Soulcalibur (Europe)	950-0019-50 / T-1401D-50	T1401D50	retail-profile
+Soul Calibur	Japan	Soulcalibur (Japan)	T-1401M	T1401M	retail-profile
+Soul Calibur	North America	Soulcalibur (USA)	T-1401N	T1401N	retail-profile
+Crazy Taxi	Europe / North America	Crazy Taxi (retail)	952-0031-50 / MK-51035-50 / 51035	MK-51035	retail-profile
+Crazy Taxi	Japan	Crazy Taxi (Japan)	HDR-0053	HDR-0053	retail-profile

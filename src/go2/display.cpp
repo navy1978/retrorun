@@ -2007,8 +2007,10 @@ static EGLConfig FindConfig(EGLDisplay eglDisplay, int redBits, int greenBits, i
         eglGetConfigAttrib(eglDisplay, configs[i], EGL_DEPTH_SIZE, &configDepthSize);
         eglGetConfigAttrib(eglDisplay, configs[i], EGL_STENCIL_SIZE, &configStencilSize);
 
-        // printf("Egl::FindConfig: index=%d, red=%d, green=%d, blue=%d, alpha=%d\n",
-        //	i, configRedSize, configGreenSize, configBlueSize, configAlphaSize);
+        logger.log(Logger::DEB,
+                   "EGL config[%d]: color=%d/%d/%d/%d depth=%d stencil=%d",
+                   i, configRedSize, configGreenSize, configBlueSize,
+                   configAlphaSize, configDepthSize, configStencilSize);
 
         if (configRedSize == redBits &&
             configBlueSize == blueBits &&

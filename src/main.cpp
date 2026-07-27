@@ -20,6 +20,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include "globals.h"
 #include "config.h"
+#include "config/flycast_game_catalog.h"
 #include "core_loader.h"
 #include "savestate.h"
 #include "menu_setup.h"
@@ -57,6 +58,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <signal.h>
 #include <pthread.h>
 #include <chrono>
+#include <cstdint>
+#include <limits>
 #include <thread>
 #include <dlfcn.h>
 
@@ -80,6 +83,21 @@ pthread_t main_thread_id;
 extern bool first_video_refresh;
 extern rr_brightness_state_t brightnessState;
 
+struct FlycastCatalogStatus
+{
+    bool visible = false;
+    bool recognized = false;
+    std::string state = "Unavailable";
+    std::string product;
+    std::string title;
+    std::string requested;
+    std::string applied;
+    std::string source;
+    int version = 0;
+};
+
+static FlycastCatalogStatus flycastCatalogStatus;
+
 // --- Command line options ---
 
 static struct option longopts[] = {
@@ -98,6 +116,7 @@ static struct option longopts[] = {
     {"benchmark-warmup", required_argument, NULL, 1001},
     {"benchmark-json", required_argument, NULL, 1002},
     {"benchmark-set", required_argument, NULL, 1003},
+    {"benchmark-frames", required_argument, NULL, 1004},
     {0, 0, 0, 0}};
 
 static bool parseDuration(const char* text, bool allow_zero, double* result)
@@ -112,6 +131,20 @@ static bool parseDuration(const char* text, bool allow_zero, double* result)
     if (allow_zero ? value < 0.0 : value <= 0.0)
         return false;
     *result = value;
+    return true;
+}
+
+static bool parsePositiveUint64(const char* text, uint64_t* result)
+{
+    if (!text || !*text || !result || *text < '0' || *text > '9')
+        return false;
+    errno = 0;
+    char* end = nullptr;
+    const unsigned long long value = std::strtoull(text, &end, 10);
+    if (errno == ERANGE || end == text || *end != '\0' || value == 0 ||
+        value > std::numeric_limits<uint64_t>::max())
+        return false;
+    *result = static_cast<uint64_t>(value);
     return true;
 }
 
@@ -241,6 +274,151 @@ static bool applyBenchmarkSetting(const std::string& setting, std::string* error
     return true;
 }
 
+static void applyFlycastGameCatalog(const char *executable,
+                                    const char *content)
+{
+    using namespace rr::flycast_profiles;
+
+    flycastCatalogStatus = {};
+    if (!isFlycast2021())
+        return;
+    flycastCatalogStatus.visible = true;
+
+    const std::string configuredMode =
+        configValue("retrorun_flycast_game_profile", "disabled");
+    const Mode mode = parseMode(configuredMode);
+    flycastCatalogStatus.requested = configuredMode;
+    if (mode == Mode::Invalid)
+    {
+        logger.log(Logger::WARN,
+                   "Invalid retrorun_flycast_game_profile '%s'; catalog disabled.",
+                   configuredMode.c_str());
+        flycastCatalogStatus.state = "Invalid mode";
+    }
+
+    std::string rawProductNumber;
+    if (!core_probe_flycast_product_number(content, rawProductNumber))
+    {
+        logger.log(Logger::WARN,
+                   "Flycast game catalog: this core/content cannot provide a Product number before launch; no profile applied.");
+        flycastCatalogStatus.state = "No product";
+        return;
+    }
+    flycastCatalogStatus.product = normalizeProductNumber(rawProductNumber);
+
+    Catalog selectedCatalog = builtinCatalog();
+    if (selectedCatalog.profiles.empty())
+    {
+        logger.log(Logger::ERR,
+                   "Flycast game catalog: built-in catalog is invalid.");
+        flycastCatalogStatus.state = "Invalid catalog";
+        return;
+    }
+
+    const auto considerCatalog =
+        [&selectedCatalog](const std::string &path, const char *kind)
+    {
+        if (!fileExists(path.c_str()))
+            return;
+
+        Catalog candidate;
+        std::vector<std::string> diagnostics;
+        if (!loadCatalogFile(path, candidate, diagnostics))
+        {
+            logger.log(Logger::WARN,
+                       "Flycast game catalog: ignoring invalid %s catalog '%s'.",
+                       kind, path.c_str());
+            for (const std::string &diagnostic : diagnostics)
+                logger.log(Logger::WARN, "Catalog: %s", diagnostic.c_str());
+        }
+        else if (candidate.catalog_version >
+                 selectedCatalog.catalog_version)
+        {
+            selectedCatalog = std::move(candidate);
+        }
+        else
+        {
+            logger.log(Logger::DEB,
+                       "Flycast game catalog: %s version %d is not newer than selected version %d.",
+                       kind, candidate.catalog_version,
+                       selectedCatalog.catalog_version);
+        }
+    };
+
+    const std::string localPath = localCatalogPath(executable);
+    const std::string cachePath = cachedCatalogPath(activeConfigFile);
+    considerCatalog(localPath, "local");
+    if (cachePath != localPath)
+        considerCatalog(cachePath, "cached");
+
+    flycastCatalogStatus.version = selectedCatalog.catalog_version;
+    flycastCatalogStatus.source = selectedCatalog.source;
+
+    Profile catalogEntry;
+    bool catalogFallback = false;
+    flycastCatalogStatus.recognized =
+        selectProfile(selectedCatalog, rawProductNumber, Mode::BestValidated,
+                      catalogEntry, catalogFallback);
+    if (flycastCatalogStatus.recognized)
+    {
+        flycastCatalogStatus.title = catalogEntry.title;
+        flycastCatalogStatus.state =
+            mode == Mode::Disabled ? "Recognized (off)" : "Recognized";
+    }
+    else
+    {
+        flycastCatalogStatus.state = "Not cataloged";
+    }
+
+    if (mode == Mode::Disabled || mode == Mode::Invalid)
+        return;
+
+    const std::string updateMode =
+        configValue("retrorun_flycast_catalog_update", "auto");
+    if (updateMode == "auto")
+    {
+        if (scheduleCatalogUpdate(cachePath,
+                                  selectedCatalog.catalog_version))
+            logger.log(Logger::DEB,
+                       "Flycast game catalog: background update check scheduled; a newer valid catalog will be used on the next launch.");
+    }
+    else if (updateMode != "disabled")
+    {
+        logger.log(Logger::WARN,
+                   "Invalid retrorun_flycast_catalog_update '%s'; update disabled.",
+                   updateMode.c_str());
+    }
+
+    Profile profile;
+    bool usedFallback = false;
+    if (!selectProfile(selectedCatalog, rawProductNumber, mode, profile,
+                       usedFallback))
+    {
+        flycastCatalogStatus.recognized = false;
+        flycastCatalogStatus.state = "Not cataloged";
+        logger.log(Logger::INF,
+                   "Flycast game catalog: Product number '%s' is not cataloged for mode %s; normal configuration retained.",
+                   rawProductNumber.c_str(), modeName(mode));
+        return;
+    }
+
+    flycastCatalogStatus.recognized = true;
+    flycastCatalogStatus.state = "Recognized";
+    flycastCatalogStatus.title = profile.title;
+    flycastCatalogStatus.applied = modeName(profile.mode);
+    if (usedFallback)
+        flycastCatalogStatus.applied += " fallback";
+    applyTransientConfigOverrides(profile.settings);
+    logger.log(
+        Logger::INF,
+        "Flycast game catalog: product='%s', normalized='%s', game='%s', requested=%s, applied=%s%s, version=%d, source='%s'.",
+        rawProductNumber.c_str(),
+        normalizeProductNumber(rawProductNumber).c_str(),
+        profile.title.c_str(), modeName(mode), modeName(profile.mode),
+        usedFallback ? " (validated fallback)" : "",
+        selectedCatalog.catalog_version, selectedCatalog.source.c_str());
+}
+
 // --- Main ---
 
 int main(int argc, char *argv[])
@@ -326,6 +504,14 @@ int main(int argc, char *argv[])
             benchmarkModifierSeen = true;
             benchmarkSettings.emplace_back(optarg);
             break;
+        case 1004:
+            benchmarkModifierSeen = true;
+            if (!parsePositiveUint64(optarg, &benchmarkOptions.core_frames))
+            {
+                std::fprintf(stderr, "Invalid --benchmark-frames count '%s'.\n", optarg);
+                return EXIT_FAILURE;
+            }
+            break;
         default:
             logger.log(Logger::ERR, "Unknown option. '%s'", longopts[option_index].name);
             exit(EXIT_FAILURE);
@@ -337,7 +523,7 @@ int main(int argc, char *argv[])
 
     if (benchmarkModifierSeen && !benchmarkOptionSeen)
     {
-        std::fprintf(stderr, "--benchmark-warmup, --benchmark-json and --benchmark-set require --benchmark.\n");
+        std::fprintf(stderr, "--benchmark-warmup, --benchmark-json, --benchmark-set and --benchmark-frames require --benchmark.\n");
         return EXIT_FAILURE;
     }
 
@@ -349,9 +535,16 @@ int main(int argc, char *argv[])
             logger.log(Logger::ERR, "%s", benchmarkError.c_str());
             return EXIT_FAILURE;
         }
-        // Benchmark runs are deliberately non-persistent. State loading may
-        // still be requested to make repeated runs start from the same point.
-        auto_save = false;
+        // Benchmark runs are non-persistent by default. A diagnostic state
+        // capture may be requested explicitly after measurement has stopped;
+        // this is used to turn a repeatable attract/gameplay point into the
+        // input for subsequent fixed-frame comparisons.
+        const char* benchmarkSaveStateEnv =
+            std::getenv("RETRORUN_BENCHMARK_SAVE_STATE");
+        const bool benchmarkSaveStateRequested =
+            benchmarkSaveStateEnv != nullptr &&
+            std::strcmp(benchmarkSaveStateEnv, "1") == 0;
+        auto_save = auto_save && benchmarkSaveStateRequested;
         for (const std::string& setting : benchmarkSettings)
         {
             std::string settingError;
@@ -364,8 +557,10 @@ int main(int argc, char *argv[])
             logger.log(Logger::INF, "Benchmark override (not persisted): %s", setting.c_str());
         }
         logger.log(Logger::INF,
-                   "Benchmark requested: duration=%.3f seconds, warmup=%.3f seconds, saves=disabled",
-                   benchmarkOptions.duration_seconds, benchmarkOptions.warmup_seconds);
+                   "Benchmark requested: duration=%.3f seconds, warmup=%.3f seconds, core_frames=%llu, saves=%s",
+                   benchmarkOptions.duration_seconds, benchmarkOptions.warmup_seconds,
+                   (unsigned long long)benchmarkOptions.core_frames,
+                   auto_save ? "final-savestate" : "disabled");
     }
 
     if (!analogModeOverride.empty())
@@ -395,7 +590,7 @@ int main(int argc, char *argv[])
     {
         logger.log(Logger::ERR,
                    "Usage: %s [--benchmark seconds] [--benchmark-warmup seconds] [--benchmark-json file] "
-                   "[--benchmark-set NAME=VALUE] core rom",
+                   "[--benchmark-frames count] [--benchmark-set NAME=VALUE] core rom",
                    argv[0]);
         exit(EXIT_FAILURE);
     }
@@ -414,6 +609,8 @@ int main(int argc, char *argv[])
     input_gamepad_read();
 
     core_load(arg_core);
+
+    applyFlycastGameCatalog(argv[0], arg_rom);
 
     if (isSwanStation() && (isRG351V() || isRG351MP()))
         opt_aspect = 0.75f;
@@ -773,6 +970,35 @@ int main(int argc, char *argv[])
         MenuItem("Refresh", [](int button) { if (button == A_BUTTON) network_status_refresh(); })};
     Menu menuInfoNetwork = Menu("Network", network);
 
+    std::vector<MenuItem> flycastCatalog = {
+        MenuItem("Status: " + flycastCatalogStatus.state, [](int) {})};
+    if (!flycastCatalogStatus.product.empty())
+        flycastCatalog.emplace_back(
+            "Product: " + flycastCatalogStatus.product, [](int) {});
+    if (flycastCatalogStatus.recognized &&
+        !flycastCatalogStatus.title.empty())
+        flycastCatalog.emplace_back(
+            "Game: " + flycastCatalogStatus.title, [](int) {});
+    const std::string catalogProfile =
+        flycastCatalogStatus.applied.empty()
+            ? flycastCatalogStatus.requested
+            : flycastCatalogStatus.applied;
+    if (!catalogProfile.empty())
+        flycastCatalog.emplace_back(
+            "Profile: " + catalogProfile, [](int) {});
+    if (flycastCatalogStatus.version > 0)
+        flycastCatalog.emplace_back(
+            "Version: " + std::to_string(flycastCatalogStatus.version),
+            [](int) {});
+    if (!flycastCatalogStatus.source.empty())
+        flycastCatalog.emplace_back(
+            "Source: " +
+                std::string(flycastCatalogStatus.source == "built-in"
+                                ? "built-in"
+                                : "external"),
+            [](int) {});
+    Menu menuInfoFlycastCatalog = Menu("Flycast catalog", flycastCatalog);
+
     std::vector<MenuItem> itemsInfo = {
         MenuItem("Device", &menuInfoDevice, fake),
         MenuItem("Libretro core", &menuInfoCore, fake),
@@ -782,6 +1008,9 @@ int main(int argc, char *argv[])
         MenuItem("DRM diagnostics", &menuInfoDRM, fake),
 #endif
         MenuItem("Network", &menuInfoNetwork, fake)};
+    if (flycastCatalogStatus.visible)
+        itemsInfo.emplace_back(
+            "Flycast catalog", &menuInfoFlycastCatalog, fake);
 
     MenuItem menuItem_q = MenuItem("Are you sure?", [](int button) {
         if (button == A_BUTTON) { isRunning = false; }
@@ -1182,6 +1411,11 @@ int main(int argc, char *argv[])
     // --- Cleanup ---
 
     logger.log(Logger::DEB, "Exiting from render loop...");
+    // Metric collection has already stopped here, so an explicitly requested
+    // automatic state can be written without contaminating benchmark timing.
+    // Normal benchmark configurations keep auto_save disabled.
+    const bool benchmarkSaveState = benchmark_requested() && auto_save;
+
     if (!benchmark_requested())
     {
         logger.log(Logger::DEB, "Saving sram into file:%s", sramPath);
@@ -1195,8 +1429,11 @@ int main(int argc, char *argv[])
     if (!benchmark_requested())
         usleep(500000);
 
-    if (auto_save && !benchmark_requested())
+    if (auto_save && (!benchmark_requested() || benchmarkSaveState))
     {
+        if (benchmarkSaveState)
+            logger.log(Logger::INF,
+                       "Benchmark diagnostic override: saving final savestate.");
         logger.log(Logger::DEB, "Saving sav into file:%s", savePath);
         SaveState(savePath);
         sleep(1);

@@ -136,9 +136,17 @@ int main()
     assert(!LoadStateAsyncBusy());
     assert(input_slot_memory_load_done);
     assert(!input_slot_memory_load_requested);
+    assert(lastLoadSaveStateDoneOk);
+    assert(LoadStateMissingAuto());
+    assert(LoadStateStatusMessage() == "No auto state");
+    assert(unserializes == 2);
+
+    input_slot_memory_load_done = false;
+    input_slot_memory_load_requested = true;
+    assert(!StartLoadStateAsync("missing-transition-test.state", 1, false));
+    assert(!LoadStateMissingAuto());
     assert(!lastLoadSaveStateDoneOk);
     assert(LoadStateStatusMessage() == "State file not found");
-    assert(unserializes == 2);
 
     flycast2021LowEnd = true;
     char *lowEndPath = createSavePath("/roms/test.cdi", "/saves");

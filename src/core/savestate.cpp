@@ -68,6 +68,7 @@ std::thread asyncLoadThread;
 std::unique_ptr<PendingLoadState> asyncLoadReady;
 std::atomic<bool> asyncLoadBusy{false};
 std::atomic<bool> asyncLoadReadyFlag{false};
+std::atomic<bool> missingAutoState{false};
 std::atomic<int> asyncLoadProgress{-1};
 std::string asyncLoadMessage;
 
@@ -186,6 +187,7 @@ bool StartLoadStateAsync(const char *saveName, int slotNumber, bool autoLoad)
 
     const std::string path = saveName ? saveName : "";
     const std::string label = load_label(slotNumber, autoLoad);
+    missingAutoState.store(false, std::memory_order_release);
     input_slot_memory_load_done = false;
     lastLoadSaveStateDoneOk = true;
 
@@ -194,10 +196,14 @@ bool StartLoadStateAsync(const char *saveName, int slotNumber, bool autoLoad)
     // missing first-run state an immediate, deterministic result.
     FILE *probe = path.empty() ? nullptr : fopen(path.c_str(), "rb");
     if (!probe) {
-        logger.log(Logger::ERR, "Error loading state: File '%s' not found!", path.c_str());
+        if (autoLoad)
+            logger.log(Logger::INF, "No auto state: '%s'", path.c_str());
+        else
+            logger.log(Logger::ERR, "Error loading state: File '%s' not found!", path.c_str());
         asyncLoadProgress.store(-1, std::memory_order_release);
-        set_async_load_message("State file not found");
-        lastLoadSaveStateDoneOk = false;
+        missingAutoState.store(autoLoad, std::memory_order_release);
+        set_async_load_message(autoLoad ? "No auto state" : "State file not found");
+        lastLoadSaveStateDoneOk = autoLoad;
         input_slot_memory_load_done = true;
         input_slot_memory_load_requested = false;
         lastLoadSaveStateDoneTime = static_cast<double>(time(NULL));
@@ -341,12 +347,18 @@ std::string LoadStateStatusMessage()
     return asyncLoadMessage;
 }
 
+bool LoadStateMissingAuto()
+{
+    return missingAutoState.load(std::memory_order_acquire);
+}
+
 void ShutdownLoadStateAsync()
 {
     if (asyncLoadThread.joinable())
         asyncLoadThread.join();
     asyncLoadBusy.store(false, std::memory_order_release);
     asyncLoadProgress.store(-1, std::memory_order_release);
+    missingAutoState.store(false, std::memory_order_release);
     {
         std::lock_guard<std::mutex> lock(asyncLoadMutex);
         if (asyncLoadReady && asyncLoadReady->data)

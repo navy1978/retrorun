@@ -20,6 +20,7 @@ enum class BenchmarkPresentation {
 struct BenchmarkOptions {
     double duration_seconds = 0.0;
     double warmup_seconds = 0.0;
+    uint64_t core_frames = 0;
     std::string json_path;
 };
 

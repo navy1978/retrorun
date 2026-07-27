@@ -10,7 +10,7 @@ COMMON_FLAGS := $(CXXFLAGS) $(SANITIZER) $(INCLUDES) -pthread
 
 .PHONY: all run clean
 
-all: benchmark_test audio_worker_test transition_test config_file_test
+all: benchmark_test audio_worker_test transition_test config_file_test flycast_game_catalog_test
 
 benchmark_test: benchmark_test.cpp $(ROOT)/src/diagnostics/benchmark.cpp $(ROOT)/src/diagnostics/benchmark.h
 	$(CXX) $(COMMON_FLAGS) benchmark_test.cpp $(ROOT)/src/diagnostics/benchmark.cpp -o $@
@@ -26,11 +26,20 @@ transition_test: transition_test.cpp $(ROOT)/src/core/savestate.cpp $(ROOT)/src/
 config_file_test: config_file_test.cpp $(ROOT)/src/config/config_file.cpp $(ROOT)/src/config/config_file.h
 	$(CXX) $(COMMON_FLAGS) config_file_test.cpp $(ROOT)/src/config/config_file.cpp -o $@
 
+flycast_game_catalog_test: flycast_game_catalog_test.cpp \
+		$(ROOT)/src/config/flycast_game_catalog.cpp \
+		$(ROOT)/src/config/flycast_game_catalog.h \
+		$(ROOT)/src/config/config_file.cpp $(ROOT)/src/config/config_file.h
+	$(CXX) $(COMMON_FLAGS) flycast_game_catalog_test.cpp \
+		$(ROOT)/src/config/flycast_game_catalog.cpp \
+		$(ROOT)/src/config/config_file.cpp -o $@
+
 run: all
 	./benchmark_test
 	./audio_worker_test
 	./transition_test
 	./config_file_test
+	./flycast_game_catalog_test
 
 clean:
-	rm -f benchmark_test audio_worker_test transition_test config_file_test benchmark-result-1.json benchmark-result-2.json transition-test.state
+	rm -f benchmark_test audio_worker_test transition_test config_file_test flycast_game_catalog_test benchmark-result-1.json benchmark-result-2.json transition-test.state

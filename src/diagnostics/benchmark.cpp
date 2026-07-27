@@ -249,7 +249,11 @@ bool benchmark_update_window()
         g_benchmark_collecting.store(true, std::memory_order_release);
         return true;
     }
-    if (now >= state.measurement_deadline) {
+    const bool frame_limit_reached =
+        state.options.core_frames != 0 &&
+        state.counters.core_frames.load(std::memory_order_relaxed) >=
+            state.options.core_frames;
+    if (frame_limit_reached || now >= state.measurement_deadline) {
         g_benchmark_collecting.store(false, std::memory_order_release);
         state.measurement_ended = now;
         state.completed = true;
@@ -436,6 +440,7 @@ bool benchmark_finish_and_report()
     }
     const double overhead_average = sample_count ? overhead_total / sample_count : 0.0;
     const double requested_duration = state.options.duration_seconds;
+    const uint64_t requested_core_frames = state.options.core_frames;
     const double duration = std::chrono::duration<double>(
         state.measurement_ended - state.measurement_started).count();
     const double max_lateness = lateness.empty() ? 0.0
@@ -469,6 +474,7 @@ bool benchmark_finish_and_report()
          << ",\"sample_rate\":" << state.metadata.sample_rate
          << ",\"duration_seconds\":" << duration
          << ",\"requested_duration_seconds\":" << requested_duration
+         << ",\"requested_core_frames\":" << requested_core_frames
          << ",\"settings\":{\"declared_fps_pacing\":" << json_bool(state.metadata.declared_fps_pacing)
          << ",\"threaded_audio\":" << json_bool(state.metadata.threaded_audio)
          << ",\"stable_audio_buffer\":" << json_bool(state.metadata.stable_audio_buffer)

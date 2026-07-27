@@ -16,11 +16,13 @@ static std::string read_file(const char* path)
                        std::istreambuf_iterator<char>());
 }
 
-static void run_counter_snapshot(const char* path, unsigned presentations)
+static void run_counter_snapshot(const char* path, unsigned presentations,
+                                 uint64_t requested_core_frames = 0)
 {
     BenchmarkOptions options;
-    options.duration_seconds = 0.015;
+    options.duration_seconds = requested_core_frames ? 5.0 : 0.015;
     options.warmup_seconds = 0.0;
+    options.core_frames = requested_core_frames;
     options.json_path = path;
     std::string error;
     assert(benchmark_configure(options, &error));
@@ -96,6 +98,8 @@ static void run_counter_snapshot(const char* path, unsigned presentations)
     assert(json.find("\"go2_audio_stretch_low_ms\":35") != std::string::npos);
     assert(json.find("\"confirm_input\":true") != std::string::npos);
     assert(json.find("\"confirm_input_delay_seconds\":4.000") != std::string::npos);
+    assert(json.find("\"requested_core_frames\":" +
+                     std::to_string(requested_core_frames)) != std::string::npos);
     assert(json.find("\"core_p95\"") != std::string::npos);
     assert(json.find("\"active_frame_p99\"") != std::string::npos);
     assert(json.find("\"backpressure_events\":2") != std::string::npos);
@@ -117,6 +121,7 @@ int main()
 
     const char* first = "benchmark-result-1.json";
     const char* second = "benchmark-result-2.json";
+    const char* fixed = "benchmark-result-fixed.json";
     run_counter_snapshot(first, 4);
     const std::string first_json = read_file(first);
     run_counter_snapshot(second, 1);
@@ -126,7 +131,13 @@ int main()
     assert(first_json.find("\"presented_frames\":5") != std::string::npos);
     assert(second_json.find("\"presented_frames\":2") != std::string::npos);
 
+    run_counter_snapshot(fixed, 3, 12);
+    const std::string fixed_json = read_file(fixed);
+    assert(fixed_json.find("\"core_frames\":12") != std::string::npos);
+    assert(fixed_json.find("\"requested_core_frames\":12") != std::string::npos);
+
     std::remove(first);
     std::remove(second);
+    std::remove(fixed);
     return 0;
 }

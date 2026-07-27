@@ -7,6 +7,7 @@ Copyright (C) 2021-present  navy1978
 */
 
 #include <string>
+#include <map>
 #include "logger.h"
 #include "platform.h"
 #include "globals.h"
@@ -19,6 +20,12 @@ std::string &trim(std::string &s);
 // Config file parsing
 void initMapConfig(std::string pathConfFile);
 void initConfig();
+
+// Merge non-persistent per-content values after initConfig(). Core options are
+// consumed later through GET_VARIABLE; the small set of frontend values used
+// by the Flycast catalog is also reflected into its runtime globals.
+void applyTransientConfigOverrides(
+    const std::map<std::string, std::string> &overrides);
 
 // Config helpers
 float getAspectRatio(const std::string aspect);

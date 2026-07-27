@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "file_browser.h"
 #include "achievements.h"
 #include "benchmark.h"
+#include "config.h"
 #include "core_loader.h"
 
 #include "input.h"
@@ -247,6 +248,10 @@ void video_configure(struct retro_game_geometry *geom)
     if (isOpenGL)
     {
         rr_context_attributes_t attr;
+        const int configuredDepthBits =
+            configValueInteger("retrorun_egl_depth_bits", 24, 0, 32);
+        const int configuredStencilBits =
+            configValueInteger("retrorun_egl_stencil_bits", 8, 0, 8);
         if (color_format == RR_PIXEL_FORMAT_XRGB8888 && !isRK3566Device()) // should be always true
         {
 #ifdef RR_SDL_GLES
@@ -266,8 +271,8 @@ void video_configure(struct retro_game_geometry *geom)
             attr.green_bits = 8;
             attr.blue_bits = 8;
             attr.alpha_bits = 8;
-            attr.depth_bits = 24;
-            attr.stencil_bits = 8;
+            attr.depth_bits = configuredDepthBits;
+            attr.stencil_bits = configuredStencilBits;
         }
         else
         {
@@ -282,8 +287,8 @@ void video_configure(struct retro_game_geometry *geom)
             attr.green_bits = 6;
             attr.blue_bits = 5;
             attr.alpha_bits = 0;
-            attr.depth_bits = 24;
-            attr.stencil_bits = 8;
+            attr.depth_bits = configuredDepthBits;
+            attr.stencil_bits = configuredStencilBits;
         }
 
         logger.log(Logger::DEB,
