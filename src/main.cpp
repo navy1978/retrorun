@@ -408,7 +408,17 @@ static void applyFlycastGameCatalog(const char *executable,
     flycastCatalogStatus.applied = modeName(profile.mode);
     if (usedFallback)
         flycastCatalogStatus.applied += " fallback";
-    applyTransientConfigOverrides(profile.settings);
+
+    // Catalog files use reicast_* as the canonical Flycast option namespace.
+    // AmberELEC gives its parallel cores distinct option namespaces, so adapt
+    // the keys after the core has identified itself and before applying them.
+    std::string coreOptionPrefix = "reicast_";
+    if (isFlycast2022())
+        coreOptionPrefix = "flycast2022_";
+    else if (coreName == "Flycast 2021" || isFlycast2021LowEnd())
+        coreOptionPrefix = "flycast2021_";
+    applyTransientConfigOverrides(
+        settingsForOptionPrefix(profile.settings, coreOptionPrefix));
     logger.log(
         Logger::INF,
         "Flycast game catalog: product='%s', normalized='%s', game='%s', requested=%s, applied=%s%s, version=%d, source='%s'.",

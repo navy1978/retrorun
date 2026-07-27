@@ -611,4 +611,19 @@ bool selectProfile(const Catalog &catalog, const std::string &product_number,
     return true;
 }
 
+std::map<std::string, std::string> settingsForOptionPrefix(
+    const std::map<std::string, std::string> &settings,
+    const std::string &core_option_prefix)
+{
+    std::map<std::string, std::string> translated;
+    for (const auto &[setting, value] : settings)
+    {
+        if (setting.rfind("reicast_", 0) == 0)
+            translated[core_option_prefix + setting.substr(8)] = value;
+        else
+            translated[setting] = value;
+    }
+    return translated;
+}
+
 } // namespace rr::flycast_profiles

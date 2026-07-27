@@ -29,6 +29,13 @@ void testBuiltInProfiles()
            "menu_guarded_shadow_safe");
     assert(profile.settings.at("reicast_audio_mixer") == "lowend");
 
+    const auto amberSettings =
+        settingsForOptionPrefix(profile.settings, "flycast2022_");
+    assert(amberSettings.at("flycast2022_fast_depth") ==
+           "menu_guarded_shadow_safe");
+    assert(amberSettings.at("flycast2022_audio_mixer") == "lowend");
+    assert(amberSettings.count("reicast_fast_depth") == 0);
+
     const char *knownRetailVariants[] = {
         "MK-51117", "HDR-0165",
         "RDC-0140", "RDC-0149", "T8116D50", "T3602M", "T3601M", "T3601N",
@@ -51,6 +58,10 @@ void testBuiltInProfiles()
     assert(fallback);
     assert(profile.mode == Mode::BestValidated);
     assert(profile.settings.at("retrorun_egl_stencil_bits") == "0");
+    const auto mixedSettings =
+        settingsForOptionPrefix(profile.settings, "flycast2021_");
+    assert(mixedSettings.at("retrorun_egl_stencil_bits") == "0");
+    assert(mixedSettings.at("flycast2021_fast_depth") == "vertex_fast_log");
 
     assert(selectProfile(catalog, "T1401D  50", Mode::BestValidated,
                          profile, fallback));

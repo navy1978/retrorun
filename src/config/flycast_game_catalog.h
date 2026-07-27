@@ -57,4 +57,11 @@ bool scheduleCatalogUpdate(const std::string &cache_path,
 bool selectProfile(const Catalog &catalog, const std::string &product_number,
                    Mode mode, Profile &profile, bool &used_fallback);
 
+// Catalogs store Flycast options in the canonical reicast_* namespace.
+// Distribution builds that rename the core options can translate them here
+// without changing catalog data or RetroRun-specific settings.
+std::map<std::string, std::string> settingsForOptionPrefix(
+    const std::map<std::string, std::string> &settings,
+    const std::string &core_option_prefix);
+
 } // namespace rr::flycast_profiles
