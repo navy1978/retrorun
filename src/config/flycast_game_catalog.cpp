@@ -19,7 +19,7 @@ constexpr const char *CatalogFilename = "flycast-game-catalog.ini";
 
 const char *BuiltinCatalogText = R"catalog(
 schema_version = 1
-catalog_version = 20260741
+catalog_version = 20260742
 
 default.retrorun_vsync = false
 default.retrorun_loop_declared_fps = true
@@ -249,12 +249,56 @@ profile.T1401M.best_performance.reicast_opaque_strip_merge = enabled
 profile.T1401M.best_performance.retrorun_egl_stencil_bits = 0
 
 profile.MK-51035.best_validated.title = Crazy Taxi
+profile.MK-51035.best_validated.retrorun_adaptive_frameskip = false
+profile.MK-51035.best_validated.retrorun_audio_buffer = 2048
+profile.MK-51035.best_validated.retrorun_audio_stable_buffer = true
+profile.MK-51035.best_validated.retrorun_frameskip = 0
+profile.MK-51035.best_validated.retrorun_go2_audio_stretch_low_ms = 150
+profile.MK-51035.best_validated.retrorun_go2_audio_wsola_profile = lowend_stable_96
+profile.MK-51035.best_validated.retrorun_loop_declared_fps = true
 profile.MK-51035.best_validated.reicast_hle_bios = enabled
 profile.MK-51035.best_validated.reicast_gdrom_fast_loading = disabled
+profile.MK-51035.best_validated.reicast_alpha_sorting = per-triangle (normal)
+profile.MK-51035.best_validated.reicast_frame_skipping = disabled
+profile.MK-51035.best_validated.reicast_translucent_strip_merge = disabled
+profile.MK-51035.best_validated.reicast_translucent_menu_guard_strategy = top_hud_last
+profile.MK-51035.best_validated.reicast_translucent_menu_guard_max_vertices = 64
+profile.MK-51035.best_validated.reicast_translucent_menu_guard_risk = 5
+profile.MK-51035.best_validated.reicast_translucent_menu_guard_depth_tolerance = 0.0001
+profile.MK-51035.best_validated.reicast_translucent_menu_guard_overlap = risky
+profile.MK-51035.best_validated.reicast_translucent_menu_guard_draw_sorting = standard
+profile.MK-51035.best_validated.reicast_fast_depth = menu_guarded_shadow_safe
+profile.MK-51035.best_validated.reicast_audio_mixer = lowend
+profile.MK-51035.best_validated.reicast_opaque_strip_merge = disabled
+profile.MK-51035.best_validated.retrorun_egl_depth_bits = 24
+profile.MK-51035.best_validated.retrorun_egl_stencil_bits = 8
+profile.MK-51035.best_validated.reicast_aica_arm_cycles = 32
 
 profile.HDR-0053.best_validated.title = Crazy Taxi (Japan)
+profile.HDR-0053.best_validated.retrorun_adaptive_frameskip = false
+profile.HDR-0053.best_validated.retrorun_audio_buffer = 2048
+profile.HDR-0053.best_validated.retrorun_audio_stable_buffer = true
+profile.HDR-0053.best_validated.retrorun_frameskip = 0
+profile.HDR-0053.best_validated.retrorun_go2_audio_stretch_low_ms = 150
+profile.HDR-0053.best_validated.retrorun_go2_audio_wsola_profile = lowend_stable_96
+profile.HDR-0053.best_validated.retrorun_loop_declared_fps = true
 profile.HDR-0053.best_validated.reicast_hle_bios = enabled
 profile.HDR-0053.best_validated.reicast_gdrom_fast_loading = disabled
+profile.HDR-0053.best_validated.reicast_alpha_sorting = per-triangle (normal)
+profile.HDR-0053.best_validated.reicast_frame_skipping = disabled
+profile.HDR-0053.best_validated.reicast_translucent_strip_merge = disabled
+profile.HDR-0053.best_validated.reicast_translucent_menu_guard_strategy = top_hud_last
+profile.HDR-0053.best_validated.reicast_translucent_menu_guard_max_vertices = 64
+profile.HDR-0053.best_validated.reicast_translucent_menu_guard_risk = 5
+profile.HDR-0053.best_validated.reicast_translucent_menu_guard_depth_tolerance = 0.0001
+profile.HDR-0053.best_validated.reicast_translucent_menu_guard_overlap = risky
+profile.HDR-0053.best_validated.reicast_translucent_menu_guard_draw_sorting = standard
+profile.HDR-0053.best_validated.reicast_fast_depth = menu_guarded_shadow_safe
+profile.HDR-0053.best_validated.reicast_audio_mixer = lowend
+profile.HDR-0053.best_validated.reicast_opaque_strip_merge = disabled
+profile.HDR-0053.best_validated.retrorun_egl_depth_bits = 24
+profile.HDR-0053.best_validated.retrorun_egl_stencil_bits = 8
+profile.HDR-0053.best_validated.reicast_aica_arm_cycles = 32
 )catalog";
 
 struct RawProfile

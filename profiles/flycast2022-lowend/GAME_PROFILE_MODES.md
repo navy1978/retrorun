@@ -23,7 +23,7 @@ La selezione deve usare il Product number Dreamcast, non il nome del file ROM.
 | Sonic Adventure 2 | `MK-51117`, `HDR-0165` | `fast_depth=menu_guarded_shadow_safe`, merge opachi disattivato | Merge opachi attivato, buffer 2048 e audio `lowend_stable_96` | Le varianti retail europea/nordamericana e giapponese condividono il profilo. Il confronto C1 da 300 frame ha conservato 299 frame presentati, aumentato il throughput da 33,47 a 36,29 FPS e ridotto gli underrun da 19 a 2. Ombre, menu, audio e gioco sono stati approvati manualmente. |
 | Dead or Alive 2 | `RDC-0140`, `RDC-0149`, `T8116D 50`, `T3602M`, `T3601M`, `T3601N` | Profilo DOA2 corrente | Uguale a `best_validated` | Le varianti CDI osservate e le varianti retail regionali condividono il profilo. L'associazione di `RDC-0140` ha misurato circa 41,2 FPS contro 31,6 FPS senza profilo. Video, audio e comandi approvati. I tentativi audio/AICA più aggressivi non hanno dato un guadagno stabile. |
 | Soul Calibur | `T1401D  50`, `T1401M`, `T1401N` | `retrorun-soul-T1401D50.cfg` | `experimental/retrorun-soul-performance-T1401D50.cfg` | Le edizioni retail europea, giapponese e nordamericana usano lo stesso profilo. Entrambe usano `framerate=normal` e disabilitano il pacing del frontend: su RG353M la configurazione ottimizzata con `fullspeed` era più lenta perfino della configurazione non ottimizzata con `normal`. La variante validata usa `per_triangle`; quella veloce usa `top_hud_last` e può mostrare il fondale sopra la barra. |
-| Crazy Taxi | `MK-51035`, `HDR-0053` | Profilo accurato corrente | Uguale a `best_validated` | Le edizioni retail europea/nordamericana e giapponese condividono il profilo. Nessuna candidata sperimentale ha prodotto un miglioramento utile e ripetibile. |
+| Crazy Taxi | `MK-51035`, `HDR-0053` | B4: v9, audio `lowend_stable_96`, `per-triangle` e menu guard | Fallback a `best_validated` | Le edizioni retail europea/nordamericana e giapponese condividono il profilo B4 approvato manualmente. Sul cold boot RG351V ha misurato 41,31 core FPS e 39,04 frame unici/s contro 31,12 e 25,73 dello stack AmberELEC, con skip 5,5% contro 17,3% e un underrun contro 99. |
 
 ## Parametri che differiscono davvero
 
@@ -37,7 +37,7 @@ cartella.
 | DOA2 | entrambe | off/off | `menu_guarded`, `scored` | `vertex_fast_log` | `accurate` | on | D24S0 |
 | Soul Calibur | validata | on/on | `menu_guarded`, `scored`, `per_triangle` | `vertex_fast_log` | `lowend` | off | predefinito |
 | Soul Calibur | prestazioni | off/off | `menu_guarded`, `top_hud_last`, `standard` | `vertex_fast_log` | `lowend` | on | D24S0 |
-| Crazy Taxi | entrambe | on/on | `menu_guarded`, `scored` | off | `accurate` | off | predefinito |
+| Crazy Taxi | validata | on/on | merge off, `top_hud_last`, `per-triangle` | `menu_guarded_shadow_safe` | `lowend_stable_96` | off | D24S8 |
 
 ## Regola di precedenza
 

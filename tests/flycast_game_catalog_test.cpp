@@ -84,6 +84,24 @@ void testBuiltInProfiles()
            "top_hud_last");
     assert(profile.settings.at("reicast_audio_mixer") == "lowend");
 
+    assert(selectProfile(catalog, "MK-51035", Mode::BestValidated,
+                         profile, fallback));
+    assert(!fallback);
+    assert(profile.settings.at("reicast_alpha_sorting") ==
+           "per-triangle (normal)");
+    assert(profile.settings.at("reicast_fast_depth") ==
+           "menu_guarded_shadow_safe");
+    assert(profile.settings.at("retrorun_go2_audio_wsola_profile") ==
+           "lowend_stable_96");
+    assert(profile.settings.at("retrorun_audio_buffer") == "2048");
+
+    assert(selectProfile(catalog, "HDR-0053", Mode::BestPerformance,
+                         profile, fallback));
+    assert(fallback);
+    assert(profile.product_number == "HDR-0053");
+    assert(profile.settings.at("reicast_alpha_sorting") ==
+           "per-triangle (normal)");
+
     assert(!selectProfile(catalog, "UNKNOWN", Mode::BestValidated,
                           profile, fallback));
     assert(cachedCatalogPath("/storage/config/retrorun.cfg") ==
