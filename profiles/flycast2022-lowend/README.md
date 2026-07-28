@@ -24,7 +24,7 @@ Select profiles by product number rather than by ROM filename:
 
 | Product number | Game | Status |
 | --- | --- | --- |
-| `MK-51117`, `HDR-0165` | Sonic Adventure 2 | Retail European/North American and Japanese variants. `best_performance` adds opaque-strip merging to the shadow-safe profile: 30.35 FPS versus 23.24 FPS on the same RG351V save-state (`+30.6%`), with shadows, menus, audio and gameplay manually approved. |
+| `MK-51117`, `HDR-0165` | Sonic Adventure 2 | Retail European/North American and Japanese variants. `best_performance` adds opaque-strip merging and the validated `lowend_stable_96` GO2 audio preset. A fixed 300-frame RG351V comparison presented 299 frames in both modes while the preset improved throughput from 33.47 to 36.29 FPS and reduced audio underruns from 19 to 2. Shadows, menus, audio and gameplay were manually approved. |
 | `RDC-0140`, `RDC-0149`, `T8116D 50`, `T3602M`, `T3601M`, `T3601N` | Dead or Alive 2 | Observed CDI images plus the Redump retail regional variants. Mapping the observed `RDC-0140` image to the approved profile measured about 41.2 FPS versus 31.6 FPS without it. |
 | `T1401D  50`, `T1401M`, `T1401N` | Soul Calibur | European, Japanese and North American retail variants. Both profiles require `framerate=normal` and disabled frontend pacing: on RG353M the optimized `fullspeed` configuration ran worse than the unoptimized `normal` configuration. |
 | `MK-51035`, `HDR-0053` | Crazy Taxi | European/North American and Japanese retail variants. Accurate control profile. No experimental performance candidate produced a repeatable useful gain. |
@@ -79,3 +79,9 @@ older depth-only experiment remains in
 `experimental/retrorun-sonic-aggressive-MK-51117.cfg` for reproducibility; it
 retains menu/pause protection but accepts the documented rectangular-shadow
 artifact and is no longer the fastest measured profile.
+
+The Sonic `best_performance` profile also selects a 2048-frame frontend
+buffer, a 150 ms GO2 low-water threshold and the `lowend_stable_96` audio
+preset. The preset keeps environment variables as explicit emergency
+overrides, but makes the validated WSOLA 25/33 configuration, 1024-frame
+window and 96% playback pitch reproducible from the versioned catalog.

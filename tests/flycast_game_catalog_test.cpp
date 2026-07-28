@@ -16,7 +16,7 @@ void testBuiltInProfiles()
 {
     const Catalog catalog = builtinCatalog();
     assert(catalog.schema_version == 1);
-    assert(catalog.catalog_version == 20260740);
+    assert(catalog.catalog_version == 20260741);
     assert(catalog.profiles.size() == 13);
     assert(normalizeProductNumber("T1401D  50 ") == "T1401D50");
 

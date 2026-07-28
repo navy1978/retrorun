@@ -76,7 +76,8 @@ static const std::unordered_set<std::string> &knownRetroRunSettings()
         "retrorun_force_left_analog_stick", "retrorun_force_video_multithread",
         "retrorun_fps_counter", "retrorun_frameskip",
         "retrorun_go2_audio_stretch_low_ms",
-        "retrorun_go2_audio_stretch_percent", "retrorun_log_level",
+        "retrorun_go2_audio_stretch_percent",
+        "retrorun_go2_audio_wsola_profile", "retrorun_log_level",
         "retrorun_log_to_file", "retrorun_loop_declared_fps",
         "retrorun_mouse_speed_factor", "retrorun_pixel_perfect",
         "retrorun_rumble_event", "retrorun_rumble_pwm_file",
@@ -127,6 +128,12 @@ void applyTransientConfigOverrides(
     if (fixedFrameSkip > 0)
         adaptiveFrameSkip = false;
 
+    if (overrides.find("retrorun_audio_buffer") != overrides.end())
+    {
+        retrorun_audio_buffer = configValueInteger(
+            "retrorun_audio_buffer", retrorun_audio_buffer, -1, 65536);
+        new_retrorun_audio_buffer = retrorun_audio_buffer;
+    }
     if (overrides.find("retrorun_go2_audio_stretch_percent") !=
         overrides.end())
         retrorun_go2_audio_stretch_percent = configValueInteger(

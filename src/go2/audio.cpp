@@ -322,14 +322,22 @@ go2_audio_t *go2_audio_create(int frequency)
     result->stretch_low_frames =
         static_cast<uint64_t>(frequency) *
         static_cast<uint64_t>(result->stretch_low_ms) / 1000;
+    const auto audio_profile =
+        conf_map.find("retrorun_go2_audio_wsola_profile");
+    const bool lowend_stable_96 =
+        audio_profile != conf_map.end() &&
+        audio_profile->second == "lowend_stable_96";
     result->wsola_percent = environment_integer(
-        "RETRORUN_GO2_AUDIO_WSOLA_PERCENT", 0, 35);
+        "RETRORUN_GO2_AUDIO_WSOLA_PERCENT",
+        lowend_stable_96 ? 25 : 0, 35);
     result->wsola_emergency_percent = std::max(
         result->wsola_percent,
         environment_integer(
-            "RETRORUN_GO2_AUDIO_WSOLA_EMERGENCY_PERCENT", 32, 40));
+            "RETRORUN_GO2_AUDIO_WSOLA_EMERGENCY_PERCENT",
+            lowend_stable_96 ? 33 : 32, 40));
     const int wsola_emergency_ms = environment_integer(
-        "RETRORUN_GO2_AUDIO_WSOLA_EMERGENCY_MS", 25, 100);
+        "RETRORUN_GO2_AUDIO_WSOLA_EMERGENCY_MS",
+        lowend_stable_96 ? 65 : 25, 100);
     result->wsola_emergency_frames =
         static_cast<uint64_t>(frequency) * wsola_emergency_ms / 1000;
     const int wsola_low_ms = environment_integer(
@@ -343,14 +351,15 @@ go2_audio_t *go2_audio_create(int frequency)
     result->wsola_high_frames =
         static_cast<uint64_t>(frequency) * wsola_high_ms / 1000;
     result->wsola_window_frames = environment_integer(
-        "RETRORUN_GO2_AUDIO_WSOLA_WINDOW_FRAMES", 512, 1024) >= 768
+        "RETRORUN_GO2_AUDIO_WSOLA_WINDOW_FRAMES",
+        lowend_stable_96 ? 1024 : 512, 1024) >= 768
         ? 1024 : 512;
     result->wsola_active = result->wsola_percent > 0;
     result->dynamic_pitch = environment_integer(
         "RETRORUN_GO2_AUDIO_DYNAMIC_PITCH", 0, 1) != 0;
     const int playback_percent = std::max(
         50, environment_integer("RETRORUN_GO2_AUDIO_PLAYBACK_PERCENT",
-                                100, 100));
+                                lowend_stable_96 ? 96 : 100, 100));
     result->playback_pitch =
         static_cast<float>(playback_percent) / 100.0f;
     result->playback_base_pitch = result->playback_pitch;

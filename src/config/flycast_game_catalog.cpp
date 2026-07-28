@@ -19,7 +19,7 @@ constexpr const char *CatalogFilename = "flycast-game-catalog.ini";
 
 const char *BuiltinCatalogText = R"catalog(
 schema_version = 1
-catalog_version = 20260740
+catalog_version = 20260741
 
 default.retrorun_vsync = false
 default.retrorun_loop_declared_fps = true
@@ -69,6 +69,9 @@ profile.MK-51117.best_performance.title = Sonic Adventure 2 (aggressive)
 profile.MK-51117.best_performance.inherits = best_validated
 profile.MK-51117.best_performance.reicast_fast_depth = menu_guarded_shadow_safe
 profile.MK-51117.best_performance.reicast_opaque_strip_merge = enabled
+profile.MK-51117.best_performance.retrorun_audio_buffer = 2048
+profile.MK-51117.best_performance.retrorun_go2_audio_stretch_low_ms = 150
+profile.MK-51117.best_performance.retrorun_go2_audio_wsola_profile = lowend_stable_96
 
 profile.HDR-0165.best_validated.title = Sonic Adventure 2 (Japan)
 profile.HDR-0165.best_validated.reicast_hle_bios = disabled
@@ -82,6 +85,9 @@ profile.HDR-0165.best_performance.title = Sonic Adventure 2 (Japan, aggressive)
 profile.HDR-0165.best_performance.inherits = best_validated
 profile.HDR-0165.best_performance.reicast_fast_depth = menu_guarded_shadow_safe
 profile.HDR-0165.best_performance.reicast_opaque_strip_merge = enabled
+profile.HDR-0165.best_performance.retrorun_audio_buffer = 2048
+profile.HDR-0165.best_performance.retrorun_go2_audio_stretch_low_ms = 150
+profile.HDR-0165.best_performance.retrorun_go2_audio_wsola_profile = lowend_stable_96
 
 profile.RDC-0149.best_validated.title = Dead or Alive 2
 profile.RDC-0149.best_validated.reicast_hle_bios = enabled
@@ -263,6 +269,7 @@ const std::unordered_set<std::string> &allowedSettings()
 {
     static const std::unordered_set<std::string> settings = {
         "retrorun_adaptive_frameskip",
+        "retrorun_audio_buffer",
         "retrorun_audio_stable_buffer",
         "retrorun_drm_direct_scanout",
         "retrorun_egl_depth_bits",
@@ -272,6 +279,7 @@ const std::unordered_set<std::string> &allowedSettings()
         "retrorun_frameskip",
         "retrorun_go2_audio_stretch_low_ms",
         "retrorun_go2_audio_stretch_percent",
+        "retrorun_go2_audio_wsola_profile",
         "retrorun_loop_declared_fps",
         "retrorun_sdl_audio_stretch_low_ms",
         "retrorun_sdl_audio_stretch_percent",
