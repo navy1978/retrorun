@@ -9,7 +9,7 @@ See [GAME_PROFILE_MODES.md](GAME_PROFILE_MODES.md) for the implemented
 current per-game differences.
 
 `flycast-game-catalog.ini` is the editable source form of catalog version
-`20260736`. The same data is built into RetroRun, so the feature works when
+`20260744`. The same data is built into RetroRun, so the feature works when
 distributions install only the executable. A copy beside RetroRun is used only
 when its `catalog_version` is greater than the built-in version.
 
@@ -28,6 +28,8 @@ Select profiles by product number rather than by ROM filename:
 | `RDC-0140`, `RDC-0149`, `T8116D 50`, `T3602M`, `T3601M`, `T3601N` | Dead or Alive 2 | Observed CDI images plus the Redump retail regional variants. Mapping the observed `RDC-0140` image to the approved profile measured about 41.2 FPS versus 31.6 FPS without it. |
 | `T1401D  50`, `T1401M`, `T1401N` | Soul Calibur | European, Japanese and North American retail variants. Both profiles require `framerate=normal` and disabled frontend pacing: on RG353M the optimized `fullspeed` configuration ran worse than the unoptimized `normal` configuration. |
 | `MK-51035`, `HDR-0053` | Crazy Taxi | European/North American and Japanese retail variants. Accurate control profile. No experimental performance candidate produced a repeatable useful gain. |
+| `T38706M` | Ikaruga | Japanese retail release. Adaptive v9 profile with accurate per-triangle alpha sorting; manual RG351V review confirmed that it removes the ship rectangles while preserving excellent gameplay. |
+| `T1212N`, `T7010D 50`, `T1215M` | Marvel vs. Capcom 2 | North American, European and Japanese retail variants. The approved v28/v9 adaptive profile uses per-triangle alpha sorting to correct the 2D fighter sprites. On the fixed 600-frame USA save state it measured 49.1 FPS, 300 presented frames and zero audio underruns; the faster inaccurate sorter reached 52.1 FPS but visibly corrupted sprites. |
 
 `dreamcast-product-variants.tsv` is the machine-checked map between the Redump
 retail releases and the Product numbers returned by Flycast. When adding a
