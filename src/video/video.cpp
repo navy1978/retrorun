@@ -1133,6 +1133,16 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         input_message || input_credits_requested || screenshot_requested ||
         input_ffwd_requested;
 
+    // A null hardware-frame callback means "duplicate the previous frame".
+    // The scanout already retains that frame, so presenting it again only
+    // burns CPU/GPU time and can starve emulation and audio.
+    if (isOpenGL && data != RETRO_HW_FRAME_BUFFER_VALID && !forcePresentation)
+    {
+        if (measureBenchmark)
+            benchmark_video_skipped(BenchmarkSkipReason::Adaptive);
+        return;
+    }
+
     if (fixedFrameSkip <= 0 || forcePresentation)
     {
         fixedFramesRemaining = 0;

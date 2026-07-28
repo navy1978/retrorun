@@ -19,7 +19,7 @@ constexpr const char *CatalogFilename = "flycast-game-catalog.ini";
 
 const char *BuiltinCatalogText = R"catalog(
 schema_version = 1
-catalog_version = 20260736
+catalog_version = 20260740
 
 default.retrorun_vsync = false
 default.retrorun_loop_declared_fps = true
@@ -91,6 +91,14 @@ profile.RDC-0149.best_validated.reicast_fog = disabled
 profile.RDC-0149.best_validated.reicast_fast_depth = vertex_fast_log
 profile.RDC-0149.best_validated.reicast_opaque_strip_merge = enabled
 profile.RDC-0149.best_validated.retrorun_egl_stencil_bits = 0
+profile.RDC-0149.best_performance.title = Dead or Alive 2 (aggressive)
+profile.RDC-0149.best_performance.inherits = best_validated
+profile.RDC-0149.best_performance.reicast_aica_arm_cycles = 24
+profile.RDC-0149.best_performance.reicast_framerate = normal
+profile.RDC-0149.best_performance.reicast_loop_declared_fps = false
+profile.RDC-0149.best_performance.retrorun_loop_declared_fps = true
+profile.RDC-0149.best_performance.reicast_audio_mixer = lowend
+profile.RDC-0149.best_performance.retrorun_adaptive_frameskip = true
 
 profile.RDC-0140.best_validated.title = Dead or Alive 2 (observed CDI)
 profile.RDC-0140.best_validated.reicast_hle_bios = enabled
@@ -100,6 +108,14 @@ profile.RDC-0140.best_validated.reicast_fog = disabled
 profile.RDC-0140.best_validated.reicast_fast_depth = vertex_fast_log
 profile.RDC-0140.best_validated.reicast_opaque_strip_merge = enabled
 profile.RDC-0140.best_validated.retrorun_egl_stencil_bits = 0
+profile.RDC-0140.best_performance.title = Dead or Alive 2 (observed CDI, aggressive)
+profile.RDC-0140.best_performance.inherits = best_validated
+profile.RDC-0140.best_performance.reicast_aica_arm_cycles = 24
+profile.RDC-0140.best_performance.reicast_framerate = normal
+profile.RDC-0140.best_performance.reicast_loop_declared_fps = false
+profile.RDC-0140.best_performance.retrorun_loop_declared_fps = true
+profile.RDC-0140.best_performance.reicast_audio_mixer = lowend
+profile.RDC-0140.best_performance.retrorun_adaptive_frameskip = true
 
 profile.T8116D50.best_validated.title = Dead or Alive 2 (Europe)
 profile.T8116D50.best_validated.reicast_hle_bios = enabled
@@ -109,6 +125,14 @@ profile.T8116D50.best_validated.reicast_fog = disabled
 profile.T8116D50.best_validated.reicast_fast_depth = vertex_fast_log
 profile.T8116D50.best_validated.reicast_opaque_strip_merge = enabled
 profile.T8116D50.best_validated.retrorun_egl_stencil_bits = 0
+profile.T8116D50.best_performance.title = Dead or Alive 2 (Europe, aggressive)
+profile.T8116D50.best_performance.inherits = best_validated
+profile.T8116D50.best_performance.reicast_aica_arm_cycles = 24
+profile.T8116D50.best_performance.reicast_framerate = normal
+profile.T8116D50.best_performance.reicast_loop_declared_fps = false
+profile.T8116D50.best_performance.retrorun_loop_declared_fps = true
+profile.T8116D50.best_performance.reicast_audio_mixer = lowend
+profile.T8116D50.best_performance.retrorun_adaptive_frameskip = true
 
 profile.T3602M.best_validated.title = Dead or Alive 2 (Japan)
 profile.T3602M.best_validated.reicast_hle_bios = enabled
@@ -118,6 +142,14 @@ profile.T3602M.best_validated.reicast_fog = disabled
 profile.T3602M.best_validated.reicast_fast_depth = vertex_fast_log
 profile.T3602M.best_validated.reicast_opaque_strip_merge = enabled
 profile.T3602M.best_validated.retrorun_egl_stencil_bits = 0
+profile.T3602M.best_performance.title = Dead or Alive 2 (Japan, aggressive)
+profile.T3602M.best_performance.inherits = best_validated
+profile.T3602M.best_performance.reicast_aica_arm_cycles = 24
+profile.T3602M.best_performance.reicast_framerate = normal
+profile.T3602M.best_performance.reicast_loop_declared_fps = false
+profile.T3602M.best_performance.retrorun_loop_declared_fps = true
+profile.T3602M.best_performance.reicast_audio_mixer = lowend
+profile.T3602M.best_performance.retrorun_adaptive_frameskip = true
 
 profile.T3601M.best_validated.title = Dead or Alive 2 (Japan, limited)
 profile.T3601M.best_validated.reicast_hle_bios = enabled
@@ -127,6 +159,14 @@ profile.T3601M.best_validated.reicast_fog = disabled
 profile.T3601M.best_validated.reicast_fast_depth = vertex_fast_log
 profile.T3601M.best_validated.reicast_opaque_strip_merge = enabled
 profile.T3601M.best_validated.retrorun_egl_stencil_bits = 0
+profile.T3601M.best_performance.title = Dead or Alive 2 (Japan, limited, aggressive)
+profile.T3601M.best_performance.inherits = best_validated
+profile.T3601M.best_performance.reicast_aica_arm_cycles = 24
+profile.T3601M.best_performance.reicast_framerate = normal
+profile.T3601M.best_performance.reicast_loop_declared_fps = false
+profile.T3601M.best_performance.retrorun_loop_declared_fps = true
+profile.T3601M.best_performance.reicast_audio_mixer = lowend
+profile.T3601M.best_performance.retrorun_adaptive_frameskip = true
 
 profile.T3601N.best_validated.title = Dead or Alive 2 (North America)
 profile.T3601N.best_validated.reicast_hle_bios = enabled
@@ -136,6 +176,14 @@ profile.T3601N.best_validated.reicast_fog = disabled
 profile.T3601N.best_validated.reicast_fast_depth = vertex_fast_log
 profile.T3601N.best_validated.reicast_opaque_strip_merge = enabled
 profile.T3601N.best_validated.retrorun_egl_stencil_bits = 0
+profile.T3601N.best_performance.title = Dead or Alive 2 (North America, aggressive)
+profile.T3601N.best_performance.inherits = best_validated
+profile.T3601N.best_performance.reicast_aica_arm_cycles = 24
+profile.T3601N.best_performance.reicast_framerate = normal
+profile.T3601N.best_performance.reicast_loop_declared_fps = false
+profile.T3601N.best_performance.retrorun_loop_declared_fps = true
+profile.T3601N.best_performance.reicast_audio_mixer = lowend
+profile.T3601N.best_performance.retrorun_adaptive_frameskip = true
 
 profile.T1401D50.best_validated.title = Soul Calibur
 profile.T1401D50.best_validated.reicast_hle_bios = disabled
@@ -247,6 +295,7 @@ const std::unordered_set<std::string> &allowedSettings()
         "reicast_fast_depth",
         "reicast_fog",
         "reicast_force_wince",
+        "reicast_loop_declared_fps",
         "reicast_frame_skipping",
         "reicast_framerate",
         "reicast_gdrom_fast_loading",

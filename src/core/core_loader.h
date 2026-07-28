@@ -32,6 +32,11 @@ struct RetroCore {
     void (*retro_unload_game)(void);
     void *(*retro_get_memory_data)(unsigned id);
     size_t (*retro_get_memory_size)(unsigned id);
+
+    // Optional Flycast private ABI hook used to report audio queue pressure.
+    // If unsupported by the core, this pointer stays null and the frontend skips
+    // pressure updates.
+    void (*flycast_retrorun_set_audio_queue_status_v1)(unsigned, unsigned);
 };
 
 extern RetroCore g_retro;

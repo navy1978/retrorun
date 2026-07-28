@@ -1177,6 +1177,13 @@ int main(int argc, char *argv[])
                 ? steady_clock::now() : steady_clock::time_point{};
             if (measureBenchmarkFrame)
                 benchmark_core_begin();
+            if (isFlycast() &&
+                g_retro.flycast_retrorun_set_audio_queue_status_v1)
+            {
+                const auto queue = audio_queue_snapshot();
+                g_retro.flycast_retrorun_set_audio_queue_status_v1(
+                    queue.queued_frames, queue.capacity_frames);
+            }
             g_retro.retro_run();
             if (measureBenchmarkFrame)
                 benchmark_core_end();
@@ -1292,35 +1299,84 @@ int main(int argc, char *argv[])
         const nanoseconds frameDurationNs = duration_cast<nanoseconds>(frameDuration);
 
         static nanoseconds frameDebt = nanoseconds::zero();
-        static unsigned skipCooldown = 0;
+        static unsigned skipPeriod = 0;
+        static unsigned skipTicker = 0;
+        static unsigned recoverCooldown = 0;
+        static double debtRatioEma = 0.0;
         if (measureAdaptiveLoop && !input_ffwd_requested &&
             !realPause && !showInfo)
         {
             const auto loopDuration = duration_cast<nanoseconds>(
                 steady_clock::now() - loopStart);
             const nanoseconds tolerance = frameDurationNs / 12;
-            if (loopDuration > frameDurationNs + tolerance)
+            const bool overBudget = loopDuration > frameDurationNs + tolerance;
+            if (overBudget)
                 frameDebt += loopDuration - frameDurationNs;
             else if (loopDuration < frameDurationNs)
                 frameDebt = std::max(nanoseconds::zero(),
                                      frameDebt - (frameDurationNs - loopDuration));
 
-            if (skipCooldown > 0)
-                --skipCooldown;
-            const bool overloaded = frameDebt > frameDurationNs * 3;
-            skipNextVideoFrame = overloaded && skipCooldown == 0;
-            if (skipNextVideoFrame)
+            const double rawDebtFrames = frameDurationNs.count() > 0
+                ? static_cast<double>(frameDebt.count()) /
+                    static_cast<double>(frameDurationNs.count())
+                : 0.0;
+            debtRatioEma = debtRatioEma * 0.75 + rawDebtFrames * 0.25;
+
+            unsigned targetPeriod = 0;
+            if (debtRatioEma >= 4.0)
+                targetPeriod = 1;
+            else if (debtRatioEma >= 3.0)
+                targetPeriod = 2;
+            else if (debtRatioEma >= 2.0)
+                targetPeriod = 3;
+            else if (debtRatioEma >= 1.5)
+                targetPeriod = 4;
+
+            if (targetPeriod > skipPeriod)
             {
-                frameDebt = frameDebt > frameDurationNs
-                    ? frameDebt - frameDurationNs : nanoseconds::zero();
-                skipCooldown = 6;
+                skipPeriod = targetPeriod;
+                recoverCooldown = 0;
+                skipTicker = 0;
+            }
+            else if (targetPeriod == 0 && skipPeriod > 0)
+            {
+                if (recoverCooldown == 0)
+                {
+                    --skipPeriod;
+                    recoverCooldown = 8;
+                    skipTicker = 0;
+                }
+                else
+                {
+                    --recoverCooldown;
+                }
+            }
+            else
+            {
+                recoverCooldown = std::min(recoverCooldown + 1u, 8u);
+            }
+
+            if (skipPeriod == 0)
+            {
+                skipNextVideoFrame = false;
+            }
+            else
+            {
+                skipNextVideoFrame = (skipTicker == 0);
+                skipTicker = (skipTicker + 1) % (skipPeriod + 1);
+                if (skipNextVideoFrame)
+                    frameDebt = frameDebt > frameDurationNs
+                        ? frameDebt - frameDurationNs : nanoseconds::zero();
             }
         }
         else
         {
             frameDebt = nanoseconds::zero();
             skipNextVideoFrame = false;
-            skipCooldown = 0;
+            skipPeriod = 0;
+            skipTicker = 0;
+            recoverCooldown = 0;
+            debtRatioEma = 0.0;
         }
 #endif
 

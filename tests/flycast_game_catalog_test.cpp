@@ -16,7 +16,7 @@ void testBuiltInProfiles()
 {
     const Catalog catalog = builtinCatalog();
     assert(catalog.schema_version == 1);
-    assert(catalog.catalog_version == 20260736);
+    assert(catalog.catalog_version == 20260740);
     assert(catalog.profiles.size() == 13);
     assert(normalizeProductNumber("T1401D  50 ") == "T1401D50");
 
@@ -54,14 +54,17 @@ void testBuiltInProfiles()
     assert(profile.settings.at("reicast_mipmapping") == "enabled");
 
     assert(selectProfile(catalog, "RDC-0149", Mode::BestPerformance,
-                         profile, fallback));
-    assert(fallback);
-    assert(profile.mode == Mode::BestValidated);
+                        profile, fallback));
+    assert(!fallback);
+    assert(profile.mode == Mode::BestPerformance);
+    assert(profile.settings.at("reicast_framerate") == "normal");
+    assert(profile.settings.at("reicast_loop_declared_fps") == "false");
+    assert(profile.settings.at("retrorun_loop_declared_fps") == "true");
     assert(profile.settings.at("retrorun_egl_stencil_bits") == "0");
     const auto mixedSettings =
         settingsForOptionPrefix(profile.settings, "flycast2021_");
-    assert(mixedSettings.at("retrorun_egl_stencil_bits") == "0");
-    assert(mixedSettings.at("flycast2021_fast_depth") == "vertex_fast_log");
+    assert(mixedSettings.at("flycast2021_aica_arm_cycles") == "24");
+    assert(mixedSettings.at("flycast2021_framerate") == "normal");
 
     assert(selectProfile(catalog, "T1401D  50", Mode::BestValidated,
                          profile, fallback));

@@ -178,6 +178,17 @@ void runloop_perf_log(void)
 
 #define load_retro_sym(S) load_sym(g_retro.S, S)
 
+template <typename Fn>
+static void load_optional_retro_sym(Fn &target, const char *symbol)
+{
+    dlerror();
+    target = reinterpret_cast<Fn>(dlsym(g_retro.handle, symbol));
+    const char *error = dlerror();
+    if (error)
+        logger.log(Logger::INF, "Optional symbol '%s' unavailable: %s",
+                   symbol, error);
+}
+
 #ifdef RR_PLATFORM_GO2
 static retro_proc_address_t get_proc_address(const char *sym)
 {
@@ -676,6 +687,8 @@ void core_load(const char *sofile)
     load_sym(set_input_state, retro_set_input_state);
     load_sym(set_audio_sample, retro_set_audio_sample);
     load_sym(set_audio_sample_batch, retro_set_audio_sample_batch);
+    load_optional_retro_sym(g_retro.flycast_retrorun_set_audio_queue_status_v1,
+                            "flycast_retrorun_set_audio_queue_status_v1");
 
     set_environment(core_environment);
     set_video_refresh(core_video_refresh);

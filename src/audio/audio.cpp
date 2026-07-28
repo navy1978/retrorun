@@ -100,6 +100,32 @@ void update_max(std::atomic<uint64_t>& target, uint64_t value)
            !target.compare_exchange_weak(current, value, std::memory_order_relaxed)) {}
 }
 
+RetrorunAudioQueueSnapshot audio_queue_snapshot_internal()
+{
+    uint64_t queued_frames = 0;
+    uint64_t capacity_frames = 0;
+    {
+        std::lock_guard<std::mutex> lock(engine.mutex);
+        queued_frames = engine.queued_frames + engine.in_flight_frames;
+        capacity_frames = engine.capacity_frames;
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(engine.callback_mutex);
+        const uint64_t staged_frames =
+            engine.staging.size() / CHANNELS;
+        queued_frames += staged_frames;
+    }
+
+    if (queued_frames > UINT32_MAX)
+        queued_frames = UINT32_MAX;
+    if (capacity_frames < queued_frames)
+        capacity_frames = queued_frames;
+
+    return {static_cast<uint32_t>(queued_frames),
+            static_cast<uint32_t>(capacity_frames)};
+}
+
 void record_thresholds(uint64_t value_us,
                        std::atomic<uint64_t>& over_1ms,
                        std::atomic<uint64_t>& over_5ms,
@@ -375,6 +401,11 @@ BenchmarkAudioDiagnostics snapshot_diagnostics()
 }
 
 } // namespace
+
+RetrorunAudioQueueSnapshot audio_queue_snapshot()
+{
+    return audio_queue_snapshot_internal();
+}
 
 void audio_init(int frequency, double fps)
 {
