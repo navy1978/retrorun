@@ -102,6 +102,18 @@ void testBuiltInProfiles()
     assert(profile.settings.at("reicast_alpha_sorting") ==
            "per-triangle (normal)");
 
+    assert(selectProfile(catalog, "T38706M", Mode::BestValidated,
+                         profile, fallback));
+    assert(!fallback);
+    assert(profile.title == "Ikaruga");
+    assert(profile.settings.at("reicast_alpha_sorting") ==
+           "per-triangle (normal)");
+    assert(profile.settings.at("reicast_fast_depth") ==
+           "vertex_fast_log");
+    assert(profile.settings.at("reicast_opaque_strip_merge") == "enabled");
+    assert(profile.settings.at("retrorun_go2_audio_wsola_profile") ==
+           "lowend_stable_96");
+
     assert(!selectProfile(catalog, "UNKNOWN", Mode::BestValidated,
                           profile, fallback));
     assert(cachedCatalogPath("/storage/config/retrorun.cfg") ==

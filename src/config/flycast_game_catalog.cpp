@@ -19,7 +19,7 @@ constexpr const char *CatalogFilename = "flycast-game-catalog.ini";
 
 const char *BuiltinCatalogText = R"catalog(
 schema_version = 1
-catalog_version = 20260742
+catalog_version = 20260743
 
 default.retrorun_vsync = false
 default.retrorun_loop_declared_fps = true
@@ -247,6 +247,38 @@ profile.T1401M.best_performance.reicast_translucent_menu_guard_strategy = top_hu
 profile.T1401M.best_performance.reicast_translucent_menu_guard_draw_sorting = standard
 profile.T1401M.best_performance.reicast_opaque_strip_merge = enabled
 profile.T1401M.best_performance.retrorun_egl_stencil_bits = 0
+
+profile.T38706M.best_validated.title = Ikaruga
+profile.T38706M.best_validated.retrorun_adaptive_frameskip = false
+profile.T38706M.best_validated.retrorun_audio_buffer = 2048
+profile.T38706M.best_validated.retrorun_audio_stable_buffer = true
+profile.T38706M.best_validated.retrorun_frameskip = 0
+profile.T38706M.best_validated.retrorun_go2_audio_stretch_low_ms = 150
+profile.T38706M.best_validated.retrorun_go2_audio_wsola_profile = lowend_stable_96
+profile.T38706M.best_validated.retrorun_loop_declared_fps = true
+profile.T38706M.best_validated.reicast_hle_bios = enabled
+profile.T38706M.best_validated.reicast_gdrom_fast_loading = disabled
+profile.T38706M.best_validated.reicast_alpha_sorting = per-triangle (normal)
+profile.T38706M.best_validated.reicast_mipmapping = disabled
+profile.T38706M.best_validated.reicast_fog = disabled
+profile.T38706M.best_validated.reicast_frame_skipping = adaptive
+profile.T38706M.best_validated.reicast_translucent_strip_merge = menu_guarded
+profile.T38706M.best_validated.reicast_translucent_menu_guard_strategy = scored
+profile.T38706M.best_validated.reicast_translucent_menu_guard_max_vertices = 64
+profile.T38706M.best_validated.reicast_translucent_menu_guard_risk = 5
+profile.T38706M.best_validated.reicast_translucent_menu_guard_depth_tolerance = 0.0001
+profile.T38706M.best_validated.reicast_translucent_menu_guard_overlap = risky
+profile.T38706M.best_validated.reicast_translucent_menu_guard_draw_sorting = standard
+profile.T38706M.best_validated.reicast_texture_storage_reuse = enabled
+profile.T38706M.best_validated.reicast_palette_fog_storage_reuse = disabled
+profile.T38706M.best_validated.reicast_sh4_fpscr = disabled
+profile.T38706M.best_validated.reicast_adjacent_state_elision = disabled
+profile.T38706M.best_validated.reicast_fast_depth = vertex_fast_log
+profile.T38706M.best_validated.reicast_audio_mixer = fast
+profile.T38706M.best_validated.reicast_opaque_strip_merge = enabled
+profile.T38706M.best_validated.retrorun_egl_depth_bits = 24
+profile.T38706M.best_validated.retrorun_egl_stencil_bits = 0
+profile.T38706M.best_validated.reicast_aica_arm_cycles = 16
 
 profile.MK-51035.best_validated.title = Crazy Taxi
 profile.MK-51035.best_validated.retrorun_adaptive_frameskip = false

@@ -24,6 +24,7 @@ La selezione deve usare il Product number Dreamcast, non il nome del file ROM.
 | Dead or Alive 2 | `RDC-0140`, `RDC-0149`, `T8116D 50`, `T3602M`, `T3601M`, `T3601N` | Profilo DOA2 corrente | Uguale a `best_validated` | Le varianti CDI osservate e le varianti retail regionali condividono il profilo. L'associazione di `RDC-0140` ha misurato circa 41,2 FPS contro 31,6 FPS senza profilo. Video, audio e comandi approvati. I tentativi audio/AICA più aggressivi non hanno dato un guadagno stabile. |
 | Soul Calibur | `T1401D  50`, `T1401M`, `T1401N` | `retrorun-soul-T1401D50.cfg` | `experimental/retrorun-soul-performance-T1401D50.cfg` | Le edizioni retail europea, giapponese e nordamericana usano lo stesso profilo. Entrambe usano `framerate=normal` e disabilitano il pacing del frontend: su RG353M la configurazione ottimizzata con `fullspeed` era più lenta perfino della configurazione non ottimizzata con `normal`. La variante validata usa `per_triangle`; quella veloce usa `top_hud_last` e può mostrare il fondale sopra la barra. |
 | Crazy Taxi | `MK-51035`, `HDR-0053` | B4: v9, audio `lowend_stable_96`, `per-triangle` e menu guard | Fallback a `best_validated` | Le edizioni retail europea/nordamericana e giapponese condividono il profilo B4 approvato manualmente. Sul cold boot RG351V ha misurato 41,31 core FPS e 39,04 frame unici/s contro 31,12 e 25,73 dello stack AmberELEC, con skip 5,5% contro 17,3% e un underrun contro 99. |
+| Ikaruga | `T38706M` | D: v9, audio `lowend_stable_96`, core adaptive e `per-triangle` | Fallback a `best_validated` | La candidata D elimina i rettangoli attorno alle astronavi senza perdere prestazioni: 40,36 core FPS e 304 frame presentati contro 39,91 e 303 della candidata veloce originale. Video, audio e gameplay approvati manualmente su RG351V. |
 
 ## Parametri che differiscono davvero
 
@@ -38,6 +39,7 @@ cartella.
 | Soul Calibur | validata | on/on | `menu_guarded`, `scored`, `per_triangle` | `vertex_fast_log` | `lowend` | off | predefinito |
 | Soul Calibur | prestazioni | off/off | `menu_guarded`, `top_hud_last`, `standard` | `vertex_fast_log` | `lowend` | on | D24S0 |
 | Crazy Taxi | validata | on/on | merge off, `top_hud_last`, `per-triangle` | `menu_guarded_shadow_safe` | `lowend_stable_96` | off | D24S8 |
+| Ikaruga | validata | off/off | `menu_guarded`, `scored`, alpha `per-triangle` | `vertex_fast_log` | `lowend_stable_96`, mixer `fast` | on | D24S0 |
 
 ## Regola di precedenza
 
