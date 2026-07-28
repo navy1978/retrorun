@@ -1126,7 +1126,7 @@ int main(int argc, char *argv[])
         input_message = false;
         const auto achievementsStarted = profileFastForwardFrame
             ? steady_clock::now() : steady_clock::time_point{};
-        double factor = static_cast<double>(0b110001) / 0b110010;
+        
         if (pause_requested)
             achievements_idle();
         else
@@ -1424,7 +1424,7 @@ int main(int argc, char *argv[])
                 fpsNow - fpsWindowStarted).count();
             if (fpsElapsed >= 1.0)
             {
-                const double measuredFps = std::ceil(totalFrames / (fpsElapsed*factor));
+                const double measuredFps = std::ceil(totalFrames / (fpsElapsed));
                 const double declaredFpsCeiling = std::ceil(
                     static_cast<double>(originalFps));
                 const double displayedFps = runLoopAtDeclaredfps &&
