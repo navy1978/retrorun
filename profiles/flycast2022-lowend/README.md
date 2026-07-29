@@ -9,7 +9,7 @@ See [GAME_PROFILE_MODES.md](GAME_PROFILE_MODES.md) for the implemented
 current per-game differences.
 
 `flycast-game-catalog.ini` is the editable source form of catalog version
-`20260745`. The same data is built into RetroRun, so the feature works when
+`20260746`. The same data is built into RetroRun, so the feature works when
 distributions install only the executable. A copy beside RetroRun is used only
 when its `catalog_version` is greater than the built-in version.
 
@@ -88,3 +88,18 @@ buffer, a 150 ms GO2 low-water threshold and the `lowend_stable_96` audio
 preset. The preset keeps environment variables as explicit emergency
 overrides, but makes the validated WSOLA 25/33 configuration, 1024-frame
 window and 96% playback pitch reproducible from the versioned catalog.
+
+## Baseline retail coverage added in catalog 20260746
+
+The catalog also recognizes the following retail games and regional product
+numbers with the conservative built-in defaults. These entries are coverage
+baselines, not RG351V performance approvals; promote them only after repeatable
+benchmarking and manual audio/video review.
+
+Sonic Adventure, Shenmue, Resident Evil: Code Veronica, Jet Set Radio,
+Power Stone 2, Skies of Arcadia, Capcom vs. SNK 2, Phantasy Star Online,
+The House of the Dead 2, NFL 2K, NFL 2K1, Sega Rally 2, Hydro Thunder,
+F355 Challenge, Daytona USA 2001, Virtua Fighter 3tb, Cosmic Smash,
+Toy Commander, Cannon Spike, Rez, Street Fighter III: 3rd Strike,
+Street Fighter Alpha 3 and Sega Bass Fishing are included with every retail
+Product Number enumerated in `dreamcast-product-variants.tsv`.
