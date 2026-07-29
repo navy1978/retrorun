@@ -196,14 +196,22 @@ bool StartLoadStateAsync(const char *saveName, int slotNumber, bool autoLoad)
     // missing first-run state an immediate, deterministic result.
     FILE *probe = path.empty() ? nullptr : fopen(path.c_str(), "rb");
     if (!probe) {
-        if (autoLoad)
+        if (autoLoad) {
             logger.log(Logger::INF, "No auto state: '%s'", path.c_str());
-        else
+            asyncLoadProgress.store(-1, std::memory_order_release);
+            missingAutoState.store(true, std::memory_order_release);
+            set_async_load_message("No auto state");
+            lastLoadSaveStateDoneOk = true;
+            input_slot_memory_load_done = false;
+            input_slot_memory_load_requested = false;
+            return false;
+        } else {
             logger.log(Logger::ERR, "Error loading state: File '%s' not found!", path.c_str());
+        }
         asyncLoadProgress.store(-1, std::memory_order_release);
-        missingAutoState.store(autoLoad, std::memory_order_release);
-        set_async_load_message(autoLoad ? "No auto state" : "State file not found");
-        lastLoadSaveStateDoneOk = autoLoad;
+        missingAutoState.store(false, std::memory_order_release);
+        set_async_load_message("State file not found");
+        lastLoadSaveStateDoneOk = false;
         input_slot_memory_load_done = true;
         input_slot_memory_load_requested = false;
         lastLoadSaveStateDoneTime = static_cast<double>(time(NULL));

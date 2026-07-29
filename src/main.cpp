@@ -651,7 +651,7 @@ int main(int argc, char *argv[])
     }
     else
     {
-        if (auto_load)
+        if (auto_load && fileExists(savePath))
         {
             input_message = true;
             status_message = "Loading saved game...";
@@ -661,13 +661,21 @@ int main(int argc, char *argv[])
 
             // Preserve the established startup barrier for cores which finish
             // initialising execution/render threads on their first frame. It
-            // applies even on the first run, when no auto-state exists.
+            // is only needed when there is actually a state to deserialize.
             if (isParalleln64() || isDosBox() || isFlycast2021())
             {
                 sleep(1);
                 g_retro.retro_run();
             }
             StartLoadStateAsync(savePath, 0, true);
+        }
+        else if (auto_load)
+        {
+            logger.log(Logger::INF,
+                       "No auto state: '%s'; continuing without loading.",
+                       savePath);
+            input_message = false;
+            input_slot_memory_load_requested = false;
         }
     }
 
