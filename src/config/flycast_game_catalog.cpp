@@ -19,7 +19,7 @@ constexpr const char *CatalogFilename = "flycast-game-catalog.ini";
 
 const char *BuiltinCatalogText = R"catalog(
 schema_version = 1
-catalog_version = 20260751
+catalog_version = 20260752
 
 default.retrorun_vsync = false
 default.retrorun_loop_declared_fps = true
@@ -490,21 +490,45 @@ profile.HDR-0031.best_performance.retrorun_go2_audio_wsola_profile = disabled
 profile.HDR-0031.best_performance.reicast_aica_arm_cycles = 24
 profile.HDR-0031.best_performance.reicast_fast_depth = menu_guarded
 
-profile.T36806D05.best_validated.title = Resident Evil: Code Veronica (Europe, baseline)
+profile.T36806D05.best_validated.title = Resident Evil: Code Veronica (Europe, RG351V)
+profile.T36806D05.best_validated.reicast_alpha_sorting = per-triangle (normal)
+profile.T36806D05.best_performance.title = Resident Evil: Code Veronica (Europe, RG351V)
+profile.T36806D05.best_performance.inherits = best_validated
 
-profile.T36806D09.best_validated.title = Resident Evil: Code Veronica (France, baseline)
+profile.T36806D09.best_validated.title = Resident Evil: Code Veronica (France, RG351V)
+profile.T36806D09.best_validated.reicast_alpha_sorting = per-triangle (normal)
+profile.T36806D09.best_performance.title = Resident Evil: Code Veronica (France, RG351V)
+profile.T36806D09.best_performance.inherits = best_validated
 
-profile.T36806D18.best_validated.title = Resident Evil: Code Veronica (Germany, baseline)
+profile.T36806D18.best_validated.title = Resident Evil: Code Veronica (Germany, RG351V)
+profile.T36806D18.best_validated.reicast_alpha_sorting = per-triangle (normal)
+profile.T36806D18.best_performance.title = Resident Evil: Code Veronica (Germany, RG351V)
+profile.T36806D18.best_performance.inherits = best_validated
 
-profile.T36806D06.best_validated.title = Resident Evil: Code Veronica (Spain, baseline)
+profile.T36806D06.best_validated.title = Resident Evil: Code Veronica (Spain, RG351V)
+profile.T36806D06.best_validated.reicast_alpha_sorting = per-triangle (normal)
+profile.T36806D06.best_performance.title = Resident Evil: Code Veronica (Spain, RG351V)
+profile.T36806D06.best_performance.inherits = best_validated
 
-profile.T1204N.best_validated.title = Resident Evil: Code Veronica (USA, baseline)
+profile.T1204N.best_validated.title = Resident Evil: Code Veronica (USA, RG351V)
+profile.T1204N.best_validated.reicast_alpha_sorting = per-triangle (normal)
+profile.T1204N.best_performance.title = Resident Evil: Code Veronica (USA, RG351V)
+profile.T1204N.best_performance.inherits = best_validated
 
-profile.T1207M.best_validated.title = Biohazard Code Veronica (Japan, baseline)
+profile.T1207M.best_validated.title = Biohazard Code Veronica (Japan, RG351V)
+profile.T1207M.best_validated.reicast_alpha_sorting = per-triangle (normal)
+profile.T1207M.best_performance.title = Biohazard Code Veronica (Japan, RG351V)
+profile.T1207M.best_performance.inherits = best_validated
 
-profile.T1210M.best_validated.title = Biohazard Code Veronica Limited Edition (Japan, baseline)
+profile.T1210M.best_validated.title = Biohazard Code Veronica Limited Edition (Japan, RG351V)
+profile.T1210M.best_validated.reicast_alpha_sorting = per-triangle (normal)
+profile.T1210M.best_performance.title = Biohazard Code Veronica Limited Edition (Japan, RG351V)
+profile.T1210M.best_performance.inherits = best_validated
 
-profile.T1240M.best_validated.title = Biohazard Code Veronica Complete (Japan, baseline)
+profile.T1240M.best_validated.title = Biohazard Code Veronica Complete (Japan, RG351V)
+profile.T1240M.best_validated.reicast_alpha_sorting = per-triangle (normal)
+profile.T1240M.best_performance.title = Biohazard Code Veronica Complete (Japan, RG351V)
+profile.T1240M.best_performance.inherits = best_validated
 
 profile.MK-51058.best_validated.title = Jet Set Radio / Jet Grind Radio (baseline)
 

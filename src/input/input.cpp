@@ -1259,11 +1259,52 @@ if(isTate()){
 }
     */
 
+static bool frontendInputReleaseLatch = false;
+
+static bool frontendInputControlHeld()
+{
+    if (gamepadState == nullptr)
+        return false;
+
+    const std::array<rr_input_button_t, 17> controls = {
+        upButton, downButton, leftButton, rightButton,
+        aButton, bButton, xButton, yButton,
+        l1Button, r1Button, l2Button, r2Button,
+        l3Button, r3Button, startButton, selectButton,
+        hotkeyButton
+    };
+    for (const rr_input_button_t control : controls)
+    {
+        if (rr_input_state_button_get(gamepadState, control) ==
+            RRButtonState_Pressed)
+            return true;
+    }
+    return false;
+}
+
+static bool frontendCapturesCoreInput()
+{
+    const bool frontendActive =
+        input_info_requested || rr_keyboard_virtual_visible() ||
+        rr_file_browser_visible() || achievements_view_visible();
+    if (frontendActive)
+    {
+        frontendInputReleaseLatch = true;
+        return true;
+    }
+    if (!frontendInputReleaseLatch)
+        return false;
+    if (frontendInputControlHeld())
+        return true;
+
+    frontendInputReleaseLatch = false;
+    return false;
+}
+
 
 int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigned id)
 {
-    if (drmDirectScanoutDiagnosticActive || rr_keyboard_virtual_visible() ||
-        rr_file_browser_visible() || achievements_view_visible())
+    if (drmDirectScanoutDiagnosticActive || frontendCapturesCoreInput())
         return 0;
 
     if (device == RETRO_DEVICE_ANALOG &&
