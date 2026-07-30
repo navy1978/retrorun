@@ -19,7 +19,7 @@ constexpr const char *CatalogFilename = "flycast-game-catalog.ini";
 
 const char *BuiltinCatalogText = R"catalog(
 schema_version = 1
-catalog_version = 20260748
+catalog_version = 20260749
 
 default.retrorun_vsync = false
 default.retrorun_loop_declared_fps = true
@@ -515,6 +515,8 @@ profile.HDR-0078.best_validated.title = Jet Set Radio (Japan, baseline)
 profile.HDR-0128.best_validated.title = De La Jet Set Radio (Japan, baseline)
 
 profile.HDR-0186.best_validated.title = De La Jet Set Radio (Japan revision, baseline)
+
+profile.RDC-0034.best_performance.title = Power Stone (US RDC, initial baseline)
 
 profile.T36812D61.best_validated.title = Power Stone 2 (Europe 61, baseline)
 
