@@ -19,7 +19,7 @@ constexpr const char *CatalogFilename = "flycast-game-catalog.ini";
 
 const char *BuiltinCatalogText = R"catalog(
 schema_version = 1
-catalog_version = 20260746
+catalog_version = 20260748
 
 default.retrorun_vsync = false
 default.retrorun_loop_declared_fps = true
@@ -51,7 +51,6 @@ default.reicast_translucent_menu_guard_overlap = risky
 default.reicast_translucent_menu_guard_draw_sorting = standard
 default.reicast_texture_storage_reuse = enabled
 default.reicast_palette_fog_storage_reuse = disabled
-default.reicast_sh4_fpscr = disabled
 default.reicast_fast_depth = disabled
 default.reicast_audio_mixer = accurate
 default.reicast_opaque_strip_merge = disabled
@@ -271,7 +270,6 @@ profile.T38706M.best_validated.reicast_translucent_menu_guard_overlap = risky
 profile.T38706M.best_validated.reicast_translucent_menu_guard_draw_sorting = standard
 profile.T38706M.best_validated.reicast_texture_storage_reuse = enabled
 profile.T38706M.best_validated.reicast_palette_fog_storage_reuse = disabled
-profile.T38706M.best_validated.reicast_sh4_fpscr = disabled
 profile.T38706M.best_validated.reicast_adjacent_state_elision = disabled
 profile.T38706M.best_validated.reicast_fast_depth = vertex_fast_log
 profile.T38706M.best_validated.reicast_audio_mixer = fast
@@ -303,7 +301,6 @@ profile.T1212N.best_validated.reicast_translucent_menu_guard_overlap = risky
 profile.T1212N.best_validated.reicast_translucent_menu_guard_draw_sorting = standard
 profile.T1212N.best_validated.reicast_texture_storage_reuse = enabled
 profile.T1212N.best_validated.reicast_palette_fog_storage_reuse = disabled
-profile.T1212N.best_validated.reicast_sh4_fpscr = disabled
 profile.T1212N.best_validated.reicast_adjacent_state_elision = disabled
 profile.T1212N.best_validated.reicast_fast_depth = vertex_fast_log
 profile.T1212N.best_validated.reicast_audio_mixer = fast
@@ -335,7 +332,6 @@ profile.T7010D50.best_validated.reicast_translucent_menu_guard_overlap = risky
 profile.T7010D50.best_validated.reicast_translucent_menu_guard_draw_sorting = standard
 profile.T7010D50.best_validated.reicast_texture_storage_reuse = enabled
 profile.T7010D50.best_validated.reicast_palette_fog_storage_reuse = disabled
-profile.T7010D50.best_validated.reicast_sh4_fpscr = disabled
 profile.T7010D50.best_validated.reicast_adjacent_state_elision = disabled
 profile.T7010D50.best_validated.reicast_fast_depth = vertex_fast_log
 profile.T7010D50.best_validated.reicast_audio_mixer = fast
@@ -367,7 +363,6 @@ profile.T1215M.best_validated.reicast_translucent_menu_guard_overlap = risky
 profile.T1215M.best_validated.reicast_translucent_menu_guard_draw_sorting = standard
 profile.T1215M.best_validated.reicast_texture_storage_reuse = enabled
 profile.T1215M.best_validated.reicast_palette_fog_storage_reuse = disabled
-profile.T1215M.best_validated.reicast_sh4_fpscr = disabled
 profile.T1215M.best_validated.reicast_adjacent_state_elision = disabled
 profile.T1215M.best_validated.reicast_fast_depth = vertex_fast_log
 profile.T1215M.best_validated.reicast_audio_mixer = fast
@@ -399,7 +394,6 @@ profile.MK-51054.best_validated.reicast_translucent_menu_guard_overlap = risky
 profile.MK-51054.best_validated.reicast_translucent_menu_guard_draw_sorting = standard
 profile.MK-51054.best_validated.reicast_texture_storage_reuse = enabled
 profile.MK-51054.best_validated.reicast_palette_fog_storage_reuse = disabled
-profile.MK-51054.best_validated.reicast_sh4_fpscr = disabled
 profile.MK-51054.best_validated.reicast_adjacent_state_elision = disabled
 profile.MK-51054.best_validated.reicast_fast_depth = enabled
 profile.MK-51054.best_validated.reicast_audio_mixer = fast
@@ -431,7 +425,6 @@ profile.HDR-0113.best_validated.reicast_translucent_menu_guard_overlap = risky
 profile.HDR-0113.best_validated.reicast_translucent_menu_guard_draw_sorting = standard
 profile.HDR-0113.best_validated.reicast_texture_storage_reuse = enabled
 profile.HDR-0113.best_validated.reicast_palette_fog_storage_reuse = disabled
-profile.HDR-0113.best_validated.reicast_sh4_fpscr = disabled
 profile.HDR-0113.best_validated.reicast_adjacent_state_elision = disabled
 profile.HDR-0113.best_validated.reicast_fast_depth = enabled
 profile.HDR-0113.best_validated.reicast_audio_mixer = fast
@@ -442,17 +435,60 @@ profile.HDR-0113.best_validated.reicast_aica_arm_cycles = 16
 
 profile.MK-51000.best_validated.title = Sonic Adventure (baseline)
 
+profile.MK-51000.best_performance.title = Sonic Adventure (RG351V)
+profile.MK-51000.best_performance.inherits = best_validated
+profile.MK-51000.best_performance.retrorun_adaptive_frameskip = false
+profile.MK-51000.best_performance.retrorun_audio_buffer = 2048
+profile.MK-51000.best_performance.retrorun_frameskip = 0
+profile.MK-51000.best_performance.retrorun_go2_audio_wsola_profile = disabled
+profile.MK-51000.best_performance.retrorun_loop_declared_fps = true
+profile.MK-51000.best_performance.reicast_hle_bios = enabled
+profile.MK-51000.best_performance.reicast_gdrom_fast_loading = disabled
+profile.MK-51000.best_performance.reicast_mipmapping = disabled
+profile.MK-51000.best_performance.reicast_fog = disabled
+profile.MK-51000.best_performance.reicast_fast_depth = vertex_fast_log
+profile.MK-51000.best_performance.reicast_opaque_strip_merge = enabled
+profile.MK-51000.best_performance.retrorun_egl_stencil_bits = 0
+profile.MK-51000.best_performance.reicast_aica_arm_cycles = 24
+profile.MK-51000.best_performance.reicast_framerate = fullspeed
+profile.MK-51000.best_performance.reicast_loop_declared_fps = false
+profile.MK-51000.best_performance.reicast_audio_mixer = lowend
+
 profile.HDR-0001.best_validated.title = Sonic Adventure (Japan, baseline)
 
 profile.HDR-0043.best_validated.title = Sonic Adventure International (Japan, baseline)
 
 profile.MK-51059.best_validated.title = Shenmue (baseline)
+profile.MK-51059.best_performance.title = Shenmue (menu-guarded fast depth)
+profile.MK-51059.best_performance.inherits = best_validated
+profile.MK-51059.best_performance.retrorun_audio_buffer = 2048
+profile.MK-51059.best_performance.retrorun_go2_audio_wsola_profile = disabled
+profile.MK-51059.best_performance.reicast_aica_arm_cycles = 24
+profile.MK-51059.best_performance.reicast_fast_depth = menu_guarded
 
 profile.MK-51131.best_validated.title = Shenmue (USA revision, baseline)
+profile.MK-51131.best_performance.title = Shenmue (USA revision, menu-guarded fast depth)
+profile.MK-51131.best_performance.inherits = best_validated
+profile.MK-51131.best_performance.retrorun_audio_buffer = 2048
+profile.MK-51131.best_performance.retrorun_go2_audio_wsola_profile = disabled
+profile.MK-51131.best_performance.reicast_aica_arm_cycles = 24
+profile.MK-51131.best_performance.reicast_fast_depth = menu_guarded
 
 profile.HDR-0016.best_validated.title = Shenmue (Japan, baseline)
+profile.HDR-0016.best_performance.title = Shenmue (Japan, menu-guarded fast depth)
+profile.HDR-0016.best_performance.inherits = best_validated
+profile.HDR-0016.best_performance.retrorun_audio_buffer = 2048
+profile.HDR-0016.best_performance.retrorun_go2_audio_wsola_profile = disabled
+profile.HDR-0016.best_performance.reicast_aica_arm_cycles = 24
+profile.HDR-0016.best_performance.reicast_fast_depth = menu_guarded
 
 profile.HDR-0031.best_validated.title = Shenmue (Japan revision, baseline)
+profile.HDR-0031.best_performance.title = Shenmue (Japan revision, menu-guarded fast depth)
+profile.HDR-0031.best_performance.inherits = best_validated
+profile.HDR-0031.best_performance.retrorun_audio_buffer = 2048
+profile.HDR-0031.best_performance.retrorun_go2_audio_wsola_profile = disabled
+profile.HDR-0031.best_performance.reicast_aica_arm_cycles = 24
+profile.HDR-0031.best_performance.reicast_fast_depth = menu_guarded
 
 profile.T36806D05.best_validated.title = Resident Evil: Code Veronica (Europe, baseline)
 
@@ -689,7 +725,6 @@ const std::unordered_set<std::string> &allowedSettings()
         "reicast_pvr2_filtering",
         "reicast_render_to_texture_upscaling",
         "reicast_screen_rotation",
-        "reicast_sh4_fpscr",
         "reicast_sh4clock",
         "reicast_synchronous_rendering",
         "reicast_system",

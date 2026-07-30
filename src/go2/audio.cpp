@@ -329,12 +329,12 @@ go2_audio_t *go2_audio_create(int frequency)
         audio_profile->second == "lowend_stable_96";
     result->wsola_percent = environment_integer(
         "RETRORUN_GO2_AUDIO_WSOLA_PERCENT",
-        lowend_stable_96 ? 25 : 0, 35);
+        lowend_stable_96 ? 25 : 0, 90);
     result->wsola_emergency_percent = std::max(
         result->wsola_percent,
         environment_integer(
             "RETRORUN_GO2_AUDIO_WSOLA_EMERGENCY_PERCENT",
-            lowend_stable_96 ? 33 : 32, 40));
+            lowend_stable_96 ? 33 : 32, 95));
     const int wsola_emergency_ms = environment_integer(
         "RETRORUN_GO2_AUDIO_WSOLA_EMERGENCY_MS",
         lowend_stable_96 ? 65 : 25, 100);
