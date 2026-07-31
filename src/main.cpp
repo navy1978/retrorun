@@ -990,6 +990,53 @@ int main(int argc, char *argv[])
 
     std::vector<MenuItem> flycastCatalog = {
         MenuItem("Status: " + flycastCatalogStatus.state, [](int) {})};
+    const rr::flycast_profiles::Catalog menuCatalog =
+        rr::flycast_profiles::builtinCatalog();
+    std::map<std::string, std::vector<std::string>> bestPerformanceProfiles;
+    size_t bestPerformanceProfileCount = 0;
+    for (const auto &productProfiles : menuCatalog.profiles)
+    {
+        const auto profile = productProfiles.second.find(
+            rr::flycast_profiles::Mode::BestPerformance);
+        if (profile == productProfiles.second.end())
+            continue;
+
+        const std::string &productNumber = productProfiles.first;
+        std::string title = profile->second.title.empty()
+                                ? productNumber
+                                : profile->second.title;
+        const std::string::size_type qualifier = title.find(" (");
+        if (qualifier != std::string::npos)
+            title.erase(qualifier);
+        if (title.find("Biohazard") == 0)
+            title = "Resident Evil: Code Veronica";
+        bestPerformanceProfiles[title].push_back(productNumber);
+        bestPerformanceProfileCount++;
+    }
+    std::vector<MenuItem> bestPerformanceGames;
+    bestPerformanceGames.emplace_back(
+        "Games: " + std::to_string(bestPerformanceProfiles.size()) +
+            " / Profiles: " + std::to_string(bestPerformanceProfileCount),
+        [](int) {});
+    for (auto &game : bestPerformanceProfiles)
+    {
+        MenuItem title(game.first, [](int) {});
+        title.setPresentation(MenuItem::Presentation::SectionHeader);
+        bestPerformanceGames.push_back(title);
+
+        std::sort(game.second.begin(), game.second.end());
+        game.second.erase(std::unique(game.second.begin(), game.second.end()),
+                          game.second.end());
+        for (const std::string &productNumber : game.second)
+        {
+            MenuItem product("  " + productNumber, [](int) {});
+            product.setPresentation(MenuItem::Presentation::Detail);
+            bestPerformanceGames.push_back(product);
+        }
+    }
+    Menu menuInfoFlycastBestPerformance =
+        Menu("Best performance games", bestPerformanceGames);
+
     if (!flycastCatalogStatus.product.empty())
         flycastCatalog.emplace_back(
             "Product: " + flycastCatalogStatus.product, [](int) {});
@@ -1015,6 +1062,8 @@ int main(int argc, char *argv[])
                                 ? "built-in"
                                 : "external"),
             [](int) {});
+    flycastCatalog.emplace_back(
+        "Best performance games", &menuInfoFlycastBestPerformance, fake);
     Menu menuInfoFlycastCatalog = Menu("Flycast catalog", flycastCatalog);
 
     std::vector<MenuItem> itemsInfo = {

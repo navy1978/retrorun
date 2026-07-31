@@ -327,32 +327,41 @@ go2_audio_t *go2_audio_create(int frequency)
     const bool lowend_stable_96 =
         audio_profile != conf_map.end() &&
         audio_profile->second == "lowend_stable_96";
+    const bool doa_stable_100 =
+        audio_profile != conf_map.end() &&
+        audio_profile->second == "doa_stable_100";
     result->wsola_percent = environment_integer(
         "RETRORUN_GO2_AUDIO_WSOLA_PERCENT",
-        lowend_stable_96 ? 25 : 0, 90);
+        doa_stable_100 ? 55 : (lowend_stable_96 ? 25 : 0), 90);
     result->wsola_emergency_percent = std::max(
         result->wsola_percent,
         environment_integer(
             "RETRORUN_GO2_AUDIO_WSOLA_EMERGENCY_PERCENT",
-            lowend_stable_96 ? 33 : 32, 95));
+            doa_stable_100 ? 65 : (lowend_stable_96 ? 33 : 32), 95));
     const int wsola_emergency_ms = environment_integer(
         "RETRORUN_GO2_AUDIO_WSOLA_EMERGENCY_MS",
-        lowend_stable_96 ? 65 : 25, 100);
+        doa_stable_100 ? 100 : (lowend_stable_96 ? 65 : 25), 100);
     result->wsola_emergency_frames =
         static_cast<uint64_t>(frequency) * wsola_emergency_ms / 1000;
     const int wsola_low_ms = environment_integer(
-        "RETRORUN_GO2_AUDIO_WSOLA_LOW_MS", 60, 200);
+        "RETRORUN_GO2_AUDIO_WSOLA_LOW_MS",
+        doa_stable_100 ? 200 : 60, 200);
     const int wsola_high_ms = std::max(
         wsola_low_ms + 20,
         environment_integer(
             "RETRORUN_GO2_AUDIO_WSOLA_HIGH_MS", 120, 300));
+    const int resolved_wsola_high_ms = doa_stable_100
+        ? std::max(wsola_low_ms + 20,
+                   environment_integer(
+                       "RETRORUN_GO2_AUDIO_WSOLA_HIGH_MS", 300, 300))
+        : wsola_high_ms;
     result->wsola_low_frames =
         static_cast<uint64_t>(frequency) * wsola_low_ms / 1000;
     result->wsola_high_frames =
-        static_cast<uint64_t>(frequency) * wsola_high_ms / 1000;
+        static_cast<uint64_t>(frequency) * resolved_wsola_high_ms / 1000;
     result->wsola_window_frames = environment_integer(
         "RETRORUN_GO2_AUDIO_WSOLA_WINDOW_FRAMES",
-        lowend_stable_96 ? 1024 : 512, 1024) >= 768
+        doa_stable_100 ? 512 : (lowend_stable_96 ? 1024 : 512), 1024) >= 768
         ? 1024 : 512;
     result->wsola_active = result->wsola_percent > 0;
     result->dynamic_pitch = environment_integer(
@@ -421,7 +430,8 @@ go2_audio_t *go2_audio_create(int frequency)
                retrorun_audio_stable_buffer ? "on" : "off",
                result->frequency, result->buffer_count,
                result->stretch_percent, result->stretch_low_ms,
-               result->wsola_percent, wsola_low_ms, wsola_high_ms,
+               result->wsola_percent, wsola_low_ms,
+               resolved_wsola_high_ms,
                result->wsola_emergency_percent, wsola_emergency_ms,
                result->wsola_window_frames,
                result->dynamic_pitch ? "on" : "off",
@@ -611,7 +621,8 @@ inline bool playAudio(go2_audio_t *audio, const short *data, int frames)
     alGetSourcei(audio->source, AL_SOURCE_STATE, &state);
     if (state != AL_PLAYING &&
         !audio->paused.load(std::memory_order_relaxed) &&
-        audio->queue_order.size() >= 2)
+        audio->queue_order.size() >= 2 &&
+        queued_after >= audio->playback_target_frames)
     {
         alSourcePlay(audio->source);
         audio->prebuffering = false;

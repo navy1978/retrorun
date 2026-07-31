@@ -998,7 +998,28 @@ void showInfo(int w, rr_surface_t **surface)
     showText(posX, getRowForText(), " ", ORANGE, surface);
     // showText(posX, getRowForText(), " ", ORANGE, surface);
     // showText(posX, getRowForText(), " ", ORANGE, surface);
-    for (int i = 0; i < menu.getSize(); i++)
+    int firstVisibleItem = 0;
+    int lastVisibleItem = menu.getSize();
+    if (menuTitle == "Best performance games")
+    {
+        const int maxVisibleItems = 18;
+        int selectedItem = 0;
+        for (int i = 0; i < menu.getSize(); i++)
+        {
+            if (menu.getItems()[i].isSelected())
+            {
+                selectedItem = i;
+                break;
+            }
+        }
+        firstVisibleItem = std::max(0, selectedItem - maxVisibleItems / 2);
+        firstVisibleItem = std::min(firstVisibleItem,
+                                    std::max(0, menu.getSize() - maxVisibleItems));
+        lastVisibleItem = std::min(menu.getSize(),
+                                   firstVisibleItem + maxVisibleItems);
+    }
+
+    for (int i = firstVisibleItem; i < lastVisibleItem; i++)
     {
 
         MenuItem &mi = menu.getItems()[i];
@@ -1048,8 +1069,14 @@ void showInfo(int w, rr_surface_t **surface)
         {
             const int row = getRowForText();
             if (mi.isSelected()) drawSelectedMenuRow(row, surface);
+            const MenuItem::Presentation presentation = mi.getPresentation();
+            const auto color = presentation == MenuItem::Presentation::SectionHeader
+                                   ? ORANGE
+                                   : (presentation == MenuItem::Presentation::Detail
+                                          ? WHITE
+                                          : (mi.isSelected() ? WHITE : DARKGREY));
             drawMenuRowColumns(row, mi.get_name(), "",
-                               mi.isSelected() ? WHITE : DARKGREY, surface);
+                               color, surface);
         }
     }
 

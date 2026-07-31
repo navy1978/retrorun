@@ -139,6 +139,21 @@ bool MenuItem::isQuestion()
     return is_question_item;
 }
 
+void MenuItem::setPresentation(Presentation presentation)
+{
+    presentation_ = presentation;
+}
+
+MenuItem::Presentation MenuItem::getPresentation() const
+{
+    return presentation_;
+}
+
+bool MenuItem::isSelectable() const
+{
+    return presentation_ != Presentation::SectionHeader;
+}
+
 
 
 void MenuItem::execute(int button)

@@ -32,6 +32,13 @@ typedef std::string (*NameCalculator)();
 class MenuItem
 {
 public:
+    enum class Presentation
+    {
+        Normal,
+        SectionHeader,
+        Detail
+    };
+
     MenuItem(std::string name, std::vector<std::string> values, int valueSelected, std::function<void(int)> action);
     // MenuItem(std::string name, int (*valueFunc)(), void (*action)());
     MenuItem(std::string name, ValueCalculator valueCalculator, std::function<void(int)> action, std::string mis_unit);
@@ -52,6 +59,9 @@ public:
     void setQuestionItem();
     bool isQuit();
     bool isQuestion();
+    void setPresentation(Presentation presentation);
+    Presentation getPresentation() const;
+    bool isSelectable() const;
     int getValue();
     Menu *getMenu();
     // bool isMenu();
@@ -65,6 +75,7 @@ public:
     std::string getDeviceType(int deviceIndex);
 
 private:
+    Presentation presentation_ = Presentation::Normal;
     std::string name_;
     std::string mis_unit_;
     std::function<void(int)> action_;

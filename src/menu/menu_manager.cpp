@@ -103,16 +103,32 @@ void MenuManager::handle_input(int buttonPressed)
         }
         if (buttonPressedIs(buttonPressed, UP))
         {
-            selected--;
+            do
+            {
+                selected--;
+            } while (selected >= 0 && !menu.getItems()[selected].isSelectable());
             if (selected < 0)
+            {
                 selected = 0;
+                while (selected < menu.getSize() - 1 &&
+                       !menu.getItems()[selected].isSelectable())
+                    selected++;
+            }
                 
         }
         if (buttonPressedIs(buttonPressed, DOWN))
         {
-            selected++;
+            do
+            {
+                selected++;
+            } while (selected < menu.getSize() &&
+                     !menu.getItems()[selected].isSelectable());
             if (selected > menu.getSize() - 1)
+            {
                 selected = menu.getSize() - 1;
+                while (selected > 0 && !menu.getItems()[selected].isSelectable())
+                    selected--;
+            }
         }
 
         std::vector<MenuItem> &items = menu.getItems(); // move this line outside the loop
