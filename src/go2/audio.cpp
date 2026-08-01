@@ -368,7 +368,7 @@ go2_audio_t *go2_audio_create(int frequency)
         "RETRORUN_GO2_AUDIO_DYNAMIC_PITCH", 0, 1) != 0;
     const int playback_percent = std::max(
         50, environment_integer("RETRORUN_GO2_AUDIO_PLAYBACK_PERCENT",
-                                lowend_stable_96 ? 96 : 100, 100));
+                                doa_stable_100 ? 110 : (lowend_stable_96 ? 96 : 100), 125));
     result->playback_pitch =
         static_cast<float>(playback_percent) / 100.0f;
     result->playback_base_pitch = result->playback_pitch;

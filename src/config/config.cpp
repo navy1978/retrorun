@@ -52,6 +52,7 @@ rr_video_filter_t videoFilter = RR_VIDEO_FILTER_DEFAULT;
 rr_video_shader_t videoShader = RR_VIDEO_SHADER_OFF;
 
 static std::map<std::string, std::size_t> configSourceLines;
+static bool coreVariablesUpdated = false;
 
 static const std::unordered_set<std::string> &knownRetroRunSettings()
 {
@@ -95,12 +96,17 @@ static const std::unordered_set<std::string> &knownRetroRunSettings()
 void applyTransientConfigOverrides(
     const std::map<std::string, std::string> &overrides)
 {
+    bool changed = false;
     for (const auto &[setting, value] : overrides)
     {
+        const auto current = conf_map.find(setting);
+        changed = changed || current == conf_map.end() || current->second != value;
         conf_map[setting] = value;
         logger.log(Logger::DEB, "Transient profile override: %s=%s",
                    setting.c_str(), value.c_str());
     }
+
+    coreVariablesUpdated = coreVariablesUpdated || changed;
 
     if (overrides.find("retrorun_loop_declared_fps") != overrides.end())
         runLoopAtDeclaredfps = configValueIsTrue(
@@ -156,6 +162,13 @@ void applyTransientConfigOverrides(
             retrorun_sdl_audio_stretch_low_ms, 0, 200);
     if (overrides.find("retrorun_vsync") != overrides.end())
         rr_video_vsync_set(configValueIsTrue("retrorun_vsync", false));
+}
+
+bool consumeCoreVariablesUpdated()
+{
+    const bool updated = coreVariablesUpdated;
+    coreVariablesUpdated = false;
+    return updated;
 }
 
 static bool isButtonMappingSetting(const std::string &setting)

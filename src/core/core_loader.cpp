@@ -481,7 +481,7 @@ bool core_environment(unsigned cmd, void *data)
     case RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE:
     {
         bool *bval = (bool *)data;
-        *bval = false;
+        *bval = consumeCoreVariablesUpdated();
         return true;
     }
 

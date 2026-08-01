@@ -27,6 +27,9 @@ void initConfig();
 void applyTransientConfigOverrides(
     const std::map<std::string, std::string> &overrides);
 
+// Report core-option changes once through RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE.
+bool consumeCoreVariablesUpdated();
+
 // Config helpers
 float getAspectRatio(const std::string aspect);
 TateState getTateMode(const std::string tate);
