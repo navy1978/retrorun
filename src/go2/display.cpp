@@ -2119,65 +2119,126 @@ go2_context_t *go2_context_create(go2_display_t *display, int width, int height,
         return NULL;
     }
 
+    EGLint major = 0;
+    EGLint minor = 0;
+    auto initialize_egl_display = [&](EGLDisplay egl_display,
+                                      EGLint &initialize_error) {
+        // Ensure the reported value belongs to this eglInitialize call.
+        (void)eglGetError();
+        if (eglInitialize(egl_display, &major, &minor) == EGL_TRUE)
+        {
+            initialize_error = EGL_SUCCESS;
+            return true;
+        }
+
+        initialize_error = eglGetError();
+        return false;
+    };
+
     // Discard a possible error left by eglGetProcAddress so the following
     // value belongs specifically to eglGetPlatformDisplayEXT.
     (void)eglGetError();
-    result->eglDisplay = get_platform_display(EGL_PLATFORM_GBM_KHR, result->gbmDevice, NULL);
+    result->eglDisplay = get_platform_display(EGL_PLATFORM_GBM_KHR,
+                                              result->gbmDevice, NULL);
+
+    EGLint platform_error = EGL_SUCCESS;
+    EGLint platform_initialize_error = EGL_SUCCESS;
+    bool use_legacy_display = false;
+    bool platform_initialize_failed = false;
+
     if (result->eglDisplay == EGL_NO_DISPLAY)
     {
-        const EGLint platform_error = eglGetError();
+        platform_error = eglGetError();
         logger.log(Logger::WARN,
-                   "eglGetPlatformDisplayEXT rejected GBM: platform=0x%04x, drm_fd=%d, gbm_backend=%s, egl_error=0x%04x (%s); trying legacy eglGetDisplay",
+                   "eglGetPlatformDisplayEXT rejected GBM: platform=0x%04x, drm_fd=%d, gbm_backend=%s, egl_error=0x%04x (%s); trying legacy eglGetDisplay(GBM)",
                    static_cast<unsigned int>(EGL_PLATFORM_GBM_KHR), display->fd,
                    gbm_backend ? gbm_backend : "<unknown>",
                    static_cast<unsigned int>(platform_error),
                    egl_error_name(platform_error));
+        use_legacy_display = true;
+    }
+    else
+    {
+        logger.log(Logger::INF, "EGL GBM platform display acquired successfully");
+        if (!initialize_egl_display(result->eglDisplay,
+                                    platform_initialize_error))
+        {
+            logger.log(Logger::WARN,
+                       "Platform EGL display returned successfully but eglInitialize failed with 0x%04x (%s); retrying with legacy eglGetDisplay(GBM) for %s backend",
+                       static_cast<unsigned int>(platform_initialize_error),
+                       egl_error_name(platform_initialize_error),
+                       gbm_backend ? gbm_backend : "<unknown>");
+            use_legacy_display = true;
+            platform_initialize_failed = true;
+        }
+    }
 
-        // Older Mali/armsoc EGL stacks expose eglGetPlatformDisplayEXT but do
-        // not accept EGL_PLATFORM_GBM_KHR. Their legacy entry point accepts
-        // the GBM device directly as EGLNativeDisplayType.
+    if (use_legacy_display)
+    {
+        // Older Mali/armsoc EGL stacks may expose and accept the GBM platform
+        // entry point, yet still be unable to initialize the display it
+        // returns. Their legacy entry point accepts the GBM device directly
+        // as EGLNativeDisplayType.
+        logger.log(Logger::INF,
+                   "Attempting legacy eglGetDisplay(GBM) compatibility path for backend=%s",
+                   gbm_backend ? gbm_backend : "<unknown>");
         (void)eglGetError();
-        result->eglDisplay = eglGetDisplay(
+        EGLDisplay legacy_display = eglGetDisplay(
             (EGLNativeDisplayType)result->gbmDevice);
-        if (result->eglDisplay == EGL_NO_DISPLAY)
+        if (legacy_display == EGL_NO_DISPLAY)
         {
             const EGLint legacy_error = eglGetError();
+            const EGLint prior_error = platform_initialize_failed
+                ? platform_initialize_error : platform_error;
+            const char *prior_stage = platform_initialize_failed
+                ? "platform_eglInitialize" : "platform_display";
             logger.log(Logger::ERR,
-                       "Legacy eglGetDisplay(GBM) failed: drm_fd=%d, gbm_backend=%s, egl_error=0x%04x (%s); platform_error=0x%04x (%s)",
+                       "Legacy eglGetDisplay(GBM) fallback failed definitively: drm_fd=%d, gbm_backend=%s, egl_error=0x%04x (%s); prior_%s_error=0x%04x (%s)",
                        display->fd,
                        gbm_backend ? gbm_backend : "<unknown>",
                        static_cast<unsigned int>(legacy_error),
                        egl_error_name(legacy_error),
-                       static_cast<unsigned int>(platform_error),
-                       egl_error_name(platform_error));
+                       prior_stage,
+                       static_cast<unsigned int>(prior_error),
+                       egl_error_name(prior_error));
             gbm_device_destroy(result->gbmDevice);
             free(result);
             return NULL;
         }
 
-        logger.log(Logger::WARN,
-                   "Using legacy eglGetDisplay(GBM) compatibility path for backend=%s",
-                   gbm_backend ? gbm_backend : "<unknown>");
-    }
-    else
-    {
-        logger.log(Logger::INF, "EGL GBM platform display acquired successfully");
-    }
+        EGLint legacy_initialize_error = EGL_SUCCESS;
+        if (!initialize_egl_display(legacy_display, legacy_initialize_error))
+        {
+            const EGLint prior_error = platform_initialize_failed
+                ? platform_initialize_error : platform_error;
+            const char *prior_stage = platform_initialize_failed
+                ? "platform_eglInitialize" : "platform_display";
+            logger.log(Logger::ERR,
+                       "Legacy eglGetDisplay(GBM) returned successfully but eglInitialize failed definitively: drm_fd=%d, gbm_backend=%s, egl_error=0x%04x (%s); prior_%s_error=0x%04x (%s)",
+                       display->fd,
+                       gbm_backend ? gbm_backend : "<unknown>",
+                       static_cast<unsigned int>(legacy_initialize_error),
+                       egl_error_name(legacy_initialize_error),
+                       prior_stage,
+                       static_cast<unsigned int>(prior_error),
+                       egl_error_name(prior_error));
+            gbm_device_destroy(result->gbmDevice);
+            free(result);
+            return NULL;
+        }
 
-    // Initialize EGL
-    EGLint major;
-    EGLint minor;
-    success = eglInitialize(result->eglDisplay, &major, &minor);
-    if (success != EGL_TRUE)
-    {
-        const EGLint error = eglGetError();
-        logger.log(Logger::ERR,
-                   "eglInitialize failed: egl_error=0x%04x (%s), drm_fd=%d, gbm_backend=%s",
-                   static_cast<unsigned int>(error), egl_error_name(error), display->fd,
-                   gbm_backend ? gbm_backend : "<unknown>");
-        gbm_device_destroy(result->gbmDevice);
-        free(result);
-        return NULL;
+        result->eglDisplay = legacy_display;
+        if (platform_initialize_failed)
+        {
+            logger.log(Logger::WARN,
+                       "Using legacy eglGetDisplay(GBM) compatibility path after platform eglInitialize failure");
+        }
+        else
+        {
+            logger.log(Logger::WARN,
+                       "Using legacy eglGetDisplay(GBM) compatibility path for backend=%s",
+                       gbm_backend ? gbm_backend : "<unknown>");
+        }
     }
 
     const char *egl_vendor = eglQueryString(result->eglDisplay, EGL_VENDOR);

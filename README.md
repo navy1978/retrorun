@@ -169,6 +169,49 @@ The backend can also be selected explicitly:
 make go2 config=release
 ```
 
+#### RK3326 Mali compatibility build
+
+ArkOS/dArkOS and AmberELEC normally expose the unversioned EGL, GLES and GBM
+linker names through the same proprietary RK3326 Mali GBM library. Building on
+a generic Linux VM can instead record versioned GLVND/Mesa dependencies such as
+`libEGL.so.1`, causing EGL initialization to fail on an otherwise supported
+handheld.
+
+The helper can download the dArkOS RK3326 blob pinned to a known source commit,
+verify its SHA-256 and retain it outside the repository in the user cache:
+
+```sh
+tools/build-rk3326-mali.sh --download-mali
+```
+
+The download is never implicit. For offline builds, pass an existing AArch64
+RK3326 Mali GBM blob instead:
+
+```sh
+tools/build-rk3326-mali.sh \
+  --mali-lib /path/to/libmali-bifrost-g31-rxp0-gbm.so
+```
+
+The output is `dist/retrorun-rk3326-mali`. The helper temporarily presents the
+blob as `libEGL.so`, `libGLESv2.so` and `libgbm.so`, performs a clean release
+GO2 build, and then removes all temporary links and intermediate build files.
+It rejects GLVND/Mesa-style `DT_NEEDED` entries and prints the highest GLIBC
+version required by the executable.
+
+To enforce the ABI ceiling of the oldest target distribution, pass its GLIBC
+version explicitly:
+
+```sh
+tools/build-rk3326-mali.sh \
+  --download-mali \
+  --max-glibc 2.31
+```
+
+The version above is only an example; determine the actual ceiling on the
+oldest supported image. Passing the ELF checks prevents the known EGL loader
+mismatch, but a release should still be tested on both ArkOS/dArkOS and
+AmberELEC before being labelled as a universal binary.
+
 ### Linux SDL2/KMSDRM backend
 
 Required target dependencies are:

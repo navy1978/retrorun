@@ -5,6 +5,7 @@ saves/
 system/
 retrorun
 retrorun-sdl2
+/dist/
 .DS_Store
 
 # Local benchmark evidence is stored in a single dated archive when needed.
