@@ -1,15 +1,15 @@
-# Flycast 2022 Low-End RG351V profiles
+# Flycast 2022 Low-End RK3326 profiles
 
 These files preserve the per-game RetroRun configurations used during the
-RG351V Flycast 2022 Low-End investigation. They are snapshots of tested or
-retained profiles, not global defaults.
+RG351V and RG351MP Flycast 2022 Low-End investigations. They are snapshots of
+tested or retained profiles, not global defaults.
 
 See [GAME_PROFILE_MODES.md](GAME_PROFILE_MODES.md) for the implemented
 `disabled`, `best_validated` and `best_performance` selection modes and the
 current per-game differences.
 
 `flycast-game-catalog.ini` is the editable source form of catalog version
-`20260746`. The same data is built into RetroRun, so the feature works when
+`20260826`. The same data is built into RetroRun, so the feature works when
 distributions install only the executable. A copy beside RetroRun is used only
 when its `catalog_version` is greater than the built-in version.
 
@@ -31,6 +31,9 @@ Select profiles by product number rather than by ROM filename:
 | `T38706M` | Ikaruga | Japanese retail release. Adaptive v9 profile with accurate per-triangle alpha sorting; manual RG351V review confirmed that it removes the ship rectangles while preserving excellent gameplay. |
 | `T1212N`, `T7010D 50`, `T1215M` | Marvel vs. Capcom 2 | North American, European and Japanese retail variants. The approved v28/v9 adaptive profile uses per-triangle alpha sorting to correct the 2D fighter sprites. On the fixed 600-frame USA save state it measured 49.1 FPS, 300 presented frames and zero audio underruns; the faster inaccurate sorter reached 52.1 FPS but visibly corrupted sprites. |
 | `MK-51054`, `HDR-0113` | Virtua Tennis / Power Smash | European, North American and Japanese retail variants. The approved RG351V profile combines linear vertex depth with adaptive core skipping and the `hud_last` translucent merge strategy. Manual review confirmed correct court lines, service power gauge, audio and gameplay speed without the broad merge-disable performance penalty. |
+| `MK-51058` | Jet Set Radio / Jet Grind Radio | The North American retail image was validated on RG351MP/dArkOS from a fixed gameplay savestate. Accurate per-triangle alpha, disabled translucent merging, fast depth and opaque-strip merging averaged 27.86 presented frames/s versus 25.99 for the conservative baseline (+7.18%). All nine final runs recorded zero audio underruns, overruns or dropped audio frames, and both fast depth alone and the final combination passed manual gameplay review. `best_performance` falls back to this validated profile. |
+| `T1215N` | Cannon Spike | The North American retail image was validated on RG351MP/dArkOS from a fixed gameplay savestate. Opaque-strip merging averaged 38.00 presented frames/s versus 33.56 for the conservative baseline (+13.2%), with every frame presented and no audio faults. Fast depth was faster but rejected because it produced obvious graphical artifacts. `best_performance` falls back to the visually approved opaque-only profile. |
+| `MK-51037` | Daytona USA 2001 / Daytona USA | The North American retail image was validated on RG351MP/dArkOS from a fixed race savestate. Per-strip alpha sorting plus opaque-strip merging averaged 23.75 presented frames/s versus 16.20 for the conservative baseline (+46.6%), reduced active-frame p95 from 89.27 to 58.52 ms and recorded no skipped frames or audio faults. Both the sorter and final combination passed manual race review. `best_performance` falls back to this validated profile. |
 
 `dreamcast-product-variants.tsv` is the machine-checked map between the Redump
 retail releases and the Product numbers returned by Flycast. When adding a
@@ -96,10 +99,10 @@ numbers with the conservative built-in defaults. These entries are coverage
 baselines, not RG351V performance approvals; promote them only after repeatable
 benchmarking and manual audio/video review.
 
-Sonic Adventure, Shenmue, Resident Evil: Code Veronica, Jet Set Radio,
-Power Stone 2, Skies of Arcadia, Capcom vs. SNK 2, Phantasy Star Online,
+Sonic Adventure, Shenmue, Resident Evil: Code Veronica, Power Stone retail releases, Power Stone 2,
+Skies of Arcadia, Capcom vs. SNK 2, Phantasy Star Online,
 The House of the Dead 2, NFL 2K, NFL 2K1, Sega Rally 2, Hydro Thunder,
-F355 Challenge, Daytona USA 2001, Virtua Fighter 3tb, Cosmic Smash,
-Toy Commander, Cannon Spike, Rez, Street Fighter III: 3rd Strike,
+F355 Challenge, Virtua Fighter 3tb, Cosmic Smash,
+Toy Commander, Rez, Street Fighter III: 3rd Strike,
 Street Fighter Alpha 3 and Sega Bass Fishing are included with every retail
 Product Number enumerated in `dreamcast-product-variants.tsv`.

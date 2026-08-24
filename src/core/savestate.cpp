@@ -202,7 +202,7 @@ bool StartLoadStateAsync(const char *saveName, int slotNumber, bool autoLoad)
             missingAutoState.store(true, std::memory_order_release);
             set_async_load_message("No auto state");
             lastLoadSaveStateDoneOk = true;
-            input_slot_memory_load_done = false;
+            input_slot_memory_load_done = true;
             input_slot_memory_load_requested = false;
             return false;
         } else {

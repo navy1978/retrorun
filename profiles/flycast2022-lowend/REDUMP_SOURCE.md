@@ -7,7 +7,7 @@ The retail release inventory used while maintaining
 https://raw.githubusercontent.com/libretro/libretro-database/refs/heads/master/metadat/redump/Sega%20-%20Dreamcast.dat
 ```
 
-The source version inspected for catalog `20260736` is `2026.05.02`.
+The source version inspected for catalog `20260826` is `2026.08.01`.
 `libretro-database` is distributed under CC BY-SA 4.0. This repository keeps a
 small attributed cross-reference for the games that have RetroRun performance
 profiles; it does not embed the complete upstream DAT.
@@ -31,3 +31,10 @@ Maintenance rule:
 The catalog test checks that every Product number in the variant table exists
 in the runtime catalog and that the editable catalog exactly matches the
 built-in catalog.
+
+The `2026.08.01` audit covered all 32 catalog game families. After adding the
+four missing retail Product numbers for Power Stone, all retail entries were
+accounted for by 94 runtime Product numbers. Nineteen matched demo, beta or
+prototype entries were deliberately excluded under the maintenance rule
+above. Alternate Redump serials with identical disc data remain mapped to one
+IP.BIN Product number instead of creating duplicate runtime profiles.

@@ -16,8 +16,8 @@ void testBuiltInProfiles()
 {
     const Catalog catalog = builtinCatalog();
     assert(catalog.schema_version == 1);
-    assert(catalog.catalog_version == 20260741);
-    assert(catalog.profiles.size() == 13);
+    assert(catalog.catalog_version == 20260826);
+    assert(catalog.profiles.size() == 94);
     assert(normalizeProductNumber("T1401D  50 ") == "T1401D50");
 
     Profile profile;
@@ -40,7 +40,8 @@ void testBuiltInProfiles()
         "MK-51117", "HDR-0165",
         "RDC-0140", "RDC-0149", "T8116D50", "T3602M", "T3601M", "T3601N",
         "T1401D50", "T1401M", "T1401N",
-        "MK-51035", "HDR-0053"
+        "MK-51035", "HDR-0053", "MK-51058", "T1215N", "MK-51037",
+        "T36801D61", "T36801D64", "T1201M", "T1201N"
     };
     for (const char *product : knownRetailVariants)
         assert(catalog.profiles.count(product) == 1);
@@ -61,10 +62,46 @@ void testBuiltInProfiles()
     assert(profile.settings.at("reicast_loop_declared_fps") == "false");
     assert(profile.settings.at("retrorun_loop_declared_fps") == "true");
     assert(profile.settings.at("retrorun_egl_stencil_bits") == "0");
+
     const auto mixedSettings =
         settingsForOptionPrefix(profile.settings, "flycast2021_");
-    assert(mixedSettings.at("flycast2021_aica_arm_cycles") == "24");
+    assert(mixedSettings.at("flycast2021_aica_arm_cycles") == "8");
     assert(mixedSettings.at("flycast2021_framerate") == "normal");
+
+    assert(selectProfile(catalog, "T1215N", Mode::BestPerformance,
+                         profile, fallback));
+    assert(fallback);
+    assert(profile.title == "Cannon Spike (USA, RG351MP validated)");
+    assert(profile.settings.at("reicast_alpha_sorting") ==
+           "per-triangle (normal)");
+    assert(profile.settings.at("reicast_translucent_strip_merge") ==
+           "disabled");
+    assert(profile.settings.at("reicast_translucent_menu_guard_strategy") ==
+           "hud_last");
+    assert(profile.settings.at("reicast_fast_depth") == "disabled");
+    assert(profile.settings.at("reicast_opaque_strip_merge") == "enabled");
+    assert(profile.settings.at("reicast_audio_mixer") == "accurate");
+    assert(profile.settings.at("reicast_aica_arm_cycles") == "32");
+    assert(profile.settings.at("retrorun_go2_audio_wsola_profile") ==
+           "lowend_stable_96");
+    assert(profile.settings.at("retrorun_egl_stencil_bits") == "0");
+
+    assert(selectProfile(catalog, "MK-51037", Mode::BestPerformance,
+                         profile, fallback));
+    assert(fallback);
+    assert(profile.title ==
+           "Daytona USA 2001 / Daytona USA (RG351MP validated)");
+    assert(profile.settings.at("reicast_alpha_sorting") ==
+           "per-strip (fast, least accurate)");
+    assert(profile.settings.at("reicast_translucent_strip_merge") ==
+           "disabled");
+    assert(profile.settings.at("reicast_fast_depth") == "disabled");
+    assert(profile.settings.at("reicast_opaque_strip_merge") == "enabled");
+    assert(profile.settings.at("reicast_audio_mixer") == "accurate");
+    assert(profile.settings.at("reicast_aica_arm_cycles") == "32");
+    assert(profile.settings.at("retrorun_go2_audio_wsola_profile") ==
+           "lowend_stable_96");
+    assert(profile.settings.at("retrorun_egl_stencil_bits") == "0");
 
     assert(selectProfile(catalog, "T1401D  50", Mode::BestValidated,
                          profile, fallback));
@@ -101,6 +138,23 @@ void testBuiltInProfiles()
     assert(profile.product_number == "HDR-0053");
     assert(profile.settings.at("reicast_alpha_sorting") ==
            "per-triangle (normal)");
+
+    assert(selectProfile(catalog, "MK-51058", Mode::BestPerformance,
+                         profile, fallback));
+    assert(fallback);
+    assert(profile.title ==
+           "Jet Set Radio / Jet Grind Radio (RG351MP validated)");
+    assert(profile.settings.at("reicast_alpha_sorting") ==
+           "per-triangle (normal)");
+    assert(profile.settings.at("reicast_translucent_strip_merge") ==
+           "disabled");
+    assert(profile.settings.at("reicast_fast_depth") == "enabled");
+    assert(profile.settings.at("reicast_opaque_strip_merge") == "enabled");
+    assert(profile.settings.at("reicast_audio_mixer") == "accurate");
+    assert(profile.settings.at("reicast_aica_arm_cycles") == "32");
+    assert(profile.settings.at("retrorun_go2_audio_wsola_profile") ==
+           "lowend_stable_96");
+    assert(profile.settings.at("retrorun_egl_stencil_bits") == "0");
 
     assert(selectProfile(catalog, "T38706M", Mode::BestValidated,
                          profile, fallback));
@@ -143,6 +197,30 @@ void testVersionedRepositoryCatalogMatchesBuiltIn()
     assert(selectProfile(builtIn, "T1401D  50",
                          Mode::BestPerformance, fromBuiltIn,
                          builtInFallback));
+    assert(fromFile.settings == fromBuiltIn.settings);
+
+    assert(selectProfile(fileCatalog, "MK-51058",
+                         Mode::BestPerformance, fromFile, fileFallback));
+    assert(selectProfile(builtIn, "MK-51058",
+                         Mode::BestPerformance, fromBuiltIn,
+                         builtInFallback));
+    assert(fileFallback && builtInFallback);
+    assert(fromFile.settings == fromBuiltIn.settings);
+
+    assert(selectProfile(fileCatalog, "MK-51037",
+                         Mode::BestPerformance, fromFile, fileFallback));
+    assert(selectProfile(builtIn, "MK-51037",
+                         Mode::BestPerformance, fromBuiltIn,
+                         builtInFallback));
+    assert(fileFallback && builtInFallback);
+    assert(fromFile.settings == fromBuiltIn.settings);
+
+    assert(selectProfile(fileCatalog, "T1215N",
+                         Mode::BestPerformance, fromFile, fileFallback));
+    assert(selectProfile(builtIn, "T1215N",
+                         Mode::BestPerformance, fromBuiltIn,
+                         builtInFallback));
+    assert(fileFallback && builtInFallback);
     assert(fromFile.settings == fromBuiltIn.settings);
 
     std::ifstream variants(

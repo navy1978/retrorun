@@ -8,8 +8,13 @@ retrorun-sdl2
 /dist/
 .DS_Store
 
-# Local benchmark evidence is stored in a single dated archive when needed.
-/benchmarks/
+# Local benchmark evidence is ignored unless a specific compact archive is
+# explicitly selected for versioning.
+/benchmarks/*
+!/benchmarks/README.md
+!/benchmarks/rg351mp-darkos-flycast2021-jet-grind-radio-2026-08-24/
+!/benchmarks/rg351mp-darkos-flycast2021-cannon-spike-2026-08-24/
+!/benchmarks/rg351mp-darkos-flycast2021-daytona-usa-2026-08-24/
 /benchmark-results-*.zip
 
 # Experimental core patches are maintained outside RetroRun commits.

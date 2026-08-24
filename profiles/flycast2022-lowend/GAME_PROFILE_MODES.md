@@ -25,6 +25,9 @@ La selezione deve usare il Product number Dreamcast, non il nome del file ROM.
 | Soul Calibur | `T1401D  50`, `T1401M`, `T1401N` | `retrorun-soul-T1401D50.cfg` | `experimental/retrorun-soul-performance-T1401D50.cfg` | Le edizioni retail europea, giapponese e nordamericana usano lo stesso profilo. Entrambe usano `framerate=normal` e disabilitano il pacing del frontend: su RG353M la configurazione ottimizzata con `fullspeed` era più lenta perfino della configurazione non ottimizzata con `normal`. La variante validata usa `per_triangle`; quella veloce usa `top_hud_last` e può mostrare il fondale sopra la barra. |
 | Crazy Taxi | `MK-51035`, `HDR-0053` | B4: v9, audio `lowend_stable_96`, `per-triangle` e menu guard | Fallback a `best_validated` | Le edizioni retail europea/nordamericana e giapponese condividono il profilo B4 approvato manualmente. Sul cold boot RG351V ha misurato 41,31 core FPS e 39,04 frame unici/s contro 31,12 e 25,73 dello stack AmberELEC, con skip 5,5% contro 17,3% e un underrun contro 99. |
 | Ikaruga | `T38706M` | D: v9, audio `lowend_stable_96`, core adaptive e `per-triangle` | Fallback a `best_validated` | La candidata D elimina i rettangoli attorno alle astronavi senza perdere prestazioni: 40,36 core FPS e 304 frame presentati contro 39,91 e 303 della candidata veloce originale. Video, audio e gameplay approvati manualmente su RG351V. |
+| Jet Set Radio / Jet Grind Radio | `MK-51058` | `per-triangle`, merge traslucido off, fast depth e merge opaco, audio accurato con `lowend_stable_96` | Fallback a `best_validated` | Validato manualmente su Jet Grind Radio USA e RG351MP/dArkOS. Tre run da 600 frame sono passate da 25,99 a 27,86 frame presentati/s (+7,18%); p95 da 61,72 a 59,70 ms e zero underrun/overrun/drop audio. `per-strip`, merge traslucido e state elision sono risultati più lenti. |
+| Cannon Spike | `T1215N` | `per-triangle`, merge traslucido off, fast depth disattivato, merge opaco attivo e audio accurato | Fallback a `best_validated` | Validato manualmente su RG351MP/dArkOS. Tre run finali da 600 frame hanno raggiunto 38,00 frame presentati/s contro 33,56 della baseline (+13,2%), senza frame persi o errori audio. Fast depth arrivava a circa 38,43 FPS da solo e 41,45 in combinazione, ma è stato respinto per artefatti grafici evidenti. |
+| Daytona USA 2001 / Daytona USA | `MK-51037` | alpha `per-strip`, merge traslucido off, fast depth disattivato, merge opaco attivo e audio accurato | Fallback a `best_validated` | Validato manualmente durante una gara su RG351MP/dArkOS. Tre run finali da 600 frame hanno raggiunto 23,75 frame presentati/s contro 16,20 della baseline (+46,6%); p95 da 89,27 a 58,52 ms, tutti i frame presentati e nessun errore audio. La variante giapponese `HDR-0106` resta baseline finché non viene provata separatamente. |
 
 ## Parametri che differiscono davvero
 
@@ -40,6 +43,9 @@ cartella.
 | Soul Calibur | prestazioni | off/off | `menu_guarded`, `top_hud_last`, `standard` | `vertex_fast_log` | `lowend` | on | D24S0 |
 | Crazy Taxi | validata | on/on | merge off, `top_hud_last`, `per-triangle` | `menu_guarded_shadow_safe` | `lowend_stable_96` | off | D24S8 |
 | Ikaruga | validata | off/off | `menu_guarded`, `scored`, alpha `per-triangle` | `vertex_fast_log` | `lowend_stable_96`, mixer `fast` | on | D24S0 |
+| Jet Grind Radio | validata | on/on | merge off, alpha `per-triangle` | `enabled` | `lowend_stable_96`, mixer `accurate` | on | D24S0 |
+| Cannon Spike | validata | on/on | merge off, alpha `per-triangle` | off | `lowend_stable_96`, mixer `accurate` | on | D24S0 |
+| Daytona USA | validata | on/on | merge off, alpha `per-strip` | off | `lowend_stable_96`, mixer `accurate` | on | D24S0 |
 
 ## Regola di precedenza
 

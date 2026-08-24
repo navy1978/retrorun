@@ -19,7 +19,7 @@ constexpr const char *CatalogFilename = "flycast-game-catalog.ini";
 
 const char *BuiltinCatalogText = R"catalog(
 schema_version = 1
-catalog_version = 20260771
+catalog_version = 20260826
 
 default.retrorun_vsync = false
 default.retrorun_loop_declared_fps = true
@@ -569,7 +569,21 @@ profile.T1240M.best_validated.reicast_alpha_sorting = per-triangle (normal)
 profile.T1240M.best_performance.title = Biohazard Code Veronica Complete (Japan, RG351V)
 profile.T1240M.best_performance.inherits = best_validated
 
-profile.MK-51058.best_validated.title = Jet Set Radio / Jet Grind Radio (baseline)
+profile.MK-51058.best_validated.title = Jet Set Radio / Jet Grind Radio (RG351MP validated)
+profile.MK-51058.best_validated.retrorun_audio_buffer = 2048
+profile.MK-51058.best_validated.retrorun_audio_stable_buffer = true
+profile.MK-51058.best_validated.retrorun_go2_audio_stretch_low_ms = 150
+profile.MK-51058.best_validated.retrorun_go2_audio_wsola_profile = lowend_stable_96
+profile.MK-51058.best_validated.retrorun_egl_depth_bits = 24
+profile.MK-51058.best_validated.retrorun_egl_stencil_bits = 0
+profile.MK-51058.best_validated.reicast_hle_bios = enabled
+profile.MK-51058.best_validated.reicast_framerate = fullspeed
+profile.MK-51058.best_validated.reicast_alpha_sorting = per-triangle (normal)
+profile.MK-51058.best_validated.reicast_translucent_strip_merge = disabled
+profile.MK-51058.best_validated.reicast_fast_depth = enabled
+profile.MK-51058.best_validated.reicast_audio_mixer = accurate
+profile.MK-51058.best_validated.reicast_opaque_strip_merge = enabled
+profile.MK-51058.best_validated.reicast_aica_arm_cycles = 32
 
 profile.MK-51084.best_validated.title = Jet Grind Radio (USA revision, baseline)
 
@@ -612,6 +626,14 @@ profile.RDC-0034.best_validated.reicast_aica_arm_cycles = 16
 
 profile.RDC-0034.best_performance.title = Power Stone (US RDC, RG351V)
 profile.RDC-0034.best_performance.inherits = best_validated
+
+profile.T36801D61.best_validated.title = Power Stone (Europe 61, baseline)
+
+profile.T36801D64.best_validated.title = Power Stone (Europe 64, baseline)
+
+profile.T1201M.best_validated.title = Power Stone (Japan, baseline)
+
+profile.T1201N.best_validated.title = Power Stone (USA, baseline)
 
 profile.MK-51049.best_validated.title = ChuChu Rocket (USA, RG351V)
 profile.MK-51049.best_validated.retrorun_adaptive_frameskip = false
@@ -703,7 +725,27 @@ profile.T8119N.best_validated.title = F355 Challenge (USA, baseline)
 
 profile.HDR-0100.best_validated.title = F355 Challenge (Japan, baseline)
 
-profile.MK-51037.best_validated.title = Daytona USA 2001 (baseline)
+profile.MK-51037.best_validated.title = Daytona USA 2001 / Daytona USA (RG351MP validated)
+profile.MK-51037.best_validated.retrorun_audio_buffer = 2048
+profile.MK-51037.best_validated.retrorun_audio_stable_buffer = true
+profile.MK-51037.best_validated.retrorun_go2_audio_stretch_low_ms = 150
+profile.MK-51037.best_validated.retrorun_go2_audio_wsola_profile = lowend_stable_96
+profile.MK-51037.best_validated.retrorun_egl_depth_bits = 24
+profile.MK-51037.best_validated.retrorun_egl_stencil_bits = 0
+profile.MK-51037.best_validated.reicast_hle_bios = enabled
+profile.MK-51037.best_validated.reicast_framerate = fullspeed
+profile.MK-51037.best_validated.reicast_alpha_sorting = per-strip (fast, least accurate)
+profile.MK-51037.best_validated.reicast_mipmapping = enabled
+profile.MK-51037.best_validated.reicast_fog = enabled
+profile.MK-51037.best_validated.reicast_frame_skipping = disabled
+profile.MK-51037.best_validated.reicast_translucent_strip_merge = disabled
+profile.MK-51037.best_validated.reicast_translucent_menu_guard_strategy = hud_last
+profile.MK-51037.best_validated.reicast_texture_storage_reuse = disabled
+profile.MK-51037.best_validated.reicast_adjacent_state_elision = disabled
+profile.MK-51037.best_validated.reicast_fast_depth = disabled
+profile.MK-51037.best_validated.reicast_audio_mixer = accurate
+profile.MK-51037.best_validated.reicast_opaque_strip_merge = enabled
+profile.MK-51037.best_validated.reicast_aica_arm_cycles = 32
 
 profile.HDR-0106.best_validated.title = Daytona USA 2001 (Japan, baseline)
 
@@ -719,7 +761,27 @@ profile.MK-51020.best_validated.title = Toy Commander (baseline)
 
 profile.T46601D50.best_validated.title = Cannon Spike (Europe, baseline)
 
-profile.T1215N.best_validated.title = Cannon Spike (USA, baseline)
+profile.T1215N.best_validated.title = Cannon Spike (USA, RG351MP validated)
+profile.T1215N.best_validated.retrorun_audio_buffer = 2048
+profile.T1215N.best_validated.retrorun_audio_stable_buffer = true
+profile.T1215N.best_validated.retrorun_go2_audio_stretch_low_ms = 150
+profile.T1215N.best_validated.retrorun_go2_audio_wsola_profile = lowend_stable_96
+profile.T1215N.best_validated.retrorun_egl_depth_bits = 24
+profile.T1215N.best_validated.retrorun_egl_stencil_bits = 0
+profile.T1215N.best_validated.reicast_hle_bios = enabled
+profile.T1215N.best_validated.reicast_framerate = fullspeed
+profile.T1215N.best_validated.reicast_alpha_sorting = per-triangle (normal)
+profile.T1215N.best_validated.reicast_mipmapping = enabled
+profile.T1215N.best_validated.reicast_fog = enabled
+profile.T1215N.best_validated.reicast_frame_skipping = disabled
+profile.T1215N.best_validated.reicast_translucent_strip_merge = disabled
+profile.T1215N.best_validated.reicast_translucent_menu_guard_strategy = hud_last
+profile.T1215N.best_validated.reicast_texture_storage_reuse = disabled
+profile.T1215N.best_validated.reicast_adjacent_state_elision = disabled
+profile.T1215N.best_validated.reicast_fast_depth = disabled
+profile.T1215N.best_validated.reicast_audio_mixer = accurate
+profile.T1215N.best_validated.reicast_opaque_strip_merge = enabled
+profile.T1215N.best_validated.reicast_aica_arm_cycles = 32
 
 profile.T1219M.best_validated.title = Gunspike (Japan, baseline)
 
