@@ -34,11 +34,16 @@ struct Catalog
     // performance-oriented catalog defaults; uncataloged content is untouched.
     std::map<std::string, std::string> safe_defaults;
     std::map<std::string, std::map<Mode, Profile>> profiles;
+    // Optional schema-v2 overrides keyed by normalized device name, then
+    // product number and mode. Global profiles remain the compatibility base.
+    std::map<std::string,
+             std::map<std::string, std::map<Mode, Profile>>> device_profiles;
 };
 
 Mode parseMode(const std::string &value);
 const char *modeName(Mode mode);
 std::string normalizeProductNumber(const std::string &product_number);
+std::string normalizeDeviceName(const std::string &device_name);
 
 bool parseCatalog(std::istream &input, const std::string &source,
                   Catalog &catalog, std::vector<std::string> &diagnostics);
@@ -59,7 +64,8 @@ bool scheduleCatalogUpdate(const std::string &cache_path,
 // best_performance falls back to best_validated when no separate aggressive
 // profile exists for the selected product.
 bool selectProfile(const Catalog &catalog, const std::string &product_number,
-                   Mode mode, Profile &profile, bool &used_fallback);
+                   Mode mode, Profile &profile, bool &used_fallback,
+                   const std::string &device_name = {});
 
 // Catalogs store Flycast options in the canonical reicast_* namespace.
 // Distribution builds that rename the core options can translate them here

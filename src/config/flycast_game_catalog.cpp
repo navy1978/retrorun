@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <tuple>
 #include <unordered_set>
 
 namespace rr::flycast_profiles
@@ -14,12 +15,13 @@ namespace rr::flycast_profiles
 namespace
 {
 
-constexpr int SupportedSchemaVersion = 1;
+constexpr int MinimumSchemaVersion = 1;
+constexpr int CurrentSchemaVersion = 2;
 constexpr const char *CatalogFilename = "flycast-game-catalog.ini";
 
 const char *BuiltinCatalogText = R"catalog(
-schema_version = 1
-catalog_version = 20260828
+schema_version = 2
+catalog_version = 20260830
 
 default.retrorun_vsync = false
 default.retrorun_loop_declared_fps = true
@@ -226,6 +228,114 @@ profile.T3601N.best_performance.retrorun_audio_buffer = 4096
 profile.T3601N.best_performance.retrorun_go2_audio_stretch_low_ms = 200
 profile.T3601N.best_performance.retrorun_go2_audio_wsola_profile = doa_stable_100
 
+device.RG353M.profile.RDC-0149.best_validated.title = Dead or Alive 2 (RG353M validated)
+device.RG353M.profile.RDC-0149.best_validated.retrorun_loop_declared_fps = false
+device.RG353M.profile.RDC-0149.best_validated.retrorun_audio_buffer = 735
+device.RG353M.profile.RDC-0149.best_validated.retrorun_audio_stable_buffer = false
+device.RG353M.profile.RDC-0149.best_validated.retrorun_go2_audio_stretch_percent = 0
+device.RG353M.profile.RDC-0149.best_validated.retrorun_go2_audio_stretch_low_ms = 40
+device.RG353M.profile.RDC-0149.best_validated.retrorun_go2_audio_wsola_profile = disabled
+device.RG353M.profile.RDC-0149.best_validated.reicast_hle_bios = disabled
+device.RG353M.profile.RDC-0149.best_validated.reicast_gdrom_fast_loading = enabled
+device.RG353M.profile.RDC-0149.best_validated.reicast_framerate = normal
+device.RG353M.profile.RDC-0149.best_validated.reicast_loop_declared_fps = false
+device.RG353M.profile.RDC-0149.best_validated.reicast_frame_skipping = disabled
+device.RG353M.profile.RDC-0149.best_validated.reicast_anisotropic_filtering = off
+device.RG353M.profile.RDC-0149.best_validated.reicast_translucent_strip_merge = menu_guarded
+device.RG353M.profile.RDC-0149.best_validated.reicast_translucent_menu_guard_strategy = top_hud_last
+device.RG353M.profile.RDC-0149.best_validated.reicast_audio_mixer = lowend
+device.RG353M.profile.RDC-0149.best_validated.reicast_aica_arm_cycles = 8
+
+device.RG353M.profile.RDC-0140.best_validated.title = Dead or Alive 2 (observed CDI, RG353M validated)
+device.RG353M.profile.RDC-0140.best_validated.retrorun_loop_declared_fps = false
+device.RG353M.profile.RDC-0140.best_validated.retrorun_audio_buffer = 735
+device.RG353M.profile.RDC-0140.best_validated.retrorun_audio_stable_buffer = false
+device.RG353M.profile.RDC-0140.best_validated.retrorun_go2_audio_stretch_percent = 0
+device.RG353M.profile.RDC-0140.best_validated.retrorun_go2_audio_stretch_low_ms = 40
+device.RG353M.profile.RDC-0140.best_validated.retrorun_go2_audio_wsola_profile = disabled
+device.RG353M.profile.RDC-0140.best_validated.reicast_hle_bios = disabled
+device.RG353M.profile.RDC-0140.best_validated.reicast_gdrom_fast_loading = enabled
+device.RG353M.profile.RDC-0140.best_validated.reicast_framerate = normal
+device.RG353M.profile.RDC-0140.best_validated.reicast_loop_declared_fps = false
+device.RG353M.profile.RDC-0140.best_validated.reicast_frame_skipping = disabled
+device.RG353M.profile.RDC-0140.best_validated.reicast_anisotropic_filtering = off
+device.RG353M.profile.RDC-0140.best_validated.reicast_translucent_strip_merge = menu_guarded
+device.RG353M.profile.RDC-0140.best_validated.reicast_translucent_menu_guard_strategy = top_hud_last
+device.RG353M.profile.RDC-0140.best_validated.reicast_audio_mixer = lowend
+device.RG353M.profile.RDC-0140.best_validated.reicast_aica_arm_cycles = 8
+
+device.RG353M.profile.T8116D50.best_validated.title = Dead or Alive 2 (Europe, RG353M validated)
+device.RG353M.profile.T8116D50.best_validated.retrorun_loop_declared_fps = false
+device.RG353M.profile.T8116D50.best_validated.retrorun_audio_buffer = 735
+device.RG353M.profile.T8116D50.best_validated.retrorun_audio_stable_buffer = false
+device.RG353M.profile.T8116D50.best_validated.retrorun_go2_audio_stretch_percent = 0
+device.RG353M.profile.T8116D50.best_validated.retrorun_go2_audio_stretch_low_ms = 40
+device.RG353M.profile.T8116D50.best_validated.retrorun_go2_audio_wsola_profile = disabled
+device.RG353M.profile.T8116D50.best_validated.reicast_hle_bios = disabled
+device.RG353M.profile.T8116D50.best_validated.reicast_gdrom_fast_loading = enabled
+device.RG353M.profile.T8116D50.best_validated.reicast_framerate = normal
+device.RG353M.profile.T8116D50.best_validated.reicast_loop_declared_fps = false
+device.RG353M.profile.T8116D50.best_validated.reicast_frame_skipping = disabled
+device.RG353M.profile.T8116D50.best_validated.reicast_anisotropic_filtering = off
+device.RG353M.profile.T8116D50.best_validated.reicast_translucent_strip_merge = menu_guarded
+device.RG353M.profile.T8116D50.best_validated.reicast_translucent_menu_guard_strategy = top_hud_last
+device.RG353M.profile.T8116D50.best_validated.reicast_audio_mixer = lowend
+device.RG353M.profile.T8116D50.best_validated.reicast_aica_arm_cycles = 8
+
+device.RG353M.profile.T3602M.best_validated.title = Dead or Alive 2 (Japan, RG353M validated)
+device.RG353M.profile.T3602M.best_validated.retrorun_loop_declared_fps = false
+device.RG353M.profile.T3602M.best_validated.retrorun_audio_buffer = 735
+device.RG353M.profile.T3602M.best_validated.retrorun_audio_stable_buffer = false
+device.RG353M.profile.T3602M.best_validated.retrorun_go2_audio_stretch_percent = 0
+device.RG353M.profile.T3602M.best_validated.retrorun_go2_audio_stretch_low_ms = 40
+device.RG353M.profile.T3602M.best_validated.retrorun_go2_audio_wsola_profile = disabled
+device.RG353M.profile.T3602M.best_validated.reicast_hle_bios = disabled
+device.RG353M.profile.T3602M.best_validated.reicast_gdrom_fast_loading = enabled
+device.RG353M.profile.T3602M.best_validated.reicast_framerate = normal
+device.RG353M.profile.T3602M.best_validated.reicast_loop_declared_fps = false
+device.RG353M.profile.T3602M.best_validated.reicast_frame_skipping = disabled
+device.RG353M.profile.T3602M.best_validated.reicast_anisotropic_filtering = off
+device.RG353M.profile.T3602M.best_validated.reicast_translucent_strip_merge = menu_guarded
+device.RG353M.profile.T3602M.best_validated.reicast_translucent_menu_guard_strategy = top_hud_last
+device.RG353M.profile.T3602M.best_validated.reicast_audio_mixer = lowend
+device.RG353M.profile.T3602M.best_validated.reicast_aica_arm_cycles = 8
+
+device.RG353M.profile.T3601M.best_validated.title = Dead or Alive 2 (Japan limited, RG353M validated)
+device.RG353M.profile.T3601M.best_validated.retrorun_loop_declared_fps = false
+device.RG353M.profile.T3601M.best_validated.retrorun_audio_buffer = 735
+device.RG353M.profile.T3601M.best_validated.retrorun_audio_stable_buffer = false
+device.RG353M.profile.T3601M.best_validated.retrorun_go2_audio_stretch_percent = 0
+device.RG353M.profile.T3601M.best_validated.retrorun_go2_audio_stretch_low_ms = 40
+device.RG353M.profile.T3601M.best_validated.retrorun_go2_audio_wsola_profile = disabled
+device.RG353M.profile.T3601M.best_validated.reicast_hle_bios = disabled
+device.RG353M.profile.T3601M.best_validated.reicast_gdrom_fast_loading = enabled
+device.RG353M.profile.T3601M.best_validated.reicast_framerate = normal
+device.RG353M.profile.T3601M.best_validated.reicast_loop_declared_fps = false
+device.RG353M.profile.T3601M.best_validated.reicast_frame_skipping = disabled
+device.RG353M.profile.T3601M.best_validated.reicast_anisotropic_filtering = off
+device.RG353M.profile.T3601M.best_validated.reicast_translucent_strip_merge = menu_guarded
+device.RG353M.profile.T3601M.best_validated.reicast_translucent_menu_guard_strategy = top_hud_last
+device.RG353M.profile.T3601M.best_validated.reicast_audio_mixer = lowend
+device.RG353M.profile.T3601M.best_validated.reicast_aica_arm_cycles = 8
+
+device.RG353M.profile.T3601N.best_validated.title = Dead or Alive 2 (North America, RG353M validated)
+device.RG353M.profile.T3601N.best_validated.retrorun_loop_declared_fps = false
+device.RG353M.profile.T3601N.best_validated.retrorun_audio_buffer = 735
+device.RG353M.profile.T3601N.best_validated.retrorun_audio_stable_buffer = false
+device.RG353M.profile.T3601N.best_validated.retrorun_go2_audio_stretch_percent = 0
+device.RG353M.profile.T3601N.best_validated.retrorun_go2_audio_stretch_low_ms = 40
+device.RG353M.profile.T3601N.best_validated.retrorun_go2_audio_wsola_profile = disabled
+device.RG353M.profile.T3601N.best_validated.reicast_hle_bios = disabled
+device.RG353M.profile.T3601N.best_validated.reicast_gdrom_fast_loading = enabled
+device.RG353M.profile.T3601N.best_validated.reicast_framerate = normal
+device.RG353M.profile.T3601N.best_validated.reicast_loop_declared_fps = false
+device.RG353M.profile.T3601N.best_validated.reicast_frame_skipping = disabled
+device.RG353M.profile.T3601N.best_validated.reicast_anisotropic_filtering = off
+device.RG353M.profile.T3601N.best_validated.reicast_translucent_strip_merge = menu_guarded
+device.RG353M.profile.T3601N.best_validated.reicast_translucent_menu_guard_strategy = top_hud_last
+device.RG353M.profile.T3601N.best_validated.reicast_audio_mixer = lowend
+device.RG353M.profile.T3601N.best_validated.reicast_aica_arm_cycles = 8
+
 profile.T1401D50.best_validated.title = Soul Calibur
 profile.T1401D50.best_validated.reicast_hle_bios = disabled
 profile.T1401D50.best_validated.reicast_gdrom_fast_loading = enabled
@@ -282,6 +392,66 @@ profile.T1401M.best_performance.reicast_translucent_menu_guard_strategy = top_hu
 profile.T1401M.best_performance.reicast_translucent_menu_guard_draw_sorting = standard
 profile.T1401M.best_performance.reicast_opaque_strip_merge = enabled
 profile.T1401M.best_performance.retrorun_egl_stencil_bits = 0
+
+device.RG353M.profile.T1401D50.best_performance.title = Soul Calibur (Europe, RG353M validated)
+device.RG353M.profile.T1401D50.best_performance.retrorun_loop_declared_fps = false
+device.RG353M.profile.T1401D50.best_performance.retrorun_audio_buffer = 735
+device.RG353M.profile.T1401D50.best_performance.retrorun_audio_stable_buffer = true
+device.RG353M.profile.T1401D50.best_performance.retrorun_go2_audio_stretch_percent = 0
+device.RG353M.profile.T1401D50.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+device.RG353M.profile.T1401D50.best_performance.retrorun_go2_audio_wsola_profile = disabled
+device.RG353M.profile.T1401D50.best_performance.retrorun_egl_depth_bits = 24
+device.RG353M.profile.T1401D50.best_performance.retrorun_egl_stencil_bits = 0
+device.RG353M.profile.T1401D50.best_performance.reicast_sh4clock = 200
+device.RG353M.profile.T1401D50.best_performance.reicast_frame_skipping = disabled
+device.RG353M.profile.T1401D50.best_performance.reicast_translucent_strip_merge = menu_guarded
+device.RG353M.profile.T1401D50.best_performance.reicast_translucent_menu_guard_strategy = top_hud_last
+device.RG353M.profile.T1401D50.best_performance.reicast_translucent_menu_guard_draw_sorting = standard
+device.RG353M.profile.T1401D50.best_performance.reicast_palette_fog_storage_reuse = enabled
+device.RG353M.profile.T1401D50.best_performance.reicast_fast_depth = vertex_fast_log
+device.RG353M.profile.T1401D50.best_performance.reicast_audio_mixer = lowend
+device.RG353M.profile.T1401D50.best_performance.reicast_opaque_strip_merge = enabled
+device.RG353M.profile.T1401D50.best_performance.reicast_aica_arm_cycles = 32
+
+device.RG353M.profile.T1401N.best_performance.title = Soul Calibur (North America, RG353M validated)
+device.RG353M.profile.T1401N.best_performance.retrorun_loop_declared_fps = false
+device.RG353M.profile.T1401N.best_performance.retrorun_audio_buffer = 735
+device.RG353M.profile.T1401N.best_performance.retrorun_audio_stable_buffer = true
+device.RG353M.profile.T1401N.best_performance.retrorun_go2_audio_stretch_percent = 0
+device.RG353M.profile.T1401N.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+device.RG353M.profile.T1401N.best_performance.retrorun_go2_audio_wsola_profile = disabled
+device.RG353M.profile.T1401N.best_performance.retrorun_egl_depth_bits = 24
+device.RG353M.profile.T1401N.best_performance.retrorun_egl_stencil_bits = 0
+device.RG353M.profile.T1401N.best_performance.reicast_sh4clock = 200
+device.RG353M.profile.T1401N.best_performance.reicast_frame_skipping = disabled
+device.RG353M.profile.T1401N.best_performance.reicast_translucent_strip_merge = menu_guarded
+device.RG353M.profile.T1401N.best_performance.reicast_translucent_menu_guard_strategy = top_hud_last
+device.RG353M.profile.T1401N.best_performance.reicast_translucent_menu_guard_draw_sorting = standard
+device.RG353M.profile.T1401N.best_performance.reicast_palette_fog_storage_reuse = enabled
+device.RG353M.profile.T1401N.best_performance.reicast_fast_depth = vertex_fast_log
+device.RG353M.profile.T1401N.best_performance.reicast_audio_mixer = lowend
+device.RG353M.profile.T1401N.best_performance.reicast_opaque_strip_merge = enabled
+device.RG353M.profile.T1401N.best_performance.reicast_aica_arm_cycles = 32
+
+device.RG353M.profile.T1401M.best_performance.title = Soul Calibur (Japan, RG353M validated)
+device.RG353M.profile.T1401M.best_performance.retrorun_loop_declared_fps = false
+device.RG353M.profile.T1401M.best_performance.retrorun_audio_buffer = 735
+device.RG353M.profile.T1401M.best_performance.retrorun_audio_stable_buffer = true
+device.RG353M.profile.T1401M.best_performance.retrorun_go2_audio_stretch_percent = 0
+device.RG353M.profile.T1401M.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+device.RG353M.profile.T1401M.best_performance.retrorun_go2_audio_wsola_profile = disabled
+device.RG353M.profile.T1401M.best_performance.retrorun_egl_depth_bits = 24
+device.RG353M.profile.T1401M.best_performance.retrorun_egl_stencil_bits = 0
+device.RG353M.profile.T1401M.best_performance.reicast_sh4clock = 200
+device.RG353M.profile.T1401M.best_performance.reicast_frame_skipping = disabled
+device.RG353M.profile.T1401M.best_performance.reicast_translucent_strip_merge = menu_guarded
+device.RG353M.profile.T1401M.best_performance.reicast_translucent_menu_guard_strategy = top_hud_last
+device.RG353M.profile.T1401M.best_performance.reicast_translucent_menu_guard_draw_sorting = standard
+device.RG353M.profile.T1401M.best_performance.reicast_palette_fog_storage_reuse = enabled
+device.RG353M.profile.T1401M.best_performance.reicast_fast_depth = vertex_fast_log
+device.RG353M.profile.T1401M.best_performance.reicast_audio_mixer = lowend
+device.RG353M.profile.T1401M.best_performance.reicast_opaque_strip_merge = enabled
+device.RG353M.profile.T1401M.best_performance.reicast_aica_arm_cycles = 32
 
 profile.T38706M.best_validated.title = Ikaruga
 profile.T38706M.best_validated.retrorun_adaptive_frameskip = false
@@ -1052,6 +1222,28 @@ bool splitProfileKey(const std::string &key, std::string &product,
     return !product.empty() && !mode.empty() && !field.empty();
 }
 
+bool splitDeviceProfileKey(const std::string &key, std::string &device,
+                           std::string &product, std::string &mode,
+                           std::string &field)
+{
+    constexpr const char *prefix = "device.";
+    constexpr const char *profileMarker = ".profile.";
+    if (key.compare(0, std::char_traits<char>::length(prefix), prefix) != 0)
+        return false;
+
+    const std::size_t deviceStart =
+        std::char_traits<char>::length(prefix);
+    const std::size_t deviceEnd = key.find(profileMarker, deviceStart);
+    if (deviceEnd == std::string::npos || deviceEnd == deviceStart)
+        return false;
+
+    device = key.substr(deviceStart, deviceEnd - deviceStart);
+    const std::string profileKey =
+        "profile." + key.substr(deviceEnd +
+            std::char_traits<char>::length(profileMarker));
+    return splitProfileKey(profileKey, product, mode, field);
+}
+
 bool validTextValue(const std::string &value, std::size_t maximum)
 {
     if (value.empty() || value.size() > maximum)
@@ -1115,6 +1307,71 @@ bool resolveProfile(const std::string &product, Mode mode,
     return true;
 }
 
+using DeviceProfileIdentity = std::tuple<std::string, std::string, Mode>;
+
+bool resolveDeviceProfile(
+    const std::string &device, const std::string &product, Mode mode,
+    const std::map<DeviceProfileIdentity, RawProfile> &raw,
+    const std::map<std::string, std::map<Mode, Profile>> &globalProfiles,
+    Profile &profile, std::vector<std::string> &diagnostics)
+{
+    const auto found = raw.find({device, product, mode});
+    if (found == raw.end())
+        return false;
+
+    const RawProfile &record = found->second;
+    profile = {};
+    profile.product_number = product;
+    profile.mode = mode;
+
+    if (!record.inheritance.empty())
+    {
+        const Mode inheritedMode = parseMode(record.inheritance);
+        if (mode != Mode::BestPerformance ||
+            inheritedMode != Mode::BestValidated ||
+            !resolveDeviceProfile(device, product, inheritedMode, raw,
+                                  globalProfiles, profile, diagnostics))
+        {
+            diagnostics.push_back(
+                "device." + device + ".profile." + product + "." +
+                modeName(mode) +
+                ": only best_performance may inherit an existing device best_validated profile");
+            return false;
+        }
+        profile.mode = mode;
+    }
+    else
+    {
+        const auto globalProduct = globalProfiles.find(product);
+        if (globalProduct == globalProfiles.end())
+        {
+            diagnostics.push_back(
+                "device." + device + ".profile." + product +
+                ": missing global product profile");
+            return false;
+        }
+        auto globalMode = globalProduct->second.find(mode);
+        if (globalMode == globalProduct->second.end() &&
+            mode == Mode::BestPerformance)
+            globalMode = globalProduct->second.find(Mode::BestValidated);
+        if (globalMode == globalProduct->second.end())
+        {
+            diagnostics.push_back(
+                "device." + device + ".profile." + product + "." +
+                modeName(mode) + ": missing global base profile");
+            return false;
+        }
+        profile.settings = globalMode->second.settings;
+        profile.title = globalMode->second.title;
+    }
+
+    if (!record.title.empty())
+        profile.title = record.title;
+    for (const auto &[setting, value] : record.settings)
+        profile.settings[setting] = value;
+    return true;
+}
+
 } // namespace
 
 Mode parseMode(const std::string &value)
@@ -1153,6 +1410,11 @@ std::string normalizeProductNumber(const std::string &product_number)
     return normalized;
 }
 
+std::string normalizeDeviceName(const std::string &device_name)
+{
+    return normalizeProductNumber(device_name);
+}
+
 bool parseCatalog(std::istream &input, const std::string &source,
                   Catalog &catalog, std::vector<std::string> &diagnostics)
 {
@@ -1180,13 +1442,15 @@ bool parseCatalog(std::istream &input, const std::string &source,
         !rr::config::parseInteger(version->second, 1, 2147483647,
                                   catalog.catalog_version))
         diagnostics.push_back("missing or invalid catalog_version");
-    if (catalog.schema_version != SupportedSchemaVersion)
+    if (catalog.schema_version < MinimumSchemaVersion ||
+        catalog.schema_version > CurrentSchemaVersion)
         diagnostics.push_back(
             "unsupported schema_version " +
             std::to_string(catalog.schema_version));
 
     std::map<std::string, std::string> defaults;
     std::map<std::pair<std::string, Mode>, RawProfile> rawProfiles;
+    std::map<DeviceProfileIdentity, RawProfile> rawDeviceProfiles;
     for (const auto &[key, value] : document.values)
     {
         if (key == "schema_version" || key == "catalog_version")
@@ -1209,13 +1473,34 @@ bool parseCatalog(std::istream &input, const std::string &source,
             continue;
         }
 
+        std::string device;
         std::string product;
         std::string modeText;
         std::string field;
-        if (!splitProfileKey(key, product, modeText, field))
+        const bool deviceScoped =
+            splitDeviceProfileKey(key, device, product, modeText, field);
+        if (!deviceScoped &&
+            !splitProfileKey(key, product, modeText, field))
         {
             diagnostics.push_back("unknown catalog key '" + key + "'");
             continue;
+        }
+
+        if (deviceScoped)
+        {
+            const std::string normalizedDevice = normalizeDeviceName(device);
+            if (catalog.schema_version < 2)
+            {
+                diagnostics.push_back(
+                    "device profiles require schema_version 2");
+                continue;
+            }
+            if (normalizedDevice != device || normalizedDevice.empty())
+            {
+                diagnostics.push_back("device key '" + device +
+                                      "' is not normalized");
+                continue;
+            }
         }
 
         const std::string normalizedProduct = normalizeProductNumber(product);
@@ -1232,7 +1517,9 @@ bool parseCatalog(std::istream &input, const std::string &source,
             continue;
         }
 
-        RawProfile &profile = rawProfiles[{product, mode}];
+        RawProfile &profile = deviceScoped
+            ? rawDeviceProfiles[{device, product, mode}]
+            : rawProfiles[{product, mode}];
         profile.mode = mode;
         if (field == "title")
         {
@@ -1294,6 +1581,17 @@ bool parseCatalog(std::istream &input, const std::string &source,
         catalog.profiles[identity.first][identity.second] =
             std::move(profile);
     }
+
+    for (const auto &[identity, raw] : rawDeviceProfiles)
+    {
+        (void)raw;
+        const auto &[device, product, mode] = identity;
+        Profile profile;
+        if (!resolveDeviceProfile(device, product, mode, rawDeviceProfiles,
+                                  catalog.profiles, profile, diagnostics))
+            continue;
+        catalog.device_profiles[device][product][mode] = std::move(profile);
+    }
     return diagnostics.empty() && !catalog.profiles.empty();
 }
 
@@ -1354,7 +1652,8 @@ std::string cachedCatalogPath(const std::string &active_config_file)
 }
 
 bool selectProfile(const Catalog &catalog, const std::string &product_number,
-                   Mode mode, Profile &profile, bool &used_fallback)
+                   Mode mode, Profile &profile, bool &used_fallback,
+                   const std::string &device_name)
 {
     used_fallback = false;
     profile = {};
@@ -1362,6 +1661,31 @@ bool selectProfile(const Catalog &catalog, const std::string &product_number,
         return false;
 
     const std::string normalized = normalizeProductNumber(product_number);
+    const std::string normalizedDevice = normalizeDeviceName(device_name);
+
+    const auto device = catalog.device_profiles.find(normalizedDevice);
+    if (device != catalog.device_profiles.end())
+    {
+        const auto deviceProduct = device->second.find(normalized);
+        if (deviceProduct != device->second.end())
+        {
+            auto selected = deviceProduct->second.find(mode);
+            if (selected == deviceProduct->second.end() &&
+                mode == Mode::BestPerformance)
+            {
+                selected =
+                    deviceProduct->second.find(Mode::BestValidated);
+                used_fallback =
+                    selected != deviceProduct->second.end();
+            }
+            if (selected != deviceProduct->second.end())
+            {
+                profile = selected->second;
+                return true;
+            }
+        }
+    }
+
     const auto product = catalog.profiles.find(normalized);
     if (product == catalog.profiles.end())
         return false;

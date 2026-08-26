@@ -15,9 +15,10 @@ namespace
 void testBuiltInProfiles()
 {
     const Catalog catalog = builtinCatalog();
-    assert(catalog.schema_version == 1);
-    assert(catalog.catalog_version == 20260828);
+    assert(catalog.schema_version == 2);
+    assert(catalog.catalog_version == 20260830);
     assert(catalog.profiles.size() == 97);
+    assert(catalog.device_profiles.size() == 1);
     assert(normalizeProductNumber("T1401D  50 ") == "T1401D50");
     assert(catalog.safe_defaults.at("reicast_alpha_sorting") ==
            "per-triangle (normal)");
@@ -71,6 +72,25 @@ void testBuiltInProfiles()
     assert(profile.settings.at("reicast_loop_declared_fps") == "false");
     assert(profile.settings.at("retrorun_loop_declared_fps") == "true");
     assert(profile.settings.at("retrorun_egl_stencil_bits") == "0");
+
+    assert(selectProfile(catalog, "RDC-0140", Mode::BestValidated,
+                         profile, fallback, "rg353m"));
+    assert(!fallback);
+    assert(profile.title ==
+           "Dead or Alive 2 (observed CDI, RG353M validated)");
+    assert(profile.settings.at("retrorun_audio_buffer") == "735");
+    assert(profile.settings.at("retrorun_audio_stable_buffer") == "false");
+    assert(profile.settings.at("retrorun_loop_declared_fps") == "false");
+    assert(profile.settings.at("retrorun_go2_audio_wsola_profile") ==
+           "disabled");
+    assert(profile.settings.at("reicast_audio_mixer") == "lowend");
+    assert(profile.settings.at("reicast_aica_arm_cycles") == "8");
+
+    assert(selectProfile(catalog, "RDC-0140", Mode::BestPerformance,
+                         profile, fallback, "RG353M"));
+    assert(fallback);
+    assert(profile.mode == Mode::BestValidated);
+    assert(profile.settings.at("retrorun_audio_buffer") == "735");
 
     const auto mixedSettings =
         settingsForOptionPrefix(profile.settings, "flycast2021_");
@@ -129,6 +149,23 @@ void testBuiltInProfiles()
                "reicast_translucent_menu_guard_strategy") ==
            "top_hud_last");
     assert(profile.settings.at("reicast_audio_mixer") == "lowend");
+
+    assert(selectProfile(catalog, "T1401N", Mode::BestPerformance,
+                         profile, fallback, "rg353m"));
+    assert(!fallback);
+    assert(profile.title ==
+           "Soul Calibur (North America, RG353M validated)");
+    assert(profile.settings.at("retrorun_audio_buffer") == "735");
+    assert(profile.settings.at("retrorun_audio_stable_buffer") == "true");
+    assert(profile.settings.at("retrorun_egl_depth_bits") == "24");
+    assert(profile.settings.at("retrorun_egl_stencil_bits") == "0");
+    assert(profile.settings.at("reicast_sh4clock") == "200");
+    assert(profile.settings.at("reicast_frame_skipping") == "disabled");
+    assert(profile.settings.at("reicast_translucent_strip_merge") ==
+           "menu_guarded");
+    assert(profile.settings.at("reicast_fast_depth") == "vertex_fast_log");
+    assert(profile.settings.at("reicast_audio_mixer") == "lowend");
+    assert(profile.settings.at("reicast_aica_arm_cycles") == "32");
 
     assert(selectProfile(catalog, "MK-51035", Mode::BestValidated,
                          profile, fallback));
@@ -247,6 +284,8 @@ void testVersionedRepositoryCatalogMatchesBuiltIn()
     assert(fileCatalog.schema_version == builtIn.schema_version);
     assert(fileCatalog.catalog_version == builtIn.catalog_version);
     assert(fileCatalog.profiles.size() == builtIn.profiles.size());
+    assert(fileCatalog.device_profiles.size() ==
+           builtIn.device_profiles.size());
 
     Profile fromFile;
     Profile fromBuiltIn;
@@ -281,6 +320,16 @@ void testVersionedRepositoryCatalogMatchesBuiltIn()
                          Mode::BestPerformance, fromBuiltIn,
                          builtInFallback));
     assert(fileFallback && builtInFallback);
+    assert(fromFile.settings == fromBuiltIn.settings);
+
+    assert(selectProfile(fileCatalog, "T1401N",
+                         Mode::BestPerformance, fromFile, fileFallback,
+                         "RG353M"));
+    assert(selectProfile(builtIn, "T1401N",
+                         Mode::BestPerformance, fromBuiltIn,
+                         builtInFallback, "RG353M"));
+    assert(!fileFallback && !builtInFallback);
+    assert(fromFile.title == fromBuiltIn.title);
     assert(fromFile.settings == fromBuiltIn.settings);
 
     std::ifstream variants(
