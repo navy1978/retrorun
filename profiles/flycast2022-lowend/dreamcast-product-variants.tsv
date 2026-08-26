@@ -86,12 +86,15 @@ Cannon Spike	North America	Cannon Spike (USA)	T-1215N	T1215N	retail-profile
 Cannon Spike	Japan	Gunspike (Japan)	T-1219M	T1219M	retail-baseline
 Rez	Europe	Rez (Europe)	MK-51192-50	MK-51192	retail-baseline
 Rez	Japan	Rez (Japan)	HDR-0178	HDR-0178	retail-baseline
-Street Fighter III: 3rd Strike	Europe	Street Fighter III - 3rd Strike (Europe)	T-7013D-50	T7013D50	retail-baseline
-Street Fighter III: 3rd Strike	North America	Street Fighter III - 3rd Strike (USA)	T-1213N	T1213N	retail-baseline
-Street Fighter III: 3rd Strike	Japan	Street Fighter III - 3rd Strike - Fight for the Future	T-1209M	T1209M	retail-baseline
+Street Fighter III: 3rd Strike	Europe	Street Fighter III - 3rd Strike (Europe)	T-7013D-50	T7013D50	retail-profile
+Street Fighter III: 3rd Strike	North America	Street Fighter III - 3rd Strike (USA)	T-1213N	T1213N	retail-profile
+Street Fighter III: 3rd Strike	Japan	Street Fighter III - 3rd Strike - Fight for the Future	T-1209M	T1209M	retail-profile
 Street Fighter Alpha 3	Europe	Street Fighter Alpha 3 (Europe)	T-7005D-50	T7005D50	retail-baseline
 Street Fighter Alpha 3	North America	Street Fighter Alpha 3 (USA)	T-1203N	T1203N	retail-baseline
 Street Fighter Alpha 3	Japan	Street Fighter Zero 3 - Saikyo-ryu Dojo	T-1203M	T1203M	retail-baseline
 Street Fighter Alpha 3	Japan	Street Fighter Zero 3 - Saikyo-ryu Dojo for Matching Service	T-1230M	T1230M	retail-baseline
 Sega Bass Fishing	Europe / North America	Sega Bass Fishing (retail)	950-0012-50 / MK-51006-50 / 51006	MK-51006	retail-baseline
 Sega Bass Fishing	Japan	Get Bass (Japan)	610-7114 / HDR-0012	HDR-0012	retail-baseline
+Shenmue II	Europe	Shenmue II (Europe, all discs)	952-0170-50 / MK-51184-50	MK-5118450	retail-profile
+Shenmue II	Japan	Shenmue II (Japan, all discs)	HDR-0164	HDR-0164	retail-baseline
+Shenmue II	Japan	Shenmue II (Japan revision, all discs)	HDR-0179	HDR-0179	retail-baseline

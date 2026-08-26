@@ -29,6 +29,10 @@ struct Catalog
     int schema_version = 0;
     int catalog_version = 0;
     std::string source;
+    // Correctness-first settings used by title-only baseline entries.
+    // Explicitly validated profiles continue to inherit the
+    // performance-oriented catalog defaults; uncataloged content is untouched.
+    std::map<std::string, std::string> safe_defaults;
     std::map<std::string, std::map<Mode, Profile>> profiles;
 };
 

@@ -11,7 +11,7 @@ Valori:
 | Valore | Comportamento |
 | --- | --- |
 | `disabled` | Non applica il catalogo. Restano validi i parametri globali o scelti manualmente dall'utente. |
-| `best_validated` | Usa la configurazione più veloce che ha superato i controlli visivi, audio e input. Se il gioco non è catalogato, non modifica nulla. |
+| `best_validated` | Usa la configurazione più veloce che ha superato i controlli visivi, audio e input. I profili catalogati che contengono soltanto il titolo ricevono il fallback conservativo; i giochi non catalogati restano invariati. |
 | `best_performance` | Usa la configurazione più veloce conservata, anche se ha un difetto grafico documentato. Se non esiste una variante più aggressiva, usa `best_validated`. |
 
 ## Configurazioni attuali
@@ -28,6 +28,7 @@ La selezione deve usare il Product number Dreamcast, non il nome del file ROM.
 | Jet Set Radio / Jet Grind Radio | `MK-51058` | `per-triangle`, merge traslucido off, fast depth e merge opaco, audio accurato con `lowend_stable_96` | Fallback a `best_validated` | Validato manualmente su Jet Grind Radio USA e RG351MP/dArkOS. Tre run da 600 frame sono passate da 25,99 a 27,86 frame presentati/s (+7,18%); p95 da 61,72 a 59,70 ms e zero underrun/overrun/drop audio. `per-strip`, merge traslucido e state elision sono risultati più lenti. |
 | Cannon Spike | `T1215N` | `per-triangle`, merge traslucido off, fast depth disattivato, merge opaco attivo e audio accurato | Fallback a `best_validated` | Validato manualmente su RG351MP/dArkOS. Tre run finali da 600 frame hanno raggiunto 38,00 frame presentati/s contro 33,56 della baseline (+13,2%), senza frame persi o errori audio. Fast depth arrivava a circa 38,43 FPS da solo e 41,45 in combinazione, ma è stato respinto per artefatti grafici evidenti. |
 | Daytona USA 2001 / Daytona USA | `MK-51037` | alpha `per-strip`, merge traslucido off, fast depth disattivato, merge opaco attivo e audio accurato | Fallback a `best_validated` | Validato manualmente durante una gara su RG351MP/dArkOS. Tre run finali da 600 frame hanno raggiunto 23,75 frame presentati/s contro 16,20 della baseline (+46,6%); p95 da 89,27 a 58,52 ms, tutti i frame presentati e nessun errore audio. La variante giapponese `HDR-0106` resta baseline finché non viene provata separatamente. |
+| Street Fighter III: 3rd Strike | `T7013D50`, `T1213N`, `T1209M` | alpha `per-triangle`, merge traslucido e riuso texture off, fast depth `vertex_fast_log`, merge opaco attivo e audio accurato | Eredita il rispettivo `best_validated` | Il profilo USA è stato validato manualmente su RG351MP/dArkOS da un savestate di combattimento e poi associato alle tre varianti retail regionali con profili distinti ma identiche impostazioni, come per gli altri giochi multiregione. Tre run finali da 600 frame hanno raggiunto una mediana di 47,76 FPS contro 44,39 (+7,58%); active-frame p95 è sceso da 43,63 a 41,43 ms, senza underrun o code audio vuote. Alpha `per-strip` è stato respinto perché più lento e graficamente non sicuro. |
 
 ## Parametri che differiscono davvero
 
@@ -46,6 +47,8 @@ cartella.
 | Jet Grind Radio | validata | on/on | merge off, alpha `per-triangle` | `enabled` | `lowend_stable_96`, mixer `accurate` | on | D24S0 |
 | Cannon Spike | validata | on/on | merge off, alpha `per-triangle` | off | `lowend_stable_96`, mixer `accurate` | on | D24S0 |
 | Daytona USA | validata | on/on | merge off, alpha `per-strip` | off | `lowend_stable_96`, mixer `accurate` | on | D24S0 |
+| Shenmue II (Europe) | validata | on/on | merge off, alpha `per-strip` | `vertex_fast_log` | `lowend_heavy_100`, mixer `accurate` | off | D24S0 |
+| Street Fighter III: 3rd Strike | validata | on/on | merge off, alpha `per-triangle` | `vertex_fast_log` | `lowend_stable_96`, mixer `accurate` | on | D24S8 |
 
 ## Regola di precedenza
 
@@ -54,9 +57,13 @@ cartella.
 2. Con una delle due modalità attive, RetroRun chiede al core Flycast il
    Product number prima di `retro_load_game()` e sovrascrive soltanto i
    parametri presenti nel profilo.
-3. Le opzioni non specificate dal profilo continuano a provenire dalla
-   configurazione normale.
-4. Un gioco sconosciuto non riceve alcuna modifica automatica.
+3. I profili con impostazioni esplicite conservano i default low-end usati
+   durante la loro validazione; le voci baseline contenenti soltanto il titolo
+   usano invece alpha `per-triangle`, merge traslucido/opaco, fast depth e
+   texture-storage reuse disattivati. Le opzioni audio non vengono cambiate
+   rispetto al precedente baseline low-end.
+4. Un gioco sconosciuto o privo di Product number non riceve alcuna modifica:
+   continuano a valere tutti i valori del `retrorun.cfg`.
 5. RetroRun usa il catalogo incorporato, oppure
    `flycast-game-catalog.ini` accanto all'eseguibile se ha un
    `catalog_version` strettamente maggiore ed è interamente valido.

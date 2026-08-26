@@ -9,7 +9,7 @@ See [GAME_PROFILE_MODES.md](GAME_PROFILE_MODES.md) for the implemented
 current per-game differences.
 
 `flycast-game-catalog.ini` is the editable source form of catalog version
-`20260826`. The same data is built into RetroRun, so the feature works when
+`20260828`. The same data is built into RetroRun, so the feature works when
 distributions install only the executable. A copy beside RetroRun is used only
 when its `catalog_version` is greater than the built-in version.
 
@@ -18,6 +18,13 @@ repository copy at most once per day without blocking game startup. A newer
 catalog is validated against the supported schema and setting allowlist,
 written atomically as `flycast-game-catalog.cache.ini` beside the active
 configuration file, and considered from the next launch.
+
+Catalog version `20260828` separates correctness-first settings for cataloged,
+title-only baselines from the performance defaults inherited by explicitly
+validated profiles. Those baseline entries now use per-triangle alpha and
+disable translucent/opaque merging, fast depth and texture-storage reuse,
+while leaving the previous low-end audio choices unchanged. Unknown Product
+numbers remain entirely controlled by the active `retrorun.cfg`.
 
 The filename includes the Dreamcast product number printed by Flycast at boot.
 Select profiles by product number rather than by ROM filename:
@@ -34,6 +41,8 @@ Select profiles by product number rather than by ROM filename:
 | `MK-51058` | Jet Set Radio / Jet Grind Radio | The North American retail image was validated on RG351MP/dArkOS from a fixed gameplay savestate. Accurate per-triangle alpha, disabled translucent merging, fast depth and opaque-strip merging averaged 27.86 presented frames/s versus 25.99 for the conservative baseline (+7.18%). All nine final runs recorded zero audio underruns, overruns or dropped audio frames, and both fast depth alone and the final combination passed manual gameplay review. `best_performance` falls back to this validated profile. |
 | `T1215N` | Cannon Spike | The North American retail image was validated on RG351MP/dArkOS from a fixed gameplay savestate. Opaque-strip merging averaged 38.00 presented frames/s versus 33.56 for the conservative baseline (+13.2%), with every frame presented and no audio faults. Fast depth was faster but rejected because it produced obvious graphical artifacts. `best_performance` falls back to the visually approved opaque-only profile. |
 | `MK-51037` | Daytona USA 2001 / Daytona USA | The North American retail image was validated on RG351MP/dArkOS from a fixed race savestate. Per-strip alpha sorting plus opaque-strip merging averaged 23.75 presented frames/s versus 16.20 for the conservative baseline (+46.6%), reduced active-frame p95 from 89.27 to 58.52 ms and recorded no skipped frames or audio faults. Both the sorter and final combination passed manual race review. `best_performance` falls back to this validated profile. |
+| `MK-5118450` | Shenmue II (Europe) | The European retail image was tested on RG351MP/dArkOS from fixed 3D savestates. Per-strip alpha plus `vertex_fast_log` improved the original 300-frame screen from 14.85 to 19.00 presented frames/s (+27.9%) and reduced active-frame p95 from 91.40 to 54.43 ms; graphics passed manual review. On a later, heavier state with CPU, GPU and DMC governors at `performance`, the `lowend_heavy_100` profile and a 4096-frame buffer reduced the three-run median from 10 to 4 audio underruns and queue-low observations from 98 to 11 versus the 55% WSOLA reference, while retaining 100% playback speed and essentially unchanged throughput (17.38 versus 17.39 frames/s). Adaptive core frameskip reduced underruns to 2 but was rejected because it presented only 160 of 300 frames; direct scanout was unavailable and its fallback was slower. Pinning the OpenAL and frontend audio workers to a reserved fourth CPU raised throughput to 18.48 frames/s but increased median underruns from 4 to 15 and introduced 172 backpressure events, so single-thread audio remains selected. Occasional gaps in the heaviest scene remain a documented RK3326 limitation. Japanese `HDR-0164` and `HDR-0179` releases remain conservative baselines until tested. |
+| `T7013D50`, `T1213N`, `T1209M` | Street Fighter III: 3rd Strike | The European, North American and Japanese retail releases use distinct catalog records with the same RG351MP-validated settings. On a fixed USA fight savestate, accurate per-triangle alpha, `vertex_fast_log` depth and opaque-strip merging reached a three-run median of 47.76 FPS versus 44.39 (+7.58%), reduced active-frame p95 from 43.63 to 41.43 ms and recorded no audio underruns or empty queues. The inaccurate per-strip sorter was slower and visually unsafe. Each regional `best_performance` profile explicitly inherits its corresponding `best_validated` profile. |
 
 `dreamcast-product-variants.tsv` is the machine-checked map between the Redump
 retail releases and the Product numbers returned by Flycast. When adding a
@@ -99,7 +108,7 @@ numbers with the conservative built-in defaults. These entries are coverage
 baselines, not RG351V performance approvals; promote them only after repeatable
 benchmarking and manual audio/video review.
 
-Sonic Adventure, Shenmue, Resident Evil: Code Veronica, Power Stone retail releases, Power Stone 2,
+Sonic Adventure, Shenmue, Shenmue II, Resident Evil: Code Veronica, Power Stone retail releases, Power Stone 2,
 Skies of Arcadia, Capcom vs. SNK 2, Phantasy Star Online,
 The House of the Dead 2, NFL 2K, NFL 2K1, Sega Rally 2, Hydro Thunder,
 F355 Challenge, Virtua Fighter 3tb, Cosmic Smash,

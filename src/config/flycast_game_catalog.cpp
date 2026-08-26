@@ -19,7 +19,7 @@ constexpr const char *CatalogFilename = "flycast-game-catalog.ini";
 
 const char *BuiltinCatalogText = R"catalog(
 schema_version = 1
-catalog_version = 20260826
+catalog_version = 20260828
 
 default.retrorun_vsync = false
 default.retrorun_loop_declared_fps = true
@@ -529,6 +529,32 @@ profile.HDR-0031.best_performance.retrorun_go2_audio_wsola_profile = disabled
 profile.HDR-0031.best_performance.reicast_aica_arm_cycles = 24
 profile.HDR-0031.best_performance.reicast_fast_depth = menu_guarded
 
+profile.MK-5118450.best_validated.title = Shenmue II (Europe, RG351MP validated)
+profile.MK-5118450.best_validated.retrorun_audio_buffer = 4096
+profile.MK-5118450.best_validated.retrorun_audio_stable_buffer = true
+profile.MK-5118450.best_validated.retrorun_go2_audio_stretch_low_ms = 150
+profile.MK-5118450.best_validated.retrorun_go2_audio_wsola_profile = lowend_heavy_100
+profile.MK-5118450.best_validated.retrorun_egl_depth_bits = 24
+profile.MK-5118450.best_validated.retrorun_egl_stencil_bits = 0
+profile.MK-5118450.best_validated.reicast_hle_bios = enabled
+profile.MK-5118450.best_validated.reicast_framerate = fullspeed
+profile.MK-5118450.best_validated.reicast_alpha_sorting = per-strip (fast, least accurate)
+profile.MK-5118450.best_validated.reicast_mipmapping = enabled
+profile.MK-5118450.best_validated.reicast_fog = enabled
+profile.MK-5118450.best_validated.reicast_frame_skipping = disabled
+profile.MK-5118450.best_validated.reicast_translucent_strip_merge = disabled
+profile.MK-5118450.best_validated.reicast_translucent_menu_guard_strategy = hud_last
+profile.MK-5118450.best_validated.reicast_texture_storage_reuse = disabled
+profile.MK-5118450.best_validated.reicast_adjacent_state_elision = disabled
+profile.MK-5118450.best_validated.reicast_fast_depth = vertex_fast_log
+profile.MK-5118450.best_validated.reicast_audio_mixer = accurate
+profile.MK-5118450.best_validated.reicast_opaque_strip_merge = disabled
+profile.MK-5118450.best_validated.reicast_aica_arm_cycles = 32
+
+profile.HDR-0164.best_validated.title = Shenmue II (Japan, baseline)
+
+profile.HDR-0179.best_validated.title = Shenmue II (Japan revision, baseline)
+
 profile.T36806D05.best_validated.title = Resident Evil: Code Veronica (Europe, RG351V)
 profile.T36806D05.best_validated.reicast_alpha_sorting = per-triangle (normal)
 profile.T36806D05.best_performance.title = Resident Evil: Code Veronica (Europe, RG351V)
@@ -789,11 +815,77 @@ profile.MK-51192.best_validated.title = Rez (Europe, baseline)
 
 profile.HDR-0178.best_validated.title = Rez (Japan, baseline)
 
-profile.T7013D50.best_validated.title = Street Fighter III: 3rd Strike (Europe, baseline)
+profile.T7013D50.best_validated.title = Street Fighter III: 3rd Strike (Europe, RG351MP validated)
+profile.T7013D50.best_validated.retrorun_audio_buffer = 2048
+profile.T7013D50.best_validated.retrorun_audio_stable_buffer = true
+profile.T7013D50.best_validated.retrorun_go2_audio_stretch_low_ms = 150
+profile.T7013D50.best_validated.retrorun_go2_audio_wsola_profile = lowend_stable_96
+profile.T7013D50.best_validated.retrorun_egl_depth_bits = 24
+profile.T7013D50.best_validated.retrorun_egl_stencil_bits = 8
+profile.T7013D50.best_validated.reicast_hle_bios = enabled
+profile.T7013D50.best_validated.reicast_gdrom_fast_loading = disabled
+profile.T7013D50.best_validated.reicast_framerate = fullspeed
+profile.T7013D50.best_validated.reicast_alpha_sorting = per-triangle (normal)
+profile.T7013D50.best_validated.reicast_mipmapping = enabled
+profile.T7013D50.best_validated.reicast_fog = enabled
+profile.T7013D50.best_validated.reicast_frame_skipping = disabled
+profile.T7013D50.best_validated.reicast_translucent_strip_merge = disabled
+profile.T7013D50.best_validated.reicast_texture_storage_reuse = disabled
+profile.T7013D50.best_validated.reicast_adjacent_state_elision = disabled
+profile.T7013D50.best_validated.reicast_fast_depth = vertex_fast_log
+profile.T7013D50.best_validated.reicast_audio_mixer = accurate
+profile.T7013D50.best_validated.reicast_opaque_strip_merge = enabled
+profile.T7013D50.best_validated.reicast_aica_arm_cycles = 32
+profile.T7013D50.best_performance.title = Street Fighter III: 3rd Strike (Europe, best performance)
+profile.T7013D50.best_performance.inherits = best_validated
 
-profile.T1213N.best_validated.title = Street Fighter III: 3rd Strike (USA, baseline)
+profile.T1213N.best_validated.title = Street Fighter III: 3rd Strike (USA, RG351MP validated)
+profile.T1213N.best_validated.retrorun_audio_buffer = 2048
+profile.T1213N.best_validated.retrorun_audio_stable_buffer = true
+profile.T1213N.best_validated.retrorun_go2_audio_stretch_low_ms = 150
+profile.T1213N.best_validated.retrorun_go2_audio_wsola_profile = lowend_stable_96
+profile.T1213N.best_validated.retrorun_egl_depth_bits = 24
+profile.T1213N.best_validated.retrorun_egl_stencil_bits = 8
+profile.T1213N.best_validated.reicast_hle_bios = enabled
+profile.T1213N.best_validated.reicast_gdrom_fast_loading = disabled
+profile.T1213N.best_validated.reicast_framerate = fullspeed
+profile.T1213N.best_validated.reicast_alpha_sorting = per-triangle (normal)
+profile.T1213N.best_validated.reicast_mipmapping = enabled
+profile.T1213N.best_validated.reicast_fog = enabled
+profile.T1213N.best_validated.reicast_frame_skipping = disabled
+profile.T1213N.best_validated.reicast_translucent_strip_merge = disabled
+profile.T1213N.best_validated.reicast_texture_storage_reuse = disabled
+profile.T1213N.best_validated.reicast_adjacent_state_elision = disabled
+profile.T1213N.best_validated.reicast_fast_depth = vertex_fast_log
+profile.T1213N.best_validated.reicast_audio_mixer = accurate
+profile.T1213N.best_validated.reicast_opaque_strip_merge = enabled
+profile.T1213N.best_validated.reicast_aica_arm_cycles = 32
+profile.T1213N.best_performance.title = Street Fighter III: 3rd Strike (USA, best performance)
+profile.T1213N.best_performance.inherits = best_validated
 
-profile.T1209M.best_validated.title = Street Fighter III: 3rd Strike (Japan, baseline)
+profile.T1209M.best_validated.title = Street Fighter III: 3rd Strike (Japan, RG351MP validated)
+profile.T1209M.best_validated.retrorun_audio_buffer = 2048
+profile.T1209M.best_validated.retrorun_audio_stable_buffer = true
+profile.T1209M.best_validated.retrorun_go2_audio_stretch_low_ms = 150
+profile.T1209M.best_validated.retrorun_go2_audio_wsola_profile = lowend_stable_96
+profile.T1209M.best_validated.retrorun_egl_depth_bits = 24
+profile.T1209M.best_validated.retrorun_egl_stencil_bits = 8
+profile.T1209M.best_validated.reicast_hle_bios = enabled
+profile.T1209M.best_validated.reicast_gdrom_fast_loading = disabled
+profile.T1209M.best_validated.reicast_framerate = fullspeed
+profile.T1209M.best_validated.reicast_alpha_sorting = per-triangle (normal)
+profile.T1209M.best_validated.reicast_mipmapping = enabled
+profile.T1209M.best_validated.reicast_fog = enabled
+profile.T1209M.best_validated.reicast_frame_skipping = disabled
+profile.T1209M.best_validated.reicast_translucent_strip_merge = disabled
+profile.T1209M.best_validated.reicast_texture_storage_reuse = disabled
+profile.T1209M.best_validated.reicast_adjacent_state_elision = disabled
+profile.T1209M.best_validated.reicast_fast_depth = vertex_fast_log
+profile.T1209M.best_validated.reicast_audio_mixer = accurate
+profile.T1209M.best_validated.reicast_opaque_strip_merge = enabled
+profile.T1209M.best_validated.reicast_aica_arm_cycles = 32
+profile.T1209M.best_performance.title = Street Fighter III: 3rd Strike (Japan, best performance)
+profile.T1209M.best_performance.inherits = best_validated
 
 profile.T7005D50.best_validated.title = Street Fighter Alpha 3 (Europe, baseline)
 
@@ -972,6 +1064,7 @@ bool validTextValue(const std::string &value, std::size_t maximum)
 bool resolveProfile(const std::string &product, Mode mode,
                     const std::map<std::pair<std::string, Mode>, RawProfile> &raw,
                     const std::map<std::string, std::string> &defaults,
+                    const std::map<std::string, std::string> &safeDefaults,
                     Profile &profile, std::vector<std::string> &diagnostics)
 {
     const auto found = raw.find({product, mode});
@@ -981,9 +1074,12 @@ bool resolveProfile(const std::string &product, Mode mode,
     profile = {};
     profile.product_number = product;
     profile.mode = mode;
-    profile.settings = defaults;
-
     const RawProfile &record = found->second;
+    const bool titleOnlyBaseline =
+        mode == Mode::BestValidated && record.settings.empty() &&
+        record.inheritance.empty();
+    profile.settings = titleOnlyBaseline ? safeDefaults : defaults;
+
     if (!record.inheritance.empty())
     {
         const Mode inheritedMode = parseMode(record.inheritance);
@@ -996,8 +1092,8 @@ bool resolveProfile(const std::string &product, Mode mode,
             return false;
         }
         Profile inherited;
-        if (!resolveProfile(product, inheritedMode, raw, defaults, inherited,
-                            diagnostics))
+        if (!resolveProfile(product, inheritedMode, raw, defaults,
+                            safeDefaults, inherited, diagnostics))
         {
             diagnostics.push_back(
                 "profile." + product +
@@ -1174,12 +1270,26 @@ bool parseCatalog(std::istream &input, const std::string &source,
         return false;
     }
 
+    // Catalog defaults intentionally retain the established low-end
+    // performance foundation for profiles that have explicit, validated
+    // settings. A title-only baseline is not such a validation: use accurate
+    // graphics/audio choices there, and for uncataloged content, so a generic
+    // fallback cannot make sprites or effects disappear.
+    std::map<std::string, std::string> safeDefaults = defaults;
+    safeDefaults["reicast_alpha_sorting"] = "per-triangle (normal)";
+    safeDefaults["reicast_translucent_strip_merge"] = "disabled";
+    safeDefaults["reicast_texture_storage_reuse"] = "disabled";
+    safeDefaults["reicast_opaque_strip_merge"] = "disabled";
+    safeDefaults["reicast_adjacent_state_elision"] = "disabled";
+    safeDefaults["reicast_fast_depth"] = "disabled";
+    catalog.safe_defaults = safeDefaults;
+
     for (const auto &[identity, raw] : rawProfiles)
     {
         (void)raw;
         Profile profile;
         if (!resolveProfile(identity.first, identity.second, rawProfiles,
-                            defaults, profile, diagnostics))
+                            defaults, safeDefaults, profile, diagnostics))
             continue;
         catalog.profiles[identity.first][identity.second] =
             std::move(profile);

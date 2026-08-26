@@ -16,9 +16,16 @@ void testBuiltInProfiles()
 {
     const Catalog catalog = builtinCatalog();
     assert(catalog.schema_version == 1);
-    assert(catalog.catalog_version == 20260826);
-    assert(catalog.profiles.size() == 94);
+    assert(catalog.catalog_version == 20260828);
+    assert(catalog.profiles.size() == 97);
     assert(normalizeProductNumber("T1401D  50 ") == "T1401D50");
+    assert(catalog.safe_defaults.at("reicast_alpha_sorting") ==
+           "per-triangle (normal)");
+    assert(catalog.safe_defaults.at("reicast_translucent_strip_merge") ==
+           "disabled");
+    assert(catalog.safe_defaults.at("reicast_texture_storage_reuse") ==
+           "disabled");
+    assert(catalog.safe_defaults.at("reicast_enable_dsp") == "disabled");
 
     Profile profile;
     bool fallback = false;
@@ -41,7 +48,9 @@ void testBuiltInProfiles()
         "RDC-0140", "RDC-0149", "T8116D50", "T3602M", "T3601M", "T3601N",
         "T1401D50", "T1401M", "T1401N",
         "MK-51035", "HDR-0053", "MK-51058", "T1215N", "MK-51037",
-        "T36801D61", "T36801D64", "T1201M", "T1201N"
+        "T36801D61", "T36801D64", "T1201M", "T1201N",
+        "MK-5118450", "HDR-0164", "HDR-0179",
+        "T7013D50", "T1213N", "T1209M"
     };
     for (const char *product : knownRetailVariants)
         assert(catalog.profiles.count(product) == 1);
@@ -168,8 +177,59 @@ void testBuiltInProfiles()
     assert(profile.settings.at("retrorun_go2_audio_wsola_profile") ==
            "lowend_stable_96");
 
+    assert(selectProfile(catalog, "MK-5118450", Mode::BestPerformance,
+                         profile, fallback));
+    assert(fallback);
+    assert(profile.title == "Shenmue II (Europe, RG351MP validated)");
+    assert(profile.settings.at("reicast_alpha_sorting") ==
+           "per-strip (fast, least accurate)");
+    assert(profile.settings.at("reicast_fast_depth") == "vertex_fast_log");
+    assert(profile.settings.at("reicast_opaque_strip_merge") == "disabled");
+    assert(profile.settings.at("reicast_audio_mixer") == "accurate");
+    assert(profile.settings.at("retrorun_audio_buffer") == "4096");
+    assert(profile.settings.at("retrorun_go2_audio_wsola_profile") ==
+           "lowend_heavy_100");
+    assert(profile.settings.at("retrorun_egl_stencil_bits") == "0");
+
     assert(!selectProfile(catalog, "UNKNOWN", Mode::BestValidated,
                           profile, fallback));
+
+    const char *streetFighterVariants[] = {
+        "T7013D50", "T1213N", "T1209M"
+    };
+    Profile streetFighterReference;
+    for (const char *product : streetFighterVariants)
+    {
+        assert(selectProfile(catalog, product, Mode::BestPerformance,
+                             profile, fallback));
+        assert(!fallback);
+        assert(profile.mode == Mode::BestPerformance);
+        assert(profile.product_number == product);
+        assert(profile.settings.at("reicast_alpha_sorting") ==
+               "per-triangle (normal)");
+        assert(profile.settings.at("reicast_translucent_strip_merge") ==
+               "disabled");
+        assert(profile.settings.at("reicast_texture_storage_reuse") ==
+               "disabled");
+        assert(profile.settings.at("reicast_adjacent_state_elision") ==
+               "disabled");
+        assert(profile.settings.at("reicast_fast_depth") ==
+               "vertex_fast_log");
+        assert(profile.settings.at("reicast_opaque_strip_merge") ==
+               "enabled");
+        assert(profile.settings.at("reicast_audio_mixer") == "accurate");
+        assert(profile.settings.at("reicast_aica_arm_cycles") == "32");
+        assert(profile.settings.at("retrorun_go2_audio_wsola_profile") ==
+               "lowend_stable_96");
+        assert(profile.settings.at("retrorun_egl_stencil_bits") == "8");
+
+        if (streetFighterReference.settings.empty())
+            streetFighterReference = profile;
+        else
+            assert(profile.settings == streetFighterReference.settings);
+    }
+    assert(streetFighterReference.title ==
+           "Street Fighter III: 3rd Strike (Europe, best performance)");
     assert(cachedCatalogPath("/storage/config/retrorun.cfg") ==
            "/storage/config/flycast-game-catalog.cache.ini");
 }

@@ -42,6 +42,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include <deque>
 #include <limits>
 #include <new>
+#include <string>
 #include <vector>
 
 #define SOUND_SAMPLES_SIZE (2048)
@@ -49,6 +50,31 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 static constexpr int DEFAULT_BUFFER_COUNT = 4;
 static constexpr int STABLE_BUFFER_COUNT = 6;
+
+struct WsolaProfileDefaults
+{
+    int percent;
+    int emergency_percent;
+    int emergency_ms;
+    int low_ms;
+    int high_ms;
+    int window_frames;
+    int playback_percent;
+};
+
+static WsolaProfileDefaults wsola_profile_defaults(
+    const std::string &profile)
+{
+    if (profile == "lowend_stable_96")
+        return {25, 33, 65, 60, 120, 1024, 96};
+    if (profile == "lowend_heavy_96")
+        return {55, 65, 100, 160, 260, 512, 96};
+    if (profile == "lowend_heavy_100")
+        return {75, 80, 100, 200, 300, 512, 100};
+    if (profile == "doa_stable_100")
+        return {55, 65, 100, 200, 300, 512, 110};
+    return {0, 32, 25, 60, 120, 512, 100};
+}
 
 typedef struct go2_audio
 {
@@ -324,51 +350,42 @@ go2_audio_t *go2_audio_create(int frequency)
         static_cast<uint64_t>(result->stretch_low_ms) / 1000;
     const auto audio_profile =
         conf_map.find("retrorun_go2_audio_wsola_profile");
-    const bool lowend_stable_96 =
-        audio_profile != conf_map.end() &&
-        audio_profile->second == "lowend_stable_96";
-    const bool doa_stable_100 =
-        audio_profile != conf_map.end() &&
-        audio_profile->second == "doa_stable_100";
+    const WsolaProfileDefaults profile = wsola_profile_defaults(
+        audio_profile != conf_map.end() ? audio_profile->second : "");
     result->wsola_percent = environment_integer(
         "RETRORUN_GO2_AUDIO_WSOLA_PERCENT",
-        doa_stable_100 ? 55 : (lowend_stable_96 ? 25 : 0), 90);
+        profile.percent, 90);
     result->wsola_emergency_percent = std::max(
         result->wsola_percent,
         environment_integer(
             "RETRORUN_GO2_AUDIO_WSOLA_EMERGENCY_PERCENT",
-            doa_stable_100 ? 65 : (lowend_stable_96 ? 33 : 32), 95));
+            profile.emergency_percent, 95));
     const int wsola_emergency_ms = environment_integer(
         "RETRORUN_GO2_AUDIO_WSOLA_EMERGENCY_MS",
-        doa_stable_100 ? 100 : (lowend_stable_96 ? 65 : 25), 100);
+        profile.emergency_ms, 100);
     result->wsola_emergency_frames =
         static_cast<uint64_t>(frequency) * wsola_emergency_ms / 1000;
     const int wsola_low_ms = environment_integer(
         "RETRORUN_GO2_AUDIO_WSOLA_LOW_MS",
-        doa_stable_100 ? 200 : 60, 200);
-    const int wsola_high_ms = std::max(
+        profile.low_ms, 200);
+    const int resolved_wsola_high_ms = std::max(
         wsola_low_ms + 20,
         environment_integer(
-            "RETRORUN_GO2_AUDIO_WSOLA_HIGH_MS", 120, 300));
-    const int resolved_wsola_high_ms = doa_stable_100
-        ? std::max(wsola_low_ms + 20,
-                   environment_integer(
-                       "RETRORUN_GO2_AUDIO_WSOLA_HIGH_MS", 300, 300))
-        : wsola_high_ms;
+            "RETRORUN_GO2_AUDIO_WSOLA_HIGH_MS", profile.high_ms, 300));
     result->wsola_low_frames =
         static_cast<uint64_t>(frequency) * wsola_low_ms / 1000;
     result->wsola_high_frames =
         static_cast<uint64_t>(frequency) * resolved_wsola_high_ms / 1000;
     result->wsola_window_frames = environment_integer(
         "RETRORUN_GO2_AUDIO_WSOLA_WINDOW_FRAMES",
-        doa_stable_100 ? 512 : (lowend_stable_96 ? 1024 : 512), 1024) >= 768
+        profile.window_frames, 1024) >= 768
         ? 1024 : 512;
     result->wsola_active = result->wsola_percent > 0;
     result->dynamic_pitch = environment_integer(
         "RETRORUN_GO2_AUDIO_DYNAMIC_PITCH", 0, 1) != 0;
     const int playback_percent = std::max(
         50, environment_integer("RETRORUN_GO2_AUDIO_PLAYBACK_PERCENT",
-                                doa_stable_100 ? 110 : (lowend_stable_96 ? 96 : 100), 125));
+                                profile.playback_percent, 125));
     result->playback_pitch =
         static_cast<float>(playback_percent) / 100.0f;
     result->playback_base_pitch = result->playback_pitch;
