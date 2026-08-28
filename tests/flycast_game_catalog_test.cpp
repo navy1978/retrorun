@@ -16,7 +16,7 @@ void testBuiltInProfiles()
 {
     const Catalog catalog = builtinCatalog();
     assert(catalog.schema_version == 2);
-    assert(catalog.catalog_version == 20260902);
+    assert(catalog.catalog_version == 20260903);
     assert(catalog.profiles.size() == 98);
     assert(catalog.device_profiles.size() == 1);
     assert(normalizeProductNumber("T1401D  50 ") == "T1401D50");
@@ -362,6 +362,90 @@ void testBuiltInProfiles()
         assert(profile.settings.at("reicast_aica_arm_cycles") == "32");
     }
 
+    assert(selectProfile(catalog, "T38706M", Mode::BestPerformance,
+                         profile, fallback, "rg353m"));
+    assert(!fallback);
+    assert(profile.title == "Ikaruga (Japan, RG353M validated)");
+    assert(profile.settings.at("retrorun_loop_declared_fps") == "false");
+    assert(profile.settings.at("retrorun_audio_buffer") == "735");
+    assert(profile.settings.at("retrorun_go2_audio_prebuffer_ms") == "60");
+    assert(profile.settings.at("retrorun_go2_audio_wsola_profile") ==
+           "disabled");
+    assert(profile.settings.at("reicast_frame_skipping") == "disabled");
+    assert(profile.settings.at("reicast_internal_resolution") == "640x480");
+    assert(profile.settings.at("reicast_framerate") == "normal");
+    assert(profile.settings.at("reicast_anisotropic_filtering") == "off");
+    assert(profile.settings.at("reicast_alpha_sorting") ==
+           "per-triangle (normal)");
+
+    const char *virtuaTennisVariants[] = {"MK-51054", "HDR-0113"};
+    for (const char *product : virtuaTennisVariants)
+    {
+        assert(selectProfile(catalog, product, Mode::BestPerformance,
+                             profile, fallback, "rg353m"));
+        assert(!fallback);
+        assert(profile.settings.at("retrorun_loop_declared_fps") == "false");
+        assert(profile.settings.at("retrorun_audio_buffer") == "1470");
+        assert(profile.settings.at("retrorun_go2_audio_prebuffer_ms") == "60");
+        assert(profile.settings.at("retrorun_go2_audio_wsola_profile") ==
+               "disabled");
+        assert(profile.settings.at("reicast_frame_skipping") == "disabled");
+        assert(profile.settings.at("reicast_internal_resolution") ==
+               "640x480");
+        assert(profile.settings.at("reicast_framerate") == "normal");
+        assert(profile.settings.at("reicast_anisotropic_filtering") == "off");
+        assert(profile.settings.at("reicast_translucent_strip_merge") ==
+               "menu_guarded");
+        assert(profile.settings.at("reicast_translucent_menu_guard_strategy") ==
+               "hud_last");
+        assert(profile.settings.at("reicast_fast_depth") == "enabled");
+        assert(profile.settings.at("reicast_aica_arm_cycles") == "16");
+    }
+
+    const char *shenmueVariants[] = {
+        "MK-51059", "MK-51131", "HDR-0016", "HDR-0031"
+    };
+    for (const char *product : shenmueVariants)
+    {
+        assert(selectProfile(catalog, product, Mode::BestPerformance,
+                             profile, fallback, "rg353m"));
+        assert(!fallback);
+        assert(profile.settings.at("retrorun_loop_declared_fps") == "false");
+        assert(profile.settings.at("retrorun_audio_buffer") == "-1");
+        assert(profile.settings.at("retrorun_go2_audio_stretch_low_ms") ==
+               "40");
+        assert(profile.settings.at("reicast_hle_bios") == "enabled");
+        assert(profile.settings.at("reicast_gdrom_fast_loading") == "enabled");
+        assert(profile.settings.at("reicast_internal_resolution") ==
+               "640x480");
+        assert(profile.settings.at("reicast_framerate") == "normal");
+        assert(profile.settings.at("reicast_anisotropic_filtering") == "off");
+        assert(profile.settings.at("reicast_translucent_strip_merge") ==
+               "disabled");
+        assert(profile.settings.at("reicast_fast_depth") ==
+               "vertex_fast_log");
+        assert(profile.settings.at("reicast_audio_mixer") == "lowend");
+        assert(profile.settings.at("reicast_aica_arm_cycles") == "32");
+    }
+
+    assert(selectProfile(catalog, "MK-51049", Mode::BestPerformance,
+                         profile, fallback, "rg353m"));
+    assert(!fallback);
+    assert(profile.title == "ChuChu Rocket (USA, RG353M validated)");
+    assert(profile.settings.at("retrorun_audio_buffer") == "735");
+    assert(profile.settings.at("retrorun_go2_audio_prebuffer_ms") == "60");
+    assert(profile.settings.at("retrorun_go2_audio_wsola_profile") ==
+           "disabled");
+    assert(profile.settings.at("reicast_internal_resolution") == "640x480");
+    assert(profile.settings.at("reicast_framerate") == "normal");
+    assert(profile.settings.at("reicast_anisotropic_filtering") == "off");
+    assert(profile.settings.at("reicast_alpha_sorting") ==
+           "per-triangle (normal)");
+    assert(profile.settings.at("reicast_translucent_strip_merge") ==
+           "menu_guarded");
+    assert(profile.settings.at("reicast_fast_depth") == "menu_guarded");
+    assert(profile.settings.at("reicast_aica_arm_cycles") == "16");
+
     assert(!selectProfile(catalog, "UNKNOWN", Mode::BestValidated,
                           profile, fallback));
 
@@ -398,6 +482,35 @@ void testBuiltInProfiles()
             streetFighterReference = profile;
         else
             assert(profile.settings == streetFighterReference.settings);
+    }
+
+    Profile streetFighterRg353Reference;
+    for (const char *product : streetFighterVariants)
+    {
+        assert(selectProfile(catalog, product, Mode::BestPerformance,
+                             profile, fallback, "rg353m"));
+        assert(!fallback);
+        assert(profile.settings.at("retrorun_loop_declared_fps") == "false");
+        assert(profile.settings.at("retrorun_audio_buffer") == "735");
+        assert(profile.settings.at("retrorun_go2_audio_prebuffer_ms") == "60");
+        assert(profile.settings.at("retrorun_go2_audio_wsola_profile") ==
+               "disabled");
+        assert(profile.settings.at("retrorun_egl_stencil_bits") == "0");
+        assert(profile.settings.at("reicast_gdrom_fast_loading") == "enabled");
+        assert(profile.settings.at("reicast_internal_resolution") ==
+               "640x480");
+        assert(profile.settings.at("reicast_framerate") == "normal");
+        assert(profile.settings.at("reicast_anisotropic_filtering") == "off");
+        assert(profile.settings.at("reicast_texture_storage_reuse") ==
+               "enabled");
+        assert(profile.settings.at("reicast_fast_depth") ==
+               "menu_guarded_shadow_safe");
+        assert(profile.settings.at("reicast_audio_mixer") == "lowend");
+
+        if (streetFighterRg353Reference.settings.empty())
+            streetFighterRg353Reference = profile;
+        else
+            assert(profile.settings == streetFighterRg353Reference.settings);
     }
     assert(streetFighterReference.title ==
            "Street Fighter III: 3rd Strike (Europe, best performance)");
@@ -467,7 +580,10 @@ void testVersionedRepositoryCatalogMatchesBuiltIn()
     assert(fromFile.settings == fromBuiltIn.settings);
 
     const char *rg353Products[] = {
-        "T1215N", "MK-51037", "MK-5100250", "MK-51058", "MK-5118450"
+        "T1215N", "MK-51037", "MK-5100250", "MK-51058", "MK-5118450",
+        "T38706M", "MK-51054", "HDR-0113", "MK-51059", "MK-51131",
+        "HDR-0016", "HDR-0031", "MK-51049", "T7013D50", "T1213N",
+        "T1209M"
     };
     for (const char *product : rg353Products)
     {

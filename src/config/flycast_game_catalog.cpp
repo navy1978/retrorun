@@ -21,7 +21,7 @@ constexpr const char *CatalogFilename = "flycast-game-catalog.ini";
 
 const char *BuiltinCatalogText = R"catalog(
 schema_version = 2
-catalog_version = 20260902
+catalog_version = 20260903
 
 default.retrorun_vsync = false
 default.retrorun_loop_declared_fps = true
@@ -532,6 +532,19 @@ profile.T38706M.best_validated.retrorun_egl_depth_bits = 24
 profile.T38706M.best_validated.retrorun_egl_stencil_bits = 0
 profile.T38706M.best_validated.reicast_aica_arm_cycles = 16
 
+device.RG353M.profile.T38706M.best_performance.title = Ikaruga (Japan, RG353M validated)
+device.RG353M.profile.T38706M.best_performance.reicast_internal_resolution = 640x480
+device.RG353M.profile.T38706M.best_performance.reicast_framerate = normal
+device.RG353M.profile.T38706M.best_performance.reicast_anisotropic_filtering = off
+device.RG353M.profile.T38706M.best_performance.retrorun_loop_declared_fps = false
+device.RG353M.profile.T38706M.best_performance.retrorun_audio_buffer = 735
+device.RG353M.profile.T38706M.best_performance.retrorun_audio_stable_buffer = true
+device.RG353M.profile.T38706M.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+device.RG353M.profile.T38706M.best_performance.retrorun_go2_audio_stretch_percent = 0
+device.RG353M.profile.T38706M.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+device.RG353M.profile.T38706M.best_performance.retrorun_go2_audio_wsola_profile = disabled
+device.RG353M.profile.T38706M.best_performance.reicast_frame_skipping = disabled
+
 profile.T1212N.best_validated.title = Marvel vs. Capcom 2
 profile.T1212N.best_validated.retrorun_adaptive_frameskip = false
 profile.T1212N.best_validated.retrorun_audio_buffer = 2048
@@ -690,6 +703,32 @@ profile.HDR-0113.best_validated.retrorun_egl_depth_bits = 24
 profile.HDR-0113.best_validated.retrorun_egl_stencil_bits = 0
 profile.HDR-0113.best_validated.reicast_aica_arm_cycles = 16
 
+device.RG353M.profile.MK-51054.best_performance.title = Virtua Tennis (RG353M validated)
+device.RG353M.profile.MK-51054.best_performance.reicast_internal_resolution = 640x480
+device.RG353M.profile.MK-51054.best_performance.reicast_framerate = normal
+device.RG353M.profile.MK-51054.best_performance.reicast_anisotropic_filtering = off
+device.RG353M.profile.MK-51054.best_performance.retrorun_loop_declared_fps = false
+device.RG353M.profile.MK-51054.best_performance.retrorun_audio_buffer = 1470
+device.RG353M.profile.MK-51054.best_performance.retrorun_audio_stable_buffer = true
+device.RG353M.profile.MK-51054.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+device.RG353M.profile.MK-51054.best_performance.retrorun_go2_audio_stretch_percent = 0
+device.RG353M.profile.MK-51054.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+device.RG353M.profile.MK-51054.best_performance.retrorun_go2_audio_wsola_profile = disabled
+device.RG353M.profile.MK-51054.best_performance.reicast_frame_skipping = disabled
+
+device.RG353M.profile.HDR-0113.best_performance.title = Power Smash (Japan, RG353M validated)
+device.RG353M.profile.HDR-0113.best_performance.reicast_internal_resolution = 640x480
+device.RG353M.profile.HDR-0113.best_performance.reicast_framerate = normal
+device.RG353M.profile.HDR-0113.best_performance.reicast_anisotropic_filtering = off
+device.RG353M.profile.HDR-0113.best_performance.retrorun_loop_declared_fps = false
+device.RG353M.profile.HDR-0113.best_performance.retrorun_audio_buffer = 1470
+device.RG353M.profile.HDR-0113.best_performance.retrorun_audio_stable_buffer = true
+device.RG353M.profile.HDR-0113.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+device.RG353M.profile.HDR-0113.best_performance.retrorun_go2_audio_stretch_percent = 0
+device.RG353M.profile.HDR-0113.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+device.RG353M.profile.HDR-0113.best_performance.retrorun_go2_audio_wsola_profile = disabled
+device.RG353M.profile.HDR-0113.best_performance.reicast_frame_skipping = disabled
+
 profile.MK-51000.best_validated.title = Sonic Adventure (baseline)
 
 profile.MK-51000.best_performance.title = Sonic Adventure (RG351V)
@@ -746,6 +785,66 @@ profile.HDR-0031.best_performance.retrorun_audio_buffer = 2048
 profile.HDR-0031.best_performance.retrorun_go2_audio_wsola_profile = disabled
 profile.HDR-0031.best_performance.reicast_aica_arm_cycles = 24
 profile.HDR-0031.best_performance.reicast_fast_depth = menu_guarded
+
+device.RG353M.profile.MK-51059.best_performance.title = Shenmue (USA, RG353M validated)
+device.RG353M.profile.MK-51059.best_performance.reicast_internal_resolution = 640x480
+device.RG353M.profile.MK-51059.best_performance.reicast_anisotropic_filtering = off
+device.RG353M.profile.MK-51059.best_performance.retrorun_loop_declared_fps = false
+device.RG353M.profile.MK-51059.best_performance.retrorun_audio_buffer = -1
+device.RG353M.profile.MK-51059.best_performance.retrorun_go2_audio_stretch_percent = 0
+device.RG353M.profile.MK-51059.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+device.RG353M.profile.MK-51059.best_performance.reicast_hle_bios = enabled
+device.RG353M.profile.MK-51059.best_performance.reicast_gdrom_fast_loading = enabled
+device.RG353M.profile.MK-51059.best_performance.reicast_framerate = normal
+device.RG353M.profile.MK-51059.best_performance.reicast_translucent_strip_merge = disabled
+device.RG353M.profile.MK-51059.best_performance.reicast_fast_depth = vertex_fast_log
+device.RG353M.profile.MK-51059.best_performance.reicast_audio_mixer = lowend
+device.RG353M.profile.MK-51059.best_performance.reicast_aica_arm_cycles = 32
+
+device.RG353M.profile.MK-51131.best_performance.title = Shenmue (USA revision, RG353M validated)
+device.RG353M.profile.MK-51131.best_performance.reicast_internal_resolution = 640x480
+device.RG353M.profile.MK-51131.best_performance.reicast_anisotropic_filtering = off
+device.RG353M.profile.MK-51131.best_performance.retrorun_loop_declared_fps = false
+device.RG353M.profile.MK-51131.best_performance.retrorun_audio_buffer = -1
+device.RG353M.profile.MK-51131.best_performance.retrorun_go2_audio_stretch_percent = 0
+device.RG353M.profile.MK-51131.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+device.RG353M.profile.MK-51131.best_performance.reicast_hle_bios = enabled
+device.RG353M.profile.MK-51131.best_performance.reicast_gdrom_fast_loading = enabled
+device.RG353M.profile.MK-51131.best_performance.reicast_framerate = normal
+device.RG353M.profile.MK-51131.best_performance.reicast_translucent_strip_merge = disabled
+device.RG353M.profile.MK-51131.best_performance.reicast_fast_depth = vertex_fast_log
+device.RG353M.profile.MK-51131.best_performance.reicast_audio_mixer = lowend
+device.RG353M.profile.MK-51131.best_performance.reicast_aica_arm_cycles = 32
+
+device.RG353M.profile.HDR-0016.best_performance.title = Shenmue (Japan, RG353M validated)
+device.RG353M.profile.HDR-0016.best_performance.reicast_internal_resolution = 640x480
+device.RG353M.profile.HDR-0016.best_performance.reicast_anisotropic_filtering = off
+device.RG353M.profile.HDR-0016.best_performance.retrorun_loop_declared_fps = false
+device.RG353M.profile.HDR-0016.best_performance.retrorun_audio_buffer = -1
+device.RG353M.profile.HDR-0016.best_performance.retrorun_go2_audio_stretch_percent = 0
+device.RG353M.profile.HDR-0016.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+device.RG353M.profile.HDR-0016.best_performance.reicast_hle_bios = enabled
+device.RG353M.profile.HDR-0016.best_performance.reicast_gdrom_fast_loading = enabled
+device.RG353M.profile.HDR-0016.best_performance.reicast_framerate = normal
+device.RG353M.profile.HDR-0016.best_performance.reicast_translucent_strip_merge = disabled
+device.RG353M.profile.HDR-0016.best_performance.reicast_fast_depth = vertex_fast_log
+device.RG353M.profile.HDR-0016.best_performance.reicast_audio_mixer = lowend
+device.RG353M.profile.HDR-0016.best_performance.reicast_aica_arm_cycles = 32
+
+device.RG353M.profile.HDR-0031.best_performance.title = Shenmue (Japan revision, RG353M validated)
+device.RG353M.profile.HDR-0031.best_performance.reicast_internal_resolution = 640x480
+device.RG353M.profile.HDR-0031.best_performance.reicast_anisotropic_filtering = off
+device.RG353M.profile.HDR-0031.best_performance.retrorun_loop_declared_fps = false
+device.RG353M.profile.HDR-0031.best_performance.retrorun_audio_buffer = -1
+device.RG353M.profile.HDR-0031.best_performance.retrorun_go2_audio_stretch_percent = 0
+device.RG353M.profile.HDR-0031.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+device.RG353M.profile.HDR-0031.best_performance.reicast_hle_bios = enabled
+device.RG353M.profile.HDR-0031.best_performance.reicast_gdrom_fast_loading = enabled
+device.RG353M.profile.HDR-0031.best_performance.reicast_framerate = normal
+device.RG353M.profile.HDR-0031.best_performance.reicast_translucent_strip_merge = disabled
+device.RG353M.profile.HDR-0031.best_performance.reicast_fast_depth = vertex_fast_log
+device.RG353M.profile.HDR-0031.best_performance.reicast_audio_mixer = lowend
+device.RG353M.profile.HDR-0031.best_performance.reicast_aica_arm_cycles = 32
 
 profile.MK-5118450.best_validated.title = Shenmue II (Europe, RG351MP validated)
 profile.MK-5118450.best_validated.retrorun_audio_buffer = 4096
@@ -974,6 +1073,17 @@ profile.MK-51049.best_validated.reicast_opaque_strip_merge = disabled
 
 profile.MK-51049.best_performance.title = ChuChu Rocket (USA, RG351V)
 profile.MK-51049.best_performance.inherits = best_validated
+
+device.RG353M.profile.MK-51049.best_performance.title = ChuChu Rocket (USA, RG353M validated)
+device.RG353M.profile.MK-51049.best_performance.reicast_internal_resolution = 640x480
+device.RG353M.profile.MK-51049.best_performance.reicast_framerate = normal
+device.RG353M.profile.MK-51049.best_performance.reicast_anisotropic_filtering = off
+device.RG353M.profile.MK-51049.best_performance.retrorun_audio_buffer = 735
+device.RG353M.profile.MK-51049.best_performance.retrorun_audio_stable_buffer = true
+device.RG353M.profile.MK-51049.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+device.RG353M.profile.MK-51049.best_performance.retrorun_go2_audio_stretch_percent = 0
+device.RG353M.profile.MK-51049.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+device.RG353M.profile.MK-51049.best_performance.retrorun_go2_audio_wsola_profile = disabled
 
 profile.T36812D61.best_validated.title = Power Stone 2 (Europe 61, baseline)
 
@@ -1309,6 +1419,57 @@ profile.T1209M.best_validated.reicast_opaque_strip_merge = enabled
 profile.T1209M.best_validated.reicast_aica_arm_cycles = 32
 profile.T1209M.best_performance.title = Street Fighter III: 3rd Strike (Japan, best performance)
 profile.T1209M.best_performance.inherits = best_validated
+
+device.RG353M.profile.T7013D50.best_performance.title = Street Fighter III: 3rd Strike (Europe, RG353M validated)
+device.RG353M.profile.T7013D50.best_performance.reicast_internal_resolution = 640x480
+device.RG353M.profile.T7013D50.best_performance.reicast_anisotropic_filtering = off
+device.RG353M.profile.T7013D50.best_performance.retrorun_loop_declared_fps = false
+device.RG353M.profile.T7013D50.best_performance.retrorun_audio_buffer = 735
+device.RG353M.profile.T7013D50.best_performance.retrorun_audio_stable_buffer = true
+device.RG353M.profile.T7013D50.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+device.RG353M.profile.T7013D50.best_performance.retrorun_go2_audio_stretch_percent = 0
+device.RG353M.profile.T7013D50.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+device.RG353M.profile.T7013D50.best_performance.retrorun_go2_audio_wsola_profile = disabled
+device.RG353M.profile.T7013D50.best_performance.retrorun_egl_stencil_bits = 0
+device.RG353M.profile.T7013D50.best_performance.reicast_gdrom_fast_loading = enabled
+device.RG353M.profile.T7013D50.best_performance.reicast_framerate = normal
+device.RG353M.profile.T7013D50.best_performance.reicast_texture_storage_reuse = enabled
+device.RG353M.profile.T7013D50.best_performance.reicast_fast_depth = menu_guarded_shadow_safe
+device.RG353M.profile.T7013D50.best_performance.reicast_audio_mixer = lowend
+
+device.RG353M.profile.T1213N.best_performance.title = Street Fighter III: 3rd Strike (USA, RG353M validated)
+device.RG353M.profile.T1213N.best_performance.reicast_internal_resolution = 640x480
+device.RG353M.profile.T1213N.best_performance.reicast_anisotropic_filtering = off
+device.RG353M.profile.T1213N.best_performance.retrorun_loop_declared_fps = false
+device.RG353M.profile.T1213N.best_performance.retrorun_audio_buffer = 735
+device.RG353M.profile.T1213N.best_performance.retrorun_audio_stable_buffer = true
+device.RG353M.profile.T1213N.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+device.RG353M.profile.T1213N.best_performance.retrorun_go2_audio_stretch_percent = 0
+device.RG353M.profile.T1213N.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+device.RG353M.profile.T1213N.best_performance.retrorun_go2_audio_wsola_profile = disabled
+device.RG353M.profile.T1213N.best_performance.retrorun_egl_stencil_bits = 0
+device.RG353M.profile.T1213N.best_performance.reicast_gdrom_fast_loading = enabled
+device.RG353M.profile.T1213N.best_performance.reicast_framerate = normal
+device.RG353M.profile.T1213N.best_performance.reicast_texture_storage_reuse = enabled
+device.RG353M.profile.T1213N.best_performance.reicast_fast_depth = menu_guarded_shadow_safe
+device.RG353M.profile.T1213N.best_performance.reicast_audio_mixer = lowend
+
+device.RG353M.profile.T1209M.best_performance.title = Street Fighter III: 3rd Strike (Japan, RG353M validated)
+device.RG353M.profile.T1209M.best_performance.reicast_internal_resolution = 640x480
+device.RG353M.profile.T1209M.best_performance.reicast_anisotropic_filtering = off
+device.RG353M.profile.T1209M.best_performance.retrorun_loop_declared_fps = false
+device.RG353M.profile.T1209M.best_performance.retrorun_audio_buffer = 735
+device.RG353M.profile.T1209M.best_performance.retrorun_audio_stable_buffer = true
+device.RG353M.profile.T1209M.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+device.RG353M.profile.T1209M.best_performance.retrorun_go2_audio_stretch_percent = 0
+device.RG353M.profile.T1209M.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+device.RG353M.profile.T1209M.best_performance.retrorun_go2_audio_wsola_profile = disabled
+device.RG353M.profile.T1209M.best_performance.retrorun_egl_stencil_bits = 0
+device.RG353M.profile.T1209M.best_performance.reicast_gdrom_fast_loading = enabled
+device.RG353M.profile.T1209M.best_performance.reicast_framerate = normal
+device.RG353M.profile.T1209M.best_performance.reicast_texture_storage_reuse = enabled
+device.RG353M.profile.T1209M.best_performance.reicast_fast_depth = menu_guarded_shadow_safe
+device.RG353M.profile.T1209M.best_performance.reicast_audio_mixer = lowend
 
 profile.T7005D50.best_validated.title = Street Fighter Alpha 3 (Europe, baseline)
 

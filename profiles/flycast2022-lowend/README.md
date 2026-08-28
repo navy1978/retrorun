@@ -9,7 +9,7 @@ See [GAME_PROFILE_MODES.md](GAME_PROFILE_MODES.md) for the implemented
 current per-game differences.
 
 `flycast-game-catalog.ini` is the editable source form of catalog version
-`20260902`. The same data is built into RetroRun, so the feature works when
+`20260903`. The same data is built into RetroRun, so the feature works when
 distributions install only the executable. A copy beside RetroRun is used only
 when its `catalog_version` is greater than the built-in version.
 
@@ -19,7 +19,7 @@ catalog is validated against the supported schema and setting allowlist,
 written atomically as `flycast-game-catalog.cache.ini` beside the active
 configuration file, and considered from the next launch.
 
-Catalog version `20260902` separates correctness-first settings for cataloged,
+Catalog version `20260903` separates correctness-first settings for cataloged,
 title-only baselines from the performance defaults inherited by explicitly
 validated profiles. Those baseline entries now use per-triangle alpha and
 disable translucent/opaque merging, fast depth and texture-storage reuse,
@@ -45,7 +45,7 @@ Select profiles by product number rather than by ROM filename:
 | `T7013D50`, `T1213N`, `T1209M` | Street Fighter III: 3rd Strike | The European, North American and Japanese retail releases use distinct catalog records with the same RG351MP-validated settings. On a fixed USA fight savestate, accurate per-triangle alpha, `vertex_fast_log` depth and opaque-strip merging reached a three-run median of 47.76 FPS versus 44.39 (+7.58%), reduced active-frame p95 from 43.63 to 41.43 ms and recorded no audio underruns or empty queues. The inaccurate per-strip sorter was slower and visually unsafe. Each regional `best_performance` profile explicitly inherits its corresponding `best_validated` profile. |
 | `MK-51019`, `HDR-0010` | Sega Rally 2 | European/North American and Japanese retail variants. The RG353M-specific `best_performance` profile preserves the visually approved 640x480 renderer and accurate audio path, disables frontend pacing and selects the validated 735-frame/60 ms prebuffer configuration. With the Cortex-A55 `-O3`/LTO Flycast build at `62085539`, the fixed race savestate produced 27,017.7 audio samples/s versus 21,412.9 for the stock core (+26.2%) and about 20.26 versus 14.52 presented frames/s (+39.5%). Graphics and audio were manually approved on the device. |
 
-Catalog `20260902` adds device-scoped RG353M profiles for `T1215N` (Cannon
+Catalog `20260902` added device-scoped RG353M profiles for `T1215N` (Cannon
 Spike), `MK-51037` (Daytona USA 2001), `MK-5100250` (the observed European
 House of the Dead 2 CHD), `MK-51058` (Jet Grind Radio) and `MK-5118450`
 (Shenmue II). All five were tested from fixed gameplay states at maximum
@@ -54,6 +54,20 @@ profiles use the measured 735-frame/60 ms GO2 path, disabled frontend pacing,
 640x480 threaded rendering and per-game validated depth/state-reuse choices.
 House of the Dead 2 remains a conservative title-only baseline on RG351-class
 devices; its tuned profile is selected only for RG353M.
+
+Catalog `20260903` adds the next RG353M-validated group. Fixed gameplay-state
+comparisons against the dArkOS stock RetroRun/core measured 51.35 versus 46.41
+FPS for Street Fighter III: 3rd Strike (+10.7%), 43.38 versus 39.13 for Virtua
+Tennis (+10.9%), 44.24 versus 40.55 for Ikaruga (+9.1%), and 53.03 versus
+48.45 for ChuChu Rocket (+9.5%). Their profiles disable hidden adaptive core
+skipping, so those figures are presented frames rather than duplicated output.
+Shenmue reached 28.72 versus 28.59 FPS with a better p95 frame time (47.51
+versus 51.99 ms), while preserving its correct renderer and audio choices.
+The tested regional Product-number variants inherit the corresponding settings.
+Resident Evil Code: Veronica remains on its global validated profile: both it
+and stock hold the game's approximately 30 FPS limit, so a device override
+would add complexity without a real gain. Metropolis Street Racer was excluded
+from this test group because the available image did not boot reliably.
 
 `dreamcast-product-variants.tsv` is the machine-checked map between the Redump
 retail releases and the Product numbers returned by Flycast. When adding a
