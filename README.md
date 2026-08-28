@@ -783,6 +783,7 @@ General and input settings:
 | `retrorun_sdl_audio_stretch_low_ms` | SDL2 queue threshold for compensation, clamped to `0`–`200` ms; defaults to `40`. |
 | `retrorun_go2_audio_stretch_percent` | GO2/OpenAL low-watermark audio compensation, clamped to `0`–`10`; `0` disables it and is the recommended default. The measured `3` percent profile remains experimental after an inconclusive manual listening test. |
 | `retrorun_go2_audio_stretch_low_ms` | GO2/OpenAL queue threshold for compensation, clamped to `0`–`200` ms; defaults to `40`; the experimental RG351V profile used `20`. |
+| `retrorun_go2_audio_prebuffer_ms` | GO2/OpenAL startup prebuffer, clamped to `0`–`200` ms; defaults to `60`. Values below twice `retrorun_audio_buffer` are raised to that safe minimum. |
 | `retrorun_force_audio_multithread` | Runs blocking audio submission on a dedicated bounded worker thread. It can help demanding cores, especially on RG552; defaults to `false`. |
 | `retrorun_auto_save` | Saves automatically during shutdown. |
 | `retrorun_auto_load` | Loads the automatic save at startup. A missing first-run state is reported as the short informational message `No auto state`, not as an error. |

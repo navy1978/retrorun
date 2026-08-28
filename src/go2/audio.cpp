@@ -100,6 +100,7 @@ typedef struct go2_audio
     bool dynamic_pitch;
     float playback_pitch;
     float playback_base_pitch;
+    int playback_prebuffer_ms;
     uint64_t playback_target_frames;
     bool submitted_once;
     bool prebuffering;
@@ -235,6 +236,19 @@ static int environment_integer(const char *name, int fallback, int maximum)
     char *end = NULL;
     const long parsed = strtol(value, &end, 10);
     if (end == value || *end != '\0')
+        return fallback;
+    return static_cast<int>(std::max<long>(
+        0, std::min<long>(parsed, maximum)));
+}
+
+static int configuration_integer(const char *name, int fallback, int maximum)
+{
+    const auto entry = conf_map.find(name);
+    if (entry == conf_map.end())
+        return fallback;
+    char *end = NULL;
+    const long parsed = strtol(entry->second.c_str(), &end, 10);
+    if (end == entry->second.c_str() || *end != '\0')
         return fallback;
     return static_cast<int>(std::max<long>(
         0, std::min<long>(parsed, maximum)));
@@ -389,8 +403,13 @@ go2_audio_t *go2_audio_create(int frequency)
     result->playback_pitch =
         static_cast<float>(playback_percent) / 100.0f;
     result->playback_base_pitch = result->playback_pitch;
+    result->playback_prebuffer_ms = environment_integer(
+        "RETRORUN_GO2_AUDIO_PREBUFFER_MS",
+        configuration_integer("retrorun_go2_audio_prebuffer_ms", 60, 200),
+        200);
     result->playback_target_frames = std::max<uint64_t>(
-        static_cast<uint64_t>(frequency) * 60 / 1000,
+        static_cast<uint64_t>(frequency) *
+            result->playback_prebuffer_ms / 1000,
         static_cast<uint64_t>(std::max(1, retrorun_audio_buffer)) * 2);
     result->prebuffering = true;
     // Record resolved environment overrides in benchmark metadata.
@@ -443,7 +462,8 @@ go2_audio_t *go2_audio_create(int frequency)
                "wsola_percent=%d, wsola_watermarks_ms=%d/%d, "
                "wsola_emergency=%d%%@%dms, "
                "wsola_window_frames=%d, dynamic_pitch=%s, "
-               "playback_percent=%d.",
+               "playback_percent=%d, prebuffer_ms=%d, "
+               "prebuffer_frames=%llu.",
                retrorun_audio_stable_buffer ? "on" : "off",
                result->frequency, result->buffer_count,
                result->stretch_percent, result->stretch_low_ms,
@@ -452,7 +472,9 @@ go2_audio_t *go2_audio_create(int frequency)
                result->wsola_emergency_percent, wsola_emergency_ms,
                result->wsola_window_frames,
                result->dynamic_pitch ? "on" : "off",
-               playback_percent);
+               playback_percent, result->playback_prebuffer_ms,
+               static_cast<unsigned long long>(
+                   result->playback_target_frames));
 
     return result;
 }

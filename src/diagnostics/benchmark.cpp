@@ -483,6 +483,7 @@ bool benchmark_finish_and_report()
          << ",\"sdl_audio_stretch_low_ms\":" << state.metadata.sdl_audio_stretch_low_ms
          << ",\"go2_audio_stretch_percent\":" << state.metadata.go2_audio_stretch_percent
          << ",\"go2_audio_stretch_low_ms\":" << state.metadata.go2_audio_stretch_low_ms
+         << ",\"go2_audio_prebuffer_ms\":" << state.metadata.go2_audio_prebuffer_ms
          << ",\"threaded_video\":" << json_bool(state.metadata.threaded_video)
          << ",\"direct_scanout\":" << json_bool(state.metadata.direct_scanout)
          << ",\"overlays\":" << json_bool(state.metadata.overlays)

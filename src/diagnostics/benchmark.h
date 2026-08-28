@@ -42,6 +42,7 @@ struct BenchmarkMetadata {
     int sdl_audio_stretch_low_ms = 40;
     int go2_audio_stretch_percent = 0;
     int go2_audio_stretch_low_ms = 40;
+    int go2_audio_prebuffer_ms = 60;
     bool threaded_video = false;
     bool direct_scanout = false;
     bool overlays = false;

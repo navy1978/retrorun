@@ -98,6 +98,21 @@ struct FlycastCatalogStatus
 
 static FlycastCatalogStatus flycastCatalogStatus;
 
+static std::string flycastFrameSkippingMode()
+{
+    std::string option = "reicast_frame_skipping";
+    if (isFlycast2022())
+        option = "flycast2022_frame_skipping";
+    else if (coreName == "Flycast 2021" || isFlycast2021LowEnd())
+        option = "flycast2021_frame_skipping";
+    return configValue(option, "disabled");
+}
+
+static bool flycastFrameSkippingNeedsAudioPressure(const std::string& mode)
+{
+    return mode == "adaptive" || mode == "adaptive-balanced";
+}
+
 // --- Command line options ---
 
 static struct option longopts[] = {
@@ -628,6 +643,17 @@ int main(int argc, char *argv[])
         opt_aspect = 0.75f;
 
     core_load_game(arg_rom);
+    const std::string flycastFrameSkipping = flycastFrameSkippingMode();
+    const bool reportFlycastAudioQueuePressure =
+        isFlycast() && g_retro.flycast_retrorun_set_audio_queue_status_v1 &&
+        flycastFrameSkippingNeedsAudioPressure(flycastFrameSkipping);
+    if (isFlycast() && g_retro.flycast_retrorun_set_audio_queue_status_v1)
+    {
+        logger.log(Logger::INF,
+                   "Flycast audio queue pressure reporting: %s (frame skipping: %s).",
+                   reportFlycastAudioQueuePressure ? "enabled" : "disabled",
+                   flycastFrameSkipping.c_str());
+    }
     achievements_init(arg_rom);
     decoration_init(arg_rom);
     decoration_catalog_init();
@@ -731,6 +757,8 @@ int main(int argc, char *argv[])
             retrorun_go2_audio_stretch_percent;
         metadata.go2_audio_stretch_low_ms =
             retrorun_go2_audio_stretch_low_ms;
+        metadata.go2_audio_prebuffer_ms = configValueInteger(
+            "retrorun_go2_audio_prebuffer_ms", 60, 0, 200);
         metadata.threaded_video = forceVideoMultithread;
         metadata.direct_scanout = drmDirectScanoutMode == DRMDirectScanoutMode::Enabled;
         metadata.overlays = decoration_surface() != nullptr || opt_show_fps ||
@@ -1236,8 +1264,7 @@ int main(int argc, char *argv[])
                 ? steady_clock::now() : steady_clock::time_point{};
             if (measureBenchmarkFrame)
                 benchmark_core_begin();
-            if (isFlycast() &&
-                g_retro.flycast_retrorun_set_audio_queue_status_v1)
+            if (reportFlycastAudioQueuePressure)
             {
                 const auto queue = audio_queue_snapshot();
                 g_retro.flycast_retrorun_set_audio_queue_status_v1(
@@ -1584,24 +1611,34 @@ int main(int argc, char *argv[])
     logger.log(Logger::DEB, "Shutdown: audio stopped");
     video_prepare_core_unload();
     logger.log(Logger::DEB, "Shutdown: video workers stopped and hardware context released");
+    // Emit benchmark results before entering third-party core teardown. Some
+    // legacy cores complete the measured run but crash or hang in their
+    // deinitialization path; reporting here preserves valid measurements after
+    // frontend audio/video workers have stopped and their diagnostics are final.
+    const bool benchmarkOk = benchmark_finish_and_report();
+    const bool legacyFlycast = isFlycast2021();
     core_unload_game();
     logger.log(Logger::DEB, "Shutdown: game unloaded");
-    core_deinit();
-    logger.log(Logger::DEB, "Shutdown: core unloaded and deinitialized");
+    if (!legacyFlycast)
+    {
+        core_deinit();
+        logger.log(Logger::DEB, "Shutdown: core unloaded and deinitialized");
+    }
+    else
+    {
+        logger.log(Logger::WARN,
+                   "Legacy Flycast shutdown quirk: skipping crashing retro_deinit; process exit will release core state");
+    }
     video_deinit();
     logger.log(Logger::DEB, "Shutdown: video resources destroyed");
     input_deinit();
     logger.log(Logger::DEB, "Shutdown: input resources destroyed");
 
-    // The legacy Flycast 2021 shared object hangs from its ELF finalizers when
-    // dlclose() is called, even after retro_deinit() has completed. Every
-    // frontend resource and persistent save has already been released at this
-    // point, so let process exit unload this one faulty core. This is the safe
-    // equivalent of the historical GO2 SIGUSR1 shutdown workaround and is
-    // required for interactive sessions as well as benchmarks.
-    if (isFlycast2021())
+    // Legacy Flycast shared objects can crash in retro_deinit() and hang in
+    // ELF finalizers. Every frontend resource and persistent save has already
+    // been released, so process exit safely lets the kernel reclaim core state.
+    if (legacyFlycast)
     {
-        const bool benchmarkOk = benchmark_finish_and_report();
         logger.log(Logger::WARN,
                    "Legacy Flycast shutdown complete; exiting without dlclose to avoid hanging ELF finalizers");
         std::fflush(nullptr);
@@ -1610,6 +1647,5 @@ int main(int argc, char *argv[])
     core_close();
     logger.log(Logger::DEB, "Shutdown: core library closed");
 
-    const bool benchmarkOk = benchmark_finish_and_report();
     return benchmarkOk ? 0 : EXIT_FAILURE;
 }

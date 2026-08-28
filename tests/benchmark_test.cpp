@@ -42,6 +42,7 @@ static void run_counter_snapshot(const char* path, unsigned presentations,
     metadata.sdl_audio_stretch_low_ms = 40;
     metadata.go2_audio_stretch_percent = 4;
     metadata.go2_audio_stretch_low_ms = 35;
+    metadata.go2_audio_prebuffer_ms = 30;
     metadata.confirm_input = true;
     metadata.confirm_input_delay_seconds = 4.0;
     benchmark_set_metadata(metadata);
@@ -96,6 +97,7 @@ static void run_counter_snapshot(const char* path, unsigned presentations,
     assert(json.find("\"sdl_audio_stretch_low_ms\":40") != std::string::npos);
     assert(json.find("\"go2_audio_stretch_percent\":4") != std::string::npos);
     assert(json.find("\"go2_audio_stretch_low_ms\":35") != std::string::npos);
+    assert(json.find("\"go2_audio_prebuffer_ms\":30") != std::string::npos);
     assert(json.find("\"confirm_input\":true") != std::string::npos);
     assert(json.find("\"confirm_input_delay_seconds\":4.000") != std::string::npos);
     assert(json.find("\"requested_core_frames\":" +

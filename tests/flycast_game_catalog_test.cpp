@@ -16,7 +16,7 @@ void testBuiltInProfiles()
 {
     const Catalog catalog = builtinCatalog();
     assert(catalog.schema_version == 2);
-    assert(catalog.catalog_version == 20260830);
+    assert(catalog.catalog_version == 20260901);
     assert(catalog.profiles.size() == 97);
     assert(catalog.device_profiles.size() == 1);
     assert(normalizeProductNumber("T1401D  50 ") == "T1401D50");
@@ -51,6 +51,7 @@ void testBuiltInProfiles()
         "MK-51035", "HDR-0053", "MK-51058", "T1215N", "MK-51037",
         "T36801D61", "T36801D64", "T1201M", "T1201N",
         "MK-5118450", "HDR-0164", "HDR-0179",
+        "MK-51019", "HDR-0010",
         "T7013D50", "T1213N", "T1209M"
     };
     for (const char *product : knownRetailVariants)
@@ -63,6 +64,42 @@ void testBuiltInProfiles()
            "menu_guarded_shadow_safe");
     assert(profile.settings.at("reicast_opaque_strip_merge") == "enabled");
     assert(profile.settings.at("reicast_mipmapping") == "enabled");
+    assert(profile.settings.at("retrorun_audio_buffer") == "2048");
+    assert(profile.settings.at("retrorun_go2_audio_wsola_profile") ==
+           "lowend_stable_96");
+    assert(profile.settings.at("retrorun_loop_declared_fps") == "true");
+
+    const char *sonicVariants[] = {"MK-51117", "HDR-0165"};
+    Profile sonicReference;
+    for (const char *product : sonicVariants)
+    {
+        assert(selectProfile(catalog, product, Mode::BestPerformance,
+                             profile, fallback, "rg353m"));
+        assert(!fallback);
+        assert(profile.mode == Mode::BestPerformance);
+        assert(profile.settings.at("retrorun_loop_declared_fps") ==
+               "false");
+        assert(profile.settings.at("retrorun_audio_buffer") == "735");
+        assert(profile.settings.at("retrorun_audio_stable_buffer") ==
+               "false");
+        assert(profile.settings.at("retrorun_go2_audio_wsola_profile") ==
+               "disabled");
+        assert(profile.settings.at("retrorun_egl_stencil_bits") == "8");
+        assert(profile.settings.at("reicast_mipmapping") == "enabled");
+        assert(profile.settings.at("reicast_fog") == "enabled");
+        assert(profile.settings.at("reicast_translucent_strip_merge") ==
+               "disabled");
+        assert(profile.settings.at("reicast_fast_depth") ==
+               "menu_guarded_shadow_safe");
+        assert(profile.settings.at("reicast_opaque_strip_merge") ==
+               "enabled");
+        assert(profile.settings.at("reicast_aica_arm_cycles") == "8");
+
+        if (sonicReference.settings.empty())
+            sonicReference = profile;
+        else
+            assert(profile.settings == sonicReference.settings);
+    }
 
     assert(selectProfile(catalog, "RDC-0149", Mode::BestPerformance,
                         profile, fallback));
@@ -80,6 +117,7 @@ void testBuiltInProfiles()
            "Dead or Alive 2 (observed CDI, RG353M validated)");
     assert(profile.settings.at("retrorun_audio_buffer") == "735");
     assert(profile.settings.at("retrorun_audio_stable_buffer") == "false");
+    assert(profile.settings.at("retrorun_go2_audio_prebuffer_ms") == "30");
     assert(profile.settings.at("retrorun_loop_declared_fps") == "false");
     assert(profile.settings.at("retrorun_go2_audio_wsola_profile") ==
            "disabled");
@@ -91,11 +129,44 @@ void testBuiltInProfiles()
     assert(fallback);
     assert(profile.mode == Mode::BestValidated);
     assert(profile.settings.at("retrorun_audio_buffer") == "735");
+    assert(profile.settings.at("retrorun_go2_audio_prebuffer_ms") == "30");
 
     const auto mixedSettings =
         settingsForOptionPrefix(profile.settings, "flycast2021_");
     assert(mixedSettings.at("flycast2021_aica_arm_cycles") == "8");
     assert(mixedSettings.at("flycast2021_framerate") == "normal");
+
+    const char *segaRallyVariants[] = {"MK-51019", "HDR-0010"};
+    Profile segaRallyReference;
+    for (const char *product : segaRallyVariants)
+    {
+        assert(selectProfile(catalog, product, Mode::BestPerformance,
+                             profile, fallback, "rg353m"));
+        assert(!fallback);
+        assert(profile.mode == Mode::BestPerformance);
+        assert(profile.settings.at("retrorun_loop_declared_fps") ==
+               "false");
+        assert(profile.settings.at("retrorun_audio_buffer") == "735");
+        assert(profile.settings.at("retrorun_audio_stable_buffer") ==
+               "false");
+        assert(profile.settings.at("retrorun_go2_audio_prebuffer_ms") ==
+               "60");
+        assert(profile.settings.at("retrorun_go2_audio_wsola_profile") ==
+               "disabled");
+        assert(profile.settings.at("reicast_sh4clock") == "200");
+        assert(profile.settings.at("reicast_internal_resolution") ==
+               "640x480");
+        assert(profile.settings.at("reicast_alpha_sorting") ==
+               "per-strip (fast, least accurate)");
+        assert(profile.settings.at("reicast_frame_skipping") == "disabled");
+        assert(profile.settings.at("reicast_audio_mixer") == "accurate");
+        assert(profile.settings.at("reicast_aica_arm_cycles") == "32");
+
+        if (segaRallyReference.settings.empty())
+            segaRallyReference = profile;
+        else
+            assert(profile.settings == segaRallyReference.settings);
+    }
 
     assert(selectProfile(catalog, "T1215N", Mode::BestPerformance,
                          profile, fallback));

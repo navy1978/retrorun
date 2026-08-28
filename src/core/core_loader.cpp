@@ -840,7 +840,7 @@ void core_unload_game()
         if (isFlycast2021())
         {
             logger.log(Logger::WARN,
-                       "Legacy Flycast shutdown quirk: skipping crashing retro_unload_game; retro_deinit will release content state");
+                       "Legacy Flycast shutdown quirk: skipping crashing retro_unload_game; process exit will release content state");
             g_retro.game_loaded = false;
             return;
         }

@@ -21,7 +21,7 @@ constexpr const char *CatalogFilename = "flycast-game-catalog.ini";
 
 const char *BuiltinCatalogText = R"catalog(
 schema_version = 2
-catalog_version = 20260830
+catalog_version = 20260901
 
 default.retrorun_vsync = false
 default.retrorun_loop_declared_fps = true
@@ -89,6 +89,48 @@ profile.HDR-0165.best_performance.reicast_opaque_strip_merge = enabled
 profile.HDR-0165.best_performance.retrorun_audio_buffer = 2048
 profile.HDR-0165.best_performance.retrorun_go2_audio_stretch_low_ms = 150
 profile.HDR-0165.best_performance.retrorun_go2_audio_wsola_profile = lowend_stable_96
+
+device.RG353M.profile.MK-51117.best_performance.title = Sonic Adventure 2 (RG353M validated)
+device.RG353M.profile.MK-51117.best_performance.retrorun_loop_declared_fps = false
+device.RG353M.profile.MK-51117.best_performance.retrorun_audio_buffer = 735
+device.RG353M.profile.MK-51117.best_performance.retrorun_audio_stable_buffer = false
+device.RG353M.profile.MK-51117.best_performance.retrorun_go2_audio_stretch_percent = 0
+device.RG353M.profile.MK-51117.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+device.RG353M.profile.MK-51117.best_performance.retrorun_go2_audio_wsola_profile = disabled
+device.RG353M.profile.MK-51117.best_performance.retrorun_egl_depth_bits = 24
+device.RG353M.profile.MK-51117.best_performance.retrorun_egl_stencil_bits = 8
+device.RG353M.profile.MK-51117.best_performance.reicast_hle_bios = disabled
+device.RG353M.profile.MK-51117.best_performance.reicast_gdrom_fast_loading = enabled
+device.RG353M.profile.MK-51117.best_performance.reicast_mipmapping = enabled
+device.RG353M.profile.MK-51117.best_performance.reicast_fog = enabled
+device.RG353M.profile.MK-51117.best_performance.reicast_frame_skipping = disabled
+device.RG353M.profile.MK-51117.best_performance.reicast_translucent_strip_merge = disabled
+device.RG353M.profile.MK-51117.best_performance.reicast_translucent_menu_guard_strategy = top_hud_last
+device.RG353M.profile.MK-51117.best_performance.reicast_fast_depth = menu_guarded_shadow_safe
+device.RG353M.profile.MK-51117.best_performance.reicast_audio_mixer = lowend
+device.RG353M.profile.MK-51117.best_performance.reicast_opaque_strip_merge = enabled
+device.RG353M.profile.MK-51117.best_performance.reicast_aica_arm_cycles = 8
+
+device.RG353M.profile.HDR-0165.best_performance.title = Sonic Adventure 2 (Japan, RG353M validated)
+device.RG353M.profile.HDR-0165.best_performance.retrorun_loop_declared_fps = false
+device.RG353M.profile.HDR-0165.best_performance.retrorun_audio_buffer = 735
+device.RG353M.profile.HDR-0165.best_performance.retrorun_audio_stable_buffer = false
+device.RG353M.profile.HDR-0165.best_performance.retrorun_go2_audio_stretch_percent = 0
+device.RG353M.profile.HDR-0165.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+device.RG353M.profile.HDR-0165.best_performance.retrorun_go2_audio_wsola_profile = disabled
+device.RG353M.profile.HDR-0165.best_performance.retrorun_egl_depth_bits = 24
+device.RG353M.profile.HDR-0165.best_performance.retrorun_egl_stencil_bits = 8
+device.RG353M.profile.HDR-0165.best_performance.reicast_hle_bios = disabled
+device.RG353M.profile.HDR-0165.best_performance.reicast_gdrom_fast_loading = enabled
+device.RG353M.profile.HDR-0165.best_performance.reicast_mipmapping = enabled
+device.RG353M.profile.HDR-0165.best_performance.reicast_fog = enabled
+device.RG353M.profile.HDR-0165.best_performance.reicast_frame_skipping = disabled
+device.RG353M.profile.HDR-0165.best_performance.reicast_translucent_strip_merge = disabled
+device.RG353M.profile.HDR-0165.best_performance.reicast_translucent_menu_guard_strategy = top_hud_last
+device.RG353M.profile.HDR-0165.best_performance.reicast_fast_depth = menu_guarded_shadow_safe
+device.RG353M.profile.HDR-0165.best_performance.reicast_audio_mixer = lowend
+device.RG353M.profile.HDR-0165.best_performance.reicast_opaque_strip_merge = enabled
+device.RG353M.profile.HDR-0165.best_performance.reicast_aica_arm_cycles = 8
 
 profile.RDC-0149.best_validated.title = Dead or Alive 2
 profile.RDC-0149.best_validated.reicast_hle_bios = enabled
@@ -232,6 +274,7 @@ device.RG353M.profile.RDC-0149.best_validated.title = Dead or Alive 2 (RG353M va
 device.RG353M.profile.RDC-0149.best_validated.retrorun_loop_declared_fps = false
 device.RG353M.profile.RDC-0149.best_validated.retrorun_audio_buffer = 735
 device.RG353M.profile.RDC-0149.best_validated.retrorun_audio_stable_buffer = false
+device.RG353M.profile.RDC-0149.best_validated.retrorun_go2_audio_prebuffer_ms = 30
 device.RG353M.profile.RDC-0149.best_validated.retrorun_go2_audio_stretch_percent = 0
 device.RG353M.profile.RDC-0149.best_validated.retrorun_go2_audio_stretch_low_ms = 40
 device.RG353M.profile.RDC-0149.best_validated.retrorun_go2_audio_wsola_profile = disabled
@@ -250,6 +293,7 @@ device.RG353M.profile.RDC-0140.best_validated.title = Dead or Alive 2 (observed 
 device.RG353M.profile.RDC-0140.best_validated.retrorun_loop_declared_fps = false
 device.RG353M.profile.RDC-0140.best_validated.retrorun_audio_buffer = 735
 device.RG353M.profile.RDC-0140.best_validated.retrorun_audio_stable_buffer = false
+device.RG353M.profile.RDC-0140.best_validated.retrorun_go2_audio_prebuffer_ms = 30
 device.RG353M.profile.RDC-0140.best_validated.retrorun_go2_audio_stretch_percent = 0
 device.RG353M.profile.RDC-0140.best_validated.retrorun_go2_audio_stretch_low_ms = 40
 device.RG353M.profile.RDC-0140.best_validated.retrorun_go2_audio_wsola_profile = disabled
@@ -268,6 +312,7 @@ device.RG353M.profile.T8116D50.best_validated.title = Dead or Alive 2 (Europe, R
 device.RG353M.profile.T8116D50.best_validated.retrorun_loop_declared_fps = false
 device.RG353M.profile.T8116D50.best_validated.retrorun_audio_buffer = 735
 device.RG353M.profile.T8116D50.best_validated.retrorun_audio_stable_buffer = false
+device.RG353M.profile.T8116D50.best_validated.retrorun_go2_audio_prebuffer_ms = 30
 device.RG353M.profile.T8116D50.best_validated.retrorun_go2_audio_stretch_percent = 0
 device.RG353M.profile.T8116D50.best_validated.retrorun_go2_audio_stretch_low_ms = 40
 device.RG353M.profile.T8116D50.best_validated.retrorun_go2_audio_wsola_profile = disabled
@@ -286,6 +331,7 @@ device.RG353M.profile.T3602M.best_validated.title = Dead or Alive 2 (Japan, RG35
 device.RG353M.profile.T3602M.best_validated.retrorun_loop_declared_fps = false
 device.RG353M.profile.T3602M.best_validated.retrorun_audio_buffer = 735
 device.RG353M.profile.T3602M.best_validated.retrorun_audio_stable_buffer = false
+device.RG353M.profile.T3602M.best_validated.retrorun_go2_audio_prebuffer_ms = 30
 device.RG353M.profile.T3602M.best_validated.retrorun_go2_audio_stretch_percent = 0
 device.RG353M.profile.T3602M.best_validated.retrorun_go2_audio_stretch_low_ms = 40
 device.RG353M.profile.T3602M.best_validated.retrorun_go2_audio_wsola_profile = disabled
@@ -304,6 +350,7 @@ device.RG353M.profile.T3601M.best_validated.title = Dead or Alive 2 (Japan limit
 device.RG353M.profile.T3601M.best_validated.retrorun_loop_declared_fps = false
 device.RG353M.profile.T3601M.best_validated.retrorun_audio_buffer = 735
 device.RG353M.profile.T3601M.best_validated.retrorun_audio_stable_buffer = false
+device.RG353M.profile.T3601M.best_validated.retrorun_go2_audio_prebuffer_ms = 30
 device.RG353M.profile.T3601M.best_validated.retrorun_go2_audio_stretch_percent = 0
 device.RG353M.profile.T3601M.best_validated.retrorun_go2_audio_stretch_low_ms = 40
 device.RG353M.profile.T3601M.best_validated.retrorun_go2_audio_wsola_profile = disabled
@@ -322,6 +369,7 @@ device.RG353M.profile.T3601N.best_validated.title = Dead or Alive 2 (North Ameri
 device.RG353M.profile.T3601N.best_validated.retrorun_loop_declared_fps = false
 device.RG353M.profile.T3601N.best_validated.retrorun_audio_buffer = 735
 device.RG353M.profile.T3601N.best_validated.retrorun_audio_stable_buffer = false
+device.RG353M.profile.T3601N.best_validated.retrorun_go2_audio_prebuffer_ms = 30
 device.RG353M.profile.T3601N.best_validated.retrorun_go2_audio_stretch_percent = 0
 device.RG353M.profile.T3601N.best_validated.retrorun_go2_audio_stretch_low_ms = 40
 device.RG353M.profile.T3601N.best_validated.retrorun_go2_audio_wsola_profile = disabled
@@ -911,6 +959,54 @@ profile.MK-51019.best_validated.title = Sega Rally 2 (baseline)
 
 profile.HDR-0010.best_validated.title = Sega Rally 2 (Japan, baseline)
 
+device.RG353M.profile.MK-51019.best_performance.title = Sega Rally 2 (RG353M validated)
+device.RG353M.profile.MK-51019.best_performance.retrorun_loop_declared_fps = false
+device.RG353M.profile.MK-51019.best_performance.retrorun_audio_buffer = 735
+device.RG353M.profile.MK-51019.best_performance.retrorun_audio_stable_buffer = false
+device.RG353M.profile.MK-51019.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+device.RG353M.profile.MK-51019.best_performance.retrorun_go2_audio_stretch_percent = 0
+device.RG353M.profile.MK-51019.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+device.RG353M.profile.MK-51019.best_performance.retrorun_go2_audio_wsola_profile = disabled
+device.RG353M.profile.MK-51019.best_performance.retrorun_egl_depth_bits = 24
+device.RG353M.profile.MK-51019.best_performance.retrorun_egl_stencil_bits = 8
+device.RG353M.profile.MK-51019.best_performance.reicast_hle_bios = disabled
+device.RG353M.profile.MK-51019.best_performance.reicast_gdrom_fast_loading = enabled
+device.RG353M.profile.MK-51019.best_performance.reicast_sh4clock = 200
+device.RG353M.profile.MK-51019.best_performance.reicast_internal_resolution = 640x480
+device.RG353M.profile.MK-51019.best_performance.reicast_alpha_sorting = per-strip (fast, least accurate)
+device.RG353M.profile.MK-51019.best_performance.reicast_mipmapping = enabled
+device.RG353M.profile.MK-51019.best_performance.reicast_fog = enabled
+device.RG353M.profile.MK-51019.best_performance.reicast_volume_modifier_enable = disabled
+device.RG353M.profile.MK-51019.best_performance.reicast_frame_skipping = disabled
+device.RG353M.profile.MK-51019.best_performance.reicast_anisotropic_filtering = off
+device.RG353M.profile.MK-51019.best_performance.reicast_threaded_rendering = enabled
+device.RG353M.profile.MK-51019.best_performance.reicast_audio_mixer = accurate
+device.RG353M.profile.MK-51019.best_performance.reicast_aica_arm_cycles = 32
+
+device.RG353M.profile.HDR-0010.best_performance.title = Sega Rally 2 (Japan, RG353M validated)
+device.RG353M.profile.HDR-0010.best_performance.retrorun_loop_declared_fps = false
+device.RG353M.profile.HDR-0010.best_performance.retrorun_audio_buffer = 735
+device.RG353M.profile.HDR-0010.best_performance.retrorun_audio_stable_buffer = false
+device.RG353M.profile.HDR-0010.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+device.RG353M.profile.HDR-0010.best_performance.retrorun_go2_audio_stretch_percent = 0
+device.RG353M.profile.HDR-0010.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+device.RG353M.profile.HDR-0010.best_performance.retrorun_go2_audio_wsola_profile = disabled
+device.RG353M.profile.HDR-0010.best_performance.retrorun_egl_depth_bits = 24
+device.RG353M.profile.HDR-0010.best_performance.retrorun_egl_stencil_bits = 8
+device.RG353M.profile.HDR-0010.best_performance.reicast_hle_bios = disabled
+device.RG353M.profile.HDR-0010.best_performance.reicast_gdrom_fast_loading = enabled
+device.RG353M.profile.HDR-0010.best_performance.reicast_sh4clock = 200
+device.RG353M.profile.HDR-0010.best_performance.reicast_internal_resolution = 640x480
+device.RG353M.profile.HDR-0010.best_performance.reicast_alpha_sorting = per-strip (fast, least accurate)
+device.RG353M.profile.HDR-0010.best_performance.reicast_mipmapping = enabled
+device.RG353M.profile.HDR-0010.best_performance.reicast_fog = enabled
+device.RG353M.profile.HDR-0010.best_performance.reicast_volume_modifier_enable = disabled
+device.RG353M.profile.HDR-0010.best_performance.reicast_frame_skipping = disabled
+device.RG353M.profile.HDR-0010.best_performance.reicast_anisotropic_filtering = off
+device.RG353M.profile.HDR-0010.best_performance.reicast_threaded_rendering = enabled
+device.RG353M.profile.HDR-0010.best_performance.reicast_audio_mixer = accurate
+device.RG353M.profile.HDR-0010.best_performance.reicast_aica_arm_cycles = 32
+
 profile.T9702D51.best_validated.title = Hydro Thunder (Europe, baseline)
 
 profile.T9702N.best_validated.title = Hydro Thunder (USA, baseline)
@@ -1142,6 +1238,7 @@ const std::unordered_set<std::string> &allowedSettings()
         "retrorun_force_audio_multithread",
         "retrorun_force_video_multithread",
         "retrorun_frameskip",
+        "retrorun_go2_audio_prebuffer_ms",
         "retrorun_go2_audio_stretch_low_ms",
         "retrorun_go2_audio_stretch_percent",
         "retrorun_go2_audio_wsola_profile",
