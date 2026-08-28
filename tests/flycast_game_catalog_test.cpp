@@ -16,8 +16,8 @@ void testBuiltInProfiles()
 {
     const Catalog catalog = builtinCatalog();
     assert(catalog.schema_version == 2);
-    assert(catalog.catalog_version == 20260901);
-    assert(catalog.profiles.size() == 97);
+    assert(catalog.catalog_version == 20260902);
+    assert(catalog.profiles.size() == 98);
     assert(catalog.device_profiles.size() == 1);
     assert(normalizeProductNumber("T1401D  50 ") == "T1401D50");
     assert(catalog.safe_defaults.at("reicast_alpha_sorting") ==
@@ -51,7 +51,7 @@ void testBuiltInProfiles()
         "MK-51035", "HDR-0053", "MK-51058", "T1215N", "MK-51037",
         "T36801D61", "T36801D64", "T1201M", "T1201N",
         "MK-5118450", "HDR-0164", "HDR-0179",
-        "MK-51019", "HDR-0010",
+        "MK-51019", "HDR-0010", "MK-5100250",
         "T7013D50", "T1213N", "T1209M"
     };
     for (const char *product : knownRetailVariants)
@@ -299,6 +299,69 @@ void testBuiltInProfiles()
            "lowend_heavy_100");
     assert(profile.settings.at("retrorun_egl_stencil_bits") == "0");
 
+    assert(selectProfile(catalog, "MK-5100250", Mode::BestPerformance,
+                         profile, fallback));
+    assert(fallback);
+    assert(profile.title ==
+           "The House of the Dead 2 (Europe, observed CHD baseline)");
+    assert(profile.settings.at("reicast_fast_depth") == "disabled");
+    assert(profile.settings.at("reicast_opaque_strip_merge") == "disabled");
+
+    struct Rg353ValidatedProfile
+    {
+        const char *product;
+        const char *title;
+        const char *fastDepth;
+        const char *paletteReuse;
+        const char *adjacentElision;
+    };
+    const Rg353ValidatedProfile rg353Validated[] = {
+        {"T1215N", "Cannon Spike (USA, RG353M validated)",
+         "menu_guarded_shadow_safe", "disabled", "disabled"},
+        {"MK-51037", "Daytona USA 2001 (USA, RG353M validated)",
+         "enabled", "enabled", "enabled"},
+        {"MK-5100250", "The House of the Dead 2 (Europe, RG353M validated)",
+         "enabled", "enabled", "disabled"},
+        {"MK-51058", "Jet Grind Radio (USA, RG353M validated)",
+         "menu_guarded_shadow_safe", "disabled", "disabled"},
+        {"MK-5118450", "Shenmue II (Europe, RG353M validated)",
+         "menu_guarded_shadow_safe", "disabled", "disabled"},
+    };
+    for (const Rg353ValidatedProfile &expected : rg353Validated)
+    {
+        assert(selectProfile(catalog, expected.product,
+                             Mode::BestPerformance, profile, fallback,
+                             "rg353m"));
+        assert(!fallback);
+        assert(profile.mode == Mode::BestPerformance);
+        assert(profile.title == expected.title);
+        assert(profile.settings.at("retrorun_loop_declared_fps") == "false");
+        assert(profile.settings.at("retrorun_audio_buffer") == "735");
+        assert(profile.settings.at("retrorun_audio_stable_buffer") == "true");
+        assert(profile.settings.at("retrorun_go2_audio_prebuffer_ms") == "60");
+        assert(profile.settings.at("retrorun_go2_audio_stretch_low_ms") == "40");
+        assert(profile.settings.at("retrorun_go2_audio_wsola_profile") ==
+               "disabled");
+        assert(profile.settings.at("retrorun_egl_depth_bits") == "24");
+        assert(profile.settings.at("retrorun_egl_stencil_bits") == "0");
+        assert(profile.settings.at("reicast_framerate") == "normal");
+        assert(profile.settings.at("reicast_alpha_sorting") ==
+               "per-strip (fast, least accurate)");
+        assert(profile.settings.at("reicast_translucent_strip_merge") ==
+               "disabled");
+        assert(profile.settings.at("reicast_texture_storage_reuse") ==
+               "enabled");
+        assert(profile.settings.at("reicast_fast_depth") ==
+               expected.fastDepth);
+        assert(profile.settings.at("reicast_palette_fog_storage_reuse") ==
+               expected.paletteReuse);
+        assert(profile.settings.at("reicast_adjacent_state_elision") ==
+               expected.adjacentElision);
+        assert(profile.settings.at("reicast_audio_mixer") == "lowend");
+        assert(profile.settings.at("reicast_opaque_strip_merge") == "enabled");
+        assert(profile.settings.at("reicast_aica_arm_cycles") == "32");
+    }
+
     assert(!selectProfile(catalog, "UNKNOWN", Mode::BestValidated,
                           profile, fallback));
 
@@ -402,6 +465,20 @@ void testVersionedRepositoryCatalogMatchesBuiltIn()
     assert(!fileFallback && !builtInFallback);
     assert(fromFile.title == fromBuiltIn.title);
     assert(fromFile.settings == fromBuiltIn.settings);
+
+    const char *rg353Products[] = {
+        "T1215N", "MK-51037", "MK-5100250", "MK-51058", "MK-5118450"
+    };
+    for (const char *product : rg353Products)
+    {
+        assert(selectProfile(fileCatalog, product, Mode::BestPerformance,
+                             fromFile, fileFallback, "RG353M"));
+        assert(selectProfile(builtIn, product, Mode::BestPerformance,
+                             fromBuiltIn, builtInFallback, "RG353M"));
+        assert(!fileFallback && !builtInFallback);
+        assert(fromFile.title == fromBuiltIn.title);
+        assert(fromFile.settings == fromBuiltIn.settings);
+    }
 
     std::ifstream variants(
         "../profiles/flycast2022-lowend/dreamcast-product-variants.tsv");

@@ -1000,7 +1000,7 @@ void showInfo(int w, rr_surface_t **surface)
     // showText(posX, getRowForText(), " ", ORANGE, surface);
     int firstVisibleItem = 0;
     int lastVisibleItem = menu.getSize();
-    if (menuTitle == "Best performance games")
+    if (menuTitle == "Catalog")
     {
         const int maxVisibleItems = 18;
         int selectedItem = 0;
