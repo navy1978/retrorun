@@ -18,6 +18,8 @@
 | Soul Calibur — current RetroRun, RK3566 Flycast and catalog | 58.860 | 9.387 ms | 7.590 ms |
 | Sonic Adventure — dArkOS stock stack, fixed gameplay state | 25.592 | — | — |
 | Sonic Adventure — current RetroRun, RK3566 Flycast and catalog | 27.965 | — | — |
+| Power Stone 2 — dArkOS stock stack, fixed combat state | 56.166 | — | — |
+| Power Stone 2 — current RetroRun, RK3566 Flycast and catalog | 58.961 | — | — |
 
 Core-time fields from the two RetroRun generations are not directly
 comparable. The dArkOS 2.7.7 probe measures `retro_run` including its nested
@@ -35,6 +37,8 @@ and is directly comparable.
 - The RG353M Sonic Adventure catalog profile reaches 27.965 FPS, 9.3% above
   stock, improves active-frame p95 from 69.22 to 64.11 ms and eliminates the
   two stock audio underruns/empty-queue events in the fixed gameplay state.
+- The RG353M Power Stone 2 profile reaches 58.961 FPS, 5.0% above stock, with
+  every frame presented and no audio faults in the fixed combat state.
 - The old menu's 51 FPS for Sonic was an upward-biased average of partial
   per-frame estimates. The fixed-window probe measured 47.722 FPS.
 

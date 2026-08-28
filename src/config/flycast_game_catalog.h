@@ -21,6 +21,9 @@ struct Profile
     std::string product_number;
     std::string title;
     Mode mode = Mode::Invalid;
+    // False for title-only metadata entries that have never been tuned or
+    // validated. Those entries identify retail variants but are not applied.
+    bool validated = false;
     std::map<std::string, std::string> settings;
 };
 
@@ -29,9 +32,9 @@ struct Catalog
     int schema_version = 0;
     int catalog_version = 0;
     std::string source;
-    // Correctness-first settings used by title-only baseline entries.
-    // Explicitly validated profiles continue to inherit the
-    // performance-oriented catalog defaults; uncataloged content is untouched.
+    // Correctness-first base used when a device-specific validated profile is
+    // layered over title-only metadata. Metadata-only products are not
+    // selectable and therefore leave the user's configuration untouched.
     std::map<std::string, std::string> safe_defaults;
     std::map<std::string, std::map<Mode, Profile>> profiles;
     // Optional schema-v2 overrides keyed by normalized device name, then
@@ -66,6 +69,11 @@ bool scheduleCatalogUpdate(const std::string &cache_path,
 bool selectProfile(const Catalog &catalog, const std::string &product_number,
                    Mode mode, Profile &profile, bool &used_fallback,
                    const std::string &device_name = {});
+
+// Return only products with an explicitly validated global or device profile.
+// Title-only metadata baselines are intentionally excluded from the UI.
+std::map<std::string, Profile> validatedCatalogProfiles(
+    const Catalog &catalog);
 
 // Catalogs store Flycast options in the canonical reicast_* namespace.
 // Distribution builds that rename the core options can translate them here

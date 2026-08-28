@@ -11,7 +11,7 @@ Valori:
 | Valore | Comportamento |
 | --- | --- |
 | `disabled` | Non applica il catalogo. Restano validi i parametri globali o scelti manualmente dall'utente. |
-| `best_validated` | Usa la configurazione più veloce che ha superato i controlli visivi, audio e input. I profili catalogati che contengono soltanto il titolo ricevono il fallback conservativo; i giochi non catalogati restano invariati. |
+| `best_validated` | Usa la configurazione più veloce che ha superato i controlli visivi, audio e input. Le voci contenenti soltanto metadati non sono selezionabili; giochi non testati e Product number sconosciuti restano invariati. |
 | `best_performance` | Usa la configurazione più veloce conservata, anche se ha un difetto grafico documentato. Se non esiste una variante più aggressiva, usa `best_validated`. |
 
 ## Configurazioni attuali
@@ -30,6 +30,7 @@ La selezione deve usare il Product number Dreamcast, non il nome del file ROM.
 | Daytona USA 2001 / Daytona USA | `MK-51037` | alpha `per-strip`, merge traslucido off, fast depth disattivato, merge opaco attivo e audio accurato | Fallback a `best_validated` | Validato manualmente durante una gara su RG351MP/dArkOS. Tre run finali da 600 frame hanno raggiunto 23,75 frame presentati/s contro 16,20 della baseline (+46,6%); p95 da 89,27 a 58,52 ms, tutti i frame presentati e nessun errore audio. La variante giapponese `HDR-0106` resta baseline finché non viene provata separatamente. |
 | Street Fighter III: 3rd Strike | `T7013D50`, `T1213N`, `T1209M` | alpha `per-triangle`, merge traslucido e riuso texture off, fast depth `vertex_fast_log`, merge opaco attivo e audio accurato | Eredita il rispettivo `best_validated` | Il profilo USA è stato validato manualmente su RG351MP/dArkOS da un savestate di combattimento e poi associato alle tre varianti retail regionali con profili distinti ma identiche impostazioni, come per gli altri giochi multiregione. Tre run finali da 600 frame hanno raggiunto una mediana di 47,76 FPS contro 44,39 (+7,58%); active-frame p95 è sceso da 43,63 a 41,43 ms, senza underrun o code audio vuote. Alpha `per-strip` è stato respinto perché più lento e graficamente non sicuro. |
 | Sonic Adventure | `MK-51000` | Baseline sicura; su RG353M eredita il rendering globale approvato | Profilo RG351V globale; override RG353M con pacing frontend disattivato e audio 735 frame/60 ms senza buffer stabile | Sul savestate RG353M ha misurato 27,96 FPS contro 25,59 dello stack dArkOS stock (+9,3%), p95 64,11 contro 69,22 ms e nessun frame saltato, underrun o coda vuota. Video, audio e gameplay approvati manualmente. Le varianti giapponesi `HDR-0001` e `HDR-0043` restano baseline. |
+| Power Stone 2 | `T36812D61`, `T36812D64`, `T1218M`, `T1211N` | Baseline conservativa | Su RG353M: alpha accurato, `menu_guarded`, riuso texture, fast depth protetto, merge opaco, mixer rapido/AICA 16 e audio 735 frame/60 ms | Sul combattimento USA ha raggiunto 58,96 FPS contro 56,17 stock (+5,0%), senza frame saltati o errori audio. Il sorter veloce valeva appena 0,13 FPS in più; fast depth, AICA 8 e ulteriore riuso stati erano più lenti. Video, HUD, audio e gameplay approvati manualmente; le varianti retail condividono il profilo. |
 
 ## Parametri che differiscono davvero
 
@@ -50,6 +51,7 @@ cartella.
 | Daytona USA | validata | on/on | merge off, alpha `per-strip` | off | `lowend_stable_96`, mixer `accurate` | on | D24S0 |
 | Shenmue II (Europe) | validata | on/on | merge off, alpha `per-strip` | `vertex_fast_log` | `lowend_heavy_100`, mixer `accurate` | off | D24S0 |
 | Street Fighter III: 3rd Strike | validata | on/on | merge off, alpha `per-triangle` | `vertex_fast_log` | `lowend_stable_96`, mixer `accurate` | on | D24S8 |
+| Power Stone 2 (RG353M) | prestazioni | off/off | `menu_guarded`, `hud_last`, alpha `per-triangle` | `menu_guarded` | 735/60 ms, mixer `fast`, AICA 16 | on | D24S0 |
 
 ## Regola di precedenza
 
@@ -59,12 +61,10 @@ cartella.
    Product number prima di `retro_load_game()` e sovrascrive soltanto i
    parametri presenti nel profilo.
 3. I profili con impostazioni esplicite conservano i default low-end usati
-   durante la loro validazione; le voci baseline contenenti soltanto il titolo
-   usano invece alpha `per-triangle`, merge traslucido/opaco, fast depth e
-   texture-storage reuse disattivati. Le opzioni audio non vengono cambiate
-   rispetto al precedente baseline low-end.
-4. Un gioco sconosciuto o privo di Product number non riceve alcuna modifica:
-   continuano a valere tutti i valori del `retrorun.cfg`.
+   durante la loro validazione. Una voce baseline contenente soltanto titolo e
+   Product number è metadata: non viene applicata e non appare in `Catalog`.
+4. Un gioco non testato, sconosciuto o privo di Product number non riceve
+   alcuna modifica: continuano a valere tutti i valori del `retrorun.cfg`.
 5. RetroRun usa il catalogo incorporato, oppure
    `flycast-game-catalog.ini` accanto all'eseguibile se ha un
    `catalog_version` strettamente maggiore ed è interamente valido.

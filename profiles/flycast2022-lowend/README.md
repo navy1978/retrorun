@@ -9,7 +9,7 @@ See [GAME_PROFILE_MODES.md](GAME_PROFILE_MODES.md) for the implemented
 current per-game differences.
 
 `flycast-game-catalog.ini` is the editable source form of catalog version
-`20260904`. The same data is built into RetroRun, so the feature works when
+`20260905`. The same data is built into RetroRun, so the feature works when
 distributions install only the executable. A copy beside RetroRun is used only
 when its `catalog_version` is greater than the built-in version.
 
@@ -19,12 +19,12 @@ catalog is validated against the supported schema and setting allowlist,
 written atomically as `flycast-game-catalog.cache.ini` beside the active
 configuration file, and considered from the next launch.
 
-Catalog version `20260903` separates correctness-first settings for cataloged,
-title-only baselines from the performance defaults inherited by explicitly
-validated profiles. Those baseline entries now use per-triangle alpha and
-disable translucent/opaque merging, fast depth and texture-storage reuse,
-while leaving the previous low-end audio choices unchanged. Unknown Product
-numbers remain entirely controlled by the active `retrorun.cfg`.
+Catalog version `20260905` separates title metadata from profiles that were
+actually validated. Title-only baseline entries remain useful for tracking
+retail Product numbers, but are neither selectable nor shown in RetroRun's
+`Catalog` menu and leave the active `retrorun.cfg` untouched. A validated
+device override may still use the correctness-first baseline as its explicit
+starting point. Unknown Product numbers behave the same way.
 
 The filename includes the Dreamcast product number printed by Flycast at boot.
 Select profiles by product number rather than by ROM filename:
@@ -45,6 +45,7 @@ Select profiles by product number rather than by ROM filename:
 | `T7013D50`, `T1213N`, `T1209M` | Street Fighter III: 3rd Strike | The European, North American and Japanese retail releases use distinct catalog records with the same RG351MP-validated settings. On a fixed USA fight savestate, accurate per-triangle alpha, `vertex_fast_log` depth and opaque-strip merging reached a three-run median of 47.76 FPS versus 44.39 (+7.58%), reduced active-frame p95 from 43.63 to 41.43 ms and recorded no audio underruns or empty queues. The inaccurate per-strip sorter was slower and visually unsafe. Each regional `best_performance` profile explicitly inherits its corresponding `best_validated` profile. |
 | `MK-51019`, `HDR-0010` | Sega Rally 2 | European/North American and Japanese retail variants. The RG353M-specific `best_performance` profile preserves the visually approved 640x480 renderer and accurate audio path, disables frontend pacing and selects the validated 735-frame/60 ms prebuffer configuration. With the Cortex-A55 `-O3`/LTO Flycast build at `62085539`, the fixed race savestate produced 27,017.7 audio samples/s versus 21,412.9 for the stock core (+26.2%) and about 20.26 versus 14.52 presented frames/s (+39.5%). Graphics and audio were manually approved on the device. |
 | `MK-51000` | Sonic Adventure | The European/North American retail Product number has an RG353M-specific `best_performance` profile. On the fixed gameplay state it reached 27.96 FPS versus 25.59 for the dArkOS stock stack (+9.3%), improved active-frame p95 from 69.22 to 64.11 ms and recorded no skipped frames, audio underruns or empty queues; stock recorded two underruns and two empty queues. Graphics, audio and gameplay were manually approved. Japanese `HDR-0001` and `HDR-0043` remain conservative baselines until tested. |
+| `T36812D61`, `T36812D64`, `T1218M`, `T1211N` | Power Stone 2 | The RG353M-specific profile was measured on the North American release from a fixed combat state and associated with all known retail regional Product numbers. Accurate per-triangle alpha reached 58.96 FPS versus 56.17 for the dArkOS stock stack (+5.0%), presented every frame and recorded no audio faults. The per-strip candidate reached only 0.13 FPS more, so it was rejected in favour of the safer renderer. Fast depth, AICA 8 and additional state reuse were all slower. Graphics, HUD, audio and gameplay were manually approved. |
 
 Catalog `20260902` added device-scoped RG353M profiles for `T1215N` (Cannon
 Spike), `MK-51037` (Daytona USA 2001), `MK-5100250` (the observed European
@@ -77,6 +78,14 @@ stable buffering disabled, and disables frontend declared-FPS pacing. On the
 fixed gameplay state it measured 27.96 versus 25.59 FPS for the dArkOS stock
 stack (+9.3%), with a better p95 and no skipped frames or audio faults. The
 Japanese releases remain baseline entries because they were not tested.
+
+Catalog `20260905` adds the RG353M-validated Power Stone 2 profile for all four
+known retail regional Product numbers. The fixed USA combat state measured
+58.96 versus 56.17 FPS for the dArkOS stock stack (+5.0%), with every frame
+presented and no audio faults. The selected profile keeps accurate per-triangle
+alpha because the faster sorter added only 0.13 FPS; fast depth, AICA 8 and
+additional state reuse were measured and rejected as slower. Graphics, HUD,
+audio and gameplay were manually approved on the device.
 
 `dreamcast-product-variants.tsv` is the machine-checked map between the Redump
 retail releases and the Product numbers returned by Flycast. When adding a
@@ -137,10 +146,11 @@ window and 96% playback pitch reproducible from the versioned catalog.
 
 ## Baseline retail coverage added in catalog 20260746
 
-The catalog also recognizes the following retail games and regional product
-numbers with the conservative built-in defaults. These entries are coverage
-baselines, not RG351V performance approvals; promote them only after repeatable
-benchmarking and manual audio/video review.
+The metadata table also records the following retail games and regional
+Product numbers. These title-only entries are coverage baselines, not
+selectable profiles: RetroRun hides them from `Catalog` and leaves the user's
+configuration untouched. Promote them only after repeatable benchmarking and
+manual audio/video review.
 
 The Japanese Sonic Adventure variants, Shenmue, Shenmue II, Resident Evil: Code Veronica, Power Stone retail releases, Power Stone 2,
 Skies of Arcadia, Capcom vs. SNK 2, Phantasy Star Online,

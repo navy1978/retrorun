@@ -1031,20 +1031,12 @@ int main(int argc, char *argv[])
             : flycastMenuCatalog;
     std::map<std::string, std::vector<std::string>> catalogProfiles;
     size_t catalogProductCount = 0;
-    for (const auto &productProfiles : menuCatalog.profiles)
+    for (const auto &[productNumber, profile] :
+         rr::flycast_profiles::validatedCatalogProfiles(menuCatalog))
     {
-        auto profile = productProfiles.second.find(
-            rr::flycast_profiles::Mode::BestValidated);
-        if (profile == productProfiles.second.end())
-            profile = productProfiles.second.find(
-                rr::flycast_profiles::Mode::BestPerformance);
-        if (profile == productProfiles.second.end())
-            continue;
-
-        const std::string &productNumber = productProfiles.first;
-        std::string title = profile->second.title.empty()
+        std::string title = profile.title.empty()
                                 ? productNumber
-                                : profile->second.title;
+                                : profile.title;
         const std::string::size_type qualifier = title.find(" (");
         if (qualifier != std::string::npos)
             title.erase(qualifier);

@@ -21,7 +21,7 @@ constexpr const char *CatalogFilename = "flycast-game-catalog.ini";
 
 const char *BuiltinCatalogText = R"catalog(
 schema_version = 2
-catalog_version = 20260904
+catalog_version = 20260905
 
 default.retrorun_vsync = false
 default.retrorun_loop_declared_fps = true
@@ -1105,6 +1105,134 @@ profile.T1218M.best_validated.title = Power Stone 2 (Japan, baseline)
 
 profile.T1211N.best_validated.title = Power Stone 2 (USA, baseline)
 
+device.RG353M.profile.T36812D61.best_performance.title = Power Stone 2 (Europe 61, RG353M validated)
+device.RG353M.profile.T36812D61.best_performance.retrorun_loop_declared_fps = false
+device.RG353M.profile.T36812D61.best_performance.retrorun_audio_buffer = 735
+device.RG353M.profile.T36812D61.best_performance.retrorun_audio_stable_buffer = true
+device.RG353M.profile.T36812D61.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+device.RG353M.profile.T36812D61.best_performance.retrorun_go2_audio_stretch_percent = 0
+device.RG353M.profile.T36812D61.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+device.RG353M.profile.T36812D61.best_performance.retrorun_go2_audio_wsola_profile = disabled
+device.RG353M.profile.T36812D61.best_performance.retrorun_egl_depth_bits = 24
+device.RG353M.profile.T36812D61.best_performance.retrorun_egl_stencil_bits = 0
+device.RG353M.profile.T36812D61.best_performance.reicast_hle_bios = enabled
+device.RG353M.profile.T36812D61.best_performance.reicast_gdrom_fast_loading = disabled
+device.RG353M.profile.T36812D61.best_performance.reicast_sh4clock = 200
+device.RG353M.profile.T36812D61.best_performance.reicast_internal_resolution = 640x480
+device.RG353M.profile.T36812D61.best_performance.reicast_framerate = normal
+device.RG353M.profile.T36812D61.best_performance.reicast_loop_declared_fps = false
+device.RG353M.profile.T36812D61.best_performance.reicast_anisotropic_filtering = off
+device.RG353M.profile.T36812D61.best_performance.reicast_threaded_rendering = enabled
+device.RG353M.profile.T36812D61.best_performance.reicast_alpha_sorting = per-triangle (normal)
+device.RG353M.profile.T36812D61.best_performance.reicast_mipmapping = disabled
+device.RG353M.profile.T36812D61.best_performance.reicast_fog = disabled
+device.RG353M.profile.T36812D61.best_performance.reicast_frame_skipping = disabled
+device.RG353M.profile.T36812D61.best_performance.reicast_translucent_strip_merge = menu_guarded
+device.RG353M.profile.T36812D61.best_performance.reicast_translucent_menu_guard_strategy = hud_last
+device.RG353M.profile.T36812D61.best_performance.reicast_texture_storage_reuse = enabled
+device.RG353M.profile.T36812D61.best_performance.reicast_palette_fog_storage_reuse = disabled
+device.RG353M.profile.T36812D61.best_performance.reicast_adjacent_state_elision = disabled
+device.RG353M.profile.T36812D61.best_performance.reicast_fast_depth = menu_guarded
+device.RG353M.profile.T36812D61.best_performance.reicast_audio_mixer = fast
+device.RG353M.profile.T36812D61.best_performance.reicast_opaque_strip_merge = enabled
+device.RG353M.profile.T36812D61.best_performance.reicast_aica_arm_cycles = 16
+
+device.RG353M.profile.T36812D64.best_performance.title = Power Stone 2 (Europe 64, RG353M validated)
+device.RG353M.profile.T36812D64.best_performance.retrorun_loop_declared_fps = false
+device.RG353M.profile.T36812D64.best_performance.retrorun_audio_buffer = 735
+device.RG353M.profile.T36812D64.best_performance.retrorun_audio_stable_buffer = true
+device.RG353M.profile.T36812D64.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+device.RG353M.profile.T36812D64.best_performance.retrorun_go2_audio_stretch_percent = 0
+device.RG353M.profile.T36812D64.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+device.RG353M.profile.T36812D64.best_performance.retrorun_go2_audio_wsola_profile = disabled
+device.RG353M.profile.T36812D64.best_performance.retrorun_egl_depth_bits = 24
+device.RG353M.profile.T36812D64.best_performance.retrorun_egl_stencil_bits = 0
+device.RG353M.profile.T36812D64.best_performance.reicast_hle_bios = enabled
+device.RG353M.profile.T36812D64.best_performance.reicast_gdrom_fast_loading = disabled
+device.RG353M.profile.T36812D64.best_performance.reicast_sh4clock = 200
+device.RG353M.profile.T36812D64.best_performance.reicast_internal_resolution = 640x480
+device.RG353M.profile.T36812D64.best_performance.reicast_framerate = normal
+device.RG353M.profile.T36812D64.best_performance.reicast_loop_declared_fps = false
+device.RG353M.profile.T36812D64.best_performance.reicast_anisotropic_filtering = off
+device.RG353M.profile.T36812D64.best_performance.reicast_threaded_rendering = enabled
+device.RG353M.profile.T36812D64.best_performance.reicast_alpha_sorting = per-triangle (normal)
+device.RG353M.profile.T36812D64.best_performance.reicast_mipmapping = disabled
+device.RG353M.profile.T36812D64.best_performance.reicast_fog = disabled
+device.RG353M.profile.T36812D64.best_performance.reicast_frame_skipping = disabled
+device.RG353M.profile.T36812D64.best_performance.reicast_translucent_strip_merge = menu_guarded
+device.RG353M.profile.T36812D64.best_performance.reicast_translucent_menu_guard_strategy = hud_last
+device.RG353M.profile.T36812D64.best_performance.reicast_texture_storage_reuse = enabled
+device.RG353M.profile.T36812D64.best_performance.reicast_palette_fog_storage_reuse = disabled
+device.RG353M.profile.T36812D64.best_performance.reicast_adjacent_state_elision = disabled
+device.RG353M.profile.T36812D64.best_performance.reicast_fast_depth = menu_guarded
+device.RG353M.profile.T36812D64.best_performance.reicast_audio_mixer = fast
+device.RG353M.profile.T36812D64.best_performance.reicast_opaque_strip_merge = enabled
+device.RG353M.profile.T36812D64.best_performance.reicast_aica_arm_cycles = 16
+
+device.RG353M.profile.T1218M.best_performance.title = Power Stone 2 (Japan, RG353M validated)
+device.RG353M.profile.T1218M.best_performance.retrorun_loop_declared_fps = false
+device.RG353M.profile.T1218M.best_performance.retrorun_audio_buffer = 735
+device.RG353M.profile.T1218M.best_performance.retrorun_audio_stable_buffer = true
+device.RG353M.profile.T1218M.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+device.RG353M.profile.T1218M.best_performance.retrorun_go2_audio_stretch_percent = 0
+device.RG353M.profile.T1218M.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+device.RG353M.profile.T1218M.best_performance.retrorun_go2_audio_wsola_profile = disabled
+device.RG353M.profile.T1218M.best_performance.retrorun_egl_depth_bits = 24
+device.RG353M.profile.T1218M.best_performance.retrorun_egl_stencil_bits = 0
+device.RG353M.profile.T1218M.best_performance.reicast_hle_bios = enabled
+device.RG353M.profile.T1218M.best_performance.reicast_gdrom_fast_loading = disabled
+device.RG353M.profile.T1218M.best_performance.reicast_sh4clock = 200
+device.RG353M.profile.T1218M.best_performance.reicast_internal_resolution = 640x480
+device.RG353M.profile.T1218M.best_performance.reicast_framerate = normal
+device.RG353M.profile.T1218M.best_performance.reicast_loop_declared_fps = false
+device.RG353M.profile.T1218M.best_performance.reicast_anisotropic_filtering = off
+device.RG353M.profile.T1218M.best_performance.reicast_threaded_rendering = enabled
+device.RG353M.profile.T1218M.best_performance.reicast_alpha_sorting = per-triangle (normal)
+device.RG353M.profile.T1218M.best_performance.reicast_mipmapping = disabled
+device.RG353M.profile.T1218M.best_performance.reicast_fog = disabled
+device.RG353M.profile.T1218M.best_performance.reicast_frame_skipping = disabled
+device.RG353M.profile.T1218M.best_performance.reicast_translucent_strip_merge = menu_guarded
+device.RG353M.profile.T1218M.best_performance.reicast_translucent_menu_guard_strategy = hud_last
+device.RG353M.profile.T1218M.best_performance.reicast_texture_storage_reuse = enabled
+device.RG353M.profile.T1218M.best_performance.reicast_palette_fog_storage_reuse = disabled
+device.RG353M.profile.T1218M.best_performance.reicast_adjacent_state_elision = disabled
+device.RG353M.profile.T1218M.best_performance.reicast_fast_depth = menu_guarded
+device.RG353M.profile.T1218M.best_performance.reicast_audio_mixer = fast
+device.RG353M.profile.T1218M.best_performance.reicast_opaque_strip_merge = enabled
+device.RG353M.profile.T1218M.best_performance.reicast_aica_arm_cycles = 16
+
+device.RG353M.profile.T1211N.best_performance.title = Power Stone 2 (USA, RG353M validated)
+device.RG353M.profile.T1211N.best_performance.retrorun_loop_declared_fps = false
+device.RG353M.profile.T1211N.best_performance.retrorun_audio_buffer = 735
+device.RG353M.profile.T1211N.best_performance.retrorun_audio_stable_buffer = true
+device.RG353M.profile.T1211N.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+device.RG353M.profile.T1211N.best_performance.retrorun_go2_audio_stretch_percent = 0
+device.RG353M.profile.T1211N.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+device.RG353M.profile.T1211N.best_performance.retrorun_go2_audio_wsola_profile = disabled
+device.RG353M.profile.T1211N.best_performance.retrorun_egl_depth_bits = 24
+device.RG353M.profile.T1211N.best_performance.retrorun_egl_stencil_bits = 0
+device.RG353M.profile.T1211N.best_performance.reicast_hle_bios = enabled
+device.RG353M.profile.T1211N.best_performance.reicast_gdrom_fast_loading = disabled
+device.RG353M.profile.T1211N.best_performance.reicast_sh4clock = 200
+device.RG353M.profile.T1211N.best_performance.reicast_internal_resolution = 640x480
+device.RG353M.profile.T1211N.best_performance.reicast_framerate = normal
+device.RG353M.profile.T1211N.best_performance.reicast_loop_declared_fps = false
+device.RG353M.profile.T1211N.best_performance.reicast_anisotropic_filtering = off
+device.RG353M.profile.T1211N.best_performance.reicast_threaded_rendering = enabled
+device.RG353M.profile.T1211N.best_performance.reicast_alpha_sorting = per-triangle (normal)
+device.RG353M.profile.T1211N.best_performance.reicast_mipmapping = disabled
+device.RG353M.profile.T1211N.best_performance.reicast_fog = disabled
+device.RG353M.profile.T1211N.best_performance.reicast_frame_skipping = disabled
+device.RG353M.profile.T1211N.best_performance.reicast_translucent_strip_merge = menu_guarded
+device.RG353M.profile.T1211N.best_performance.reicast_translucent_menu_guard_strategy = hud_last
+device.RG353M.profile.T1211N.best_performance.reicast_texture_storage_reuse = enabled
+device.RG353M.profile.T1211N.best_performance.reicast_palette_fog_storage_reuse = disabled
+device.RG353M.profile.T1211N.best_performance.reicast_adjacent_state_elision = disabled
+device.RG353M.profile.T1211N.best_performance.reicast_fast_depth = menu_guarded
+device.RG353M.profile.T1211N.best_performance.reicast_audio_mixer = fast
+device.RG353M.profile.T1211N.best_performance.reicast_opaque_strip_merge = enabled
+device.RG353M.profile.T1211N.best_performance.reicast_aica_arm_cycles = 16
+
 profile.MK-51052.best_validated.title = Skies of Arcadia (baseline)
 
 profile.HDR-0076.best_validated.title = Eternal Arcadia (Japan, baseline)
@@ -1697,6 +1825,7 @@ bool resolveProfile(const std::string &product, Mode mode,
     const bool titleOnlyBaseline =
         mode == Mode::BestValidated && record.settings.empty() &&
         record.inheritance.empty();
+    profile.validated = !titleOnlyBaseline;
     profile.settings = titleOnlyBaseline ? safeDefaults : defaults;
 
     if (!record.inheritance.empty())
@@ -1721,6 +1850,7 @@ bool resolveProfile(const std::string &product, Mode mode,
         }
         profile.settings = inherited.settings;
         profile.title = inherited.title;
+        profile.validated = inherited.validated;
     }
 
     if (!record.title.empty())
@@ -1728,6 +1858,8 @@ bool resolveProfile(const std::string &product, Mode mode,
     profile.settings.insert(record.settings.begin(), record.settings.end());
     for (const auto &[setting, value] : record.settings)
         profile.settings[setting] = value;
+    if (!record.settings.empty())
+        profile.validated = true;
 
     if (profile.title.empty())
         profile.title = product;
@@ -1790,12 +1922,15 @@ bool resolveDeviceProfile(
         }
         profile.settings = globalMode->second.settings;
         profile.title = globalMode->second.title;
+        profile.validated = globalMode->second.validated;
     }
 
     if (!record.title.empty())
         profile.title = record.title;
     for (const auto &[setting, value] : record.settings)
         profile.settings[setting] = value;
+    if (!record.settings.empty())
+        profile.validated = true;
     return true;
 }
 
@@ -2105,11 +2240,13 @@ bool selectProfile(const Catalog &catalog, const std::string &product_number,
                 used_fallback =
                     selected != deviceProduct->second.end();
             }
-            if (selected != deviceProduct->second.end())
+            if (selected != deviceProduct->second.end() &&
+                selected->second.validated)
             {
                 profile = selected->second;
                 return true;
             }
+            used_fallback = false;
         }
     }
 
@@ -2124,11 +2261,41 @@ bool selectProfile(const Catalog &catalog, const std::string &product_number,
         selected = product->second.find(Mode::BestValidated);
         used_fallback = selected != product->second.end();
     }
-    if (selected == product->second.end())
+    if (selected == product->second.end() || !selected->second.validated)
+    {
+        used_fallback = false;
         return false;
+    }
 
     profile = selected->second;
     return true;
+}
+
+std::map<std::string, Profile> validatedCatalogProfiles(
+    const Catalog &catalog)
+{
+    std::map<std::string, Profile> result;
+    const auto addProduct = [&result](
+        const std::string &product,
+        const std::map<Mode, Profile> &profiles)
+    {
+        auto selected = profiles.find(Mode::BestValidated);
+        if (selected == profiles.end() || !selected->second.validated)
+            selected = profiles.find(Mode::BestPerformance);
+        if (selected == profiles.end() || !selected->second.validated)
+            return;
+        result.try_emplace(product, selected->second);
+    };
+
+    for (const auto &[product, profiles] : catalog.profiles)
+        addProduct(product, profiles);
+    for (const auto &[device, products] : catalog.device_profiles)
+    {
+        (void)device;
+        for (const auto &[product, profiles] : products)
+            addProduct(product, profiles);
+    }
+    return result;
 }
 
 std::map<std::string, std::string> settingsForOptionPrefix(

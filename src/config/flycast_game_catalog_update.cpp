@@ -28,7 +28,10 @@ namespace
 constexpr const char *RemoteCatalogUrl =
     "https://raw.githubusercontent.com/navy1978/retrorun/master/"
     "profiles/flycast2022-lowend/flycast-game-catalog.ini";
-constexpr std::size_t MaximumCatalogBytes = 64U * 1024U;
+// The complete retail Product-number map plus device profiles exceeded the
+// original 64 KiB ceiling. Keep a conservative finite limit while allowing
+// the current signed-off catalog and future measured profiles to update.
+constexpr std::size_t MaximumCatalogBytes = 256U * 1024U;
 constexpr std::time_t CheckIntervalSeconds = 24 * 60 * 60;
 
 struct DownloadBuffer

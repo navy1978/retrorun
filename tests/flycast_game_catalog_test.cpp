@@ -16,7 +16,7 @@ void testBuiltInProfiles()
 {
     const Catalog catalog = builtinCatalog();
     assert(catalog.schema_version == 2);
-    assert(catalog.catalog_version == 20260904);
+    assert(catalog.catalog_version == 20260905);
     assert(catalog.profiles.size() == 98);
     assert(catalog.device_profiles.size() == 1);
     assert(normalizeProductNumber("T1401D  50 ") == "T1401D50");
@@ -56,6 +56,17 @@ void testBuiltInProfiles()
     };
     for (const char *product : knownRetailVariants)
         assert(catalog.profiles.count(product) == 1);
+
+    const auto validatedProfiles = validatedCatalogProfiles(catalog);
+    assert(validatedProfiles.count("MK-51117") == 1);
+    assert(validatedProfiles.count("T1211N") == 1);
+    assert(validatedProfiles.count("MK-51003") == 0);
+    assert(catalog.profiles.count("MK-51003") == 1);
+    assert(!selectProfile(catalog, "MK-51003", Mode::BestValidated,
+                          profile, fallback));
+    assert(!fallback);
+    assert(!selectProfile(catalog, "MK-51003", Mode::BestPerformance,
+                          profile, fallback));
 
     assert(selectProfile(catalog, "mk-51117", Mode::BestPerformance,
                          profile, fallback));
@@ -334,13 +345,9 @@ void testBuiltInProfiles()
            "lowend_heavy_100");
     assert(profile.settings.at("retrorun_egl_stencil_bits") == "0");
 
-    assert(selectProfile(catalog, "MK-5100250", Mode::BestPerformance,
-                         profile, fallback));
-    assert(fallback);
-    assert(profile.title ==
-           "The House of the Dead 2 (Europe, observed CHD baseline)");
-    assert(profile.settings.at("reicast_fast_depth") == "disabled");
-    assert(profile.settings.at("reicast_opaque_strip_merge") == "disabled");
+    assert(!selectProfile(catalog, "MK-5100250", Mode::BestPerformance,
+                          profile, fallback));
+    assert(!fallback);
 
     struct Rg353ValidatedProfile
     {
@@ -481,6 +488,72 @@ void testBuiltInProfiles()
     assert(profile.settings.at("reicast_fast_depth") == "menu_guarded");
     assert(profile.settings.at("reicast_aica_arm_cycles") == "16");
 
+    struct PowerStone2Variant
+    {
+        const char *product;
+        const char *title;
+    };
+    const PowerStone2Variant powerStone2Variants[] = {
+        {"T36812D61", "Power Stone 2 (Europe 61, RG353M validated)"},
+        {"T36812D64", "Power Stone 2 (Europe 64, RG353M validated)"},
+        {"T1218M", "Power Stone 2 (Japan, RG353M validated)"},
+        {"T1211N", "Power Stone 2 (USA, RG353M validated)"},
+    };
+    Profile powerStone2Reference;
+    for (const PowerStone2Variant &expected : powerStone2Variants)
+    {
+        assert(selectProfile(catalog, expected.product,
+                             Mode::BestPerformance, profile, fallback,
+                             "rg353m"));
+        assert(!fallback);
+        assert(profile.mode == Mode::BestPerformance);
+        assert(profile.title == expected.title);
+        assert(profile.settings.at("retrorun_loop_declared_fps") == "false");
+        assert(profile.settings.at("retrorun_audio_buffer") == "735");
+        assert(profile.settings.at("retrorun_audio_stable_buffer") == "true");
+        assert(profile.settings.at("retrorun_go2_audio_prebuffer_ms") == "60");
+        assert(profile.settings.at("retrorun_go2_audio_stretch_percent") ==
+               "0");
+        assert(profile.settings.at("retrorun_go2_audio_stretch_low_ms") ==
+               "40");
+        assert(profile.settings.at("retrorun_go2_audio_wsola_profile") ==
+               "disabled");
+        assert(profile.settings.at("retrorun_egl_depth_bits") == "24");
+        assert(profile.settings.at("retrorun_egl_stencil_bits") == "0");
+        assert(profile.settings.at("reicast_hle_bios") == "enabled");
+        assert(profile.settings.at("reicast_gdrom_fast_loading") ==
+               "disabled");
+        assert(profile.settings.at("reicast_internal_resolution") ==
+               "640x480");
+        assert(profile.settings.at("reicast_framerate") == "normal");
+        assert(profile.settings.at("reicast_loop_declared_fps") == "false");
+        assert(profile.settings.at("reicast_anisotropic_filtering") == "off");
+        assert(profile.settings.at("reicast_alpha_sorting") ==
+               "per-triangle (normal)");
+        assert(profile.settings.at("reicast_mipmapping") == "disabled");
+        assert(profile.settings.at("reicast_fog") == "disabled");
+        assert(profile.settings.at("reicast_frame_skipping") == "disabled");
+        assert(profile.settings.at("reicast_translucent_strip_merge") ==
+               "menu_guarded");
+        assert(profile.settings.at(
+                   "reicast_translucent_menu_guard_strategy") == "hud_last");
+        assert(profile.settings.at("reicast_texture_storage_reuse") ==
+               "enabled");
+        assert(profile.settings.at("reicast_palette_fog_storage_reuse") ==
+               "disabled");
+        assert(profile.settings.at("reicast_adjacent_state_elision") ==
+               "disabled");
+        assert(profile.settings.at("reicast_fast_depth") == "menu_guarded");
+        assert(profile.settings.at("reicast_audio_mixer") == "fast");
+        assert(profile.settings.at("reicast_opaque_strip_merge") == "enabled");
+        assert(profile.settings.at("reicast_aica_arm_cycles") == "16");
+
+        if (powerStone2Reference.settings.empty())
+            powerStone2Reference = profile;
+        else
+            assert(profile.settings == powerStone2Reference.settings);
+    }
+
     assert(!selectProfile(catalog, "UNKNOWN", Mode::BestValidated,
                           profile, fallback));
 
@@ -618,7 +691,8 @@ void testVersionedRepositoryCatalogMatchesBuiltIn()
         "T1215N", "MK-51037", "MK-5100250", "MK-51058", "MK-5118450",
         "T38706M", "MK-51054", "HDR-0113", "MK-51059", "MK-51131",
         "HDR-0016", "HDR-0031", "MK-51049", "T7013D50", "T1213N",
-        "T1209M", "MK-51000"
+        "T1209M", "MK-51000", "T36812D61", "T36812D64", "T1218M",
+        "T1211N"
     };
     for (const char *product : rg353Products)
     {
@@ -663,7 +737,8 @@ void testExternalCatalogParsing()
         "profile.TEST-1.best_validated.title = Test Game\n"
         "profile.TEST-1.best_validated.reicast_audio_mixer = accurate\n"
         "profile.TEST-1.best_performance.inherits = best_validated\n"
-        "profile.TEST-1.best_performance.reicast_fast_depth = vertex_fast_log\n");
+        "profile.TEST-1.best_performance.reicast_fast_depth = vertex_fast_log\n"
+        "profile.META.best_validated.title = Metadata Only (baseline)\n");
 
     Catalog catalog;
     std::vector<std::string> diagnostics;
@@ -679,6 +754,11 @@ void testExternalCatalogParsing()
     assert(profile.title == "Test Game");
     assert(profile.settings.at("reicast_audio_mixer") == "accurate");
     assert(profile.settings.at("reicast_fast_depth") == "vertex_fast_log");
+    assert(catalog.profiles.count("META") == 1);
+    assert(validatedCatalogProfiles(catalog).count("META") == 0);
+    assert(!selectProfile(catalog, "META", Mode::BestValidated,
+                          profile, fallback));
+    assert(!fallback);
 }
 
 void testInvalidCatalogIsRejected()
