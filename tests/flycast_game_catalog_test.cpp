@@ -16,7 +16,7 @@ void testBuiltInProfiles()
 {
     const Catalog catalog = builtinCatalog();
     assert(catalog.schema_version == 2);
-    assert(catalog.catalog_version == 20260903);
+    assert(catalog.catalog_version == 20260904);
     assert(catalog.profiles.size() == 98);
     assert(catalog.device_profiles.size() == 1);
     assert(normalizeProductNumber("T1401D  50 ") == "T1401D50");
@@ -100,6 +100,41 @@ void testBuiltInProfiles()
         else
             assert(profile.settings == sonicReference.settings);
     }
+
+    assert(selectProfile(catalog, "MK-51000", Mode::BestPerformance,
+                         profile, fallback, "rg353m"));
+    assert(!fallback);
+    assert(profile.mode == Mode::BestPerformance);
+    assert(profile.title ==
+           "Sonic Adventure (Europe / North America, RG353M validated)");
+    assert(profile.settings.at("retrorun_loop_declared_fps") == "false");
+    assert(profile.settings.at("retrorun_audio_buffer") == "735");
+    assert(profile.settings.at("retrorun_audio_stable_buffer") == "false");
+    assert(profile.settings.at("retrorun_go2_audio_prebuffer_ms") == "60");
+    assert(profile.settings.at("retrorun_go2_audio_stretch_percent") == "0");
+    assert(profile.settings.at("retrorun_go2_audio_stretch_low_ms") == "40");
+    assert(profile.settings.at("retrorun_go2_audio_wsola_profile") ==
+           "disabled");
+    assert(profile.settings.at("reicast_internal_resolution") == "640x480");
+    assert(profile.settings.at("reicast_anisotropic_filtering") == "off");
+    assert(profile.settings.at("reicast_frame_skipping") == "disabled");
+    assert(profile.settings.at("reicast_hle_bios") == "enabled");
+    assert(profile.settings.at("reicast_gdrom_fast_loading") == "disabled");
+    assert(profile.settings.at("reicast_mipmapping") == "disabled");
+    assert(profile.settings.at("reicast_fog") == "disabled");
+    assert(profile.settings.at("reicast_alpha_sorting") ==
+           "per-triangle (normal)");
+    assert(profile.settings.at("reicast_translucent_strip_merge") ==
+           "disabled");
+    assert(profile.settings.at("reicast_texture_storage_reuse") ==
+           "disabled");
+    assert(profile.settings.at("reicast_fast_depth") == "vertex_fast_log");
+    assert(profile.settings.at("reicast_opaque_strip_merge") == "enabled");
+    assert(profile.settings.at("retrorun_egl_stencil_bits") == "0");
+    assert(profile.settings.at("reicast_aica_arm_cycles") == "24");
+    assert(profile.settings.at("reicast_framerate") == "fullspeed");
+    assert(profile.settings.at("reicast_loop_declared_fps") == "false");
+    assert(profile.settings.at("reicast_audio_mixer") == "lowend");
 
     assert(selectProfile(catalog, "RDC-0149", Mode::BestPerformance,
                         profile, fallback));
@@ -583,7 +618,7 @@ void testVersionedRepositoryCatalogMatchesBuiltIn()
         "T1215N", "MK-51037", "MK-5100250", "MK-51058", "MK-5118450",
         "T38706M", "MK-51054", "HDR-0113", "MK-51059", "MK-51131",
         "HDR-0016", "HDR-0031", "MK-51049", "T7013D50", "T1213N",
-        "T1209M"
+        "T1209M", "MK-51000"
     };
     for (const char *product : rg353Products)
     {

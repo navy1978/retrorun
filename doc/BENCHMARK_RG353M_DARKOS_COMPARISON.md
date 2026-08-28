@@ -16,6 +16,8 @@
 | Sonic — instrumented dArkOS 2.7.7, profiled dArkOS Flycast | 47.829 | 20.901 ms | 8.757 ms |
 | Soul Calibur — instrumented dArkOS 2.7.7, original dArkOS Flycast | 57.387 | 17.418 ms | 7.137 ms |
 | Soul Calibur — current RetroRun, RK3566 Flycast and catalog | 58.860 | 9.387 ms | 7.590 ms |
+| Sonic Adventure — dArkOS stock stack, fixed gameplay state | 25.592 | — | — |
+| Sonic Adventure — current RetroRun, RK3566 Flycast and catalog | 27.965 | — | — |
 
 Core-time fields from the two RetroRun generations are not directly
 comparable. The dArkOS 2.7.7 probe measures `retro_run` including its nested
@@ -30,6 +32,9 @@ and is directly comparable.
   same original dArkOS core; replacing the frontend did not cause the slowdown.
 - The current Soul Calibur stack reaches 58.860 FPS, 2.6% above the measured
   original dArkOS stack.
+- The RG353M Sonic Adventure catalog profile reaches 27.965 FPS, 9.3% above
+  stock, improves active-frame p95 from 69.22 to 64.11 ms and eliminates the
+  two stock audio underruns/empty-queue events in the fixed gameplay state.
 - The old menu's 51 FPS for Sonic was an upward-biased average of partial
   per-frame estimates. The fixed-window probe measured 47.722 FPS.
 

@@ -21,7 +21,7 @@ constexpr const char *CatalogFilename = "flycast-game-catalog.ini";
 
 const char *BuiltinCatalogText = R"catalog(
 schema_version = 2
-catalog_version = 20260903
+catalog_version = 20260904
 
 default.retrorun_vsync = false
 default.retrorun_loop_declared_fps = true
@@ -749,6 +749,18 @@ profile.MK-51000.best_performance.reicast_aica_arm_cycles = 24
 profile.MK-51000.best_performance.reicast_framerate = fullspeed
 profile.MK-51000.best_performance.reicast_loop_declared_fps = false
 profile.MK-51000.best_performance.reicast_audio_mixer = lowend
+
+device.RG353M.profile.MK-51000.best_performance.title = Sonic Adventure (Europe / North America, RG353M validated)
+device.RG353M.profile.MK-51000.best_performance.retrorun_loop_declared_fps = false
+device.RG353M.profile.MK-51000.best_performance.retrorun_audio_buffer = 735
+device.RG353M.profile.MK-51000.best_performance.retrorun_audio_stable_buffer = false
+device.RG353M.profile.MK-51000.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+device.RG353M.profile.MK-51000.best_performance.retrorun_go2_audio_stretch_percent = 0
+device.RG353M.profile.MK-51000.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+device.RG353M.profile.MK-51000.best_performance.retrorun_go2_audio_wsola_profile = disabled
+device.RG353M.profile.MK-51000.best_performance.reicast_internal_resolution = 640x480
+device.RG353M.profile.MK-51000.best_performance.reicast_anisotropic_filtering = off
+device.RG353M.profile.MK-51000.best_performance.reicast_frame_skipping = disabled
 
 profile.HDR-0001.best_validated.title = Sonic Adventure (Japan, baseline)
 
