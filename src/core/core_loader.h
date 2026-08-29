@@ -37,6 +37,10 @@ struct RetroCore {
     // If unsupported by the core, this pointer stays null and the frontend skips
     // pressure updates.
     void (*flycast_retrorun_set_audio_queue_status_v1)(unsigned, unsigned);
+
+    // Optional identifier for separately packaged Flycast implementations.
+    // RetroRun uses it to avoid repeatedly restarting into the same core.
+    const char *(*flycast_retrorun_core_variant_v1)(void);
 };
 
 extern RetroCore g_retro;
@@ -67,6 +71,7 @@ bool core_reset_synchronized();
 // content whose Dreamcast IP metadata cannot be read before retro_load_game().
 bool core_probe_flycast_product_number(const char *filename,
                                        std::string &product_number);
+std::string core_flycast_variant();
 
 // The libretro environment callback
 bool core_environment(unsigned cmd, void *data);

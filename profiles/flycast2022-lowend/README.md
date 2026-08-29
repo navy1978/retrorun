@@ -9,7 +9,7 @@ See [GAME_PROFILE_MODES.md](GAME_PROFILE_MODES.md) for the implemented
 current per-game differences.
 
 `flycast-game-catalog.ini` is the editable source form of catalog version
-`20260905`. The same data is built into RetroRun, so the feature works when
+`20260914`. The same data is built into RetroRun, so the feature works when
 distributions install only the executable. A copy beside RetroRun is used only
 when its `catalog_version` is greater than the built-in version.
 
@@ -28,6 +28,14 @@ starting point. Unknown Product numbers behave the same way.
 
 The filename includes the Dreamcast product number printed by Flycast at boot.
 Select profiles by product number rather than by ROM filename:
+
+RG353M profiles that passed validation with the experimental upstream
+`62085539` dynarec request `retrorun_flycast_core_variant = upstream_620`.
+RetroRun then restarts once, before loading content, with
+`flycast_upstream_620_libretro.so` beside the originally requested core. An
+explicit `retrorun_flycast_upstream_620_core` path may be configured instead.
+If that file is absent, RetroRun logs the condition and safely retains the
+normal core. RG351-class profiles never request this variant.
 
 | Product number | Game | Status |
 | --- | --- | --- |

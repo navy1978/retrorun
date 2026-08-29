@@ -689,6 +689,8 @@ void core_load(const char *sofile)
     load_sym(set_audio_sample_batch, retro_set_audio_sample_batch);
     load_optional_retro_sym(g_retro.flycast_retrorun_set_audio_queue_status_v1,
                             "flycast_retrorun_set_audio_queue_status_v1");
+    load_optional_retro_sym(g_retro.flycast_retrorun_core_variant_v1,
+                            "flycast_retrorun_core_variant_v1");
 
     set_environment(core_environment);
     set_video_refresh(core_video_refresh);
@@ -749,6 +751,14 @@ bool core_probe_flycast_product_number(const char *filename,
         return false;
     product_number = buffer;
     return true;
+}
+
+std::string core_flycast_variant()
+{
+    if (!g_retro.flycast_retrorun_core_variant_v1)
+        return {};
+    const char *variant = g_retro.flycast_retrorun_core_variant_v1();
+    return variant ? variant : "";
 }
 
 // --- Core load game ---

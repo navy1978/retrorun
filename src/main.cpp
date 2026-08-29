@@ -98,6 +98,7 @@ struct FlycastCatalogStatus
 
 static FlycastCatalogStatus flycastCatalogStatus;
 static rr::flycast_profiles::Catalog flycastMenuCatalog;
+static std::string flycastRequestedCoreVariant;
 
 static std::string flycastFrameSkippingMode()
 {
@@ -112,6 +113,87 @@ static std::string flycastFrameSkippingMode()
 static bool flycastFrameSkippingNeedsAudioPressure(const std::string& mode)
 {
     return mode == "adaptive" || mode == "adaptive-balanced";
+}
+
+static std::string siblingCorePath(const std::string &corePath,
+                                   const std::string &filename)
+{
+    const std::size_t separator = corePath.find_last_of('/');
+    if (separator == std::string::npos)
+        return filename;
+    return corePath.substr(0, separator + 1) + filename;
+}
+
+static void maybeRestartWithFlycastCoreVariant(int argc, char *argv[],
+                                                int coreArgumentIndex)
+{
+    if (flycastRequestedCoreVariant.empty() ||
+        flycastRequestedCoreVariant == "lowend")
+        return;
+
+    const std::string activeVariant = core_flycast_variant();
+    if (activeVariant == flycastRequestedCoreVariant)
+    {
+        logger.log(Logger::INF, "Flycast core variant: using '%s'.",
+                   activeVariant.c_str());
+        return;
+    }
+
+    if (flycastRequestedCoreVariant != "upstream_620")
+    {
+        logger.log(Logger::WARN,
+                   "Flycast core variant '%s' is not supported; retaining '%s'.",
+                   flycastRequestedCoreVariant.c_str(),
+                   activeVariant.empty() ? "unidentified" : activeVariant.c_str());
+        return;
+    }
+
+    std::string alternateCore =
+        configValue("retrorun_flycast_upstream_620_core");
+    if (alternateCore.empty())
+        alternateCore = siblingCorePath(
+            arg_core, "flycast_upstream_620_libretro.so");
+
+    if (!fileExists(alternateCore.c_str()))
+    {
+        logger.log(Logger::WARN,
+                   "Flycast core variant '%s' requested, but '%s' is missing; retaining current core.",
+                   flycastRequestedCoreVariant.c_str(), alternateCore.c_str());
+        return;
+    }
+
+    const char *restartAttempt =
+        std::getenv("RETRORUN_FLYCAST_VARIANT_RESTARTED");
+    if (restartAttempt && std::strcmp(restartAttempt, "1") == 0)
+    {
+        logger.log(Logger::ERR,
+                   "Flycast core variant restart did not load '%s'; refusing a restart loop.",
+                   flycastRequestedCoreVariant.c_str());
+        return;
+    }
+
+    std::vector<char *> restartArguments;
+    restartArguments.reserve(static_cast<std::size_t>(argc) + 1);
+    for (int index = 0; index < argc; ++index)
+    {
+        restartArguments.push_back(
+            index == coreArgumentIndex
+                ? const_cast<char *>(alternateCore.c_str())
+                : argv[index]);
+    }
+    restartArguments.push_back(nullptr);
+
+    logger.log(Logger::INF,
+               "Flycast core variant: restarting with '%s' from '%s'.",
+               flycastRequestedCoreVariant.c_str(), alternateCore.c_str());
+    // execv() does not flush redirected stdio streams. Preserve the first
+    // process' diagnostics so the log records both sides of the hand-off.
+    std::fflush(nullptr);
+    setenv("RETRORUN_FLYCAST_VARIANT_RESTARTED", "1", 1);
+    execv("/proc/self/exe", restartArguments.data());
+    logger.log(Logger::ERR,
+               "Unable to restart RetroRun with Flycast core '%s': %s.",
+               alternateCore.c_str(), std::strerror(errno));
 }
 
 // --- Command line options ---
@@ -297,6 +379,7 @@ static void applyFlycastGameCatalog(const char *executable,
 
     flycastCatalogStatus = {};
     flycastMenuCatalog = {};
+    flycastRequestedCoreVariant.clear();
     if (!isFlycast2021())
         return;
 
@@ -430,6 +513,11 @@ static void applyFlycastGameCatalog(const char *executable,
     flycastCatalogStatus.applied = modeName(profile.mode);
     if (usedFallback)
         flycastCatalogStatus.applied += " fallback";
+
+    const auto coreVariant =
+        profile.settings.find("retrorun_flycast_core_variant");
+    if (coreVariant != profile.settings.end())
+        flycastRequestedCoreVariant = coreVariant->second;
 
     // Catalog files use reicast_* as the canonical Flycast option namespace.
     // AmberELEC gives its parallel cores distinct option namespaces, so adapt
@@ -634,6 +722,7 @@ int main(int argc, char *argv[])
             logger.log(Logger::DEB, " - %s ", argv[optind++]);
     }
 
+    const int coreArgumentIndex = remaining_index;
     arg_core = argv[remaining_index++];
     arg_rom = argv[remaining_index++];
 
@@ -643,6 +732,7 @@ int main(int argc, char *argv[])
     core_load(arg_core);
 
     applyFlycastGameCatalog(argv[0], arg_rom);
+    maybeRestartWithFlycastCoreVariant(argc, argv, coreArgumentIndex);
 
     if (isSwanStation() && (isRG351V() || isRG351MP()))
         opt_aspect = 0.75f;

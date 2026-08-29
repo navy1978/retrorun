@@ -16,7 +16,7 @@ void testBuiltInProfiles()
 {
     const Catalog catalog = builtinCatalog();
     assert(catalog.schema_version == 2);
-    assert(catalog.catalog_version == 20260913);
+    assert(catalog.catalog_version == 20260914);
     assert(catalog.profiles.size() == 98);
     assert(catalog.device_profiles.size() == 1);
     assert(normalizeProductNumber("T1401D  50 ") == "T1401D50");
@@ -225,6 +225,28 @@ void testBuiltInProfiles()
         else
             assert(profile.settings == segaRallyReference.settings);
     }
+
+    const char *upstream620Variants[] = {
+        "T1401D50", "T1401N", "T1401M", "MK-51058",
+        "T36801D61", "T36801D64", "T1201M", "T1201N",
+        "MK-51049", "MK-51019", "HDR-0010",
+        "T7013D50", "T1213N", "T1209M"
+    };
+    for (const char *product : upstream620Variants)
+    {
+        assert(selectProfile(catalog, product, Mode::BestPerformance,
+                             profile, fallback, "RG353M"));
+        assert(profile.settings.at("retrorun_flycast_core_variant") ==
+               "upstream_620");
+
+        if (selectProfile(catalog, product, Mode::BestPerformance,
+                          profile, fallback, "RG351MP"))
+            assert(profile.settings.count("retrorun_flycast_core_variant") == 0);
+    }
+
+    assert(selectProfile(catalog, "RDC-0140", Mode::BestPerformance,
+                         profile, fallback, "RG353M"));
+    assert(profile.settings.count("retrorun_flycast_core_variant") == 0);
 
     assert(selectProfile(catalog, "T1215N", Mode::BestPerformance,
                          profile, fallback));

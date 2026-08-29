@@ -21,7 +21,7 @@ constexpr const char *CatalogFilename = "flycast-game-catalog.ini";
 
 const char *BuiltinCatalogText = R"catalog(
 schema_version = 2
-catalog_version = 20260913
+catalog_version = 20260914
 
 default.retrorun_vsync = false
 default.retrorun_loop_declared_fps = true
@@ -442,6 +442,7 @@ profile.T1401M.best_performance.reicast_opaque_strip_merge = enabled
 profile.T1401M.best_performance.retrorun_egl_stencil_bits = 0
 
 device.RG353M.profile.T1401D50.best_performance.title = Soul Calibur (Europe, RG353M validated)
+device.RG353M.profile.T1401D50.best_performance.retrorun_flycast_core_variant = upstream_620
 device.RG353M.profile.T1401D50.best_performance.retrorun_loop_declared_fps = false
 device.RG353M.profile.T1401D50.best_performance.retrorun_audio_buffer = 735
 device.RG353M.profile.T1401D50.best_performance.retrorun_audio_stable_buffer = true
@@ -462,6 +463,7 @@ device.RG353M.profile.T1401D50.best_performance.reicast_opaque_strip_merge = ena
 device.RG353M.profile.T1401D50.best_performance.reicast_aica_arm_cycles = 32
 
 device.RG353M.profile.T1401N.best_performance.title = Soul Calibur (North America, RG353M validated)
+device.RG353M.profile.T1401N.best_performance.retrorun_flycast_core_variant = upstream_620
 device.RG353M.profile.T1401N.best_performance.retrorun_loop_declared_fps = false
 device.RG353M.profile.T1401N.best_performance.retrorun_audio_buffer = 735
 device.RG353M.profile.T1401N.best_performance.retrorun_audio_stable_buffer = true
@@ -482,6 +484,7 @@ device.RG353M.profile.T1401N.best_performance.reicast_opaque_strip_merge = enabl
 device.RG353M.profile.T1401N.best_performance.reicast_aica_arm_cycles = 32
 
 device.RG353M.profile.T1401M.best_performance.title = Soul Calibur (Japan, RG353M validated)
+device.RG353M.profile.T1401M.best_performance.retrorun_flycast_core_variant = upstream_620
 device.RG353M.profile.T1401M.best_performance.retrorun_loop_declared_fps = false
 device.RG353M.profile.T1401M.best_performance.retrorun_audio_buffer = 735
 device.RG353M.profile.T1401M.best_performance.retrorun_audio_stable_buffer = true
@@ -1017,6 +1020,7 @@ profile.MK-51058.best_validated.reicast_opaque_strip_merge = enabled
 profile.MK-51058.best_validated.reicast_aica_arm_cycles = 32
 
 device.RG353M.profile.MK-51058.best_performance.title = Jet Grind Radio (USA, RG353M validated)
+device.RG353M.profile.MK-51058.best_performance.retrorun_flycast_core_variant = upstream_620
 device.RG353M.profile.MK-51058.best_performance.retrorun_loop_declared_fps = false
 device.RG353M.profile.MK-51058.best_performance.retrorun_audio_buffer = 735
 device.RG353M.profile.MK-51058.best_performance.retrorun_audio_stable_buffer = true
@@ -1098,6 +1102,7 @@ profile.T1201M.best_validated.title = Power Stone (Japan, baseline)
 profile.T1201N.best_validated.title = Power Stone (USA, baseline)
 
 device.RG353M.profile.T36801D61.best_performance.title = Power Stone (Europe 61, RG353M candidate)
+device.RG353M.profile.T36801D61.best_performance.retrorun_flycast_core_variant = upstream_620
 device.RG353M.profile.T36801D61.best_performance.retrorun_adaptive_frameskip = false
 device.RG353M.profile.T36801D61.best_performance.retrorun_frameskip = 0
 device.RG353M.profile.T36801D61.best_performance.retrorun_loop_declared_fps = false
@@ -1137,6 +1142,7 @@ device.RG353M.profile.T36801D61.best_performance.reicast_opaque_strip_merge = en
 device.RG353M.profile.T36801D61.best_performance.reicast_aica_arm_cycles = 16
 
 device.RG353M.profile.T36801D64.best_performance.title = Power Stone (Europe 64, RG353M candidate)
+device.RG353M.profile.T36801D64.best_performance.retrorun_flycast_core_variant = upstream_620
 device.RG353M.profile.T36801D64.best_performance.retrorun_adaptive_frameskip = false
 device.RG353M.profile.T36801D64.best_performance.retrorun_frameskip = 0
 device.RG353M.profile.T36801D64.best_performance.retrorun_loop_declared_fps = false
@@ -1176,6 +1182,7 @@ device.RG353M.profile.T36801D64.best_performance.reicast_opaque_strip_merge = en
 device.RG353M.profile.T36801D64.best_performance.reicast_aica_arm_cycles = 16
 
 device.RG353M.profile.T1201M.best_performance.title = Power Stone (Japan, RG353M candidate)
+device.RG353M.profile.T1201M.best_performance.retrorun_flycast_core_variant = upstream_620
 device.RG353M.profile.T1201M.best_performance.retrorun_adaptive_frameskip = false
 device.RG353M.profile.T1201M.best_performance.retrorun_frameskip = 0
 device.RG353M.profile.T1201M.best_performance.retrorun_loop_declared_fps = false
@@ -1215,6 +1222,7 @@ device.RG353M.profile.T1201M.best_performance.reicast_opaque_strip_merge = enabl
 device.RG353M.profile.T1201M.best_performance.reicast_aica_arm_cycles = 16
 
 device.RG353M.profile.T1201N.best_performance.title = Power Stone (USA, RG353M candidate)
+device.RG353M.profile.T1201N.best_performance.retrorun_flycast_core_variant = upstream_620
 device.RG353M.profile.T1201N.best_performance.retrorun_adaptive_frameskip = false
 device.RG353M.profile.T1201N.best_performance.retrorun_frameskip = 0
 device.RG353M.profile.T1201N.best_performance.retrorun_loop_declared_fps = false
@@ -1288,6 +1296,7 @@ profile.MK-51049.best_performance.title = ChuChu Rocket (USA, RG351V)
 profile.MK-51049.best_performance.inherits = best_validated
 
 device.RG353M.profile.MK-51049.best_performance.title = ChuChu Rocket (USA, RG353M validated)
+device.RG353M.profile.MK-51049.best_performance.retrorun_flycast_core_variant = upstream_620
 device.RG353M.profile.MK-51049.best_performance.reicast_internal_resolution = 640x480
 device.RG353M.profile.MK-51049.best_performance.reicast_framerate = normal
 device.RG353M.profile.MK-51049.best_performance.reicast_anisotropic_filtering = off
@@ -1506,6 +1515,7 @@ profile.MK-51019.best_validated.title = Sega Rally 2 (baseline)
 profile.HDR-0010.best_validated.title = Sega Rally 2 (Japan, baseline)
 
 device.RG353M.profile.MK-51019.best_performance.title = Sega Rally 2 (RG353M validated)
+device.RG353M.profile.MK-51019.best_performance.retrorun_flycast_core_variant = upstream_620
 device.RG353M.profile.MK-51019.best_performance.retrorun_loop_declared_fps = false
 device.RG353M.profile.MK-51019.best_performance.retrorun_audio_buffer = 735
 device.RG353M.profile.MK-51019.best_performance.retrorun_audio_stable_buffer = false
@@ -1530,6 +1540,7 @@ device.RG353M.profile.MK-51019.best_performance.reicast_audio_mixer = accurate
 device.RG353M.profile.MK-51019.best_performance.reicast_aica_arm_cycles = 32
 
 device.RG353M.profile.HDR-0010.best_performance.title = Sega Rally 2 (Japan, RG353M validated)
+device.RG353M.profile.HDR-0010.best_performance.retrorun_flycast_core_variant = upstream_620
 device.RG353M.profile.HDR-0010.best_performance.retrorun_loop_declared_fps = false
 device.RG353M.profile.HDR-0010.best_performance.retrorun_audio_buffer = 735
 device.RG353M.profile.HDR-0010.best_performance.retrorun_audio_stable_buffer = false
@@ -1762,6 +1773,7 @@ profile.T1209M.best_performance.title = Street Fighter III: 3rd Strike (Japan, b
 profile.T1209M.best_performance.inherits = best_validated
 
 device.RG353M.profile.T7013D50.best_performance.title = Street Fighter III: 3rd Strike (Europe, RG353M validated)
+device.RG353M.profile.T7013D50.best_performance.retrorun_flycast_core_variant = upstream_620
 device.RG353M.profile.T7013D50.best_performance.reicast_internal_resolution = 640x480
 device.RG353M.profile.T7013D50.best_performance.reicast_anisotropic_filtering = off
 device.RG353M.profile.T7013D50.best_performance.retrorun_loop_declared_fps = false
@@ -1779,6 +1791,7 @@ device.RG353M.profile.T7013D50.best_performance.reicast_fast_depth = menu_guarde
 device.RG353M.profile.T7013D50.best_performance.reicast_audio_mixer = lowend
 
 device.RG353M.profile.T1213N.best_performance.title = Street Fighter III: 3rd Strike (USA, RG353M validated)
+device.RG353M.profile.T1213N.best_performance.retrorun_flycast_core_variant = upstream_620
 device.RG353M.profile.T1213N.best_performance.reicast_internal_resolution = 640x480
 device.RG353M.profile.T1213N.best_performance.reicast_anisotropic_filtering = off
 device.RG353M.profile.T1213N.best_performance.retrorun_loop_declared_fps = false
@@ -1796,6 +1809,7 @@ device.RG353M.profile.T1213N.best_performance.reicast_fast_depth = menu_guarded_
 device.RG353M.profile.T1213N.best_performance.reicast_audio_mixer = lowend
 
 device.RG353M.profile.T1209M.best_performance.title = Street Fighter III: 3rd Strike (Japan, RG353M validated)
+device.RG353M.profile.T1209M.best_performance.retrorun_flycast_core_variant = upstream_620
 device.RG353M.profile.T1209M.best_performance.reicast_internal_resolution = 640x480
 device.RG353M.profile.T1209M.best_performance.reicast_anisotropic_filtering = off
 device.RG353M.profile.T1209M.best_performance.retrorun_loop_declared_fps = false
@@ -1950,6 +1964,7 @@ const std::unordered_set<std::string> &allowedSettings()
         "retrorun_egl_stencil_bits",
         "retrorun_force_audio_multithread",
         "retrorun_force_video_multithread",
+        "retrorun_flycast_core_variant",
         "retrorun_frameskip",
         "retrorun_go2_audio_prebuffer_ms",
         "retrorun_go2_audio_stretch_low_ms",
