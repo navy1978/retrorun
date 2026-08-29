@@ -16,7 +16,7 @@ void testBuiltInProfiles()
 {
     const Catalog catalog = builtinCatalog();
     assert(catalog.schema_version == 2);
-    assert(catalog.catalog_version == 20260905);
+    assert(catalog.catalog_version == 20260913);
     assert(catalog.profiles.size() == 98);
     assert(catalog.device_profiles.size() == 1);
     assert(normalizeProductNumber("T1401D  50 ") == "T1401D50");
@@ -167,8 +167,8 @@ void testBuiltInProfiles()
     assert(profile.settings.at("retrorun_loop_declared_fps") == "false");
     assert(profile.settings.at("retrorun_go2_audio_wsola_profile") ==
            "disabled");
-    assert(profile.settings.at("reicast_audio_mixer") == "lowend");
-    assert(profile.settings.at("reicast_aica_arm_cycles") == "8");
+    assert(profile.settings.at("reicast_audio_mixer") == "accurate");
+    assert(profile.settings.at("reicast_aica_arm_cycles") == "32");
 
     assert(selectProfile(catalog, "RDC-0140", Mode::BestPerformance,
                          profile, fallback, "RG353M"));
@@ -179,8 +179,20 @@ void testBuiltInProfiles()
 
     const auto mixedSettings =
         settingsForOptionPrefix(profile.settings, "flycast2021_");
-    assert(mixedSettings.at("flycast2021_aica_arm_cycles") == "8");
+    assert(mixedSettings.at("flycast2021_aica_arm_cycles") == "32");
     assert(mixedSettings.at("flycast2021_framerate") == "normal");
+
+    const char *doa2Rg353Variants[] = {
+        "RDC-0140", "RDC-0149", "T8116D50", "T3602M", "T3601M", "T3601N"
+    };
+    for (const char *product : doa2Rg353Variants)
+    {
+        assert(selectProfile(catalog, product, Mode::BestValidated,
+                             profile, fallback, "RG353M"));
+        assert(!fallback);
+        assert(profile.settings.at("reicast_audio_mixer") == "accurate");
+        assert(profile.settings.at("reicast_aica_arm_cycles") == "32");
+    }
 
     const char *segaRallyVariants[] = {"MK-51019", "HDR-0010"};
     Profile segaRallyReference;
@@ -199,7 +211,7 @@ void testBuiltInProfiles()
                "60");
         assert(profile.settings.at("retrorun_go2_audio_wsola_profile") ==
                "disabled");
-        assert(profile.settings.at("reicast_sh4clock") == "200");
+        assert(profile.settings.at("reicast_sh4clock") == "96");
         assert(profile.settings.at("reicast_internal_resolution") ==
                "640x480");
         assert(profile.settings.at("reicast_alpha_sorting") ==
@@ -419,6 +431,77 @@ void testBuiltInProfiles()
     assert(profile.settings.at("reicast_anisotropic_filtering") == "off");
     assert(profile.settings.at("reicast_alpha_sorting") ==
            "per-triangle (normal)");
+
+    const char *marvelRg353Variants[] = {"T1212N", "T7010D50", "T1215M"};
+    Profile marvelRg353Reference;
+    for (const char *product : marvelRg353Variants)
+    {
+        assert(selectProfile(catalog, product, Mode::BestPerformance,
+                             profile, fallback, "rg353m"));
+        assert(!fallback);
+        assert(profile.settings.at("retrorun_loop_declared_fps") == "false");
+        assert(profile.settings.at("retrorun_audio_buffer") == "735");
+        assert(profile.settings.at("retrorun_audio_stable_buffer") == "false");
+        assert(profile.settings.at("retrorun_go2_audio_prebuffer_ms") == "60");
+        assert(profile.settings.at("retrorun_go2_audio_wsola_profile") ==
+               "disabled");
+        assert(profile.settings.at("reicast_alpha_sorting") ==
+               "per-triangle (normal)");
+        assert(profile.settings.at("reicast_frame_skipping") == "disabled");
+        assert(profile.settings.at("reicast_audio_mixer") == "fast");
+        assert(profile.settings.at("reicast_aica_arm_cycles") == "16");
+        if (marvelRg353Reference.settings.empty())
+            marvelRg353Reference = profile;
+        else
+            assert(profile.settings == marvelRg353Reference.settings);
+    }
+
+    const char *powerStoneVariants[] = {
+        "T36801D61", "T36801D64", "T1201M", "T1201N"
+    };
+    Profile powerStoneReference;
+    for (const char *product : powerStoneVariants)
+    {
+        assert(selectProfile(catalog, product, Mode::BestPerformance,
+                             profile, fallback, "rg353m"));
+        assert(!fallback);
+        assert(profile.settings.at("retrorun_loop_declared_fps") == "false");
+        assert(profile.settings.at("retrorun_audio_buffer") == "735");
+        assert(profile.settings.at("retrorun_audio_stable_buffer") == "false");
+        assert(profile.settings.at("retrorun_go2_audio_prebuffer_ms") == "60");
+        assert(profile.settings.at("reicast_alpha_sorting") ==
+               "per-strip (fast, least accurate)");
+        assert(profile.settings.at("reicast_translucent_strip_merge") ==
+               "menu_guarded");
+        assert(profile.settings.at("reicast_fast_depth") == "menu_guarded");
+        assert(profile.settings.at("reicast_audio_mixer") == "fast");
+        assert(profile.settings.at("reicast_opaque_strip_merge") == "enabled");
+        assert(profile.settings.at("reicast_aica_arm_cycles") == "16");
+        if (powerStoneReference.settings.empty())
+            powerStoneReference = profile;
+        else
+            assert(profile.settings == powerStoneReference.settings);
+    }
+
+    const char *crazyTaxiVariants[] = {"MK-51035", "HDR-0053"};
+    Profile crazyTaxiReference;
+    for (const char *product : crazyTaxiVariants)
+    {
+        assert(selectProfile(catalog, product, Mode::BestPerformance,
+                             profile, fallback, "rg353m"));
+        assert(!fallback);
+        assert(profile.settings.at("retrorun_audio_buffer") == "735");
+        assert(profile.settings.at("retrorun_audio_stable_buffer") == "false");
+        assert(profile.settings.at("reicast_alpha_sorting") ==
+               "per-strip (fast, least accurate)");
+        assert(profile.settings.at("reicast_fast_depth") == "disabled");
+        assert(profile.settings.at("reicast_opaque_strip_merge") == "enabled");
+        assert(profile.settings.at("reicast_aica_arm_cycles") == "16");
+        if (crazyTaxiReference.settings.empty())
+            crazyTaxiReference = profile;
+        else
+            assert(profile.settings == crazyTaxiReference.settings);
+    }
 
     const char *virtuaTennisVariants[] = {"MK-51054", "HDR-0113"};
     for (const char *product : virtuaTennisVariants)
