@@ -16,9 +16,9 @@ void testBuiltInProfiles()
 {
     const Catalog catalog = builtinCatalog();
     assert(catalog.schema_version == 2);
-    assert(catalog.catalog_version == 20260914);
+    assert(catalog.catalog_version == 20260915);
     assert(catalog.profiles.size() == 98);
-    assert(catalog.device_profiles.size() == 1);
+    assert(catalog.device_profiles.size() == 2);
     assert(normalizeProductNumber("T1401D  50 ") == "T1401D50");
     assert(catalog.safe_defaults.at("reicast_alpha_sorting") ==
            "per-triangle (normal)");
@@ -232,6 +232,9 @@ void testBuiltInProfiles()
         "MK-51049", "MK-51019", "HDR-0010",
         "T7013D50", "T1213N", "T1209M"
     };
+    const std::set<std::string> rg351MpUpstream620 = {
+        "T7013D50", "T1213N", "T1209M"
+    };
     for (const char *product : upstream620Variants)
     {
         assert(selectProfile(catalog, product, Mode::BestPerformance,
@@ -241,7 +244,14 @@ void testBuiltInProfiles()
 
         if (selectProfile(catalog, product, Mode::BestPerformance,
                           profile, fallback, "RG351MP"))
-            assert(profile.settings.count("retrorun_flycast_core_variant") == 0);
+        {
+            if (rg351MpUpstream620.count(product) != 0)
+                assert(profile.settings.at("retrorun_flycast_core_variant") ==
+                       "upstream_620");
+            else
+                assert(profile.settings.count(
+                           "retrorun_flycast_core_variant") == 0);
+        }
     }
 
     assert(selectProfile(catalog, "RDC-0140", Mode::BestPerformance,
@@ -700,6 +710,21 @@ void testBuiltInProfiles()
     Profile streetFighterRg353Reference;
     for (const char *product : streetFighterVariants)
     {
+        assert(selectProfile(catalog, product, Mode::BestPerformance,
+                             profile, fallback, "rg351mp"));
+        assert(!fallback);
+        assert(profile.settings.at("retrorun_flycast_core_variant") ==
+               "upstream_620");
+        assert(profile.settings.at("reicast_alpha_sorting") ==
+               "per-triangle (normal)");
+        assert(profile.settings.at("reicast_fast_depth") ==
+               "vertex_fast_log");
+        assert(profile.settings.at("reicast_audio_mixer") == "accurate");
+
+        assert(selectProfile(catalog, product, Mode::BestPerformance,
+                             profile, fallback, "rg351v"));
+        assert(profile.settings.count("retrorun_flycast_core_variant") == 0);
+
         assert(selectProfile(catalog, product, Mode::BestPerformance,
                              profile, fallback, "rg353m"));
         assert(!fallback);
