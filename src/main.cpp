@@ -124,6 +124,30 @@ static std::string siblingCorePath(const std::string &corePath,
     return corePath.substr(0, separator + 1) + filename;
 }
 
+struct FlycastCoreVariantSpec
+{
+    const char *configPathKey;
+    const char *siblingFilename;
+};
+
+static bool flycastCoreVariantSpec(const std::string &variant,
+                                   FlycastCoreVariantSpec &spec)
+{
+    if (variant == "upstream_620")
+    {
+        spec = {"retrorun_flycast_upstream_620_core",
+                "flycast_upstream_620_libretro.so"};
+        return true;
+    }
+    if (variant == "upstream_48ac")
+    {
+        spec = {"retrorun_flycast_upstream_48ac_core",
+                "flycast_upstream_48ac_libretro.so"};
+        return true;
+    }
+    return false;
+}
+
 static void maybeRestartWithFlycastCoreVariant(int argc, char *argv[],
                                                 int coreArgumentIndex)
 {
@@ -139,7 +163,8 @@ static void maybeRestartWithFlycastCoreVariant(int argc, char *argv[],
         return;
     }
 
-    if (flycastRequestedCoreVariant != "upstream_620")
+    FlycastCoreVariantSpec variantSpec{};
+    if (!flycastCoreVariantSpec(flycastRequestedCoreVariant, variantSpec))
     {
         logger.log(Logger::WARN,
                    "Flycast core variant '%s' is not supported; retaining '%s'.",
@@ -149,10 +174,9 @@ static void maybeRestartWithFlycastCoreVariant(int argc, char *argv[],
     }
 
     std::string alternateCore =
-        configValue("retrorun_flycast_upstream_620_core");
+        configValue(variantSpec.configPathKey);
     if (alternateCore.empty())
-        alternateCore = siblingCorePath(
-            arg_core, "flycast_upstream_620_libretro.so");
+        alternateCore = siblingCorePath(arg_core, variantSpec.siblingFilename);
 
     if (!fileExists(alternateCore.c_str()))
     {

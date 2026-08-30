@@ -38,6 +38,13 @@ If that file is absent, RetroRun logs the condition and safely retains the
 normal core. RG351-class profiles retain the normal core except for explicitly
 device-validated overrides such as Street Fighter III on RG351MP.
 
+The same mechanism supports the separately built `48acb03b` snapshot through
+`retrorun_flycast_core_variant = upstream_48ac`. RetroRun looks for
+`flycast_upstream_48ac_libretro.so` beside the requested core, or uses the
+explicit `retrorun_flycast_upstream_48ac_core` path. This variant is selected
+only by device/game profiles that have passed performance, audio and visual
+validation; merely installing the alternate core does not change the default.
+
 | Product number | Game | Status |
 | --- | --- | --- |
 | `MK-51117`, `HDR-0165` | Sonic Adventure 2 | Retail European/North American and Japanese variants. `best_performance` adds opaque-strip merging and the validated `lowend_stable_96` GO2 audio preset. A fixed 300-frame RG351V comparison presented 299 frames in both modes while the preset improved throughput from 33.47 to 36.29 FPS and reduced audio underruns from 19 to 2. Shadows, menus, audio and gameplay were manually approved. |
