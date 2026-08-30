@@ -21,7 +21,7 @@ constexpr const char *CatalogFilename = "flycast-game-catalog.ini";
 
 const char *BuiltinCatalogText = R"catalog(
 schema_version = 2
-catalog_version = 20260915
+catalog_version = 20260917
 
 default.retrorun_vsync = false
 default.retrorun_loop_declared_fps = true
@@ -57,6 +57,10 @@ default.reicast_fast_depth = disabled
 default.reicast_audio_mixer = accurate
 default.reicast_opaque_strip_merge = disabled
 default.reicast_aica_arm_cycles = 32
+default.reicast_shared_block_checks = disabled
+default.reicast_mmu_address_lut = disabled
+default.reicast_fmov_fpr64 = disabled
+default.reicast_aica_better_lpf = disabled
 
 profile.MK-51117.best_validated.title = Sonic Adventure 2
 profile.MK-51117.best_validated.reicast_hle_bios = disabled
@@ -1515,19 +1519,23 @@ profile.MK-51019.best_validated.title = Sega Rally 2 (baseline)
 profile.HDR-0010.best_validated.title = Sega Rally 2 (Japan, baseline)
 
 device.RG353M.profile.MK-51019.best_performance.title = Sega Rally 2 (RG353M validated)
-device.RG353M.profile.MK-51019.best_performance.retrorun_flycast_core_variant = upstream_620
 device.RG353M.profile.MK-51019.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.MK-51019.best_performance.retrorun_audio_buffer = 735
-device.RG353M.profile.MK-51019.best_performance.retrorun_audio_stable_buffer = false
+device.RG353M.profile.MK-51019.best_performance.retrorun_audio_buffer = 1470
+device.RG353M.profile.MK-51019.best_performance.retrorun_audio_stable_buffer = true
 device.RG353M.profile.MK-51019.best_performance.retrorun_go2_audio_prebuffer_ms = 60
-device.RG353M.profile.MK-51019.best_performance.retrorun_go2_audio_stretch_percent = 0
+device.RG353M.profile.MK-51019.best_performance.retrorun_go2_audio_stretch_percent = 10
 device.RG353M.profile.MK-51019.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.MK-51019.best_performance.retrorun_go2_audio_wsola_profile = disabled
+device.RG353M.profile.MK-51019.best_performance.retrorun_go2_audio_wsola_profile = lowend_stable_96
 device.RG353M.profile.MK-51019.best_performance.retrorun_egl_depth_bits = 24
-device.RG353M.profile.MK-51019.best_performance.retrorun_egl_stencil_bits = 8
+device.RG353M.profile.MK-51019.best_performance.retrorun_egl_stencil_bits = 0
 device.RG353M.profile.MK-51019.best_performance.reicast_hle_bios = disabled
 device.RG353M.profile.MK-51019.best_performance.reicast_gdrom_fast_loading = enabled
-device.RG353M.profile.MK-51019.best_performance.reicast_sh4clock = 96
+device.RG353M.profile.MK-51019.best_performance.reicast_sh4clock = 110
+device.RG353M.profile.MK-51019.best_performance.reicast_sh4_cycle_mode = legacy
+device.RG353M.profile.MK-51019.best_performance.reicast_shared_block_checks = enabled
+device.RG353M.profile.MK-51019.best_performance.reicast_mmu_address_lut = enabled
+device.RG353M.profile.MK-51019.best_performance.reicast_fmov_fpr64 = enabled
+device.RG353M.profile.MK-51019.best_performance.reicast_aica_better_lpf = enabled
 device.RG353M.profile.MK-51019.best_performance.reicast_internal_resolution = 640x480
 device.RG353M.profile.MK-51019.best_performance.reicast_alpha_sorting = per-strip (fast, least accurate)
 device.RG353M.profile.MK-51019.best_performance.reicast_mipmapping = enabled
@@ -1540,19 +1548,23 @@ device.RG353M.profile.MK-51019.best_performance.reicast_audio_mixer = accurate
 device.RG353M.profile.MK-51019.best_performance.reicast_aica_arm_cycles = 32
 
 device.RG353M.profile.HDR-0010.best_performance.title = Sega Rally 2 (Japan, RG353M validated)
-device.RG353M.profile.HDR-0010.best_performance.retrorun_flycast_core_variant = upstream_620
 device.RG353M.profile.HDR-0010.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.HDR-0010.best_performance.retrorun_audio_buffer = 735
-device.RG353M.profile.HDR-0010.best_performance.retrorun_audio_stable_buffer = false
+device.RG353M.profile.HDR-0010.best_performance.retrorun_audio_buffer = 1470
+device.RG353M.profile.HDR-0010.best_performance.retrorun_audio_stable_buffer = true
 device.RG353M.profile.HDR-0010.best_performance.retrorun_go2_audio_prebuffer_ms = 60
-device.RG353M.profile.HDR-0010.best_performance.retrorun_go2_audio_stretch_percent = 0
+device.RG353M.profile.HDR-0010.best_performance.retrorun_go2_audio_stretch_percent = 10
 device.RG353M.profile.HDR-0010.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.HDR-0010.best_performance.retrorun_go2_audio_wsola_profile = disabled
+device.RG353M.profile.HDR-0010.best_performance.retrorun_go2_audio_wsola_profile = lowend_stable_96
 device.RG353M.profile.HDR-0010.best_performance.retrorun_egl_depth_bits = 24
-device.RG353M.profile.HDR-0010.best_performance.retrorun_egl_stencil_bits = 8
+device.RG353M.profile.HDR-0010.best_performance.retrorun_egl_stencil_bits = 0
 device.RG353M.profile.HDR-0010.best_performance.reicast_hle_bios = disabled
 device.RG353M.profile.HDR-0010.best_performance.reicast_gdrom_fast_loading = enabled
-device.RG353M.profile.HDR-0010.best_performance.reicast_sh4clock = 96
+device.RG353M.profile.HDR-0010.best_performance.reicast_sh4clock = 110
+device.RG353M.profile.HDR-0010.best_performance.reicast_sh4_cycle_mode = legacy
+device.RG353M.profile.HDR-0010.best_performance.reicast_shared_block_checks = enabled
+device.RG353M.profile.HDR-0010.best_performance.reicast_mmu_address_lut = enabled
+device.RG353M.profile.HDR-0010.best_performance.reicast_fmov_fpr64 = enabled
+device.RG353M.profile.HDR-0010.best_performance.reicast_aica_better_lpf = enabled
 device.RG353M.profile.HDR-0010.best_performance.reicast_internal_resolution = 640x480
 device.RG353M.profile.HDR-0010.best_performance.reicast_alpha_sorting = per-strip (fast, least accurate)
 device.RG353M.profile.HDR-0010.best_performance.reicast_mipmapping = enabled
@@ -1984,6 +1996,7 @@ const std::unordered_set<std::string> &allowedSettings()
         "retrorun_sdl_audio_stretch_percent",
         "retrorun_vsync",
         "reicast_adjacent_state_elision",
+        "reicast_aica_better_lpf",
         "reicast_aica_arm_cycles",
         "reicast_alpha_sorting",
         "reicast_anisotropic_filtering",
@@ -2002,6 +2015,7 @@ const std::unordered_set<std::string> &allowedSettings()
         "reicast_fast_depth",
         "reicast_fog",
         "reicast_force_wince",
+        "reicast_fmov_fpr64",
         "reicast_loop_declared_fps",
         "reicast_frame_skipping",
         "reicast_framerate",
@@ -2009,12 +2023,15 @@ const std::unordered_set<std::string> &allowedSettings()
         "reicast_hle_bios",
         "reicast_internal_resolution",
         "reicast_mipmapping",
+        "reicast_mmu_address_lut",
         "reicast_opaque_strip_merge",
         "reicast_palette_fog_storage_reuse",
         "reicast_pvr2_filtering",
         "reicast_render_to_texture_upscaling",
         "reicast_screen_rotation",
         "reicast_sh4clock",
+        "reicast_sh4_cycle_mode",
+        "reicast_shared_block_checks",
         "reicast_synchronous_rendering",
         "reicast_system",
         "reicast_texture_storage_reuse",

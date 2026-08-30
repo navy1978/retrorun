@@ -16,7 +16,7 @@ void testBuiltInProfiles()
 {
     const Catalog catalog = builtinCatalog();
     assert(catalog.schema_version == 2);
-    assert(catalog.catalog_version == 20260915);
+    assert(catalog.catalog_version == 20260917);
     assert(catalog.profiles.size() == 98);
     assert(catalog.device_profiles.size() == 2);
     assert(normalizeProductNumber("T1401D  50 ") == "T1401D50");
@@ -204,14 +204,22 @@ void testBuiltInProfiles()
         assert(profile.mode == Mode::BestPerformance);
         assert(profile.settings.at("retrorun_loop_declared_fps") ==
                "false");
-        assert(profile.settings.at("retrorun_audio_buffer") == "735");
+        assert(profile.settings.at("retrorun_audio_buffer") == "1470");
         assert(profile.settings.at("retrorun_audio_stable_buffer") ==
-               "false");
+               "true");
         assert(profile.settings.at("retrorun_go2_audio_prebuffer_ms") ==
                "60");
+        assert(profile.settings.at("retrorun_go2_audio_stretch_percent") ==
+               "10");
         assert(profile.settings.at("retrorun_go2_audio_wsola_profile") ==
-               "disabled");
-        assert(profile.settings.at("reicast_sh4clock") == "96");
+               "lowend_stable_96");
+        assert(profile.settings.count("retrorun_flycast_core_variant") == 0);
+        assert(profile.settings.at("reicast_sh4clock") == "110");
+        assert(profile.settings.at("reicast_sh4_cycle_mode") == "legacy");
+        assert(profile.settings.at("reicast_shared_block_checks") == "enabled");
+        assert(profile.settings.at("reicast_mmu_address_lut") == "enabled");
+        assert(profile.settings.at("reicast_fmov_fpr64") == "enabled");
+        assert(profile.settings.at("reicast_aica_better_lpf") == "enabled");
         assert(profile.settings.at("reicast_internal_resolution") ==
                "640x480");
         assert(profile.settings.at("reicast_alpha_sorting") ==
@@ -229,8 +237,7 @@ void testBuiltInProfiles()
     const char *upstream620Variants[] = {
         "T1401D50", "T1401N", "T1401M", "MK-51058",
         "T36801D61", "T36801D64", "T1201M", "T1201N",
-        "MK-51049", "MK-51019", "HDR-0010",
-        "T7013D50", "T1213N", "T1209M"
+        "MK-51049", "T7013D50", "T1213N", "T1209M"
     };
     const std::set<std::string> rg351MpUpstream620 = {
         "T7013D50", "T1213N", "T1209M"

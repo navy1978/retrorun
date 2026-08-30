@@ -9,7 +9,7 @@ See [GAME_PROFILE_MODES.md](GAME_PROFILE_MODES.md) for the implemented
 current per-game differences.
 
 `flycast-game-catalog.ini` is the editable source form of catalog version
-`20260915`. The same data is built into RetroRun, so the feature works when
+`20260917`. The same data is built into RetroRun, so the feature works when
 distributions install only the executable. A copy beside RetroRun is used only
 when its `catalog_version` is greater than the built-in version.
 
@@ -59,7 +59,7 @@ validation; merely installing the alternate core does not change the default.
 | `MK-51037` | Daytona USA 2001 / Daytona USA | The North American retail image was validated on RG351MP/dArkOS from a fixed race savestate. Per-strip alpha sorting plus opaque-strip merging averaged 23.75 presented frames/s versus 16.20 for the conservative baseline (+46.6%), reduced active-frame p95 from 89.27 to 58.52 ms and recorded no skipped frames or audio faults. Both the sorter and final combination passed manual race review. `best_performance` falls back to this validated profile. |
 | `MK-5118450` | Shenmue II (Europe) | The European retail image was tested on RG351MP/dArkOS from fixed 3D savestates. Per-strip alpha plus `vertex_fast_log` improved the original 300-frame screen from 14.85 to 19.00 presented frames/s (+27.9%) and reduced active-frame p95 from 91.40 to 54.43 ms; graphics passed manual review. On a later, heavier state with CPU, GPU and DMC governors at `performance`, the `lowend_heavy_100` profile and a 4096-frame buffer reduced the three-run median from 10 to 4 audio underruns and queue-low observations from 98 to 11 versus the 55% WSOLA reference, while retaining 100% playback speed and essentially unchanged throughput (17.38 versus 17.39 frames/s). Adaptive core frameskip reduced underruns to 2 but was rejected because it presented only 160 of 300 frames; direct scanout was unavailable and its fallback was slower. Pinning the OpenAL and frontend audio workers to a reserved fourth CPU raised throughput to 18.48 frames/s but increased median underruns from 4 to 15 and introduced 172 backpressure events, so single-thread audio remains selected. Occasional gaps in the heaviest scene remain a documented RK3326 limitation. Japanese `HDR-0164` and `HDR-0179` releases remain conservative baselines until tested. |
 | `T7013D50`, `T1213N`, `T1209M` | Street Fighter III: 3rd Strike | The European, North American and Japanese retail releases use distinct catalog records with the same RG351MP-validated settings. On a fixed USA fight savestate, accurate per-triangle alpha, `vertex_fast_log` depth and opaque-strip merging reached a three-run median of 47.76 FPS versus 44.39 (+7.58%), reduced active-frame p95 from 43.63 to 41.43 ms and recorded no audio underruns or empty queues. The inaccurate per-strip sorter was slower and visually unsafe. A later three-run RG351MP comparison measured 58.05 FPS with the upstream `62085539` core versus 46.73 with the current core (+24.2%); characters, backgrounds, animation, controls and audio passed manual review. The RG351MP `best_performance` override therefore selects `upstream_620`, while other RG351 devices retain the current core until tested. |
-| `MK-51019`, `HDR-0010` | Sega Rally 2 | European/North American and Japanese retail variants. The RG353M-specific `best_performance` profile preserves the visually approved 640x480 renderer and accurate audio path, disables frontend pacing and selects the validated 735-frame/60 ms prebuffer configuration. With the Cortex-A55 `-O3`/LTO Flycast build at `62085539`, the fixed race savestate produced 27,017.7 audio samples/s versus 21,412.9 for the stock core (+26.2%) and about 20.26 versus 14.52 presented frames/s (+39.5%). Graphics and audio were manually approved on the device. |
+| `MK-51019`, `HDR-0010` | Sega Rally 2 | European/North American and Japanese retail variants. The RG353M-specific `best_performance` profile uses the current low-end core with the validated WinCE MMU address LUT, shared block checks, PR=1 FPU-transfer compilation and corrected upstream AICA low-pass filter. It preserves the visually approved 640x480 renderer and accurate mixer, uses 110 MHz legacy SH4 timing, a stable 1470-frame buffer and the 10% `lowend_stable_96` GO2 stretch path. The final fixed eight-second run measured 26.62 presented FPS and two underruns; the same build without the LPF correction measured 26.63 FPS and two underruns. Audio and gameplay were manually approved as almost perfect. The faster `upstream_48ac` snapshot was rejected because it produced 71 underruns and audibly worse audio despite reaching 40.81 FPS. |
 | `MK-51000` | Sonic Adventure | The European/North American retail Product number has an RG353M-specific `best_performance` profile. On the fixed gameplay state it reached 27.96 FPS versus 25.59 for the dArkOS stock stack (+9.3%), improved active-frame p95 from 69.22 to 64.11 ms and recorded no skipped frames, audio underruns or empty queues; stock recorded two underruns and two empty queues. Graphics, audio and gameplay were manually approved. Japanese `HDR-0001` and `HDR-0043` remain conservative baselines until tested. |
 | `T36812D61`, `T36812D64`, `T1218M`, `T1211N` | Power Stone 2 | The RG353M-specific profile was measured on the North American release from a fixed combat state and associated with all known retail regional Product numbers. Accurate per-triangle alpha reached 58.96 FPS versus 56.17 for the dArkOS stock stack (+5.0%), presented every frame and recorded no audio faults. The per-strip candidate reached only 0.13 FPS more, so it was rejected in favour of the safer renderer. Fast depth, AICA 8 and additional state reuse were all slower. Graphics, HUD, audio and gameplay were manually approved. |
 
@@ -102,6 +102,27 @@ presented and no audio faults. The selected profile keeps accurate per-triangle
 alpha because the faster sorter added only 0.13 FPS; fast depth, AICA 8 and
 additional state reuse were measured and rejected as slower. Graphics, HUD,
 audio and gameplay were manually approved on the device.
+
+Catalog `20260916` promotes Sega Rally 2 on RG353M from `upstream_620` to the
+existing selectable `upstream_48ac` core at 170 MHz. It also fixes alternate
+Flycast detection after `execv()`: a core that exports the private
+Product-number ABI remains catalog-capable even when its version string starts
+with `v`, so the second process reapplies the complete transient profile rather
+than silently falling back to the values in `retrorun.cfg`.
+
+Catalog `20260917` replaces that provisional Sega Rally 2 selection with the
+manually approved current-core profile. The RG353M override enables the
+selectable WinCE address LUT, shared AArch64 block checks, PR=1 FPU transfers
+and corrected AICA LPF, while retaining accurate mixing and the stable GO2
+audio path. These experimental core options remain disabled by default and
+are enabled only for the two catalogued retail Product-number variants.
+An RG353M cross-game screen from fixed save states covered the other 19 local
+catalog titles. The CPU options were neutral, slower, or remained below an
+already selected alternate core; the corrected LPF was neutral or slower in
+those automated measurements. In particular, Shenmue II remained capped at
+29.99 FPS with zero underruns, while the repeatable Dead or Alive 2 result was
+only 42.44 versus 42.05--42.17 FPS and did not justify changing its
+audio-sensitive validated profile.
 
 `dreamcast-product-variants.tsv` is the machine-checked map between the Redump
 retail releases and the Product numbers returned by Flycast. When adding a

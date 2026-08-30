@@ -730,6 +730,18 @@ void core_load(const char *sofile)
     coreReadZippedFiles = system.block_extract;
 }
 
+bool core_has_flycast_product_number_probe()
+{
+    if (!g_retro.handle)
+        return false;
+
+    dlerror();
+    void *probe = dlsym(g_retro.handle,
+                        "flycast_retrorun_get_product_number_v1");
+    const char *error = dlerror();
+    return !error && probe;
+}
+
 bool core_probe_flycast_product_number(const char *filename,
                                        std::string &product_number)
 {

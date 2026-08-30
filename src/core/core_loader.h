@@ -69,6 +69,7 @@ bool core_reset_synchronized();
 
 // Optional Flycast/RetroRun private ABI. Returns false for other cores and for
 // content whose Dreamcast IP metadata cannot be read before retro_load_game().
+bool core_has_flycast_product_number_probe();
 bool core_probe_flycast_product_number(const char *filename,
                                        std::string &product_number);
 std::string core_flycast_variant();

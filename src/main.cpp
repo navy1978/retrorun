@@ -404,7 +404,10 @@ static void applyFlycastGameCatalog(const char *executable,
     flycastCatalogStatus = {};
     flycastMenuCatalog = {};
     flycastRequestedCoreVariant.clear();
-    if (!isFlycast2021())
+    // Alternate Flycast snapshots can report a modern "v..." version string
+    // even though they support RetroRun's private Product-number probe.
+    // Keep stock modern cores silent when they do not expose that capability.
+    if (!isFlycast2021() && !core_has_flycast_product_number_probe())
         return;
 
     const std::string configuredMode =
