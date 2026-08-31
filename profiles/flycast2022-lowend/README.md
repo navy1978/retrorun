@@ -9,7 +9,7 @@ See [GAME_PROFILE_MODES.md](GAME_PROFILE_MODES.md) for the implemented
 current per-game differences.
 
 `flycast-game-catalog.ini` is the editable source form of catalog version
-`20260917`. The same data is built into RetroRun, so the feature works when
+`20260921`. The same data is built into RetroRun, so the feature works when
 distributions install only the executable. A copy beside RetroRun is used only
 when its `catalog_version` is greater than the built-in version.
 
@@ -124,6 +124,21 @@ those automated measurements. In particular, Shenmue II remained capped at
 only 42.44 versus 42.05--42.17 FPS and did not justify changing its
 audio-sensitive validated profile.
 
+Catalog `20260921` adds a correctness-first RG351MP fallback for Sega Rally 2.
+It preserves the complete environment with the conservative renderer, keeps
+the WinCE-required 32 AICA ARM cycles and uses only the validated MMU address
+LUT and accurate SH4 scheduler optimizations. The final state-loaded sweep
+measured 15.74 core FPS and 11.80 presented FPS, versus 13.43 and 7.13 for the
+previous uncatalogued run; audio remains an acknowledged RK3326 limitation.
+The same catalog enables the experimental accurate AICA 32-sample fast path
+only for the RG351MP Shenmue II profile. In a three-run, 600-frame A/B with the
+same state, core and clocks, it raised median core and presented throughput
+from 17.889/17.859 to 18.147/18.117 FPS (+1.44%) while leaving the median at
+five audio underruns. That option remains disabled by default and for every
+other profile. A final fixed-save-state sweep covered all 20 locally available
+catalog games on both RG351MP and RG353M, with maximum CPU, GPU and memory
+governors and no overlapping RetroRun processes.
+
 `dreamcast-product-variants.tsv` is the machine-checked map between the Redump
 retail releases and the Product numbers returned by Flycast. When adding a
 game, first enumerate its retail regional/revision entries from the upstream
@@ -183,16 +198,16 @@ window and 96% playback pitch reproducible from the versioned catalog.
 
 ## Baseline retail coverage added in catalog 20260746
 
-The metadata table also records the following retail games and regional
-Product numbers. These title-only entries are coverage baselines, not
-selectable profiles: RetroRun hides them from `Catalog` and leaves the user's
-configuration untouched. Promote them only after repeatable benchmarking and
-manual audio/video review.
+The metadata table also records retail games and regional Product numbers for
+which at least one release or device remains title-only. Without an explicit
+validated device override, these coverage baselines are not selectable:
+RetroRun hides them from `Catalog` and leaves the user's configuration
+untouched. Promote them only after repeatable benchmarking and manual
+audio/video review.
 
-The Japanese Sonic Adventure variants, Shenmue, Shenmue II, Resident Evil: Code Veronica, Power Stone retail releases, Power Stone 2,
-Skies of Arcadia, Capcom vs. SNK 2, Phantasy Star Online,
-The House of the Dead 2, NFL 2K, NFL 2K1, Hydro Thunder,
-F355 Challenge, Virtua Fighter 3tb, Cosmic Smash,
-Toy Commander, Rez, Street Fighter III: 3rd Strike,
-Street Fighter Alpha 3 and Sega Bass Fishing are included with every retail
-Product Number enumerated in `dreamcast-product-variants.tsv`.
+The remaining coverage includes the Japanese Sonic Adventure and Shenmue II
+variants, unvalidated Power Stone and The House of the Dead 2 combinations,
+Skies of Arcadia, Capcom vs. SNK 2, Phantasy Star Online, NFL 2K, NFL 2K1,
+Hydro Thunder, F355 Challenge, Virtua Fighter 3tb, Cosmic Smash, Toy Commander,
+Rez, Street Fighter Alpha 3 and Sega Bass Fishing. Every known retail Product
+number is enumerated in `dreamcast-product-variants.tsv`.

@@ -8,6 +8,47 @@
                  -= Light Libretro Front-end =-
 
 =================================
+Version 3.2.0 (Aug 31, 2026)
+---------------------------------
+- Move RetroAchievements fallback hashing for large CDI images to a background
+  worker, with progress diagnostics and safe shutdown, so game identification
+  no longer stalls emulation.
+- Load save states asynchronously with on-screen progress and clear errors;
+  missing automatic states are now non-blocking.
+- Replace the configuration reader with a line-oriented parser supporting
+  quoted values, comments, duplicate and unknown-setting diagnostics and
+  strict typed validation; explicit `-c` paths retain precedence.
+- Register international libretro core-option definitions and reorganize
+  frontend sources into audio, config, core, input, video, service, diagnostic
+  and platform modules.
+- Recognize separately packaged Flycast 2021 LE and Flycast 2022 Low-End cores,
+  retain their required lifecycle handling and isolate each core's automatic
+  save states.
+- Add a versioned Dreamcast Product-number catalog with `disabled`,
+  `best_validated` and `best_performance` modes, retail-region mappings, safe
+  fallbacks and device-specific RG351V, RG351MP and RG353M profiles.
+- Add Flycast-only catalog information and game-list views. Metadata-only games
+  remain hidden, while unknown or unvalidated content keeps the user's
+  `retrorun.cfg` unchanged.
+- Support newer external catalogs through schema and setting-allowlist
+  validation, atomic caching and a non-blocking at-most-daily update check;
+  translate canonical Flycast settings across distribution option prefixes.
+- Add adaptive GO2/OpenAL audio pacing with pitch-preserving WSOLA presets,
+  prebuffer control and optional Flycast audio-queue pressure feedback, plus
+  validated per-game audio tuning and an opt-in accurate AICA batch path.
+- Add guarded per-game selection of the `upstream_620` and `upstream_48ac`
+  Flycast variants, with one-shot restart, configurable paths, ABI detection
+  and safe fallback when an alternate core is unavailable.
+- Extend benchmark mode with fixed core-frame runs, true unscaled FPS, extra
+  GO2 audio metadata and result emission before legacy core teardown.
+- Retry legacy `eglGetDisplay(GBM)` when a platform GBM display cannot be
+  initialized on RK3326 Mali/armsoc. Add a verified RK3326 build helper that
+  rejects GLVND/Mesa dependencies and can enforce a target GLIBC ceiling.
+- Prevent menu input from leaking into the running core, further harden legacy
+  Flycast shutdown, and expand catalog, configuration, save-state and benchmark
+  regression coverage and device-validation documentation.
+
+=================================
 Version 3.1.2 (Jul 23, 2026)
 ---------------------------------
 - Add a deterministic integrated benchmark mode with warm-up control,
@@ -26,25 +67,8 @@ Version 3.1.2 (Jul 23, 2026)
   accounting across fast-forward, save-state loading and shutdown.
 - Harden shutdown for legacy Flycast/Flycast2021 cores that crash during
   `retro_unload_game`, while preserving normal core deinitialization.
-- Move RetroAchievements fallback hashing for large CDI images to a background
-  worker so unsupported optical-disc images no longer stall the render thread
-  during game identification.
-- Add diagnostics and helper tooling for RetroAchievements large-content
-  startup and exit-during-hash regression testing.
-- Load save states asynchronously from disk, with on-screen progress and clear
-  failure messages for missing, empty, truncated or core-rejected state files.
-- Replace the fragile configuration reader with a line-oriented parser that
-  supports quoted values, comments, duplicate diagnostics and strict typed
-  validation; explicit `-c` configuration paths now always take precedence.
-- Register libretro international core-option definitions and their defaults,
-  fixing cores that expose options only through `SET_CORE_OPTIONS_INTL`.
-- Recognize the separately packaged Flycast 2022 Low-End core (and its earlier
-  Flycast 2021 LE test identity), retaining the legacy lifecycle workarounds
-  while keeping each core's save states isolated.
-- Reorganize frontend sources into audio, config, core, input, video, service,
-  diagnostic and platform modules while retaining all supported build targets.
 - Add regression tests for benchmark serialization, audio workers and runtime
-  transitions, configuration parsing and missing auto-state handling.
+  transitions.
 - Add technical benchmark documentation for RG353M SDL2 rendering and
   RK3326/Flycast2021 performance work while keeping raw device evidence
   outside the source repository.

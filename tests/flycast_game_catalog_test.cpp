@@ -12,11 +12,61 @@ using namespace rr::flycast_profiles;
 namespace
 {
 
+void assertSameProfile(const Profile &left, const Profile &right)
+{
+    assert(left.product_number == right.product_number);
+    assert(left.title == right.title);
+    assert(left.mode == right.mode);
+    assert(left.validated == right.validated);
+    assert(left.settings == right.settings);
+}
+
+void assertSameCatalogPayload(const Catalog &left, const Catalog &right)
+{
+    assert(left.schema_version == right.schema_version);
+    assert(left.catalog_version == right.catalog_version);
+    assert(left.safe_defaults == right.safe_defaults);
+    assert(left.profiles.size() == right.profiles.size());
+    assert(left.device_profiles.size() == right.device_profiles.size());
+
+    for (const auto &[product, leftModes] : left.profiles)
+    {
+        const auto rightProduct = right.profiles.find(product);
+        assert(rightProduct != right.profiles.end());
+        assert(leftModes.size() == rightProduct->second.size());
+        for (const auto &[mode, leftProfile] : leftModes)
+        {
+            const auto rightMode = rightProduct->second.find(mode);
+            assert(rightMode != rightProduct->second.end());
+            assertSameProfile(leftProfile, rightMode->second);
+        }
+    }
+
+    for (const auto &[device, leftProducts] : left.device_profiles)
+    {
+        const auto rightDevice = right.device_profiles.find(device);
+        assert(rightDevice != right.device_profiles.end());
+        assert(leftProducts.size() == rightDevice->second.size());
+        for (const auto &[product, leftModes] : leftProducts)
+        {
+            const auto rightProduct = rightDevice->second.find(product);
+            assert(rightProduct != rightDevice->second.end());
+            assert(leftModes.size() == rightProduct->second.size());
+            for (const auto &[mode, leftProfile] : leftModes)
+            {
+                const auto rightMode = rightProduct->second.find(mode);
+                assert(rightMode != rightProduct->second.end());
+                assertSameProfile(leftProfile, rightMode->second);
+            }
+        }
+    }
+}
+
 void testBuiltInProfiles()
 {
     const Catalog catalog = builtinCatalog();
     assert(catalog.schema_version == 2);
-    assert(catalog.catalog_version == 20260917);
+    assert(catalog.catalog_version == 20260921);
     assert(catalog.profiles.size() == 98);
     assert(catalog.device_profiles.size() == 2);
     assert(normalizeProductNumber("T1401D  50 ") == "T1401D50");
@@ -234,6 +284,39 @@ void testBuiltInProfiles()
             assert(profile.settings == segaRallyReference.settings);
     }
 
+    assert(selectProfile(catalog, "MK-51019", Mode::BestPerformance,
+                         profile, fallback, "RG351MP"));
+    assert(fallback);
+    assert(profile.validated);
+    assert(profile.mode == Mode::BestValidated);
+    assert(profile.title == "Sega Rally 2 (USA, RG351MP safe)");
+    assert(profile.settings.at("reicast_alpha_sorting") ==
+           "per-triangle (normal)");
+    assert(profile.settings.at("reicast_mipmapping") == "enabled");
+    assert(profile.settings.at("reicast_fog") == "enabled");
+    assert(profile.settings.at("reicast_volume_modifier_enable") ==
+           "enabled");
+    assert(profile.settings.at("reicast_enable_dsp") == "enabled");
+    assert(profile.settings.at("reicast_translucent_strip_merge") ==
+           "disabled");
+    assert(profile.settings.at("reicast_texture_storage_reuse") ==
+           "disabled");
+    assert(profile.settings.at("reicast_fast_depth") == "disabled");
+    assert(profile.settings.at("reicast_opaque_strip_merge") == "disabled");
+    assert(profile.settings.at("reicast_audio_mixer") == "accurate");
+    assert(profile.settings.at("reicast_aica_arm_cycles") == "32");
+    assert(profile.settings.at("retrorun_audio_buffer") == "4096");
+    assert(profile.settings.at("retrorun_go2_audio_wsola_profile") ==
+           "lowend_heavy_100");
+    assert(profile.settings.at("reicast_mmu_address_lut") == "enabled");
+    assert(profile.settings.at("reicast_accurate_aica_batch") == "disabled");
+    assert(profile.settings.at("reicast_sh4_cycle_mode") == "accurate");
+
+    fallback = false;
+    assert(!selectProfile(catalog, "HDR-0010", Mode::BestPerformance,
+                          profile, fallback, "RG351MP"));
+    assert(!fallback);
+
     const char *upstream620Variants[] = {
         "T1401D50", "T1401N", "T1401M", "MK-51058",
         "T36801D61", "T36801D64", "T1201M", "T1201N",
@@ -395,6 +478,27 @@ void testBuiltInProfiles()
     assert(profile.settings.at("retrorun_go2_audio_wsola_profile") ==
            "lowend_heavy_100");
     assert(profile.settings.at("retrorun_egl_stencil_bits") == "0");
+
+    assert(selectProfile(catalog, "MK-5118450", Mode::BestPerformance,
+                         profile, fallback, "RG351MP"));
+    assert(!fallback);
+    assert(profile.title ==
+           "Shenmue II (Europe, RG351MP batch validated)");
+    assert(profile.settings.at("reicast_accurate_aica_batch") == "enabled");
+    assert(profile.settings.at("reicast_audio_mixer") == "accurate");
+    assert(profile.settings.at("retrorun_go2_audio_wsola_profile") ==
+           "lowend_heavy_100");
+
+    const auto amberShenmueSettings =
+        settingsForOptionPrefix(profile.settings, "flycast2022_");
+    assert(amberShenmueSettings.at("flycast2022_accurate_aica_batch") ==
+           "enabled");
+    assert(amberShenmueSettings.count("reicast_accurate_aica_batch") == 0);
+
+    assert(selectProfile(catalog, "MK-5118450", Mode::BestValidated,
+                         profile, fallback, "RG351MP"));
+    assert(!fallback);
+    assert(profile.settings.at("reicast_accurate_aica_batch") == "disabled");
 
     assert(!selectProfile(catalog, "MK-5100250", Mode::BestPerformance,
                           profile, fallback));
@@ -773,11 +877,7 @@ void testVersionedRepositoryCatalogMatchesBuiltIn()
     assert(diagnostics.empty());
 
     const Catalog builtIn = builtinCatalog();
-    assert(fileCatalog.schema_version == builtIn.schema_version);
-    assert(fileCatalog.catalog_version == builtIn.catalog_version);
-    assert(fileCatalog.profiles.size() == builtIn.profiles.size());
-    assert(fileCatalog.device_profiles.size() ==
-           builtIn.device_profiles.size());
+    assertSameCatalogPayload(fileCatalog, builtIn);
 
     Profile fromFile;
     Profile fromBuiltIn;
@@ -804,6 +904,16 @@ void testVersionedRepositoryCatalogMatchesBuiltIn()
                          Mode::BestPerformance, fromBuiltIn,
                          builtInFallback));
     assert(fileFallback && builtInFallback);
+    assert(fromFile.settings == fromBuiltIn.settings);
+
+    assert(selectProfile(fileCatalog, "MK-51019",
+                         Mode::BestPerformance, fromFile, fileFallback,
+                         "RG351MP"));
+    assert(selectProfile(builtIn, "MK-51019",
+                         Mode::BestPerformance, fromBuiltIn,
+                         builtInFallback, "RG351MP"));
+    assert(fileFallback && builtInFallback);
+    assert(fromFile.title == fromBuiltIn.title);
     assert(fromFile.settings == fromBuiltIn.settings);
 
     assert(selectProfile(fileCatalog, "T1215N",

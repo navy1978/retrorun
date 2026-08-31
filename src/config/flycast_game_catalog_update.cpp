@@ -66,7 +66,7 @@ bool downloadAndInstall(const std::string &cachePath, int currentVersion)
 
     curl_easy_setopt(curl, CURLOPT_URL, RemoteCatalogUrl);
     curl_easy_setopt(curl, CURLOPT_USERAGENT,
-                     "RetroRun/3.1 Flycast-catalog-updater");
+                     "RetroRun/3.2 Flycast-catalog-updater");
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 3L);
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 5L);

@@ -21,7 +21,7 @@ constexpr const char *CatalogFilename = "flycast-game-catalog.ini";
 
 const char *BuiltinCatalogText = R"catalog(
 schema_version = 2
-catalog_version = 20260917
+catalog_version = 20260921
 
 default.retrorun_vsync = false
 default.retrorun_loop_declared_fps = true
@@ -57,6 +57,7 @@ default.reicast_fast_depth = disabled
 default.reicast_audio_mixer = accurate
 default.reicast_opaque_strip_merge = disabled
 default.reicast_aica_arm_cycles = 32
+default.reicast_accurate_aica_batch = disabled
 default.reicast_shared_block_checks = disabled
 default.reicast_mmu_address_lut = disabled
 default.reicast_fmov_fpr64 = disabled
@@ -932,6 +933,9 @@ profile.MK-5118450.best_validated.reicast_audio_mixer = accurate
 profile.MK-5118450.best_validated.reicast_opaque_strip_merge = disabled
 profile.MK-5118450.best_validated.reicast_aica_arm_cycles = 32
 
+device.RG351MP.profile.MK-5118450.best_performance.title = Shenmue II (Europe, RG351MP batch validated)
+device.RG351MP.profile.MK-5118450.best_performance.reicast_accurate_aica_batch = enabled
+
 device.RG353M.profile.MK-5118450.best_performance.title = Shenmue II (Europe, RG353M validated)
 device.RG353M.profile.MK-5118450.best_performance.retrorun_loop_declared_fps = false
 device.RG353M.profile.MK-5118450.best_performance.retrorun_audio_buffer = 735
@@ -1518,6 +1522,54 @@ profile.MK-51019.best_validated.title = Sega Rally 2 (baseline)
 
 profile.HDR-0010.best_validated.title = Sega Rally 2 (Japan, baseline)
 
+; RG351MP: confirmed visually with the USA release.  This intentionally uses
+; the conservative renderer path; the generic aggressive configuration drops
+; environment geometry in Sega Rally 2.  The title is Windows CE and its
+; NoBatch AICA path requires 32 ARM samples per tick; lower values underproduce
+; audio rather than being a valid performance optimization.  The safe LUT and
+; SH4 scheduler settings below are measurably faster than the generic fallback
+; while preserving the conservative renderer. best_performance falls back here
+; until an independently validated faster path exists.
+device.RG351MP.profile.MK-51019.best_validated.title = Sega Rally 2 (USA, RG351MP safe)
+device.RG351MP.profile.MK-51019.best_validated.retrorun_loop_declared_fps = true
+device.RG351MP.profile.MK-51019.best_validated.retrorun_adaptive_frameskip = false
+device.RG351MP.profile.MK-51019.best_validated.retrorun_frameskip = 0
+device.RG351MP.profile.MK-51019.best_validated.retrorun_audio_buffer = 4096
+device.RG351MP.profile.MK-51019.best_validated.retrorun_audio_stable_buffer = true
+device.RG351MP.profile.MK-51019.best_validated.retrorun_go2_audio_stretch_percent = 0
+device.RG351MP.profile.MK-51019.best_validated.retrorun_go2_audio_stretch_low_ms = 150
+device.RG351MP.profile.MK-51019.best_validated.retrorun_go2_audio_wsola_profile = lowend_heavy_100
+device.RG351MP.profile.MK-51019.best_validated.retrorun_egl_depth_bits = 24
+device.RG351MP.profile.MK-51019.best_validated.retrorun_egl_stencil_bits = 0
+device.RG351MP.profile.MK-51019.best_validated.reicast_hle_bios = enabled
+device.RG351MP.profile.MK-51019.best_validated.reicast_internal_resolution = 640x480
+device.RG351MP.profile.MK-51019.best_validated.reicast_sh4clock = 200
+device.RG351MP.profile.MK-51019.best_validated.reicast_alpha_sorting = per-triangle (normal)
+device.RG351MP.profile.MK-51019.best_validated.reicast_gdrom_fast_loading = disabled
+device.RG351MP.profile.MK-51019.best_validated.reicast_mipmapping = enabled
+device.RG351MP.profile.MK-51019.best_validated.reicast_fog = enabled
+device.RG351MP.profile.MK-51019.best_validated.reicast_volume_modifier_enable = enabled
+device.RG351MP.profile.MK-51019.best_validated.reicast_enable_dsp = enabled
+device.RG351MP.profile.MK-51019.best_validated.reicast_anisotropic_filtering = off
+device.RG351MP.profile.MK-51019.best_validated.reicast_framerate = fullspeed
+device.RG351MP.profile.MK-51019.best_validated.reicast_threaded_rendering = enabled
+device.RG351MP.profile.MK-51019.best_validated.reicast_synchronous_rendering = disabled
+device.RG351MP.profile.MK-51019.best_validated.reicast_delay_frame_swapping = disabled
+device.RG351MP.profile.MK-51019.best_validated.reicast_frame_skipping = disabled
+device.RG351MP.profile.MK-51019.best_validated.reicast_adjacent_state_elision = disabled
+device.RG351MP.profile.MK-51019.best_validated.reicast_translucent_strip_merge = disabled
+device.RG351MP.profile.MK-51019.best_validated.reicast_texture_storage_reuse = disabled
+device.RG351MP.profile.MK-51019.best_validated.reicast_palette_fog_storage_reuse = disabled
+device.RG351MP.profile.MK-51019.best_validated.reicast_fast_depth = disabled
+device.RG351MP.profile.MK-51019.best_validated.reicast_audio_mixer = accurate
+device.RG351MP.profile.MK-51019.best_validated.reicast_opaque_strip_merge = disabled
+device.RG351MP.profile.MK-51019.best_validated.reicast_aica_arm_cycles = 32
+device.RG351MP.profile.MK-51019.best_validated.reicast_shared_block_checks = disabled
+device.RG351MP.profile.MK-51019.best_validated.reicast_mmu_address_lut = enabled
+device.RG351MP.profile.MK-51019.best_validated.reicast_fmov_fpr64 = disabled
+device.RG351MP.profile.MK-51019.best_validated.reicast_aica_better_lpf = disabled
+device.RG351MP.profile.MK-51019.best_validated.reicast_sh4_cycle_mode = accurate
+
 device.RG353M.profile.MK-51019.best_performance.title = Sega Rally 2 (RG353M validated)
 device.RG353M.profile.MK-51019.best_performance.retrorun_loop_declared_fps = false
 device.RG353M.profile.MK-51019.best_performance.retrorun_audio_buffer = 1470
@@ -1996,6 +2048,7 @@ const std::unordered_set<std::string> &allowedSettings()
         "retrorun_sdl_audio_stretch_percent",
         "retrorun_vsync",
         "reicast_adjacent_state_elision",
+        "reicast_accurate_aica_batch",
         "reicast_aica_better_lpf",
         "reicast_aica_arm_cycles",
         "reicast_alpha_sorting",
