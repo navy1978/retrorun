@@ -21,7 +21,7 @@ constexpr const char *CatalogFilename = "flycast-game-catalog.ini";
 
 const char *BuiltinCatalogText = R"catalog(
 schema_version = 2
-catalog_version = 20260921
+catalog_version = 20260923
 
 default.retrorun_vsync = false
 default.retrorun_loop_declared_fps = true
@@ -508,6 +508,167 @@ device.RG353M.profile.T1401M.best_performance.reicast_fast_depth = vertex_fast_l
 device.RG353M.profile.T1401M.best_performance.reicast_audio_mixer = lowend
 device.RG353M.profile.T1401M.best_performance.reicast_opaque_strip_merge = enabled
 device.RG353M.profile.T1401M.best_performance.reicast_aica_arm_cycles = 32
+
+; RG552: clean same-binary A/B and manual audio/video validation.  These
+; complete device profiles reproduce the approved stock-equivalent setup and
+; enable the no-drop render-queue policy only for Soul Calibur on RG552.
+; best_performance deliberately has no separate device record and therefore
+; falls back to this best_validated profile for all three retail variants.
+device.RG552.profile.T1401D50.best_validated.title = Soul Calibur (Europe, RG552 validated)
+device.RG552.profile.T1401D50.best_validated.retrorun_loop_declared_fps = true
+device.RG552.profile.T1401D50.best_validated.retrorun_drm_direct_scanout = false
+device.RG552.profile.T1401D50.best_validated.retrorun_audio_buffer = 735
+device.RG552.profile.T1401D50.best_validated.retrorun_audio_stable_buffer = false
+device.RG552.profile.T1401D50.best_validated.retrorun_go2_audio_prebuffer_ms = 60
+device.RG552.profile.T1401D50.best_validated.retrorun_go2_audio_stretch_percent = 0
+device.RG552.profile.T1401D50.best_validated.retrorun_go2_audio_stretch_low_ms = 40
+device.RG552.profile.T1401D50.best_validated.retrorun_go2_audio_wsola_profile = disabled
+device.RG552.profile.T1401D50.best_validated.retrorun_video_multithread_mode = enabled
+device.RG552.profile.T1401D50.best_validated.reicast_system = dreamcast
+device.RG552.profile.T1401D50.best_validated.reicast_boot_to_bios = disabled
+device.RG552.profile.T1401D50.best_validated.reicast_hle_bios = disabled
+device.RG552.profile.T1401D50.best_validated.reicast_internal_resolution = 640x480
+device.RG552.profile.T1401D50.best_validated.reicast_screen_rotation = horizontal
+device.RG552.profile.T1401D50.best_validated.reicast_cpu_mode = dynamic_recompiler
+device.RG552.profile.T1401D50.best_validated.reicast_sh4clock = 200
+device.RG552.profile.T1401D50.best_validated.reicast_sh4_cycle_mode = legacy
+device.RG552.profile.T1401D50.best_validated.reicast_cable_type = TV (Composite)
+device.RG552.profile.T1401D50.best_validated.reicast_broadcast = NTSC
+device.RG552.profile.T1401D50.best_validated.reicast_alpha_sorting = per-strip (fast, least accurate)
+device.RG552.profile.T1401D50.best_validated.reicast_gdrom_fast_loading = enabled
+device.RG552.profile.T1401D50.best_validated.reicast_mipmapping = enabled
+device.RG552.profile.T1401D50.best_validated.reicast_fog = enabled
+device.RG552.profile.T1401D50.best_validated.reicast_volume_modifier_enable = disabled
+device.RG552.profile.T1401D50.best_validated.reicast_enable_dsp = disabled
+device.RG552.profile.T1401D50.best_validated.reicast_anisotropic_filtering = disabled
+device.RG552.profile.T1401D50.best_validated.reicast_div_matching = auto
+device.RG552.profile.T1401D50.best_validated.reicast_texupscale = off
+device.RG552.profile.T1401D50.best_validated.reicast_enable_rttb = disabled
+device.RG552.profile.T1401D50.best_validated.reicast_enable_purupuru = enabled
+device.RG552.profile.T1401D50.best_validated.reicast_framerate = fullspeed
+device.RG552.profile.T1401D50.best_validated.reicast_threaded_rendering = enabled
+device.RG552.profile.T1401D50.best_validated.reicast_synchronous_rendering = disabled
+device.RG552.profile.T1401D50.best_validated.reicast_delay_frame_swapping = disabled
+device.RG552.profile.T1401D50.best_validated.reicast_auto_skip_frame = disabled
+device.RG552.profile.T1401D50.best_validated.reicast_frame_skipping = disabled
+device.RG552.profile.T1401D50.best_validated.reicast_adjacent_state_elision = disabled
+device.RG552.profile.T1401D50.best_validated.reicast_translucent_strip_merge = disabled
+device.RG552.profile.T1401D50.best_validated.reicast_texture_storage_reuse = disabled
+device.RG552.profile.T1401D50.best_validated.reicast_palette_fog_storage_reuse = disabled
+device.RG552.profile.T1401D50.best_validated.reicast_fast_depth = disabled
+device.RG552.profile.T1401D50.best_validated.reicast_audio_mixer = accurate
+device.RG552.profile.T1401D50.best_validated.reicast_opaque_strip_merge = disabled
+device.RG552.profile.T1401D50.best_validated.reicast_aica_arm_cycles = 32
+device.RG552.profile.T1401D50.best_validated.reicast_accurate_aica_batch = disabled
+device.RG552.profile.T1401D50.best_validated.reicast_shared_block_checks = disabled
+device.RG552.profile.T1401D50.best_validated.reicast_mmu_address_lut = disabled
+device.RG552.profile.T1401D50.best_validated.reicast_fmov_fpr64 = disabled
+device.RG552.profile.T1401D50.best_validated.reicast_aica_better_lpf = disabled
+device.RG552.profile.T1401D50.best_validated.reicast_render_queue_no_drop = enabled
+
+device.RG552.profile.T1401N.best_validated.title = Soul Calibur (North America, RG552 validated)
+device.RG552.profile.T1401N.best_validated.retrorun_loop_declared_fps = true
+device.RG552.profile.T1401N.best_validated.retrorun_drm_direct_scanout = false
+device.RG552.profile.T1401N.best_validated.retrorun_audio_buffer = 735
+device.RG552.profile.T1401N.best_validated.retrorun_audio_stable_buffer = false
+device.RG552.profile.T1401N.best_validated.retrorun_go2_audio_prebuffer_ms = 60
+device.RG552.profile.T1401N.best_validated.retrorun_go2_audio_stretch_percent = 0
+device.RG552.profile.T1401N.best_validated.retrorun_go2_audio_stretch_low_ms = 40
+device.RG552.profile.T1401N.best_validated.retrorun_go2_audio_wsola_profile = disabled
+device.RG552.profile.T1401N.best_validated.retrorun_video_multithread_mode = enabled
+device.RG552.profile.T1401N.best_validated.reicast_system = dreamcast
+device.RG552.profile.T1401N.best_validated.reicast_boot_to_bios = disabled
+device.RG552.profile.T1401N.best_validated.reicast_hle_bios = disabled
+device.RG552.profile.T1401N.best_validated.reicast_internal_resolution = 640x480
+device.RG552.profile.T1401N.best_validated.reicast_screen_rotation = horizontal
+device.RG552.profile.T1401N.best_validated.reicast_cpu_mode = dynamic_recompiler
+device.RG552.profile.T1401N.best_validated.reicast_sh4clock = 200
+device.RG552.profile.T1401N.best_validated.reicast_sh4_cycle_mode = legacy
+device.RG552.profile.T1401N.best_validated.reicast_cable_type = TV (Composite)
+device.RG552.profile.T1401N.best_validated.reicast_broadcast = NTSC
+device.RG552.profile.T1401N.best_validated.reicast_alpha_sorting = per-strip (fast, least accurate)
+device.RG552.profile.T1401N.best_validated.reicast_gdrom_fast_loading = enabled
+device.RG552.profile.T1401N.best_validated.reicast_mipmapping = enabled
+device.RG552.profile.T1401N.best_validated.reicast_fog = enabled
+device.RG552.profile.T1401N.best_validated.reicast_volume_modifier_enable = disabled
+device.RG552.profile.T1401N.best_validated.reicast_enable_dsp = disabled
+device.RG552.profile.T1401N.best_validated.reicast_anisotropic_filtering = disabled
+device.RG552.profile.T1401N.best_validated.reicast_div_matching = auto
+device.RG552.profile.T1401N.best_validated.reicast_texupscale = off
+device.RG552.profile.T1401N.best_validated.reicast_enable_rttb = disabled
+device.RG552.profile.T1401N.best_validated.reicast_enable_purupuru = enabled
+device.RG552.profile.T1401N.best_validated.reicast_framerate = fullspeed
+device.RG552.profile.T1401N.best_validated.reicast_threaded_rendering = enabled
+device.RG552.profile.T1401N.best_validated.reicast_synchronous_rendering = disabled
+device.RG552.profile.T1401N.best_validated.reicast_delay_frame_swapping = disabled
+device.RG552.profile.T1401N.best_validated.reicast_auto_skip_frame = disabled
+device.RG552.profile.T1401N.best_validated.reicast_frame_skipping = disabled
+device.RG552.profile.T1401N.best_validated.reicast_adjacent_state_elision = disabled
+device.RG552.profile.T1401N.best_validated.reicast_translucent_strip_merge = disabled
+device.RG552.profile.T1401N.best_validated.reicast_texture_storage_reuse = disabled
+device.RG552.profile.T1401N.best_validated.reicast_palette_fog_storage_reuse = disabled
+device.RG552.profile.T1401N.best_validated.reicast_fast_depth = disabled
+device.RG552.profile.T1401N.best_validated.reicast_audio_mixer = accurate
+device.RG552.profile.T1401N.best_validated.reicast_opaque_strip_merge = disabled
+device.RG552.profile.T1401N.best_validated.reicast_aica_arm_cycles = 32
+device.RG552.profile.T1401N.best_validated.reicast_accurate_aica_batch = disabled
+device.RG552.profile.T1401N.best_validated.reicast_shared_block_checks = disabled
+device.RG552.profile.T1401N.best_validated.reicast_mmu_address_lut = disabled
+device.RG552.profile.T1401N.best_validated.reicast_fmov_fpr64 = disabled
+device.RG552.profile.T1401N.best_validated.reicast_aica_better_lpf = disabled
+device.RG552.profile.T1401N.best_validated.reicast_render_queue_no_drop = enabled
+
+device.RG552.profile.T1401M.best_validated.title = Soul Calibur (Japan, RG552 validated)
+device.RG552.profile.T1401M.best_validated.retrorun_loop_declared_fps = true
+device.RG552.profile.T1401M.best_validated.retrorun_drm_direct_scanout = false
+device.RG552.profile.T1401M.best_validated.retrorun_audio_buffer = 735
+device.RG552.profile.T1401M.best_validated.retrorun_audio_stable_buffer = false
+device.RG552.profile.T1401M.best_validated.retrorun_go2_audio_prebuffer_ms = 60
+device.RG552.profile.T1401M.best_validated.retrorun_go2_audio_stretch_percent = 0
+device.RG552.profile.T1401M.best_validated.retrorun_go2_audio_stretch_low_ms = 40
+device.RG552.profile.T1401M.best_validated.retrorun_go2_audio_wsola_profile = disabled
+device.RG552.profile.T1401M.best_validated.retrorun_video_multithread_mode = enabled
+device.RG552.profile.T1401M.best_validated.reicast_system = dreamcast
+device.RG552.profile.T1401M.best_validated.reicast_boot_to_bios = disabled
+device.RG552.profile.T1401M.best_validated.reicast_hle_bios = disabled
+device.RG552.profile.T1401M.best_validated.reicast_internal_resolution = 640x480
+device.RG552.profile.T1401M.best_validated.reicast_screen_rotation = horizontal
+device.RG552.profile.T1401M.best_validated.reicast_cpu_mode = dynamic_recompiler
+device.RG552.profile.T1401M.best_validated.reicast_sh4clock = 200
+device.RG552.profile.T1401M.best_validated.reicast_sh4_cycle_mode = legacy
+device.RG552.profile.T1401M.best_validated.reicast_cable_type = TV (Composite)
+device.RG552.profile.T1401M.best_validated.reicast_broadcast = NTSC
+device.RG552.profile.T1401M.best_validated.reicast_alpha_sorting = per-strip (fast, least accurate)
+device.RG552.profile.T1401M.best_validated.reicast_gdrom_fast_loading = enabled
+device.RG552.profile.T1401M.best_validated.reicast_mipmapping = enabled
+device.RG552.profile.T1401M.best_validated.reicast_fog = enabled
+device.RG552.profile.T1401M.best_validated.reicast_volume_modifier_enable = disabled
+device.RG552.profile.T1401M.best_validated.reicast_enable_dsp = disabled
+device.RG552.profile.T1401M.best_validated.reicast_anisotropic_filtering = disabled
+device.RG552.profile.T1401M.best_validated.reicast_div_matching = auto
+device.RG552.profile.T1401M.best_validated.reicast_texupscale = off
+device.RG552.profile.T1401M.best_validated.reicast_enable_rttb = disabled
+device.RG552.profile.T1401M.best_validated.reicast_enable_purupuru = enabled
+device.RG552.profile.T1401M.best_validated.reicast_framerate = fullspeed
+device.RG552.profile.T1401M.best_validated.reicast_threaded_rendering = enabled
+device.RG552.profile.T1401M.best_validated.reicast_synchronous_rendering = disabled
+device.RG552.profile.T1401M.best_validated.reicast_delay_frame_swapping = disabled
+device.RG552.profile.T1401M.best_validated.reicast_auto_skip_frame = disabled
+device.RG552.profile.T1401M.best_validated.reicast_frame_skipping = disabled
+device.RG552.profile.T1401M.best_validated.reicast_adjacent_state_elision = disabled
+device.RG552.profile.T1401M.best_validated.reicast_translucent_strip_merge = disabled
+device.RG552.profile.T1401M.best_validated.reicast_texture_storage_reuse = disabled
+device.RG552.profile.T1401M.best_validated.reicast_palette_fog_storage_reuse = disabled
+device.RG552.profile.T1401M.best_validated.reicast_fast_depth = disabled
+device.RG552.profile.T1401M.best_validated.reicast_audio_mixer = accurate
+device.RG552.profile.T1401M.best_validated.reicast_opaque_strip_merge = disabled
+device.RG552.profile.T1401M.best_validated.reicast_aica_arm_cycles = 32
+device.RG552.profile.T1401M.best_validated.reicast_accurate_aica_batch = disabled
+device.RG552.profile.T1401M.best_validated.reicast_shared_block_checks = disabled
+device.RG552.profile.T1401M.best_validated.reicast_mmu_address_lut = disabled
+device.RG552.profile.T1401M.best_validated.reicast_fmov_fpr64 = disabled
+device.RG552.profile.T1401M.best_validated.reicast_aica_better_lpf = disabled
+device.RG552.profile.T1401M.best_validated.reicast_render_queue_no_drop = enabled
 
 profile.T38706M.best_validated.title = Ikaruga
 profile.T38706M.best_validated.retrorun_adaptive_frameskip = false
@@ -1628,6 +1789,64 @@ device.RG353M.profile.HDR-0010.best_performance.reicast_threaded_rendering = ena
 device.RG353M.profile.HDR-0010.best_performance.reicast_audio_mixer = accurate
 device.RG353M.profile.HDR-0010.best_performance.reicast_aica_arm_cycles = 32
 
+; RG552: manually approved with the single deployed Flycast 2022 Low-End B0
+; build (838b83b64). This reproduces the no-WSOLA reference configuration and
+; explicitly pins the frontend video worker that the historical RG552/Low-End
+; automatic path enabled during validation. It deliberately does not request an
+; alternate core. best_performance falls back to this best_validated profile for
+; both retail Product-number variants.
+device.RG552.profile.MK-51019.best_validated.title = Sega Rally 2 (USA, RG552 validated)
+device.RG552.profile.MK-51019.best_validated.retrorun_audio_buffer = 2048
+device.RG552.profile.MK-51019.best_validated.retrorun_audio_stable_buffer = true
+device.RG552.profile.MK-51019.best_validated.retrorun_go2_audio_wsola_profile = disabled
+device.RG552.profile.MK-51019.best_validated.retrorun_video_multithread_mode = enabled
+device.RG552.profile.MK-51019.best_validated.reicast_threaded_rendering = enabled
+device.RG552.profile.MK-51019.best_validated.reicast_internal_resolution = 640x480
+device.RG552.profile.MK-51019.best_validated.reicast_anisotropic_filtering = off
+device.RG552.profile.MK-51019.best_validated.reicast_enable_dsp = disabled
+device.RG552.profile.MK-51019.best_validated.reicast_synchronous_rendering = disabled
+device.RG552.profile.MK-51019.best_validated.reicast_enable_rttb = disabled
+device.RG552.profile.MK-51019.best_validated.reicast_delay_frame_swapping = disabled
+device.RG552.profile.MK-51019.best_validated.reicast_alpha_sorting = per-strip (fast, least accurate)
+device.RG552.profile.MK-51019.best_validated.reicast_div_matching = auto
+device.RG552.profile.MK-51019.best_validated.reicast_texupscale = 1
+device.RG552.profile.MK-51019.best_validated.reicast_enable_purupuru = enabled
+device.RG552.profile.MK-51019.best_validated.reicast_auto_skip_frame = disabled
+device.RG552.profile.MK-51019.best_validated.reicast_gdrom_fast_loading = enabled
+device.RG552.profile.MK-51019.best_validated.reicast_volume_modifier_enable = disabled
+device.RG552.profile.MK-51019.best_validated.reicast_framerate = fullspeed
+device.RG552.profile.MK-51019.best_validated.reicast_mmu_address_lut = enabled
+device.RG552.profile.MK-51019.best_validated.reicast_shared_block_checks = enabled
+device.RG552.profile.MK-51019.best_validated.reicast_fmov_fpr64 = enabled
+device.RG552.profile.MK-51019.best_validated.reicast_aica_better_lpf = enabled
+device.RG552.profile.MK-51019.best_validated.reicast_sh4_cycle_mode = accurate
+
+device.RG552.profile.HDR-0010.best_validated.title = Sega Rally 2 (Japan, RG552 validated)
+device.RG552.profile.HDR-0010.best_validated.retrorun_audio_buffer = 2048
+device.RG552.profile.HDR-0010.best_validated.retrorun_audio_stable_buffer = true
+device.RG552.profile.HDR-0010.best_validated.retrorun_go2_audio_wsola_profile = disabled
+device.RG552.profile.HDR-0010.best_validated.retrorun_video_multithread_mode = enabled
+device.RG552.profile.HDR-0010.best_validated.reicast_threaded_rendering = enabled
+device.RG552.profile.HDR-0010.best_validated.reicast_internal_resolution = 640x480
+device.RG552.profile.HDR-0010.best_validated.reicast_anisotropic_filtering = off
+device.RG552.profile.HDR-0010.best_validated.reicast_enable_dsp = disabled
+device.RG552.profile.HDR-0010.best_validated.reicast_synchronous_rendering = disabled
+device.RG552.profile.HDR-0010.best_validated.reicast_enable_rttb = disabled
+device.RG552.profile.HDR-0010.best_validated.reicast_delay_frame_swapping = disabled
+device.RG552.profile.HDR-0010.best_validated.reicast_alpha_sorting = per-strip (fast, least accurate)
+device.RG552.profile.HDR-0010.best_validated.reicast_div_matching = auto
+device.RG552.profile.HDR-0010.best_validated.reicast_texupscale = 1
+device.RG552.profile.HDR-0010.best_validated.reicast_enable_purupuru = enabled
+device.RG552.profile.HDR-0010.best_validated.reicast_auto_skip_frame = disabled
+device.RG552.profile.HDR-0010.best_validated.reicast_gdrom_fast_loading = enabled
+device.RG552.profile.HDR-0010.best_validated.reicast_volume_modifier_enable = disabled
+device.RG552.profile.HDR-0010.best_validated.reicast_framerate = fullspeed
+device.RG552.profile.HDR-0010.best_validated.reicast_mmu_address_lut = enabled
+device.RG552.profile.HDR-0010.best_validated.reicast_shared_block_checks = enabled
+device.RG552.profile.HDR-0010.best_validated.reicast_fmov_fpr64 = enabled
+device.RG552.profile.HDR-0010.best_validated.reicast_aica_better_lpf = enabled
+device.RG552.profile.HDR-0010.best_validated.reicast_sh4_cycle_mode = accurate
+
 profile.T9702D51.best_validated.title = Hydro Thunder (Europe, baseline)
 
 profile.T9702N.best_validated.title = Hydro Thunder (USA, baseline)
@@ -2047,12 +2266,14 @@ const std::unordered_set<std::string> &allowedSettings()
         "retrorun_sdl_audio_stretch_low_ms",
         "retrorun_sdl_audio_stretch_percent",
         "retrorun_vsync",
+        "retrorun_video_multithread_mode",
         "reicast_adjacent_state_elision",
         "reicast_accurate_aica_batch",
         "reicast_aica_better_lpf",
         "reicast_aica_arm_cycles",
         "reicast_alpha_sorting",
         "reicast_anisotropic_filtering",
+        "reicast_auto_skip_frame",
         "reicast_audio_mixer",
         "reicast_boot_to_bios",
         "reicast_broadcast",
@@ -2080,6 +2301,7 @@ const std::unordered_set<std::string> &allowedSettings()
         "reicast_opaque_strip_merge",
         "reicast_palette_fog_storage_reuse",
         "reicast_pvr2_filtering",
+        "reicast_render_queue_no_drop",
         "reicast_render_to_texture_upscaling",
         "reicast_screen_rotation",
         "reicast_sh4clock",

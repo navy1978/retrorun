@@ -21,6 +21,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <string>
 #include "menu/menu_manager.h"
 #include "logger.h"
+#include "video/video_multithread_mode.h"
 #include <map>
 
 extern std::string release;
@@ -206,12 +207,15 @@ bool isMiniloongPocket1();
 bool isRK3566Device();
 bool isRG353Family();
 bool supportsVideoMultithread();
+bool videoMultithreadAutomaticPathEligible();
+bool videoMultithreadRequested();
 bool hasDeviceRotatedScreen();
 bool wideScreenNotRotated();
 void resetDeviceName();
 bool isTate();
 
 extern bool forceVideoMultithread;
+extern rr::VideoMultithreadMode videoMultithreadMode;
 extern DRMDirectScanoutMode drmDirectScanoutMode;
 extern bool drmDirectScanoutDiagnosticActive;
 extern bool drmDirectScanoutDiagnosticCompleted;

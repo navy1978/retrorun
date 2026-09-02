@@ -66,9 +66,9 @@ void testBuiltInProfiles()
 {
     const Catalog catalog = builtinCatalog();
     assert(catalog.schema_version == 2);
-    assert(catalog.catalog_version == 20260921);
+    assert(catalog.catalog_version == 20260923);
     assert(catalog.profiles.size() == 98);
-    assert(catalog.device_profiles.size() == 2);
+    assert(catalog.device_profiles.size() == 3);
     assert(normalizeProductNumber("T1401D  50 ") == "T1401D50");
     assert(catalog.safe_defaults.at("reicast_alpha_sorting") ==
            "per-triangle (normal)");
@@ -284,6 +284,69 @@ void testBuiltInProfiles()
             assert(profile.settings == segaRallyReference.settings);
     }
 
+    Profile segaRallyRg552Reference;
+    for (const char *product : segaRallyVariants)
+    {
+        assert(selectProfile(catalog, product, Mode::BestValidated,
+                             profile, fallback, "rG552"));
+        assert(!fallback);
+        assert(profile.validated);
+        assert(profile.mode == Mode::BestValidated);
+        assert(profile.settings.count("retrorun_flycast_core_variant") == 0);
+        assert(profile.settings.at("retrorun_audio_buffer") == "2048");
+        assert(profile.settings.at("retrorun_audio_stable_buffer") == "true");
+        assert(profile.settings.at("retrorun_go2_audio_wsola_profile") ==
+               "disabled");
+        assert(profile.settings.at("retrorun_video_multithread_mode") ==
+               "enabled");
+        assert(profile.settings.count("retrorun_force_video_multithread") == 0);
+        assert(profile.settings.at("retrorun_loop_declared_fps") == "true");
+        assert(profile.settings.at("reicast_threaded_rendering") == "enabled");
+        assert(profile.settings.at("reicast_internal_resolution") ==
+               "640x480");
+        assert(profile.settings.at("reicast_anisotropic_filtering") == "off");
+        assert(profile.settings.at("reicast_enable_dsp") == "disabled");
+        assert(profile.settings.at("reicast_synchronous_rendering") ==
+               "disabled");
+        assert(profile.settings.at("reicast_enable_rttb") == "disabled");
+        assert(profile.settings.at("reicast_delay_frame_swapping") ==
+               "disabled");
+        assert(profile.settings.at("reicast_alpha_sorting") ==
+               "per-strip (fast, least accurate)");
+        assert(profile.settings.at("reicast_div_matching") == "auto");
+        assert(profile.settings.at("reicast_texupscale") == "1");
+        assert(profile.settings.at("reicast_enable_purupuru") == "enabled");
+        assert(profile.settings.at("reicast_auto_skip_frame") == "disabled");
+        assert(profile.settings.at("reicast_gdrom_fast_loading") == "enabled");
+        assert(profile.settings.at("reicast_volume_modifier_enable") ==
+               "disabled");
+        assert(profile.settings.at("reicast_framerate") == "fullspeed");
+        assert(profile.settings.at("reicast_mmu_address_lut") == "enabled");
+        assert(profile.settings.at("reicast_shared_block_checks") == "enabled");
+        assert(profile.settings.at("reicast_fmov_fpr64") == "enabled");
+        assert(profile.settings.at("reicast_aica_better_lpf") == "enabled");
+        assert(profile.settings.at("reicast_sh4_cycle_mode") == "accurate");
+
+        const auto rg552CoreSettings =
+            settingsForOptionPrefix(profile.settings, "flycast2022_");
+        assert(rg552CoreSettings.at("flycast2022_auto_skip_frame") ==
+               "disabled");
+        assert(rg552CoreSettings.at("flycast2022_texupscale") == "1");
+
+        if (segaRallyRg552Reference.settings.empty())
+            segaRallyRg552Reference = profile;
+        else
+            assert(profile.settings == segaRallyRg552Reference.settings);
+
+        assert(selectProfile(catalog, product, Mode::BestPerformance,
+                             profile, fallback, "RG552"));
+        assert(fallback);
+        assert(profile.validated);
+        assert(profile.mode == Mode::BestValidated);
+        assert(profile.settings == segaRallyRg552Reference.settings);
+        assert(profile.settings.count("retrorun_flycast_core_variant") == 0);
+    }
+
     assert(selectProfile(catalog, "MK-51019", Mode::BestPerformance,
                          profile, fallback, "RG351MP"));
     assert(fallback);
@@ -417,6 +480,128 @@ void testBuiltInProfiles()
     assert(profile.settings.at("reicast_fast_depth") == "vertex_fast_log");
     assert(profile.settings.at("reicast_audio_mixer") == "lowend");
     assert(profile.settings.at("reicast_aica_arm_cycles") == "32");
+    assert(profile.settings.count("reicast_render_queue_no_drop") == 0);
+
+    const char *soulCaliburVariants[] = {
+        "T1401D50", "T1401N", "T1401M"
+    };
+    Profile soulCaliburRg552Reference;
+    for (const char *product : soulCaliburVariants)
+    {
+        assert(selectProfile(catalog, product, Mode::BestValidated,
+                             profile, fallback, "rG552"));
+        assert(!fallback);
+        assert(profile.validated);
+        assert(profile.mode == Mode::BestValidated);
+        assert(profile.settings.count("retrorun_flycast_core_variant") == 0);
+        assert(profile.settings.at("retrorun_loop_declared_fps") == "true");
+        assert(profile.settings.at("retrorun_drm_direct_scanout") == "false");
+        assert(profile.settings.at("retrorun_audio_buffer") == "735");
+        assert(profile.settings.at("retrorun_audio_stable_buffer") ==
+               "false");
+        assert(profile.settings.at("retrorun_go2_audio_prebuffer_ms") ==
+               "60");
+        assert(profile.settings.at("retrorun_go2_audio_stretch_percent") ==
+               "0");
+        assert(profile.settings.at("retrorun_go2_audio_stretch_low_ms") ==
+               "40");
+        assert(profile.settings.at("retrorun_go2_audio_wsola_profile") ==
+               "disabled");
+        assert(profile.settings.at("retrorun_video_multithread_mode") ==
+               "enabled");
+        assert(profile.settings.count("retrorun_force_video_multithread") ==
+               0);
+        assert(profile.settings.at("reicast_system") == "dreamcast");
+        assert(profile.settings.at("reicast_boot_to_bios") == "disabled");
+        assert(profile.settings.at("reicast_hle_bios") == "disabled");
+        assert(profile.settings.at("reicast_internal_resolution") ==
+               "640x480");
+        assert(profile.settings.at("reicast_screen_rotation") ==
+               "horizontal");
+        assert(profile.settings.at("reicast_cpu_mode") ==
+               "dynamic_recompiler");
+        assert(profile.settings.at("reicast_sh4clock") == "200");
+        assert(profile.settings.at("reicast_sh4_cycle_mode") == "legacy");
+        assert(profile.settings.at("reicast_cable_type") ==
+               "TV (Composite)");
+        assert(profile.settings.at("reicast_broadcast") == "NTSC");
+        assert(profile.settings.at("reicast_alpha_sorting") ==
+               "per-strip (fast, least accurate)");
+        assert(profile.settings.at("reicast_gdrom_fast_loading") ==
+               "enabled");
+        assert(profile.settings.at("reicast_mipmapping") == "enabled");
+        assert(profile.settings.at("reicast_fog") == "enabled");
+        assert(profile.settings.at("reicast_volume_modifier_enable") ==
+               "disabled");
+        assert(profile.settings.at("reicast_enable_dsp") == "disabled");
+        assert(profile.settings.at("reicast_anisotropic_filtering") ==
+               "disabled");
+        assert(profile.settings.at("reicast_div_matching") == "auto");
+        assert(profile.settings.at("reicast_texupscale") == "off");
+        assert(profile.settings.at("reicast_enable_rttb") == "disabled");
+        assert(profile.settings.at("reicast_enable_purupuru") == "enabled");
+        assert(profile.settings.at("reicast_framerate") == "fullspeed");
+        assert(profile.settings.at("reicast_threaded_rendering") ==
+               "enabled");
+        assert(profile.settings.at("reicast_synchronous_rendering") ==
+               "disabled");
+        assert(profile.settings.at("reicast_delay_frame_swapping") ==
+               "disabled");
+        assert(profile.settings.at("reicast_auto_skip_frame") == "disabled");
+        assert(profile.settings.at("reicast_frame_skipping") == "disabled");
+        assert(profile.settings.at("reicast_adjacent_state_elision") ==
+               "disabled");
+        assert(profile.settings.at("reicast_translucent_strip_merge") ==
+               "disabled");
+        assert(profile.settings.at("reicast_texture_storage_reuse") ==
+               "disabled");
+        assert(profile.settings.at("reicast_palette_fog_storage_reuse") ==
+               "disabled");
+        assert(profile.settings.at("reicast_fast_depth") == "disabled");
+        assert(profile.settings.at("reicast_audio_mixer") == "accurate");
+        assert(profile.settings.at("reicast_opaque_strip_merge") ==
+               "disabled");
+        assert(profile.settings.at("reicast_aica_arm_cycles") == "32");
+        assert(profile.settings.at("reicast_accurate_aica_batch") ==
+               "disabled");
+        assert(profile.settings.at("reicast_shared_block_checks") ==
+               "disabled");
+        assert(profile.settings.at("reicast_mmu_address_lut") == "disabled");
+        assert(profile.settings.at("reicast_fmov_fpr64") == "disabled");
+        assert(profile.settings.at("reicast_aica_better_lpf") == "disabled");
+        assert(profile.settings.at("reicast_render_queue_no_drop") ==
+               "enabled");
+
+        const auto rg552CoreSettings =
+            settingsForOptionPrefix(profile.settings, "flycast2022_");
+        assert(rg552CoreSettings.at("flycast2022_render_queue_no_drop") ==
+               "enabled");
+        assert(rg552CoreSettings.at("flycast2022_threaded_rendering") ==
+               "enabled");
+        assert(rg552CoreSettings.count("reicast_render_queue_no_drop") == 0);
+
+        if (soulCaliburRg552Reference.settings.empty())
+            soulCaliburRg552Reference = profile;
+        else
+            assert(profile.settings == soulCaliburRg552Reference.settings);
+
+        assert(selectProfile(catalog, product, Mode::BestPerformance,
+                             profile, fallback, "RG552"));
+        assert(fallback);
+        assert(profile.validated);
+        assert(profile.mode == Mode::BestValidated);
+        assert(profile.settings == soulCaliburRg552Reference.settings);
+        assert(profile.settings.count("retrorun_flycast_core_variant") == 0);
+    }
+
+    assert(selectProfile(catalog, "T1401N", Mode::BestPerformance,
+                         profile, fallback));
+    assert(!fallback);
+    assert(profile.settings.count("reicast_render_queue_no_drop") == 0);
+    assert(selectProfile(catalog, "MK-51019", Mode::BestValidated,
+                         profile, fallback, "RG552"));
+    assert(!fallback);
+    assert(profile.settings.count("reicast_render_queue_no_drop") == 0);
 
     assert(selectProfile(catalog, "MK-51035", Mode::BestValidated,
                          profile, fallback));
@@ -933,6 +1118,26 @@ void testVersionedRepositoryCatalogMatchesBuiltIn()
     assert(!fileFallback && !builtInFallback);
     assert(fromFile.title == fromBuiltIn.title);
     assert(fromFile.settings == fromBuiltIn.settings);
+
+    const char *rg552SoulProducts[] = {
+        "T1401D50", "T1401N", "T1401M"
+    };
+    for (const char *product : rg552SoulProducts)
+    {
+        assert(selectProfile(fileCatalog, product,
+                             Mode::BestPerformance, fromFile,
+                             fileFallback, "RG552"));
+        assert(selectProfile(builtIn, product,
+                             Mode::BestPerformance, fromBuiltIn,
+                             builtInFallback, "RG552"));
+        assert(fileFallback && builtInFallback);
+        assert(fromFile.mode == Mode::BestValidated);
+        assert(fromBuiltIn.mode == Mode::BestValidated);
+        assert(fromFile.title == fromBuiltIn.title);
+        assert(fromFile.settings == fromBuiltIn.settings);
+        assert(fromFile.settings.at("reicast_render_queue_no_drop") ==
+               "enabled");
+    }
 
     const char *rg353Products[] = {
         "T1215N", "MK-51037", "MK-5100250", "MK-51058", "MK-5118450",

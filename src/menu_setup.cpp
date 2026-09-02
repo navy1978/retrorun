@@ -566,11 +566,28 @@ std::function<void(int)> setFixedFrameskipSetting = [](int button) {
 
 int getThreadedVideoSetting()
 {
-    return configValueIsTrue("retrorun_force_video_multithread", false) ? 1 : 0;
+    return static_cast<int>(videoMultithreadMode);
 }
 std::function<void(int)> setThreadedVideoSetting = [](int button) {
-    if (!toggleRequested(button)) return;
-    saveBoolean("retrorun_force_video_multithread", !getThreadedVideoSetting());
+    if (!toggleRequested(button))
+        return;
+    int value = static_cast<int>(videoMultithreadMode);
+    if (button == LEFT)
+        value = (value + 2) % 3;
+    else
+        value = (value + 1) % 3;
+    videoMultithreadMode = static_cast<rr::VideoMultithreadMode>(value);
+
+    // Once the tri-state selector is used, avoid a hidden legacy=true value
+    // changing the meaning of Auto.
+    forceVideoMultithread = false;
+    saveBoolean("retrorun_force_video_multithread", false);
+    if (!persistConfigSetting(
+            "retrorun_video_multithread_mode",
+            rr::videoMultithreadModeName(videoMultithreadMode)))
+        logger.log(Logger::ERR,
+                   "Unable to save retrorun_video_multithread_mode in '%s'",
+                   activeConfigFile.c_str());
 };
 
 #ifndef RR_PLATFORM_SDL

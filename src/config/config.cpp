@@ -88,7 +88,8 @@ static const std::unordered_set<std::string> &knownRetroRunSettings()
         "retrorun_sdl_audio_stretch_percent", "retrorun_show_loading_screen",
         "retrorun_swap_l1r1_with_l2r2", "retrorun_swap_sticks",
         "retrorun_tate_mode", "retrorun_ui_profile",
-        "retrorun_video_filter", "retrorun_video_renderer",
+        "retrorun_video_filter", "retrorun_video_multithread_mode",
+        "retrorun_video_renderer",
         "retrorun_video_shader", "retrorun_vsync"
     };
     return settings;
@@ -121,6 +122,19 @@ void applyTransientConfigOverrides(
     if (overrides.find("retrorun_force_video_multithread") != overrides.end())
         forceVideoMultithread = configValueIsTrue(
             "retrorun_force_video_multithread", forceVideoMultithread);
+    if (overrides.find("retrorun_video_multithread_mode") != overrides.end())
+    {
+        rr::VideoMultithreadMode parsedMode;
+        const std::string value = configValue(
+            "retrorun_video_multithread_mode", "auto");
+        if (rr::parseVideoMultithreadMode(value, &parsedMode))
+            videoMultithreadMode = parsedMode;
+        else
+            logger.log(Logger::WARN,
+                       "Invalid transient retrorun_video_multithread_mode '%s'; keeping %s.",
+                       value.c_str(),
+                       rr::videoMultithreadModeName(videoMultithreadMode));
+    }
     if (overrides.find("retrorun_drm_direct_scanout") != overrides.end())
         drmDirectScanoutMode = configValueIsTrue(
             "retrorun_drm_direct_scanout", false)
@@ -956,6 +970,33 @@ void initConfig()
             logger.log(Logger::DEB, "retrorun_force_video_multithread: %s.", forceVideoMultithread ? "true" : "false");
         }
         catch (...) { logger.log(Logger::DEB, "retrorun_force_video_multithread parameter not found in retrorun.cfg using default value."); }
+
+        try
+        {
+            const std::string &value =
+                conf_map.at("retrorun_video_multithread_mode");
+            rr::VideoMultithreadMode parsedMode;
+            if (rr::parseVideoMultithreadMode(value, &parsedMode))
+            {
+                videoMultithreadMode = parsedMode;
+                logger.log(Logger::DEB,
+                           "retrorun_video_multithread_mode: %s.",
+                           rr::videoMultithreadModeName(videoMultithreadMode));
+            }
+            else
+            {
+                logger.log(Logger::WARN,
+                           "retrorun_video_multithread_mode '%s' is invalid; using %s.",
+                           value.c_str(),
+                           rr::videoMultithreadModeName(videoMultithreadMode));
+            }
+        }
+        catch (...)
+        {
+            logger.log(Logger::DEB,
+                       "retrorun_video_multithread_mode parameter not found; using %s.",
+                       rr::videoMultithreadModeName(videoMultithreadMode));
+        }
 
         try
         {

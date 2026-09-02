@@ -229,6 +229,7 @@ std::string MenuItem::getMisUnit()
     || mis_unit_ == "decoration"
     || mis_unit_ == "audio-buffer"
     || mis_unit_ == "drm-direct-scanout"
+    || mis_unit_ == "video-multithread-mode"
     || mis_unit_ == "log-level"
     )
     {
@@ -292,6 +293,11 @@ const char *drm_direct_scanout_names[] = {
     "Off",
     "On"};
 
+const char *video_multithread_mode_names[] = {
+    "Auto",
+    "Off",
+    "On"};
+
 const char *log_level_names[] = {
     "DEBUG",
     "INFO",
@@ -350,6 +356,10 @@ std::string MenuItem::getStringValue()
     else if (mis_unit_ == "drm-direct-scanout")
     {
         return drm_direct_scanout_names[getValue()];
+    }
+    else if (mis_unit_ == "video-multithread-mode")
+    {
+        return video_multithread_mode_names[getValue()];
     }
     else if (mis_unit_ == "log-level")
     {

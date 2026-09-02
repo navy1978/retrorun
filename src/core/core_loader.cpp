@@ -5,6 +5,7 @@ Copyright (C) 2021-present  navy1978
 */
 
 #include "core_loader.h"
+#include "core_option_resolution.h"
 #include "globals.h"
 #include "config.h"
 #include "keyboard.h"
@@ -597,13 +598,7 @@ bool core_environment(unsigned cmd, void *data)
         {
             logger.log(Logger::DEB, "key found: %s  value: %s", it->first.c_str(), it->second.c_str());
 
-            if (it->first.compare("flycast_internal_resolution") == 0 || it->first.compare("flycast2021_internal_resolution") == 0 || it->first.compare("parallel-n64-screensize") == 0)
-            {
-                if (it->second.compare("320x240") == 0)
-                    resolution = R_320_240;
-                else if (it->second.compare("640x480") == 0)
-                    resolution = R_640_480;
-            }
+            updateResolutionFromCoreOption(it->first, it->second, resolution);
 
             var->value = it->second.c_str();
             found = true;

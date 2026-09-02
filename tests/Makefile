@@ -10,7 +10,7 @@ COMMON_FLAGS := $(CXXFLAGS) $(SANITIZER) $(INCLUDES) -pthread
 
 .PHONY: all run clean
 
-all: benchmark_test audio_worker_test transition_test config_file_test flycast_game_catalog_test
+all: benchmark_test audio_worker_test transition_test config_file_test flycast_game_catalog_test core_option_resolution_test video_multithread_mode_test
 
 benchmark_test: benchmark_test.cpp $(ROOT)/src/diagnostics/benchmark.cpp $(ROOT)/src/diagnostics/benchmark.h
 	$(CXX) $(COMMON_FLAGS) benchmark_test.cpp $(ROOT)/src/diagnostics/benchmark.cpp -o $@
@@ -34,12 +34,22 @@ flycast_game_catalog_test: flycast_game_catalog_test.cpp \
 		$(ROOT)/src/config/flycast_game_catalog.cpp \
 		$(ROOT)/src/config/config_file.cpp -o $@
 
+core_option_resolution_test: core_option_resolution_test.cpp \
+		$(ROOT)/src/core/core_option_resolution.h
+	$(CXX) $(COMMON_FLAGS) core_option_resolution_test.cpp -o $@
+
+video_multithread_mode_test: video_multithread_mode_test.cpp \
+		$(ROOT)/src/video/video_multithread_mode.h
+	$(CXX) $(COMMON_FLAGS) video_multithread_mode_test.cpp -o $@
+
 run: all
 	./benchmark_test
 	./audio_worker_test
 	./transition_test
 	./config_file_test
 	./flycast_game_catalog_test
+	./core_option_resolution_test
+	./video_multithread_mode_test
 
 clean:
-	rm -f benchmark_test audio_worker_test transition_test config_file_test flycast_game_catalog_test benchmark-result-1.json benchmark-result-2.json transition-test.state
+	rm -f benchmark_test audio_worker_test transition_test config_file_test flycast_game_catalog_test core_option_resolution_test video_multithread_mode_test benchmark-result-1.json benchmark-result-2.json transition-test.state

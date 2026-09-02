@@ -79,6 +79,8 @@ int audioCounter = 0;
 int audioCounterSkip = 6;
 
 bool forceVideoMultithread = false;
+rr::VideoMultithreadMode videoMultithreadMode =
+    rr::VideoMultithreadMode::Auto;
 DRMDirectScanoutMode drmDirectScanoutMode = DRMDirectScanoutMode::Disabled;
 bool drmDirectScanoutDiagnosticActive = false;
 bool drmDirectScanoutDiagnosticCompleted = false;
@@ -452,6 +454,20 @@ bool isRG353Family()
 bool supportsVideoMultithread()
 {
     return isRG552() || isRG353Family();
+}
+bool videoMultithreadAutomaticPathEligible()
+{
+    return isRG552() && isFlycast2021();
+}
+bool videoMultithreadRequested()
+{
+#ifdef RR_PLATFORM_SDL
+    return false;
+#else
+    return rr::resolveVideoMultithreadRequest(
+        videoMultithreadMode, forceVideoMultithread,
+        supportsVideoMultithread(), videoMultithreadAutomaticPathEligible());
+#endif
 }
 bool hasDeviceRotatedScreen(){
    return isRG351V() || isRG351MP() || isRK3566Device();

@@ -367,6 +367,16 @@ static bool applyBenchmarkSetting(const std::string& setting, std::string* error
             adaptiveFrameSkip = false;
         return true;
     }
+    if (name == "threaded_video") {
+        rr::VideoMultithreadMode parsedMode;
+        if (!rr::parseVideoMultithreadMode(value, &parsedMode)) {
+            if (error)
+                *error = "threaded_video must be auto, enabled or disabled";
+            return false;
+        }
+        videoMultithreadMode = parsedMode;
+        return true;
+    }
     if (!parseBenchmarkBool(value, &enabled)) {
         if (error) *error = "boolean value must be true or false";
         return false;
@@ -374,7 +384,6 @@ static bool applyBenchmarkSetting(const std::string& setting, std::string* error
     if (name == "declared_fps_pacing") runLoopAtDeclaredfps = enabled;
     else if (name == "threaded_audio") forceAudioMultithread = enabled;
     else if (name == "stable_audio_buffer") retrorun_audio_stable_buffer = enabled;
-    else if (name == "threaded_video") forceVideoMultithread = enabled;
     else if (name == "direct_scanout")
         drmDirectScanoutMode = enabled ? DRMDirectScanoutMode::Enabled
                                        : DRMDirectScanoutMode::Disabled;
@@ -761,6 +770,33 @@ int main(int argc, char *argv[])
     applyFlycastGameCatalog(argv[0], arg_rom);
     maybeRestartWithFlycastCoreVariant(argc, argv, coreArgumentIndex);
 
+    // Catalog values are intentionally applied after the base configuration.
+    // Diagnostic command-line overrides must be last so an A/B arm cannot be
+    // silently replaced by a per-game profile.
+    if (benchmark_requested())
+    {
+        for (const std::string& setting : benchmarkSettings)
+        {
+            std::string settingError;
+            if (!applyBenchmarkSetting(setting, &settingError))
+            {
+                logger.log(Logger::ERR,
+                           "Unable to reapply benchmark override '%s' after catalog resolution: %s.",
+                           setting.c_str(), settingError.c_str());
+                return EXIT_FAILURE;
+            }
+        }
+    }
+
+    logger.log(Logger::INF,
+               "Video multithread resolution: mode=%s, legacy_force=%s, device_supported=%s, automatic_path=%s, resolved_request=%s, core='%s'.",
+               rr::videoMultithreadModeName(videoMultithreadMode),
+               forceVideoMultithread ? "true" : "false",
+               supportsVideoMultithread() ? "true" : "false",
+               videoMultithreadAutomaticPathEligible() ? "true" : "false",
+               videoMultithreadRequested() ? "true" : "false",
+               coreName.c_str());
+
     if (isSwanStation() && (isRG351V() || isRG351MP()))
         opt_aspect = 0.75f;
 
@@ -881,7 +917,7 @@ int main(int argc, char *argv[])
             retrorun_go2_audio_stretch_low_ms;
         metadata.go2_audio_prebuffer_ms = configValueInteger(
             "retrorun_go2_audio_prebuffer_ms", 60, 0, 200);
-        metadata.threaded_video = forceVideoMultithread;
+        metadata.threaded_video = videoMultithreadRequested();
         metadata.direct_scanout = drmDirectScanoutMode == DRMDirectScanoutMode::Enabled;
         metadata.overlays = decoration_surface() != nullptr || opt_show_fps ||
                             input_fps_requested;
@@ -1060,8 +1096,8 @@ int main(int argc, char *argv[])
     itemsPerformance.emplace_back("DRM direct scanout", getDRMDirectScanoutSetting,
                                   setDRMDirectScanoutSetting, "drm-direct-scanout");
     if (supportsVideoMultithread())
-        itemsPerformance.emplace_back("Force threaded video (restart)", getThreadedVideoSetting,
-                                      setThreadedVideoSetting, "bool");
+        itemsPerformance.emplace_back("Threaded video (restart)", getThreadedVideoSetting,
+                                      setThreadedVideoSetting, "video-multithread-mode");
 #endif
     Menu menuPerformance = Menu("Performance", itemsPerformance);
 

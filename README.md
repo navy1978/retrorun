@@ -444,7 +444,7 @@ retrorun_flycast_game_profile = best_validated
 `disabled` keeps the normal configuration, `best_validated` selects the
 visually approved profile and `best_performance` selects the fastest retained
 profile, including documented compromises. RetroRun contains catalog version
-`20260921` and checks for a strictly newer `flycast-game-catalog.ini` beside
+`20260923` and checks for a strictly newer `flycast-game-catalog.ini` beside
 its executable. With catalog updates set to `auto` (the default), an
 at-most-daily background check downloads a newer valid catalog from the
 `navy1978/retrorun` repository into the active configuration directory; it is
@@ -797,7 +797,8 @@ General and input settings:
 | `retrorun_swap_sticks` | Exchanges left and right analog sticks. |
 | `retrorun_alternative_input_mode` | Uses the ArkOS-style Select/F2 hotkeys. |
 | `retrorun_mouse_speed_factor` | Mouse emulation speed; default is `5`. |
-| `retrorun_force_video_multithread` | Runs hardware-frame presentation on a detached thread on RG552 and the RG353 family. Experimental on RG353 devices and ignored with a warning on unsupported devices. RG552 keeps its automatic Flycast 2021 path even when this force option is disabled. |
+| `retrorun_force_video_multithread` | Legacy boolean which requests threaded hardware-frame presentation on RG552 and the RG353 family. In the default `auto` mode, RG552 also retains its historical automatic Flycast 2021-family path. |
+| `retrorun_video_multithread_mode` | Selects `auto` (backward-compatible behaviour), `enabled`, or `disabled`. Unlike the legacy boolean, `disabled` also turns off the automatic RG552/Flycast 2021-family path, allowing a real controlled A/B test. Unsupported devices still ignore threaded presentation. |
 | `retrorun_flycast_game_profile` | Flycast-only Product-number catalog: `disabled` (default), `best_validated` or `best_performance`. A newer valid `flycast-game-catalog.ini` beside RetroRun overrides the built-in catalog. |
 | `retrorun_flycast_catalog_update` | `auto` (default) or `disabled`. When a Flycast game profile is active, `auto` checks GitHub at most once per day in a separate process and atomically caches only a newer, valid catalog. |
 | `retrorun_enable_key_log` | Logs logical button names at `DEBUG` level. |

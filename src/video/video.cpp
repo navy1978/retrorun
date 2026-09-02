@@ -1040,6 +1040,9 @@ void video_worker_submit(VideoWorkerJob job)
     if (!videoWorkerStarted) {
         videoWorkerStopping = false;
         videoWorkerStarted = true;
+        logger.log(Logger::INF,
+                   "Threaded video worker started for core '%s'.",
+                   coreName.c_str());
         videoWorkerThread = std::thread(video_worker_loop);
     }
     // Capacity is two locked surfaces: one in flight and one pending. Normal
@@ -1079,6 +1082,7 @@ static void video_worker_stop()
     videoWorkerSpace.notify_all();
     if (videoWorkerThread.joinable())
         videoWorkerThread.join();
+    logger.log(Logger::INF, "Threaded video worker stopped.");
     std::lock_guard<std::mutex> lock(videoWorkerMutex);
     videoWorkerStarted = false;
     videoWorkerStopping = false;
@@ -1178,11 +1182,13 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
 
         lastData = data;
         lastPitch = pitch;
-        if (forceVideoMultithread && !supportsVideoMultithread()) {
+        if ((forceVideoMultithread ||
+             videoMultithreadMode == rr::VideoMultithreadMode::Enabled) &&
+            !supportsVideoMultithread()) {
             static bool warned = false;
             if (!warned) {
                 logger.log(Logger::WARN,
-                           "retrorun_force_video_multithread ignored: supported only on RG552 and the RG353 family");
+                           "Threaded video request ignored: supported only on RG552 and the RG353 family");
                 warned = true;
             }
         }
@@ -1371,10 +1377,8 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         // supported here. The worker owns this specific locked surface and
         // releases it only after presentation; it never reads the mutable
         // global gles_surface from the detached thread.
-        const bool threadedVideoRequested = forceVideoMultithread ||
-            (isRG552() && isFlycast2021());
-        const bool threadedVideo = supportsVideoMultithread() &&
-            threadedVideoRequested && !input_info_requested &&
+        const bool threadedVideo = videoMultithreadRequested() &&
+            !input_info_requested &&
             !input_message && !input_credits_requested && !input_fps_requested &&
             !screenshot_requested && !input_pause_requested &&
             !input_ffwd_requested && !rr_keyboard_virtual_visible() &&
