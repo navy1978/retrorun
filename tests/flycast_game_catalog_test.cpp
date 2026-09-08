@@ -66,7 +66,7 @@ void testBuiltInProfiles()
 {
     const Catalog catalog = builtinCatalog();
     assert(catalog.schema_version == 2);
-    assert(catalog.catalog_version == 20260923);
+    assert(catalog.catalog_version == 20260926);
     assert(catalog.profiles.size() == 98);
     assert(catalog.device_profiles.size() == 3);
     assert(normalizeProductNumber("T1401D  50 ") == "T1401D50");
@@ -602,6 +602,98 @@ void testBuiltInProfiles()
                          profile, fallback, "RG552"));
     assert(!fallback);
     assert(profile.settings.count("reicast_render_queue_no_drop") == 0);
+
+    struct Rg552NoDropProfile
+    {
+        const char *product;
+        bool disablesCoreFrameskip;
+    };
+    const Rg552NoDropProfile rg552NoDropProfiles[] = {
+        {"MK-51049", false},
+        {"T8116D50", false},
+        {"T38706M", true},
+        {"MK-51035", false},
+        {"T7010D50", true},
+        {"T1213N", false},
+        {"MK-51054", true},
+        {"T1215N", false},
+        {"MK-51037", false},
+        {"MK-51058", false},
+        {"MK-51117", false},
+        {"MK-5118450", false},
+        {"MK-51000", false},
+        {"T1201N", false},
+        {"T1211N", false},
+        {"MK-5100250", false},
+    };
+    for (const Rg552NoDropProfile &expected : rg552NoDropProfiles)
+    {
+        assert(selectProfile(catalog, expected.product, Mode::BestValidated,
+                             profile, fallback, "rg552"));
+        assert(!fallback);
+        assert(profile.validated);
+        assert(profile.mode == Mode::BestValidated);
+        assert(profile.settings.count("retrorun_flycast_core_variant") == 0);
+        assert(profile.settings.at("reicast_render_queue_no_drop") ==
+               "enabled");
+        if (expected.disablesCoreFrameskip)
+            assert(profile.settings.at("reicast_frame_skipping") ==
+                   "disabled");
+
+        const Profile validated = profile;
+        assert(selectProfile(catalog, expected.product,
+                             Mode::BestPerformance, profile, fallback,
+                             "RG552"));
+        assert(fallback);
+        assert(profile.settings == validated.settings);
+    }
+
+    assert(selectProfile(catalog, "T38706M", Mode::BestValidated,
+                         profile, fallback, "RG552"));
+    assert(profile.settings.at("reicast_alpha_sorting") ==
+           "per-triangle (normal)");
+
+    assert(selectProfile(catalog, "MK-51117", Mode::BestValidated,
+                         profile, fallback, "RG552"));
+    assert(profile.settings.at("retrorun_audio_buffer") == "2048");
+    assert(profile.settings.at("retrorun_audio_stable_buffer") == "true");
+    assert(profile.settings.at("retrorun_go2_audio_stretch_low_ms") ==
+           "150");
+    assert(profile.settings.at("retrorun_go2_audio_wsola_profile") ==
+           "lowend_stable_96");
+
+    assert(selectProfile(catalog, "MK-5100250", Mode::BestValidated,
+                         profile, fallback, "RG552"));
+    assert(!fallback);
+    assert(profile.settings.at("retrorun_audio_buffer") == "2048");
+    assert(profile.settings.at("retrorun_audio_stable_buffer") == "true");
+    assert(profile.settings.at("retrorun_go2_audio_stretch_low_ms") ==
+           "150");
+    assert(profile.settings.at("retrorun_go2_audio_wsola_profile") ==
+           "lowend_stable_96");
+
+    assert(!selectProfile(catalog, "T1201N", Mode::BestValidated,
+                          profile, fallback));
+    assert(!fallback);
+    assert(!selectProfile(catalog, "T1211N", Mode::BestValidated,
+                          profile, fallback));
+    assert(!fallback);
+
+    assert(selectProfile(catalog, "T1204N", Mode::BestValidated,
+                         profile, fallback, "RG552"));
+    assert(!fallback);
+    assert(profile.validated);
+    assert(profile.settings.at("reicast_sh4_cycle_mode") == "accurate");
+    assert(profile.settings.count("reicast_render_queue_no_drop") == 0);
+    const Profile codeVeronicaRg552 = profile;
+    assert(selectProfile(catalog, "T1204N", Mode::BestPerformance,
+                         profile, fallback, "RG552"));
+    assert(fallback);
+    assert(profile.settings == codeVeronicaRg552.settings);
+    assert(selectProfile(catalog, "T1204N", Mode::BestValidated,
+                         profile, fallback));
+    assert(!fallback);
+    assert(profile.settings.count("reicast_sh4_cycle_mode") == 0);
 
     assert(selectProfile(catalog, "MK-51035", Mode::BestValidated,
                          profile, fallback));

@@ -9,7 +9,7 @@ See [GAME_PROFILE_MODES.md](GAME_PROFILE_MODES.md) for the implemented
 current per-game differences.
 
 `flycast-game-catalog.ini` is the editable source form of catalog version
-`20260923`. The same data is built into RetroRun, so the feature works when
+`20260926`. The same data is built into RetroRun, so the feature works when
 distributions install only the executable. A copy beside RetroRun is used only
 when its `catalog_version` is greater than the built-in version.
 
@@ -61,7 +61,9 @@ validation; merely installing the alternate core does not change the default.
 | `T7013D50`, `T1213N`, `T1209M` | Street Fighter III: 3rd Strike | The European, North American and Japanese retail releases use distinct catalog records with the same RG351MP-validated settings. On a fixed USA fight savestate, accurate per-triangle alpha, `vertex_fast_log` depth and opaque-strip merging reached a three-run median of 47.76 FPS versus 44.39 (+7.58%), reduced active-frame p95 from 43.63 to 41.43 ms and recorded no audio underruns or empty queues. The inaccurate per-strip sorter was slower and visually unsafe. A later three-run RG351MP comparison measured 58.05 FPS with the upstream `62085539` core versus 46.73 with the current core (+24.2%); characters, backgrounds, animation, controls and audio passed manual review. The RG351MP `best_performance` override therefore selects `upstream_620`, while other RG351 devices retain the current core until tested. |
 | `MK-51019`, `HDR-0010` | Sega Rally 2 | European/North American and Japanese retail variants. The RG353M-specific `best_performance` profile uses the current low-end core with the validated WinCE MMU address LUT, shared block checks, PR=1 FPU-transfer compilation and corrected upstream AICA low-pass filter. It preserves the visually approved 640x480 renderer and accurate mixer, uses 110 MHz legacy SH4 timing, a stable 1470-frame buffer and the 10% `lowend_stable_96` GO2 stretch path. The final fixed eight-second run measured 26.62 presented FPS and two underruns; the same build without the LPF correction measured 26.63 FPS and two underruns. Audio and gameplay were manually approved as almost perfect. The faster `upstream_48ac` snapshot was rejected because it produced 71 underruns and audibly worse audio despite reaching 40.81 FPS. On RG552, both variants use the manually approved `best_validated` no-WSOLA configuration with the single deployed Low-End B0 (`838b83b64`) and explicitly enable the frontend video worker; no alternate core is requested, and `best_performance` falls back to this profile. |
 | `MK-51000` | Sonic Adventure | The European/North American retail Product number has an RG353M-specific `best_performance` profile. On the fixed gameplay state it reached 27.96 FPS versus 25.59 for the dArkOS stock stack (+9.3%), improved active-frame p95 from 69.22 to 64.11 ms and recorded no skipped frames, audio underruns or empty queues; stock recorded two underruns and two empty queues. Graphics, audio and gameplay were manually approved. Japanese `HDR-0001` and `HDR-0043` remain conservative baselines until tested. |
-| `T36812D61`, `T36812D64`, `T1218M`, `T1211N` | Power Stone 2 | The RG353M-specific profile was measured on the North American release from a fixed combat state and associated with all known retail regional Product numbers. Accurate per-triangle alpha reached 58.96 FPS versus 56.17 for the dArkOS stock stack (+5.0%), presented every frame and recorded no audio faults. The per-strip candidate reached only 0.13 FPS more, so it was rejected in favour of the safer renderer. Fast depth, AICA 8 and additional state reuse were all slower. Graphics, HUD, audio and gameplay were manually approved. |
+| `T36801D61`, `T36801D64`, `T1201M`, `T1201N` | Power Stone | Regional releases remain title-only except for device-specific profiles. The RG552 `T1201N` profile enables the manually approved no-drop queue over the safe inherited renderer and improved the fixed combat state from 45.812 to 59.958 presented FPS (+30.9%). |
+| `T36812D61`, `T36812D64`, `T1218M`, `T1211N` | Power Stone 2 | The RG353M-specific profile was measured on the North American release from a fixed combat state and associated with all known retail regional Product numbers. Accurate per-triangle alpha reached 58.96 FPS versus 56.17 for the dArkOS stock stack (+5.0%), presented every frame and recorded no audio faults. The per-strip candidate reached only 0.13 FPS more, so it was rejected in favour of the safer renderer. Fast depth, AICA 8 and additional state reuse were all slower. Graphics, HUD, audio and gameplay were manually approved. On RG552, the tested North American `T1211N` release enables no-drop over the inherited safe profile and reached 59.942 FPS versus 54.466. |
+| `MK-51002`, `MK-5100250`, `MK-55045`, `HDR-0007`, `HDR-0011` | The House of the Dead 2 | Untested variants remain title-only. The observed European `MK-5100250` release has an RG552 profile combining no-drop with the 2048-frame stable `lowend_stable_96` audio bundle; the captured fixed-state candidate reached 52.787 FPS with zero underruns, and graphics, audio and lightgun input were manually approved. |
 
 Catalog `20260902` added device-scoped RG353M profiles for `T1215N` (Cannon
 Spike), `MK-51037` (Daytona USA 2001), `MK-5100250` (the observed European
@@ -154,8 +156,47 @@ render-queue policy: three 600-frame runs improved from a 47.431 FPS median to
 with no underruns or audio lateness above 20 ms. The device profile pins the
 validated stock-equivalent graphics, audio and frontend-thread settings and
 enables `reicast_render_queue_no_drop`; `best_performance` falls back to this
-device-scoped `best_validated` profile. The option remains absent for every
-other game, device and global default.
+device-scoped `best_validated` profile.
+
+Catalog `20260924` extends that RG552-only queue policy to the twelve
+fixed-gameplay-state profiles validated with the same frontend and Low-End
+core: ChuChu Rocket, Dead or Alive 2, Ikaruga, Crazy Taxi, Marvel vs. Capcom 2,
+Street Fighter III: 3rd Strike, Virtua Tennis, Cannon Spike, Daytona USA, Jet
+Grind Radio, Sonic Adventure 2 and Shenmue II. Ikaruga, MVC2 and Virtua Tennis
+also disable the core's adaptive frame skipping, which had halved presented
+frames. Sonic adds the 2048-frame stable/WSOLA audio bundle that reduced the
+long-run median to two underruns per minute while preserving its 32.4% FPS
+gain. Sega Rally deliberately keeps no-drop disabled because its replicated
+median was neutral. The option remains absent from global defaults and from
+untested device/game combinations.
+
+The queue policy is the narrow Low-End backport of official Flycast commit
+`a00aad5fa73b9f31125c49a3814a40e15aa76b98` (`pvr: auto frame skip to replace
+current and previous synchronous rendering`). That upstream change waits for
+an occupied render queue when frame skipping is disabled; the older Low-End
+path instead recycled and silently dropped the incoming render context.
+
+Catalog `20260925` completes the 20-game RG552 performance screen. Sonic
+Adventure adds the no-drop queue policy after its replicated 60-second median
+rose from 27.292 to 29.271 presented FPS (+7.25%); the median audio cost was
+one additional underrun per minute. Resident Evil: Code Veronica already held
+its native 30 FPS cap, so no-drop and the MMU/FMOV/shared-block/AICA levers
+remain disabled. Its RG552 profile enables only accurate SH4 cycle accounting:
+three 60-second runs held 29.98 presented FPS with zero underruns and reduced
+audio producer lateness above 20 ms from 32--35 to 5--9 events per minute. The
+final fixed-state graphics, gameplay-speed, audio and input check was manually
+approved on the device.
+
+Catalog `20260926` promotes the final three manually approved RG552 profiles.
+Power Stone (`T1201N`) rose from 45.812 to 59.958 presented FPS (+30.9%), and
+Power Stone 2 (`T1211N`) rose from 54.466 to 59.942 FPS (+10.1%); both enable
+only the no-drop render queue over their inherited safe graphics profiles.
+The House of the Dead 2 (`MK-5100250`) combines no-drop with the validated
+2048-frame stable `lowend_stable_96` audio bundle; its captured candidate
+reached 52.787 FPS with zero underruns. Graphics, HUD, audio and controls (or
+lightgun input for House of the Dead 2) were approved from immutable fixed
+states. The overrides remain limited to the exact retail Product numbers and
+to RG552; untested regional variants stay title-only.
 
 `dreamcast-product-variants.tsv` is the machine-checked map between the Redump
 retail releases and the Product numbers returned by Flycast. When adding a
@@ -224,7 +265,7 @@ untouched. Promote them only after repeatable benchmarking and manual
 audio/video review.
 
 The remaining coverage includes the Japanese Sonic Adventure and Shenmue II
-variants, unvalidated Power Stone and The House of the Dead 2 combinations,
+variants, untested regional Power Stone and The House of the Dead 2 variants,
 Skies of Arcadia, Capcom vs. SNK 2, Phantasy Star Online, NFL 2K, NFL 2K1,
 Hydro Thunder, F355 Challenge, Virtua Fighter 3tb, Cosmic Smash, Toy Commander,
 Rez, Street Fighter Alpha 3 and Sega Bass Fishing. Every known retail Product
