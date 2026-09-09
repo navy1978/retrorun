@@ -101,7 +101,11 @@ jobs:
             candidates="${candidates//'%'/'%25'}"
             candidates="${candidates//$'\r'/'%0D'}"
             candidates="${candidates//$'\n'/'%0A'}"
-            printf '::error file=.github/workflows/build-binaries.yml::No staged RetroRun binary found. Candidates:%0A%s\n' "${candidates}"
+            details="$(tail -c 6000 amberelec-retrorun-build.log)"
+            details="${details//'%'/'%25'}"
+            details="${details//$'\r'/'%0D'}"
+            details="${details//$'\n'/'%0A'}"
+            printf '::error file=.github/workflows/build-binaries.yml::No staged RetroRun binary found. Candidates: %s. Build tail: %s\n' "${candidates}" "${details}"
             exit 1
           fi
           mkdir -p dist
