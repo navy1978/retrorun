@@ -77,7 +77,18 @@ jobs:
           docker run --rm --user "$(id -u):$(id -g)" \
             -v "${GITHUB_WORKSPACE}/amber:/work" -w /work \
             ghcr.io/amberelec/amberelec-build \
-            bash -lc 'DEVICE=RG351P ARCH=aarch64 ./scripts/build retrorun'
+            bash -lc 'DEVICE=RG351P ARCH=aarch64 ./scripts/build retrorun' \
+            2>&1 | tee "${GITHUB_WORKSPACE}/amberelec-retrorun-build.log"
+
+      - name: Publish build failure diagnostics
+        if: ${{ failure() }}
+        run: |
+          test -f amberelec-retrorun-build.log || exit 0
+          details="$(tail -c 6000 amberelec-retrorun-build.log)"
+          details="${details//'%'/'%25'}"
+          details="${details//$'\r'/'%0D'}"
+          details="${details//$'\n'/'%0A'}"
+          printf '::error file=.github/workflows/build-binaries.yml::%s\n' "${details}"
 
       - name: Stage artifact
         run: |
