@@ -53,7 +53,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            amber/build.AmberELEC-RG351P.aarch64
+            amber/build.AmberELEC-RG351P.aarch64*
             amber/sources
             amber/.ccache-aarch64-cortex-a53
           key: amberelec-rg351p-aarch64-retrorun-v1
@@ -92,7 +92,7 @@ jobs:
 
       - name: Stage artifact
         run: |
-          binary="$(find amber/build.AmberELEC-RG351P.aarch64 -path '*/.install_pkg/usr/bin/retrorun' -type f -print -quit)"
+          binary="$(find amber -path '*/.install_pkg/usr/bin/retrorun' -type f -print -quit)"
           test -n "${binary}"
           mkdir -p dist
           cp "${binary}" dist/retrorun-linux-go2-aarch64
