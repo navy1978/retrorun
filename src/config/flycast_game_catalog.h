@@ -32,13 +32,17 @@ struct Catalog
     int schema_version = 0;
     int catalog_version = 0;
     std::string source;
-    // Correctness-first base used when a device-specific validated profile is
-    // layered over title-only metadata. Metadata-only products are not
-    // selectable and therefore leave the user's configuration untouched.
+    // Correctness-first base used when a chip- or device-specific validated
+    // profile is layered over title-only metadata. Metadata-only products are
+    // not selectable and therefore leave the user's configuration untouched.
     std::map<std::string, std::string> safe_defaults;
     std::map<std::string, std::map<Mode, Profile>> profiles;
+    // Schema-v3 profiles shared by every mapped device with the same chip.
+    std::map<std::string,
+             std::map<std::string, std::map<Mode, Profile>>> chip_profiles;
     // Optional schema-v2 overrides keyed by normalized device name, then
-    // product number and mode. Global profiles remain the compatibility base.
+    // product number and mode. In schema v3 these are sparse final overrides
+    // layered over the mapped chip profile, which itself layers over global.
     std::map<std::string,
              std::map<std::string, std::map<Mode, Profile>>> device_profiles;
 };
@@ -47,6 +51,13 @@ Mode parseMode(const std::string &value);
 const char *modeName(Mode mode);
 std::string normalizeProductNumber(const std::string &product_number);
 std::string normalizeDeviceName(const std::string &device_name);
+std::string normalizeChipName(const std::string &chip_name);
+
+// Known marketing names win. Device Tree data is consulted by
+// detectDeviceChip only when the current device name is not mapped.
+std::string chipForDeviceName(const std::string &device_name);
+std::string chipFromDeviceTreeCompatible(const std::string &compatible_data);
+std::string detectDeviceChip(const std::string &device_name);
 
 bool parseCatalog(std::istream &input, const std::string &source,
                   Catalog &catalog, std::vector<std::string> &diagnostics);
@@ -68,10 +79,11 @@ bool scheduleCatalogUpdate(const std::string &cache_path,
 // profile exists for the selected product.
 bool selectProfile(const Catalog &catalog, const std::string &product_number,
                    Mode mode, Profile &profile, bool &used_fallback,
-                   const std::string &device_name = {});
+                   const std::string &device_name = {},
+                   const std::string &chip_name = {});
 
-// Return only products with an explicitly validated global or device profile.
-// Title-only metadata baselines are intentionally excluded from the UI.
+// Return only products with an explicitly validated global, chip or device
+// profile. Title-only metadata baselines are intentionally excluded from UI.
 std::map<std::string, Profile> validatedCatalogProfiles(
     const Catalog &catalog);
 

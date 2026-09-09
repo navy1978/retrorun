@@ -494,12 +494,17 @@ static void applyFlycastGameCatalog(const char *executable,
     flycastCatalogStatus.source = selectedCatalog.source;
     const char *detectedDevice = getDeviceName();
     const std::string deviceName = detectedDevice ? detectedDevice : "";
+    const std::string chipName = detectDeviceChip(deviceName);
+    logger.log(Logger::INF,
+               "Flycast game catalog: device='%s', chip='%s'.",
+               deviceName.c_str(),
+               chipName.empty() ? "unknown" : chipName.c_str());
 
     Profile catalogEntry;
     bool catalogFallback = false;
     flycastCatalogStatus.recognized =
         selectProfile(selectedCatalog, rawProductNumber, Mode::BestValidated,
-                      catalogEntry, catalogFallback, deviceName);
+                      catalogEntry, catalogFallback, deviceName, chipName);
     if (flycastCatalogStatus.recognized)
     {
         flycastCatalogStatus.title = catalogEntry.title;
@@ -533,7 +538,7 @@ static void applyFlycastGameCatalog(const char *executable,
     Profile profile;
     bool usedFallback = false;
     if (!selectProfile(selectedCatalog, rawProductNumber, mode, profile,
-                       usedFallback, deviceName))
+                       usedFallback, deviceName, chipName))
     {
         flycastCatalogStatus.recognized = false;
         flycastCatalogStatus.state = "Not cataloged";

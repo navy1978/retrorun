@@ -428,8 +428,8 @@ Common options:
 | `-g` | Enable the GPIO joypad path used by some native devices. |
 | `-r`, `--restart` | Enable the restart behaviour used by distribution launchers. |
 
-Validated and retained RG351V per-game configurations for Flycast 2022
-Low-End are stored in
+Validated and retained per-game configurations for Flycast 2022 Low-End are
+stored in
 [`profiles/flycast2022-lowend`](profiles/flycast2022-lowend/README.md).
 The profile filenames include the Dreamcast product number so launchers can
 select them independently of the ROM filename.
@@ -444,7 +444,7 @@ retrorun_flycast_game_profile = best_validated
 `disabled` keeps the normal configuration, `best_validated` selects the
 visually approved profile and `best_performance` selects the fastest retained
 profile, including documented compromises. RetroRun contains catalog version
-`20260926` and checks for a strictly newer `flycast-game-catalog.ini` beside
+`20260927` and checks for a strictly newer `flycast-game-catalog.ini` beside
 its executable. With catalog updates set to `auto` (the default), an
 at-most-daily background check downloads a newer valid catalog from the
 `navy1978/retrorun` repository into the active configuration directory; it is
@@ -453,8 +453,16 @@ baseline entries leave the normal configuration untouched. Only RetroRun-aware F
 pre-launch Product-number extension show `Info > Flycast catalog`; stock
 Flycast and every other core hide it. The submenu shows the short recognition,
 Product number, profile, version and source status, while `Catalog` lists only
-games with a validated global or device-specific profile and their known
+games with a validated global, chip or device-specific profile and their known
 retail Product numbers. Untested title-only metadata is deliberately hidden.
+
+Catalog schema 3 shares tuned profiles by SoC: RK3326 uses the profiles
+validated on RG351MP, RK3566 those validated on RG353M, and RK3399 those
+validated on RG552. A sparse device-specific profile may override individual
+settings after the chip profile. Existing device-name detection remains the
+first choice; only an unmapped name falls back to the NUL-separated Device
+Tree `compatible` property in `/proc/device-tree/compatible` (or its sysfs
+mirror). The effective order is global, chip, then device override.
 
 ### macOS example
 

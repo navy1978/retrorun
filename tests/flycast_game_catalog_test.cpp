@@ -21,13 +21,39 @@ void assertSameProfile(const Profile &left, const Profile &right)
     assert(left.settings == right.settings);
 }
 
+void assertSameScopedProfiles(
+    const std::map<std::string,
+                   std::map<std::string, std::map<Mode, Profile>>> &left,
+    const std::map<std::string,
+                   std::map<std::string, std::map<Mode, Profile>>> &right)
+{
+    assert(left.size() == right.size());
+    for (const auto &[scope, leftProducts] : left)
+    {
+        const auto rightScope = right.find(scope);
+        assert(rightScope != right.end());
+        assert(leftProducts.size() == rightScope->second.size());
+        for (const auto &[product, leftModes] : leftProducts)
+        {
+            const auto rightProduct = rightScope->second.find(product);
+            assert(rightProduct != rightScope->second.end());
+            assert(leftModes.size() == rightProduct->second.size());
+            for (const auto &[mode, leftProfile] : leftModes)
+            {
+                const auto rightMode = rightProduct->second.find(mode);
+                assert(rightMode != rightProduct->second.end());
+                assertSameProfile(leftProfile, rightMode->second);
+            }
+        }
+    }
+}
+
 void assertSameCatalogPayload(const Catalog &left, const Catalog &right)
 {
     assert(left.schema_version == right.schema_version);
     assert(left.catalog_version == right.catalog_version);
     assert(left.safe_defaults == right.safe_defaults);
     assert(left.profiles.size() == right.profiles.size());
-    assert(left.device_profiles.size() == right.device_profiles.size());
 
     for (const auto &[product, leftModes] : left.profiles)
     {
@@ -42,33 +68,18 @@ void assertSameCatalogPayload(const Catalog &left, const Catalog &right)
         }
     }
 
-    for (const auto &[device, leftProducts] : left.device_profiles)
-    {
-        const auto rightDevice = right.device_profiles.find(device);
-        assert(rightDevice != right.device_profiles.end());
-        assert(leftProducts.size() == rightDevice->second.size());
-        for (const auto &[product, leftModes] : leftProducts)
-        {
-            const auto rightProduct = rightDevice->second.find(product);
-            assert(rightProduct != rightDevice->second.end());
-            assert(leftModes.size() == rightProduct->second.size());
-            for (const auto &[mode, leftProfile] : leftModes)
-            {
-                const auto rightMode = rightProduct->second.find(mode);
-                assert(rightMode != rightProduct->second.end());
-                assertSameProfile(leftProfile, rightMode->second);
-            }
-        }
-    }
+    assertSameScopedProfiles(left.chip_profiles, right.chip_profiles);
+    assertSameScopedProfiles(left.device_profiles, right.device_profiles);
 }
 
 void testBuiltInProfiles()
 {
     const Catalog catalog = builtinCatalog();
-    assert(catalog.schema_version == 2);
-    assert(catalog.catalog_version == 20260926);
+    assert(catalog.schema_version == 3);
+    assert(catalog.catalog_version == 20260927);
     assert(catalog.profiles.size() == 98);
-    assert(catalog.device_profiles.size() == 3);
+    assert(catalog.chip_profiles.size() == 3);
+    assert(catalog.device_profiles.empty());
     assert(normalizeProductNumber("T1401D  50 ") == "T1401D50");
     assert(catalog.safe_defaults.at("reicast_alpha_sorting") ==
            "per-triangle (normal)");
@@ -1111,7 +1122,8 @@ void testBuiltInProfiles()
 
         assert(selectProfile(catalog, product, Mode::BestPerformance,
                              profile, fallback, "rg351v"));
-        assert(profile.settings.count("retrorun_flycast_core_variant") == 0);
+        assert(profile.settings.at("retrorun_flycast_core_variant") ==
+               "upstream_620");
 
         assert(selectProfile(catalog, product, Mode::BestPerformance,
                              profile, fallback, "rg353m"));
@@ -1305,6 +1317,184 @@ void testExternalCatalogParsing()
     assert(!fallback);
 }
 
+void testChipDetectionAndFamilySelection()
+{
+    const std::map<std::string, std::string> expectedChips = {
+        {"RG351P", "RK3326"},
+        {"RG351M", "RK3326"},
+        {"RG351V", "RK3326"},
+        {"RG351MP", "RK3326"},
+        {"RGB20S", "RK3326"},
+        {"XU10", "RK3326"},
+        {"R35S", "RK3326"},
+        {"RG552", "RK3399"},
+        {"RG503", "RK3566"},
+        {"RG353P", "RK3566"},
+        {"RG353PS", "RK3566"},
+        {"RG353V", "RK3566"},
+        {"RG353VS", "RK3566"},
+        {"RG353M", "RK3566"},
+    };
+    assert(chipForDeviceName("rk3326") == "RK3326");
+    assert(chipForDeviceName("rk3399") == "RK3399");
+    assert(chipForDeviceName("rk3566") == "RK3566");
+    for (const auto &[device, chip] : expectedChips)
+    {
+        assert(chipForDeviceName(device) == chip);
+        assert(detectDeviceChip(" " + device + " ") == chip);
+    }
+    assert(chipForDeviceName("unknown") == "");
+
+    const char rk3326Data[] =
+        "gameconsole,r35s\0rockchip,rk3326\0";
+    const char rk3399Data[] =
+        "anbernic,rg552\0rockchip,rk3399\0";
+    const char rk3566Data[] =
+        "anbernic,rg353m\0rockchip,rk3566\0";
+    const char unknownData[] = "vendor,board\0vendor,soc\0";
+    assert(chipFromDeviceTreeCompatible(
+               std::string(rk3326Data, sizeof(rk3326Data) - 1)) == "RK3326");
+    assert(chipFromDeviceTreeCompatible(
+               std::string(rk3399Data, sizeof(rk3399Data) - 1)) == "RK3399");
+    assert(chipFromDeviceTreeCompatible(
+               std::string(rk3566Data, sizeof(rk3566Data) - 1)) == "RK3566");
+    assert(chipFromDeviceTreeCompatible(
+               std::string(unknownData, sizeof(unknownData) - 1)).empty());
+
+    const Catalog catalog = builtinCatalog();
+    Profile reference;
+    Profile candidate;
+    bool referenceFallback = false;
+    bool candidateFallback = false;
+
+    const auto assertWholeChipCatalog =
+        [&catalog](const std::string &chip,
+                   const std::vector<std::string> &devices)
+    {
+        const auto chipProfiles = catalog.chip_profiles.find(chip);
+        assert(chipProfiles != catalog.chip_profiles.end());
+        for (const auto &[product, modes] : chipProfiles->second)
+        {
+            for (const auto &[mode, expected] : modes)
+            {
+                for (const std::string &device : devices)
+                {
+                    Profile selected;
+                    bool fallback = false;
+                    assert(selectProfile(catalog, product, mode, selected,
+                                         fallback, device));
+                    assert(!fallback);
+                    assertSameProfile(expected, selected);
+                }
+            }
+        }
+    };
+    assertWholeChipCatalog(
+        "RK3326", {"RG351P", "RG351M", "RG351V", "RG351MP",
+                   "RGB20S", "XU10", "R35S"});
+    assertWholeChipCatalog(
+        "RK3399", {"RG552"});
+    assertWholeChipCatalog(
+        "RK3566", {"RG503", "RG353P", "RG353PS", "RG353V",
+                   "RG353VS", "RG353M"});
+
+    assert(selectProfile(catalog, "MK-51019", Mode::BestPerformance,
+                         reference, referenceFallback, "RG351MP"));
+    assert(selectProfile(catalog, "MK-51019", Mode::BestPerformance,
+                         candidate, candidateFallback, "RG351P", "RK3399"));
+    assert(referenceFallback == candidateFallback);
+    assertSameProfile(reference, candidate);
+    const char *rk3326Devices[] = {
+        "RG351P", "RG351M", "RG351V", "RG351MP",
+        "RGB20S", "XU10", "R35S"
+    };
+    for (const char *device : rk3326Devices)
+    {
+        assert(selectProfile(catalog, "MK-51019", Mode::BestPerformance,
+                             candidate, candidateFallback, device));
+        assert(referenceFallback == candidateFallback);
+        assertSameProfile(reference, candidate);
+    }
+
+    assert(selectProfile(catalog, "T38706M", Mode::BestPerformance,
+                         reference, referenceFallback, "RG353M"));
+    const char *rk3566Devices[] = {
+        "RG503", "RG353P", "RG353PS", "RG353V", "RG353VS", "RG353M"
+    };
+    for (const char *device : rk3566Devices)
+    {
+        assert(selectProfile(catalog, "T38706M", Mode::BestPerformance,
+                             candidate, candidateFallback, device));
+        assert(referenceFallback == candidateFallback);
+        assertSameProfile(reference, candidate);
+    }
+
+    assert(selectProfile(catalog, "T1401N", Mode::BestValidated,
+                         reference, referenceFallback, "RG552"));
+    assert(selectProfile(catalog, "T1401N", Mode::BestValidated,
+                         candidate, candidateFallback, "unknown-board",
+                         "RK3399"));
+    assertSameProfile(reference, candidate);
+}
+
+void testDeviceOverrideWinsOverChipProfile()
+{
+    std::istringstream input(
+        "schema_version = 3\n"
+        "catalog_version = 2\n"
+        "default.reicast_render_queue_no_drop = disabled\n"
+        "profile.TEST.best_validated.title = Test Game\n"
+        "profile.TEST.best_validated.reicast_audio_mixer = accurate\n"
+        "profile.TEST.best_performance.inherits = best_validated\n"
+        "profile.TEST.best_performance.reicast_fast_depth = vertex_fast_log\n"
+        "chip.RK3326.profile.TEST.best_performance.reicast_audio_mixer = lowend\n"
+        "chip.RK3326.profile.TEST.best_performance.reicast_render_queue_no_drop = enabled\n"
+        "device.RG351V.profile.TEST.best_performance.reicast_render_queue_no_drop = disabled\n");
+
+    Catalog catalog;
+    std::vector<std::string> diagnostics;
+    assert(parseCatalog(input, "memory", catalog, diagnostics));
+    assert(diagnostics.empty());
+    assert(catalog.chip_profiles.size() == 1);
+    assert(catalog.device_profiles.size() == 1);
+
+    Profile chipProfile;
+    Profile deviceProfile;
+    bool fallback = false;
+    assert(selectProfile(catalog, "TEST", Mode::BestPerformance,
+                         chipProfile, fallback, "RG351P"));
+    assert(!fallback);
+    assert(chipProfile.settings.at("reicast_audio_mixer") == "lowend");
+    assert(chipProfile.settings.at("reicast_fast_depth") ==
+           "vertex_fast_log");
+    assert(chipProfile.settings.at("reicast_render_queue_no_drop") ==
+           "enabled");
+
+    assert(selectProfile(catalog, "TEST", Mode::BestPerformance,
+                         deviceProfile, fallback, "RG351V"));
+    assert(!fallback);
+    assert(deviceProfile.title == "Test Game");
+    assert(deviceProfile.settings.at("reicast_audio_mixer") == "lowend");
+    assert(deviceProfile.settings.at("reicast_fast_depth") ==
+           "vertex_fast_log");
+    assert(deviceProfile.settings.at("reicast_render_queue_no_drop") ==
+           "disabled");
+}
+
+void testChipProfilesRequireSchemaThree()
+{
+    std::istringstream input(
+        "schema_version = 2\n"
+        "catalog_version = 1\n"
+        "profile.TEST.best_validated.title = Test Game\n"
+        "profile.TEST.best_validated.reicast_audio_mixer = accurate\n"
+        "chip.RK3326.profile.TEST.best_validated.reicast_audio_mixer = lowend\n");
+    Catalog catalog;
+    std::vector<std::string> diagnostics;
+    assert(!parseCatalog(input, "invalid-chip-schema", catalog, diagnostics));
+    assert(!diagnostics.empty());
+}
+
 void testInvalidCatalogIsRejected()
 {
     std::istringstream input(
@@ -1324,6 +1514,9 @@ int main()
     testBuiltInProfiles();
     testVersionedRepositoryCatalogMatchesBuiltIn();
     testExternalCatalogParsing();
+    testChipDetectionAndFamilySelection();
+    testDeviceOverrideWinsOverChipProfile();
+    testChipProfilesRequireSchemaThree();
     testInvalidCatalogIsRejected();
     return 0;
 }

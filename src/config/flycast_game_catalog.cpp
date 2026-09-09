@@ -6,6 +6,7 @@
 #include <cctype>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <sstream>
 #include <tuple>
 #include <unordered_set>
@@ -16,12 +17,12 @@ namespace
 {
 
 constexpr int MinimumSchemaVersion = 1;
-constexpr int CurrentSchemaVersion = 2;
+constexpr int CurrentSchemaVersion = 3;
 constexpr const char *CatalogFilename = "flycast-game-catalog.ini";
 
 const char *BuiltinCatalogText = R"catalog(
-schema_version = 2
-catalog_version = 20260926
+schema_version = 3
+catalog_version = 20260927
 
 default.retrorun_vsync = false
 default.retrorun_loop_declared_fps = true
@@ -95,47 +96,47 @@ profile.HDR-0165.best_performance.retrorun_audio_buffer = 2048
 profile.HDR-0165.best_performance.retrorun_go2_audio_stretch_low_ms = 150
 profile.HDR-0165.best_performance.retrorun_go2_audio_wsola_profile = lowend_stable_96
 
-device.RG353M.profile.MK-51117.best_performance.title = Sonic Adventure 2 (RG353M validated)
-device.RG353M.profile.MK-51117.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.MK-51117.best_performance.retrorun_audio_buffer = 735
-device.RG353M.profile.MK-51117.best_performance.retrorun_audio_stable_buffer = false
-device.RG353M.profile.MK-51117.best_performance.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.MK-51117.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.MK-51117.best_performance.retrorun_go2_audio_wsola_profile = disabled
-device.RG353M.profile.MK-51117.best_performance.retrorun_egl_depth_bits = 24
-device.RG353M.profile.MK-51117.best_performance.retrorun_egl_stencil_bits = 8
-device.RG353M.profile.MK-51117.best_performance.reicast_hle_bios = disabled
-device.RG353M.profile.MK-51117.best_performance.reicast_gdrom_fast_loading = enabled
-device.RG353M.profile.MK-51117.best_performance.reicast_mipmapping = enabled
-device.RG353M.profile.MK-51117.best_performance.reicast_fog = enabled
-device.RG353M.profile.MK-51117.best_performance.reicast_frame_skipping = disabled
-device.RG353M.profile.MK-51117.best_performance.reicast_translucent_strip_merge = disabled
-device.RG353M.profile.MK-51117.best_performance.reicast_translucent_menu_guard_strategy = top_hud_last
-device.RG353M.profile.MK-51117.best_performance.reicast_fast_depth = menu_guarded_shadow_safe
-device.RG353M.profile.MK-51117.best_performance.reicast_audio_mixer = lowend
-device.RG353M.profile.MK-51117.best_performance.reicast_opaque_strip_merge = enabled
-device.RG353M.profile.MK-51117.best_performance.reicast_aica_arm_cycles = 8
+chip.RK3566.profile.MK-51117.best_performance.title = Sonic Adventure 2 (RG353M validated)
+chip.RK3566.profile.MK-51117.best_performance.retrorun_loop_declared_fps = false
+chip.RK3566.profile.MK-51117.best_performance.retrorun_audio_buffer = 735
+chip.RK3566.profile.MK-51117.best_performance.retrorun_audio_stable_buffer = false
+chip.RK3566.profile.MK-51117.best_performance.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.MK-51117.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.MK-51117.best_performance.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3566.profile.MK-51117.best_performance.retrorun_egl_depth_bits = 24
+chip.RK3566.profile.MK-51117.best_performance.retrorun_egl_stencil_bits = 8
+chip.RK3566.profile.MK-51117.best_performance.reicast_hle_bios = disabled
+chip.RK3566.profile.MK-51117.best_performance.reicast_gdrom_fast_loading = enabled
+chip.RK3566.profile.MK-51117.best_performance.reicast_mipmapping = enabled
+chip.RK3566.profile.MK-51117.best_performance.reicast_fog = enabled
+chip.RK3566.profile.MK-51117.best_performance.reicast_frame_skipping = disabled
+chip.RK3566.profile.MK-51117.best_performance.reicast_translucent_strip_merge = disabled
+chip.RK3566.profile.MK-51117.best_performance.reicast_translucent_menu_guard_strategy = top_hud_last
+chip.RK3566.profile.MK-51117.best_performance.reicast_fast_depth = menu_guarded_shadow_safe
+chip.RK3566.profile.MK-51117.best_performance.reicast_audio_mixer = lowend
+chip.RK3566.profile.MK-51117.best_performance.reicast_opaque_strip_merge = enabled
+chip.RK3566.profile.MK-51117.best_performance.reicast_aica_arm_cycles = 8
 
-device.RG353M.profile.HDR-0165.best_performance.title = Sonic Adventure 2 (Japan, RG353M validated)
-device.RG353M.profile.HDR-0165.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.HDR-0165.best_performance.retrorun_audio_buffer = 735
-device.RG353M.profile.HDR-0165.best_performance.retrorun_audio_stable_buffer = false
-device.RG353M.profile.HDR-0165.best_performance.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.HDR-0165.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.HDR-0165.best_performance.retrorun_go2_audio_wsola_profile = disabled
-device.RG353M.profile.HDR-0165.best_performance.retrorun_egl_depth_bits = 24
-device.RG353M.profile.HDR-0165.best_performance.retrorun_egl_stencil_bits = 8
-device.RG353M.profile.HDR-0165.best_performance.reicast_hle_bios = disabled
-device.RG353M.profile.HDR-0165.best_performance.reicast_gdrom_fast_loading = enabled
-device.RG353M.profile.HDR-0165.best_performance.reicast_mipmapping = enabled
-device.RG353M.profile.HDR-0165.best_performance.reicast_fog = enabled
-device.RG353M.profile.HDR-0165.best_performance.reicast_frame_skipping = disabled
-device.RG353M.profile.HDR-0165.best_performance.reicast_translucent_strip_merge = disabled
-device.RG353M.profile.HDR-0165.best_performance.reicast_translucent_menu_guard_strategy = top_hud_last
-device.RG353M.profile.HDR-0165.best_performance.reicast_fast_depth = menu_guarded_shadow_safe
-device.RG353M.profile.HDR-0165.best_performance.reicast_audio_mixer = lowend
-device.RG353M.profile.HDR-0165.best_performance.reicast_opaque_strip_merge = enabled
-device.RG353M.profile.HDR-0165.best_performance.reicast_aica_arm_cycles = 8
+chip.RK3566.profile.HDR-0165.best_performance.title = Sonic Adventure 2 (Japan, RG353M validated)
+chip.RK3566.profile.HDR-0165.best_performance.retrorun_loop_declared_fps = false
+chip.RK3566.profile.HDR-0165.best_performance.retrorun_audio_buffer = 735
+chip.RK3566.profile.HDR-0165.best_performance.retrorun_audio_stable_buffer = false
+chip.RK3566.profile.HDR-0165.best_performance.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.HDR-0165.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.HDR-0165.best_performance.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3566.profile.HDR-0165.best_performance.retrorun_egl_depth_bits = 24
+chip.RK3566.profile.HDR-0165.best_performance.retrorun_egl_stencil_bits = 8
+chip.RK3566.profile.HDR-0165.best_performance.reicast_hle_bios = disabled
+chip.RK3566.profile.HDR-0165.best_performance.reicast_gdrom_fast_loading = enabled
+chip.RK3566.profile.HDR-0165.best_performance.reicast_mipmapping = enabled
+chip.RK3566.profile.HDR-0165.best_performance.reicast_fog = enabled
+chip.RK3566.profile.HDR-0165.best_performance.reicast_frame_skipping = disabled
+chip.RK3566.profile.HDR-0165.best_performance.reicast_translucent_strip_merge = disabled
+chip.RK3566.profile.HDR-0165.best_performance.reicast_translucent_menu_guard_strategy = top_hud_last
+chip.RK3566.profile.HDR-0165.best_performance.reicast_fast_depth = menu_guarded_shadow_safe
+chip.RK3566.profile.HDR-0165.best_performance.reicast_audio_mixer = lowend
+chip.RK3566.profile.HDR-0165.best_performance.reicast_opaque_strip_merge = enabled
+chip.RK3566.profile.HDR-0165.best_performance.reicast_aica_arm_cycles = 8
 
 profile.RDC-0149.best_validated.title = Dead or Alive 2
 profile.RDC-0149.best_validated.reicast_hle_bios = enabled
@@ -275,119 +276,119 @@ profile.T3601N.best_performance.retrorun_audio_buffer = 4096
 profile.T3601N.best_performance.retrorun_go2_audio_stretch_low_ms = 200
 profile.T3601N.best_performance.retrorun_go2_audio_wsola_profile = doa_stable_100
 
-device.RG353M.profile.RDC-0149.best_validated.title = Dead or Alive 2 (RG353M validated)
-device.RG353M.profile.RDC-0149.best_validated.retrorun_loop_declared_fps = false
-device.RG353M.profile.RDC-0149.best_validated.retrorun_audio_buffer = 735
-device.RG353M.profile.RDC-0149.best_validated.retrorun_audio_stable_buffer = false
-device.RG353M.profile.RDC-0149.best_validated.retrorun_go2_audio_prebuffer_ms = 30
-device.RG353M.profile.RDC-0149.best_validated.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.RDC-0149.best_validated.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.RDC-0149.best_validated.retrorun_go2_audio_wsola_profile = disabled
-device.RG353M.profile.RDC-0149.best_validated.reicast_hle_bios = disabled
-device.RG353M.profile.RDC-0149.best_validated.reicast_gdrom_fast_loading = enabled
-device.RG353M.profile.RDC-0149.best_validated.reicast_framerate = normal
-device.RG353M.profile.RDC-0149.best_validated.reicast_loop_declared_fps = false
-device.RG353M.profile.RDC-0149.best_validated.reicast_frame_skipping = disabled
-device.RG353M.profile.RDC-0149.best_validated.reicast_anisotropic_filtering = off
-device.RG353M.profile.RDC-0149.best_validated.reicast_translucent_strip_merge = menu_guarded
-device.RG353M.profile.RDC-0149.best_validated.reicast_translucent_menu_guard_strategy = top_hud_last
-device.RG353M.profile.RDC-0149.best_validated.reicast_audio_mixer = accurate
-device.RG353M.profile.RDC-0149.best_validated.reicast_aica_arm_cycles = 32
+chip.RK3566.profile.RDC-0149.best_validated.title = Dead or Alive 2 (RG353M validated)
+chip.RK3566.profile.RDC-0149.best_validated.retrorun_loop_declared_fps = false
+chip.RK3566.profile.RDC-0149.best_validated.retrorun_audio_buffer = 735
+chip.RK3566.profile.RDC-0149.best_validated.retrorun_audio_stable_buffer = false
+chip.RK3566.profile.RDC-0149.best_validated.retrorun_go2_audio_prebuffer_ms = 30
+chip.RK3566.profile.RDC-0149.best_validated.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.RDC-0149.best_validated.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.RDC-0149.best_validated.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3566.profile.RDC-0149.best_validated.reicast_hle_bios = disabled
+chip.RK3566.profile.RDC-0149.best_validated.reicast_gdrom_fast_loading = enabled
+chip.RK3566.profile.RDC-0149.best_validated.reicast_framerate = normal
+chip.RK3566.profile.RDC-0149.best_validated.reicast_loop_declared_fps = false
+chip.RK3566.profile.RDC-0149.best_validated.reicast_frame_skipping = disabled
+chip.RK3566.profile.RDC-0149.best_validated.reicast_anisotropic_filtering = off
+chip.RK3566.profile.RDC-0149.best_validated.reicast_translucent_strip_merge = menu_guarded
+chip.RK3566.profile.RDC-0149.best_validated.reicast_translucent_menu_guard_strategy = top_hud_last
+chip.RK3566.profile.RDC-0149.best_validated.reicast_audio_mixer = accurate
+chip.RK3566.profile.RDC-0149.best_validated.reicast_aica_arm_cycles = 32
 
-device.RG353M.profile.RDC-0140.best_validated.title = Dead or Alive 2 (observed CDI, RG353M validated)
-device.RG353M.profile.RDC-0140.best_validated.retrorun_loop_declared_fps = false
-device.RG353M.profile.RDC-0140.best_validated.retrorun_audio_buffer = 735
-device.RG353M.profile.RDC-0140.best_validated.retrorun_audio_stable_buffer = false
-device.RG353M.profile.RDC-0140.best_validated.retrorun_go2_audio_prebuffer_ms = 30
-device.RG353M.profile.RDC-0140.best_validated.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.RDC-0140.best_validated.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.RDC-0140.best_validated.retrorun_go2_audio_wsola_profile = disabled
-device.RG353M.profile.RDC-0140.best_validated.reicast_hle_bios = disabled
-device.RG353M.profile.RDC-0140.best_validated.reicast_gdrom_fast_loading = enabled
-device.RG353M.profile.RDC-0140.best_validated.reicast_framerate = normal
-device.RG353M.profile.RDC-0140.best_validated.reicast_loop_declared_fps = false
-device.RG353M.profile.RDC-0140.best_validated.reicast_frame_skipping = disabled
-device.RG353M.profile.RDC-0140.best_validated.reicast_anisotropic_filtering = off
-device.RG353M.profile.RDC-0140.best_validated.reicast_translucent_strip_merge = menu_guarded
-device.RG353M.profile.RDC-0140.best_validated.reicast_translucent_menu_guard_strategy = top_hud_last
-device.RG353M.profile.RDC-0140.best_validated.reicast_audio_mixer = accurate
-device.RG353M.profile.RDC-0140.best_validated.reicast_aica_arm_cycles = 32
+chip.RK3566.profile.RDC-0140.best_validated.title = Dead or Alive 2 (observed CDI, RG353M validated)
+chip.RK3566.profile.RDC-0140.best_validated.retrorun_loop_declared_fps = false
+chip.RK3566.profile.RDC-0140.best_validated.retrorun_audio_buffer = 735
+chip.RK3566.profile.RDC-0140.best_validated.retrorun_audio_stable_buffer = false
+chip.RK3566.profile.RDC-0140.best_validated.retrorun_go2_audio_prebuffer_ms = 30
+chip.RK3566.profile.RDC-0140.best_validated.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.RDC-0140.best_validated.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.RDC-0140.best_validated.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3566.profile.RDC-0140.best_validated.reicast_hle_bios = disabled
+chip.RK3566.profile.RDC-0140.best_validated.reicast_gdrom_fast_loading = enabled
+chip.RK3566.profile.RDC-0140.best_validated.reicast_framerate = normal
+chip.RK3566.profile.RDC-0140.best_validated.reicast_loop_declared_fps = false
+chip.RK3566.profile.RDC-0140.best_validated.reicast_frame_skipping = disabled
+chip.RK3566.profile.RDC-0140.best_validated.reicast_anisotropic_filtering = off
+chip.RK3566.profile.RDC-0140.best_validated.reicast_translucent_strip_merge = menu_guarded
+chip.RK3566.profile.RDC-0140.best_validated.reicast_translucent_menu_guard_strategy = top_hud_last
+chip.RK3566.profile.RDC-0140.best_validated.reicast_audio_mixer = accurate
+chip.RK3566.profile.RDC-0140.best_validated.reicast_aica_arm_cycles = 32
 
-device.RG353M.profile.T8116D50.best_validated.title = Dead or Alive 2 (Europe, RG353M validated)
-device.RG353M.profile.T8116D50.best_validated.retrorun_loop_declared_fps = false
-device.RG353M.profile.T8116D50.best_validated.retrorun_audio_buffer = 735
-device.RG353M.profile.T8116D50.best_validated.retrorun_audio_stable_buffer = false
-device.RG353M.profile.T8116D50.best_validated.retrorun_go2_audio_prebuffer_ms = 30
-device.RG353M.profile.T8116D50.best_validated.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.T8116D50.best_validated.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.T8116D50.best_validated.retrorun_go2_audio_wsola_profile = disabled
-device.RG353M.profile.T8116D50.best_validated.reicast_hle_bios = disabled
-device.RG353M.profile.T8116D50.best_validated.reicast_gdrom_fast_loading = enabled
-device.RG353M.profile.T8116D50.best_validated.reicast_framerate = normal
-device.RG353M.profile.T8116D50.best_validated.reicast_loop_declared_fps = false
-device.RG353M.profile.T8116D50.best_validated.reicast_frame_skipping = disabled
-device.RG353M.profile.T8116D50.best_validated.reicast_anisotropic_filtering = off
-device.RG353M.profile.T8116D50.best_validated.reicast_translucent_strip_merge = menu_guarded
-device.RG353M.profile.T8116D50.best_validated.reicast_translucent_menu_guard_strategy = top_hud_last
-device.RG353M.profile.T8116D50.best_validated.reicast_audio_mixer = accurate
-device.RG353M.profile.T8116D50.best_validated.reicast_aica_arm_cycles = 32
+chip.RK3566.profile.T8116D50.best_validated.title = Dead or Alive 2 (Europe, RG353M validated)
+chip.RK3566.profile.T8116D50.best_validated.retrorun_loop_declared_fps = false
+chip.RK3566.profile.T8116D50.best_validated.retrorun_audio_buffer = 735
+chip.RK3566.profile.T8116D50.best_validated.retrorun_audio_stable_buffer = false
+chip.RK3566.profile.T8116D50.best_validated.retrorun_go2_audio_prebuffer_ms = 30
+chip.RK3566.profile.T8116D50.best_validated.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.T8116D50.best_validated.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.T8116D50.best_validated.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3566.profile.T8116D50.best_validated.reicast_hle_bios = disabled
+chip.RK3566.profile.T8116D50.best_validated.reicast_gdrom_fast_loading = enabled
+chip.RK3566.profile.T8116D50.best_validated.reicast_framerate = normal
+chip.RK3566.profile.T8116D50.best_validated.reicast_loop_declared_fps = false
+chip.RK3566.profile.T8116D50.best_validated.reicast_frame_skipping = disabled
+chip.RK3566.profile.T8116D50.best_validated.reicast_anisotropic_filtering = off
+chip.RK3566.profile.T8116D50.best_validated.reicast_translucent_strip_merge = menu_guarded
+chip.RK3566.profile.T8116D50.best_validated.reicast_translucent_menu_guard_strategy = top_hud_last
+chip.RK3566.profile.T8116D50.best_validated.reicast_audio_mixer = accurate
+chip.RK3566.profile.T8116D50.best_validated.reicast_aica_arm_cycles = 32
 
-device.RG353M.profile.T3602M.best_validated.title = Dead or Alive 2 (Japan, RG353M validated)
-device.RG353M.profile.T3602M.best_validated.retrorun_loop_declared_fps = false
-device.RG353M.profile.T3602M.best_validated.retrorun_audio_buffer = 735
-device.RG353M.profile.T3602M.best_validated.retrorun_audio_stable_buffer = false
-device.RG353M.profile.T3602M.best_validated.retrorun_go2_audio_prebuffer_ms = 30
-device.RG353M.profile.T3602M.best_validated.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.T3602M.best_validated.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.T3602M.best_validated.retrorun_go2_audio_wsola_profile = disabled
-device.RG353M.profile.T3602M.best_validated.reicast_hle_bios = disabled
-device.RG353M.profile.T3602M.best_validated.reicast_gdrom_fast_loading = enabled
-device.RG353M.profile.T3602M.best_validated.reicast_framerate = normal
-device.RG353M.profile.T3602M.best_validated.reicast_loop_declared_fps = false
-device.RG353M.profile.T3602M.best_validated.reicast_frame_skipping = disabled
-device.RG353M.profile.T3602M.best_validated.reicast_anisotropic_filtering = off
-device.RG353M.profile.T3602M.best_validated.reicast_translucent_strip_merge = menu_guarded
-device.RG353M.profile.T3602M.best_validated.reicast_translucent_menu_guard_strategy = top_hud_last
-device.RG353M.profile.T3602M.best_validated.reicast_audio_mixer = accurate
-device.RG353M.profile.T3602M.best_validated.reicast_aica_arm_cycles = 32
+chip.RK3566.profile.T3602M.best_validated.title = Dead or Alive 2 (Japan, RG353M validated)
+chip.RK3566.profile.T3602M.best_validated.retrorun_loop_declared_fps = false
+chip.RK3566.profile.T3602M.best_validated.retrorun_audio_buffer = 735
+chip.RK3566.profile.T3602M.best_validated.retrorun_audio_stable_buffer = false
+chip.RK3566.profile.T3602M.best_validated.retrorun_go2_audio_prebuffer_ms = 30
+chip.RK3566.profile.T3602M.best_validated.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.T3602M.best_validated.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.T3602M.best_validated.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3566.profile.T3602M.best_validated.reicast_hle_bios = disabled
+chip.RK3566.profile.T3602M.best_validated.reicast_gdrom_fast_loading = enabled
+chip.RK3566.profile.T3602M.best_validated.reicast_framerate = normal
+chip.RK3566.profile.T3602M.best_validated.reicast_loop_declared_fps = false
+chip.RK3566.profile.T3602M.best_validated.reicast_frame_skipping = disabled
+chip.RK3566.profile.T3602M.best_validated.reicast_anisotropic_filtering = off
+chip.RK3566.profile.T3602M.best_validated.reicast_translucent_strip_merge = menu_guarded
+chip.RK3566.profile.T3602M.best_validated.reicast_translucent_menu_guard_strategy = top_hud_last
+chip.RK3566.profile.T3602M.best_validated.reicast_audio_mixer = accurate
+chip.RK3566.profile.T3602M.best_validated.reicast_aica_arm_cycles = 32
 
-device.RG353M.profile.T3601M.best_validated.title = Dead or Alive 2 (Japan limited, RG353M validated)
-device.RG353M.profile.T3601M.best_validated.retrorun_loop_declared_fps = false
-device.RG353M.profile.T3601M.best_validated.retrorun_audio_buffer = 735
-device.RG353M.profile.T3601M.best_validated.retrorun_audio_stable_buffer = false
-device.RG353M.profile.T3601M.best_validated.retrorun_go2_audio_prebuffer_ms = 30
-device.RG353M.profile.T3601M.best_validated.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.T3601M.best_validated.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.T3601M.best_validated.retrorun_go2_audio_wsola_profile = disabled
-device.RG353M.profile.T3601M.best_validated.reicast_hle_bios = disabled
-device.RG353M.profile.T3601M.best_validated.reicast_gdrom_fast_loading = enabled
-device.RG353M.profile.T3601M.best_validated.reicast_framerate = normal
-device.RG353M.profile.T3601M.best_validated.reicast_loop_declared_fps = false
-device.RG353M.profile.T3601M.best_validated.reicast_frame_skipping = disabled
-device.RG353M.profile.T3601M.best_validated.reicast_anisotropic_filtering = off
-device.RG353M.profile.T3601M.best_validated.reicast_translucent_strip_merge = menu_guarded
-device.RG353M.profile.T3601M.best_validated.reicast_translucent_menu_guard_strategy = top_hud_last
-device.RG353M.profile.T3601M.best_validated.reicast_audio_mixer = accurate
-device.RG353M.profile.T3601M.best_validated.reicast_aica_arm_cycles = 32
+chip.RK3566.profile.T3601M.best_validated.title = Dead or Alive 2 (Japan limited, RG353M validated)
+chip.RK3566.profile.T3601M.best_validated.retrorun_loop_declared_fps = false
+chip.RK3566.profile.T3601M.best_validated.retrorun_audio_buffer = 735
+chip.RK3566.profile.T3601M.best_validated.retrorun_audio_stable_buffer = false
+chip.RK3566.profile.T3601M.best_validated.retrorun_go2_audio_prebuffer_ms = 30
+chip.RK3566.profile.T3601M.best_validated.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.T3601M.best_validated.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.T3601M.best_validated.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3566.profile.T3601M.best_validated.reicast_hle_bios = disabled
+chip.RK3566.profile.T3601M.best_validated.reicast_gdrom_fast_loading = enabled
+chip.RK3566.profile.T3601M.best_validated.reicast_framerate = normal
+chip.RK3566.profile.T3601M.best_validated.reicast_loop_declared_fps = false
+chip.RK3566.profile.T3601M.best_validated.reicast_frame_skipping = disabled
+chip.RK3566.profile.T3601M.best_validated.reicast_anisotropic_filtering = off
+chip.RK3566.profile.T3601M.best_validated.reicast_translucent_strip_merge = menu_guarded
+chip.RK3566.profile.T3601M.best_validated.reicast_translucent_menu_guard_strategy = top_hud_last
+chip.RK3566.profile.T3601M.best_validated.reicast_audio_mixer = accurate
+chip.RK3566.profile.T3601M.best_validated.reicast_aica_arm_cycles = 32
 
-device.RG353M.profile.T3601N.best_validated.title = Dead or Alive 2 (North America, RG353M validated)
-device.RG353M.profile.T3601N.best_validated.retrorun_loop_declared_fps = false
-device.RG353M.profile.T3601N.best_validated.retrorun_audio_buffer = 735
-device.RG353M.profile.T3601N.best_validated.retrorun_audio_stable_buffer = false
-device.RG353M.profile.T3601N.best_validated.retrorun_go2_audio_prebuffer_ms = 30
-device.RG353M.profile.T3601N.best_validated.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.T3601N.best_validated.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.T3601N.best_validated.retrorun_go2_audio_wsola_profile = disabled
-device.RG353M.profile.T3601N.best_validated.reicast_hle_bios = disabled
-device.RG353M.profile.T3601N.best_validated.reicast_gdrom_fast_loading = enabled
-device.RG353M.profile.T3601N.best_validated.reicast_framerate = normal
-device.RG353M.profile.T3601N.best_validated.reicast_loop_declared_fps = false
-device.RG353M.profile.T3601N.best_validated.reicast_frame_skipping = disabled
-device.RG353M.profile.T3601N.best_validated.reicast_anisotropic_filtering = off
-device.RG353M.profile.T3601N.best_validated.reicast_translucent_strip_merge = menu_guarded
-device.RG353M.profile.T3601N.best_validated.reicast_translucent_menu_guard_strategy = top_hud_last
-device.RG353M.profile.T3601N.best_validated.reicast_audio_mixer = accurate
-device.RG353M.profile.T3601N.best_validated.reicast_aica_arm_cycles = 32
+chip.RK3566.profile.T3601N.best_validated.title = Dead or Alive 2 (North America, RG353M validated)
+chip.RK3566.profile.T3601N.best_validated.retrorun_loop_declared_fps = false
+chip.RK3566.profile.T3601N.best_validated.retrorun_audio_buffer = 735
+chip.RK3566.profile.T3601N.best_validated.retrorun_audio_stable_buffer = false
+chip.RK3566.profile.T3601N.best_validated.retrorun_go2_audio_prebuffer_ms = 30
+chip.RK3566.profile.T3601N.best_validated.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.T3601N.best_validated.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.T3601N.best_validated.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3566.profile.T3601N.best_validated.reicast_hle_bios = disabled
+chip.RK3566.profile.T3601N.best_validated.reicast_gdrom_fast_loading = enabled
+chip.RK3566.profile.T3601N.best_validated.reicast_framerate = normal
+chip.RK3566.profile.T3601N.best_validated.reicast_loop_declared_fps = false
+chip.RK3566.profile.T3601N.best_validated.reicast_frame_skipping = disabled
+chip.RK3566.profile.T3601N.best_validated.reicast_anisotropic_filtering = off
+chip.RK3566.profile.T3601N.best_validated.reicast_translucent_strip_merge = menu_guarded
+chip.RK3566.profile.T3601N.best_validated.reicast_translucent_menu_guard_strategy = top_hud_last
+chip.RK3566.profile.T3601N.best_validated.reicast_audio_mixer = accurate
+chip.RK3566.profile.T3601N.best_validated.reicast_aica_arm_cycles = 32
 
 profile.T1401D50.best_validated.title = Soul Calibur
 profile.T1401D50.best_validated.reicast_hle_bios = disabled
@@ -446,229 +447,229 @@ profile.T1401M.best_performance.reicast_translucent_menu_guard_draw_sorting = st
 profile.T1401M.best_performance.reicast_opaque_strip_merge = enabled
 profile.T1401M.best_performance.retrorun_egl_stencil_bits = 0
 
-device.RG353M.profile.T1401D50.best_performance.title = Soul Calibur (Europe, RG353M validated)
-device.RG353M.profile.T1401D50.best_performance.retrorun_flycast_core_variant = upstream_620
-device.RG353M.profile.T1401D50.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.T1401D50.best_performance.retrorun_audio_buffer = 735
-device.RG353M.profile.T1401D50.best_performance.retrorun_audio_stable_buffer = true
-device.RG353M.profile.T1401D50.best_performance.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.T1401D50.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.T1401D50.best_performance.retrorun_go2_audio_wsola_profile = disabled
-device.RG353M.profile.T1401D50.best_performance.retrorun_egl_depth_bits = 24
-device.RG353M.profile.T1401D50.best_performance.retrorun_egl_stencil_bits = 0
-device.RG353M.profile.T1401D50.best_performance.reicast_sh4clock = 200
-device.RG353M.profile.T1401D50.best_performance.reicast_frame_skipping = disabled
-device.RG353M.profile.T1401D50.best_performance.reicast_translucent_strip_merge = menu_guarded
-device.RG353M.profile.T1401D50.best_performance.reicast_translucent_menu_guard_strategy = top_hud_last
-device.RG353M.profile.T1401D50.best_performance.reicast_translucent_menu_guard_draw_sorting = standard
-device.RG353M.profile.T1401D50.best_performance.reicast_palette_fog_storage_reuse = enabled
-device.RG353M.profile.T1401D50.best_performance.reicast_fast_depth = vertex_fast_log
-device.RG353M.profile.T1401D50.best_performance.reicast_audio_mixer = lowend
-device.RG353M.profile.T1401D50.best_performance.reicast_opaque_strip_merge = enabled
-device.RG353M.profile.T1401D50.best_performance.reicast_aica_arm_cycles = 32
+chip.RK3566.profile.T1401D50.best_performance.title = Soul Calibur (Europe, RG353M validated)
+chip.RK3566.profile.T1401D50.best_performance.retrorun_flycast_core_variant = upstream_620
+chip.RK3566.profile.T1401D50.best_performance.retrorun_loop_declared_fps = false
+chip.RK3566.profile.T1401D50.best_performance.retrorun_audio_buffer = 735
+chip.RK3566.profile.T1401D50.best_performance.retrorun_audio_stable_buffer = true
+chip.RK3566.profile.T1401D50.best_performance.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.T1401D50.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.T1401D50.best_performance.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3566.profile.T1401D50.best_performance.retrorun_egl_depth_bits = 24
+chip.RK3566.profile.T1401D50.best_performance.retrorun_egl_stencil_bits = 0
+chip.RK3566.profile.T1401D50.best_performance.reicast_sh4clock = 200
+chip.RK3566.profile.T1401D50.best_performance.reicast_frame_skipping = disabled
+chip.RK3566.profile.T1401D50.best_performance.reicast_translucent_strip_merge = menu_guarded
+chip.RK3566.profile.T1401D50.best_performance.reicast_translucent_menu_guard_strategy = top_hud_last
+chip.RK3566.profile.T1401D50.best_performance.reicast_translucent_menu_guard_draw_sorting = standard
+chip.RK3566.profile.T1401D50.best_performance.reicast_palette_fog_storage_reuse = enabled
+chip.RK3566.profile.T1401D50.best_performance.reicast_fast_depth = vertex_fast_log
+chip.RK3566.profile.T1401D50.best_performance.reicast_audio_mixer = lowend
+chip.RK3566.profile.T1401D50.best_performance.reicast_opaque_strip_merge = enabled
+chip.RK3566.profile.T1401D50.best_performance.reicast_aica_arm_cycles = 32
 
-device.RG353M.profile.T1401N.best_performance.title = Soul Calibur (North America, RG353M validated)
-device.RG353M.profile.T1401N.best_performance.retrorun_flycast_core_variant = upstream_620
-device.RG353M.profile.T1401N.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.T1401N.best_performance.retrorun_audio_buffer = 735
-device.RG353M.profile.T1401N.best_performance.retrorun_audio_stable_buffer = true
-device.RG353M.profile.T1401N.best_performance.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.T1401N.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.T1401N.best_performance.retrorun_go2_audio_wsola_profile = disabled
-device.RG353M.profile.T1401N.best_performance.retrorun_egl_depth_bits = 24
-device.RG353M.profile.T1401N.best_performance.retrorun_egl_stencil_bits = 0
-device.RG353M.profile.T1401N.best_performance.reicast_sh4clock = 200
-device.RG353M.profile.T1401N.best_performance.reicast_frame_skipping = disabled
-device.RG353M.profile.T1401N.best_performance.reicast_translucent_strip_merge = menu_guarded
-device.RG353M.profile.T1401N.best_performance.reicast_translucent_menu_guard_strategy = top_hud_last
-device.RG353M.profile.T1401N.best_performance.reicast_translucent_menu_guard_draw_sorting = standard
-device.RG353M.profile.T1401N.best_performance.reicast_palette_fog_storage_reuse = enabled
-device.RG353M.profile.T1401N.best_performance.reicast_fast_depth = vertex_fast_log
-device.RG353M.profile.T1401N.best_performance.reicast_audio_mixer = lowend
-device.RG353M.profile.T1401N.best_performance.reicast_opaque_strip_merge = enabled
-device.RG353M.profile.T1401N.best_performance.reicast_aica_arm_cycles = 32
+chip.RK3566.profile.T1401N.best_performance.title = Soul Calibur (North America, RG353M validated)
+chip.RK3566.profile.T1401N.best_performance.retrorun_flycast_core_variant = upstream_620
+chip.RK3566.profile.T1401N.best_performance.retrorun_loop_declared_fps = false
+chip.RK3566.profile.T1401N.best_performance.retrorun_audio_buffer = 735
+chip.RK3566.profile.T1401N.best_performance.retrorun_audio_stable_buffer = true
+chip.RK3566.profile.T1401N.best_performance.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.T1401N.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.T1401N.best_performance.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3566.profile.T1401N.best_performance.retrorun_egl_depth_bits = 24
+chip.RK3566.profile.T1401N.best_performance.retrorun_egl_stencil_bits = 0
+chip.RK3566.profile.T1401N.best_performance.reicast_sh4clock = 200
+chip.RK3566.profile.T1401N.best_performance.reicast_frame_skipping = disabled
+chip.RK3566.profile.T1401N.best_performance.reicast_translucent_strip_merge = menu_guarded
+chip.RK3566.profile.T1401N.best_performance.reicast_translucent_menu_guard_strategy = top_hud_last
+chip.RK3566.profile.T1401N.best_performance.reicast_translucent_menu_guard_draw_sorting = standard
+chip.RK3566.profile.T1401N.best_performance.reicast_palette_fog_storage_reuse = enabled
+chip.RK3566.profile.T1401N.best_performance.reicast_fast_depth = vertex_fast_log
+chip.RK3566.profile.T1401N.best_performance.reicast_audio_mixer = lowend
+chip.RK3566.profile.T1401N.best_performance.reicast_opaque_strip_merge = enabled
+chip.RK3566.profile.T1401N.best_performance.reicast_aica_arm_cycles = 32
 
-device.RG353M.profile.T1401M.best_performance.title = Soul Calibur (Japan, RG353M validated)
-device.RG353M.profile.T1401M.best_performance.retrorun_flycast_core_variant = upstream_620
-device.RG353M.profile.T1401M.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.T1401M.best_performance.retrorun_audio_buffer = 735
-device.RG353M.profile.T1401M.best_performance.retrorun_audio_stable_buffer = true
-device.RG353M.profile.T1401M.best_performance.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.T1401M.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.T1401M.best_performance.retrorun_go2_audio_wsola_profile = disabled
-device.RG353M.profile.T1401M.best_performance.retrorun_egl_depth_bits = 24
-device.RG353M.profile.T1401M.best_performance.retrorun_egl_stencil_bits = 0
-device.RG353M.profile.T1401M.best_performance.reicast_sh4clock = 200
-device.RG353M.profile.T1401M.best_performance.reicast_frame_skipping = disabled
-device.RG353M.profile.T1401M.best_performance.reicast_translucent_strip_merge = menu_guarded
-device.RG353M.profile.T1401M.best_performance.reicast_translucent_menu_guard_strategy = top_hud_last
-device.RG353M.profile.T1401M.best_performance.reicast_translucent_menu_guard_draw_sorting = standard
-device.RG353M.profile.T1401M.best_performance.reicast_palette_fog_storage_reuse = enabled
-device.RG353M.profile.T1401M.best_performance.reicast_fast_depth = vertex_fast_log
-device.RG353M.profile.T1401M.best_performance.reicast_audio_mixer = lowend
-device.RG353M.profile.T1401M.best_performance.reicast_opaque_strip_merge = enabled
-device.RG353M.profile.T1401M.best_performance.reicast_aica_arm_cycles = 32
+chip.RK3566.profile.T1401M.best_performance.title = Soul Calibur (Japan, RG353M validated)
+chip.RK3566.profile.T1401M.best_performance.retrorun_flycast_core_variant = upstream_620
+chip.RK3566.profile.T1401M.best_performance.retrorun_loop_declared_fps = false
+chip.RK3566.profile.T1401M.best_performance.retrorun_audio_buffer = 735
+chip.RK3566.profile.T1401M.best_performance.retrorun_audio_stable_buffer = true
+chip.RK3566.profile.T1401M.best_performance.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.T1401M.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.T1401M.best_performance.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3566.profile.T1401M.best_performance.retrorun_egl_depth_bits = 24
+chip.RK3566.profile.T1401M.best_performance.retrorun_egl_stencil_bits = 0
+chip.RK3566.profile.T1401M.best_performance.reicast_sh4clock = 200
+chip.RK3566.profile.T1401M.best_performance.reicast_frame_skipping = disabled
+chip.RK3566.profile.T1401M.best_performance.reicast_translucent_strip_merge = menu_guarded
+chip.RK3566.profile.T1401M.best_performance.reicast_translucent_menu_guard_strategy = top_hud_last
+chip.RK3566.profile.T1401M.best_performance.reicast_translucent_menu_guard_draw_sorting = standard
+chip.RK3566.profile.T1401M.best_performance.reicast_palette_fog_storage_reuse = enabled
+chip.RK3566.profile.T1401M.best_performance.reicast_fast_depth = vertex_fast_log
+chip.RK3566.profile.T1401M.best_performance.reicast_audio_mixer = lowend
+chip.RK3566.profile.T1401M.best_performance.reicast_opaque_strip_merge = enabled
+chip.RK3566.profile.T1401M.best_performance.reicast_aica_arm_cycles = 32
 
-; RG552: clean same-binary A/B and manual audio/video validation.  These
-; complete device profiles reproduce the approved stock-equivalent setup and
-; enable the no-drop render-queue policy only for Soul Calibur on RG552.
-; best_performance deliberately has no separate device record and therefore
+; RK3399, validated on RG552 with a clean same-binary A/B. These complete chip
+; profiles reproduce the approved stock-equivalent setup and enable the
+; no-drop render-queue policy only for Soul Calibur on this chip.
+; best_performance deliberately has no separate chip record and therefore
 ; falls back to this best_validated profile for all three retail variants.
-device.RG552.profile.T1401D50.best_validated.title = Soul Calibur (Europe, RG552 validated)
-device.RG552.profile.T1401D50.best_validated.retrorun_loop_declared_fps = true
-device.RG552.profile.T1401D50.best_validated.retrorun_drm_direct_scanout = false
-device.RG552.profile.T1401D50.best_validated.retrorun_audio_buffer = 735
-device.RG552.profile.T1401D50.best_validated.retrorun_audio_stable_buffer = false
-device.RG552.profile.T1401D50.best_validated.retrorun_go2_audio_prebuffer_ms = 60
-device.RG552.profile.T1401D50.best_validated.retrorun_go2_audio_stretch_percent = 0
-device.RG552.profile.T1401D50.best_validated.retrorun_go2_audio_stretch_low_ms = 40
-device.RG552.profile.T1401D50.best_validated.retrorun_go2_audio_wsola_profile = disabled
-device.RG552.profile.T1401D50.best_validated.retrorun_video_multithread_mode = enabled
-device.RG552.profile.T1401D50.best_validated.reicast_system = dreamcast
-device.RG552.profile.T1401D50.best_validated.reicast_boot_to_bios = disabled
-device.RG552.profile.T1401D50.best_validated.reicast_hle_bios = disabled
-device.RG552.profile.T1401D50.best_validated.reicast_internal_resolution = 640x480
-device.RG552.profile.T1401D50.best_validated.reicast_screen_rotation = horizontal
-device.RG552.profile.T1401D50.best_validated.reicast_cpu_mode = dynamic_recompiler
-device.RG552.profile.T1401D50.best_validated.reicast_sh4clock = 200
-device.RG552.profile.T1401D50.best_validated.reicast_sh4_cycle_mode = legacy
-device.RG552.profile.T1401D50.best_validated.reicast_cable_type = TV (Composite)
-device.RG552.profile.T1401D50.best_validated.reicast_broadcast = NTSC
-device.RG552.profile.T1401D50.best_validated.reicast_alpha_sorting = per-strip (fast, least accurate)
-device.RG552.profile.T1401D50.best_validated.reicast_gdrom_fast_loading = enabled
-device.RG552.profile.T1401D50.best_validated.reicast_mipmapping = enabled
-device.RG552.profile.T1401D50.best_validated.reicast_fog = enabled
-device.RG552.profile.T1401D50.best_validated.reicast_volume_modifier_enable = disabled
-device.RG552.profile.T1401D50.best_validated.reicast_enable_dsp = disabled
-device.RG552.profile.T1401D50.best_validated.reicast_anisotropic_filtering = disabled
-device.RG552.profile.T1401D50.best_validated.reicast_div_matching = auto
-device.RG552.profile.T1401D50.best_validated.reicast_texupscale = off
-device.RG552.profile.T1401D50.best_validated.reicast_enable_rttb = disabled
-device.RG552.profile.T1401D50.best_validated.reicast_enable_purupuru = enabled
-device.RG552.profile.T1401D50.best_validated.reicast_framerate = fullspeed
-device.RG552.profile.T1401D50.best_validated.reicast_threaded_rendering = enabled
-device.RG552.profile.T1401D50.best_validated.reicast_synchronous_rendering = disabled
-device.RG552.profile.T1401D50.best_validated.reicast_delay_frame_swapping = disabled
-device.RG552.profile.T1401D50.best_validated.reicast_auto_skip_frame = disabled
-device.RG552.profile.T1401D50.best_validated.reicast_frame_skipping = disabled
-device.RG552.profile.T1401D50.best_validated.reicast_adjacent_state_elision = disabled
-device.RG552.profile.T1401D50.best_validated.reicast_translucent_strip_merge = disabled
-device.RG552.profile.T1401D50.best_validated.reicast_texture_storage_reuse = disabled
-device.RG552.profile.T1401D50.best_validated.reicast_palette_fog_storage_reuse = disabled
-device.RG552.profile.T1401D50.best_validated.reicast_fast_depth = disabled
-device.RG552.profile.T1401D50.best_validated.reicast_audio_mixer = accurate
-device.RG552.profile.T1401D50.best_validated.reicast_opaque_strip_merge = disabled
-device.RG552.profile.T1401D50.best_validated.reicast_aica_arm_cycles = 32
-device.RG552.profile.T1401D50.best_validated.reicast_accurate_aica_batch = disabled
-device.RG552.profile.T1401D50.best_validated.reicast_shared_block_checks = disabled
-device.RG552.profile.T1401D50.best_validated.reicast_mmu_address_lut = disabled
-device.RG552.profile.T1401D50.best_validated.reicast_fmov_fpr64 = disabled
-device.RG552.profile.T1401D50.best_validated.reicast_aica_better_lpf = disabled
-device.RG552.profile.T1401D50.best_validated.reicast_render_queue_no_drop = enabled
+chip.RK3399.profile.T1401D50.best_validated.title = Soul Calibur (Europe, RG552 validated)
+chip.RK3399.profile.T1401D50.best_validated.retrorun_loop_declared_fps = true
+chip.RK3399.profile.T1401D50.best_validated.retrorun_drm_direct_scanout = false
+chip.RK3399.profile.T1401D50.best_validated.retrorun_audio_buffer = 735
+chip.RK3399.profile.T1401D50.best_validated.retrorun_audio_stable_buffer = false
+chip.RK3399.profile.T1401D50.best_validated.retrorun_go2_audio_prebuffer_ms = 60
+chip.RK3399.profile.T1401D50.best_validated.retrorun_go2_audio_stretch_percent = 0
+chip.RK3399.profile.T1401D50.best_validated.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3399.profile.T1401D50.best_validated.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3399.profile.T1401D50.best_validated.retrorun_video_multithread_mode = enabled
+chip.RK3399.profile.T1401D50.best_validated.reicast_system = dreamcast
+chip.RK3399.profile.T1401D50.best_validated.reicast_boot_to_bios = disabled
+chip.RK3399.profile.T1401D50.best_validated.reicast_hle_bios = disabled
+chip.RK3399.profile.T1401D50.best_validated.reicast_internal_resolution = 640x480
+chip.RK3399.profile.T1401D50.best_validated.reicast_screen_rotation = horizontal
+chip.RK3399.profile.T1401D50.best_validated.reicast_cpu_mode = dynamic_recompiler
+chip.RK3399.profile.T1401D50.best_validated.reicast_sh4clock = 200
+chip.RK3399.profile.T1401D50.best_validated.reicast_sh4_cycle_mode = legacy
+chip.RK3399.profile.T1401D50.best_validated.reicast_cable_type = TV (Composite)
+chip.RK3399.profile.T1401D50.best_validated.reicast_broadcast = NTSC
+chip.RK3399.profile.T1401D50.best_validated.reicast_alpha_sorting = per-strip (fast, least accurate)
+chip.RK3399.profile.T1401D50.best_validated.reicast_gdrom_fast_loading = enabled
+chip.RK3399.profile.T1401D50.best_validated.reicast_mipmapping = enabled
+chip.RK3399.profile.T1401D50.best_validated.reicast_fog = enabled
+chip.RK3399.profile.T1401D50.best_validated.reicast_volume_modifier_enable = disabled
+chip.RK3399.profile.T1401D50.best_validated.reicast_enable_dsp = disabled
+chip.RK3399.profile.T1401D50.best_validated.reicast_anisotropic_filtering = disabled
+chip.RK3399.profile.T1401D50.best_validated.reicast_div_matching = auto
+chip.RK3399.profile.T1401D50.best_validated.reicast_texupscale = off
+chip.RK3399.profile.T1401D50.best_validated.reicast_enable_rttb = disabled
+chip.RK3399.profile.T1401D50.best_validated.reicast_enable_purupuru = enabled
+chip.RK3399.profile.T1401D50.best_validated.reicast_framerate = fullspeed
+chip.RK3399.profile.T1401D50.best_validated.reicast_threaded_rendering = enabled
+chip.RK3399.profile.T1401D50.best_validated.reicast_synchronous_rendering = disabled
+chip.RK3399.profile.T1401D50.best_validated.reicast_delay_frame_swapping = disabled
+chip.RK3399.profile.T1401D50.best_validated.reicast_auto_skip_frame = disabled
+chip.RK3399.profile.T1401D50.best_validated.reicast_frame_skipping = disabled
+chip.RK3399.profile.T1401D50.best_validated.reicast_adjacent_state_elision = disabled
+chip.RK3399.profile.T1401D50.best_validated.reicast_translucent_strip_merge = disabled
+chip.RK3399.profile.T1401D50.best_validated.reicast_texture_storage_reuse = disabled
+chip.RK3399.profile.T1401D50.best_validated.reicast_palette_fog_storage_reuse = disabled
+chip.RK3399.profile.T1401D50.best_validated.reicast_fast_depth = disabled
+chip.RK3399.profile.T1401D50.best_validated.reicast_audio_mixer = accurate
+chip.RK3399.profile.T1401D50.best_validated.reicast_opaque_strip_merge = disabled
+chip.RK3399.profile.T1401D50.best_validated.reicast_aica_arm_cycles = 32
+chip.RK3399.profile.T1401D50.best_validated.reicast_accurate_aica_batch = disabled
+chip.RK3399.profile.T1401D50.best_validated.reicast_shared_block_checks = disabled
+chip.RK3399.profile.T1401D50.best_validated.reicast_mmu_address_lut = disabled
+chip.RK3399.profile.T1401D50.best_validated.reicast_fmov_fpr64 = disabled
+chip.RK3399.profile.T1401D50.best_validated.reicast_aica_better_lpf = disabled
+chip.RK3399.profile.T1401D50.best_validated.reicast_render_queue_no_drop = enabled
 
-device.RG552.profile.T1401N.best_validated.title = Soul Calibur (North America, RG552 validated)
-device.RG552.profile.T1401N.best_validated.retrorun_loop_declared_fps = true
-device.RG552.profile.T1401N.best_validated.retrorun_drm_direct_scanout = false
-device.RG552.profile.T1401N.best_validated.retrorun_audio_buffer = 735
-device.RG552.profile.T1401N.best_validated.retrorun_audio_stable_buffer = false
-device.RG552.profile.T1401N.best_validated.retrorun_go2_audio_prebuffer_ms = 60
-device.RG552.profile.T1401N.best_validated.retrorun_go2_audio_stretch_percent = 0
-device.RG552.profile.T1401N.best_validated.retrorun_go2_audio_stretch_low_ms = 40
-device.RG552.profile.T1401N.best_validated.retrorun_go2_audio_wsola_profile = disabled
-device.RG552.profile.T1401N.best_validated.retrorun_video_multithread_mode = enabled
-device.RG552.profile.T1401N.best_validated.reicast_system = dreamcast
-device.RG552.profile.T1401N.best_validated.reicast_boot_to_bios = disabled
-device.RG552.profile.T1401N.best_validated.reicast_hle_bios = disabled
-device.RG552.profile.T1401N.best_validated.reicast_internal_resolution = 640x480
-device.RG552.profile.T1401N.best_validated.reicast_screen_rotation = horizontal
-device.RG552.profile.T1401N.best_validated.reicast_cpu_mode = dynamic_recompiler
-device.RG552.profile.T1401N.best_validated.reicast_sh4clock = 200
-device.RG552.profile.T1401N.best_validated.reicast_sh4_cycle_mode = legacy
-device.RG552.profile.T1401N.best_validated.reicast_cable_type = TV (Composite)
-device.RG552.profile.T1401N.best_validated.reicast_broadcast = NTSC
-device.RG552.profile.T1401N.best_validated.reicast_alpha_sorting = per-strip (fast, least accurate)
-device.RG552.profile.T1401N.best_validated.reicast_gdrom_fast_loading = enabled
-device.RG552.profile.T1401N.best_validated.reicast_mipmapping = enabled
-device.RG552.profile.T1401N.best_validated.reicast_fog = enabled
-device.RG552.profile.T1401N.best_validated.reicast_volume_modifier_enable = disabled
-device.RG552.profile.T1401N.best_validated.reicast_enable_dsp = disabled
-device.RG552.profile.T1401N.best_validated.reicast_anisotropic_filtering = disabled
-device.RG552.profile.T1401N.best_validated.reicast_div_matching = auto
-device.RG552.profile.T1401N.best_validated.reicast_texupscale = off
-device.RG552.profile.T1401N.best_validated.reicast_enable_rttb = disabled
-device.RG552.profile.T1401N.best_validated.reicast_enable_purupuru = enabled
-device.RG552.profile.T1401N.best_validated.reicast_framerate = fullspeed
-device.RG552.profile.T1401N.best_validated.reicast_threaded_rendering = enabled
-device.RG552.profile.T1401N.best_validated.reicast_synchronous_rendering = disabled
-device.RG552.profile.T1401N.best_validated.reicast_delay_frame_swapping = disabled
-device.RG552.profile.T1401N.best_validated.reicast_auto_skip_frame = disabled
-device.RG552.profile.T1401N.best_validated.reicast_frame_skipping = disabled
-device.RG552.profile.T1401N.best_validated.reicast_adjacent_state_elision = disabled
-device.RG552.profile.T1401N.best_validated.reicast_translucent_strip_merge = disabled
-device.RG552.profile.T1401N.best_validated.reicast_texture_storage_reuse = disabled
-device.RG552.profile.T1401N.best_validated.reicast_palette_fog_storage_reuse = disabled
-device.RG552.profile.T1401N.best_validated.reicast_fast_depth = disabled
-device.RG552.profile.T1401N.best_validated.reicast_audio_mixer = accurate
-device.RG552.profile.T1401N.best_validated.reicast_opaque_strip_merge = disabled
-device.RG552.profile.T1401N.best_validated.reicast_aica_arm_cycles = 32
-device.RG552.profile.T1401N.best_validated.reicast_accurate_aica_batch = disabled
-device.RG552.profile.T1401N.best_validated.reicast_shared_block_checks = disabled
-device.RG552.profile.T1401N.best_validated.reicast_mmu_address_lut = disabled
-device.RG552.profile.T1401N.best_validated.reicast_fmov_fpr64 = disabled
-device.RG552.profile.T1401N.best_validated.reicast_aica_better_lpf = disabled
-device.RG552.profile.T1401N.best_validated.reicast_render_queue_no_drop = enabled
+chip.RK3399.profile.T1401N.best_validated.title = Soul Calibur (North America, RG552 validated)
+chip.RK3399.profile.T1401N.best_validated.retrorun_loop_declared_fps = true
+chip.RK3399.profile.T1401N.best_validated.retrorun_drm_direct_scanout = false
+chip.RK3399.profile.T1401N.best_validated.retrorun_audio_buffer = 735
+chip.RK3399.profile.T1401N.best_validated.retrorun_audio_stable_buffer = false
+chip.RK3399.profile.T1401N.best_validated.retrorun_go2_audio_prebuffer_ms = 60
+chip.RK3399.profile.T1401N.best_validated.retrorun_go2_audio_stretch_percent = 0
+chip.RK3399.profile.T1401N.best_validated.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3399.profile.T1401N.best_validated.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3399.profile.T1401N.best_validated.retrorun_video_multithread_mode = enabled
+chip.RK3399.profile.T1401N.best_validated.reicast_system = dreamcast
+chip.RK3399.profile.T1401N.best_validated.reicast_boot_to_bios = disabled
+chip.RK3399.profile.T1401N.best_validated.reicast_hle_bios = disabled
+chip.RK3399.profile.T1401N.best_validated.reicast_internal_resolution = 640x480
+chip.RK3399.profile.T1401N.best_validated.reicast_screen_rotation = horizontal
+chip.RK3399.profile.T1401N.best_validated.reicast_cpu_mode = dynamic_recompiler
+chip.RK3399.profile.T1401N.best_validated.reicast_sh4clock = 200
+chip.RK3399.profile.T1401N.best_validated.reicast_sh4_cycle_mode = legacy
+chip.RK3399.profile.T1401N.best_validated.reicast_cable_type = TV (Composite)
+chip.RK3399.profile.T1401N.best_validated.reicast_broadcast = NTSC
+chip.RK3399.profile.T1401N.best_validated.reicast_alpha_sorting = per-strip (fast, least accurate)
+chip.RK3399.profile.T1401N.best_validated.reicast_gdrom_fast_loading = enabled
+chip.RK3399.profile.T1401N.best_validated.reicast_mipmapping = enabled
+chip.RK3399.profile.T1401N.best_validated.reicast_fog = enabled
+chip.RK3399.profile.T1401N.best_validated.reicast_volume_modifier_enable = disabled
+chip.RK3399.profile.T1401N.best_validated.reicast_enable_dsp = disabled
+chip.RK3399.profile.T1401N.best_validated.reicast_anisotropic_filtering = disabled
+chip.RK3399.profile.T1401N.best_validated.reicast_div_matching = auto
+chip.RK3399.profile.T1401N.best_validated.reicast_texupscale = off
+chip.RK3399.profile.T1401N.best_validated.reicast_enable_rttb = disabled
+chip.RK3399.profile.T1401N.best_validated.reicast_enable_purupuru = enabled
+chip.RK3399.profile.T1401N.best_validated.reicast_framerate = fullspeed
+chip.RK3399.profile.T1401N.best_validated.reicast_threaded_rendering = enabled
+chip.RK3399.profile.T1401N.best_validated.reicast_synchronous_rendering = disabled
+chip.RK3399.profile.T1401N.best_validated.reicast_delay_frame_swapping = disabled
+chip.RK3399.profile.T1401N.best_validated.reicast_auto_skip_frame = disabled
+chip.RK3399.profile.T1401N.best_validated.reicast_frame_skipping = disabled
+chip.RK3399.profile.T1401N.best_validated.reicast_adjacent_state_elision = disabled
+chip.RK3399.profile.T1401N.best_validated.reicast_translucent_strip_merge = disabled
+chip.RK3399.profile.T1401N.best_validated.reicast_texture_storage_reuse = disabled
+chip.RK3399.profile.T1401N.best_validated.reicast_palette_fog_storage_reuse = disabled
+chip.RK3399.profile.T1401N.best_validated.reicast_fast_depth = disabled
+chip.RK3399.profile.T1401N.best_validated.reicast_audio_mixer = accurate
+chip.RK3399.profile.T1401N.best_validated.reicast_opaque_strip_merge = disabled
+chip.RK3399.profile.T1401N.best_validated.reicast_aica_arm_cycles = 32
+chip.RK3399.profile.T1401N.best_validated.reicast_accurate_aica_batch = disabled
+chip.RK3399.profile.T1401N.best_validated.reicast_shared_block_checks = disabled
+chip.RK3399.profile.T1401N.best_validated.reicast_mmu_address_lut = disabled
+chip.RK3399.profile.T1401N.best_validated.reicast_fmov_fpr64 = disabled
+chip.RK3399.profile.T1401N.best_validated.reicast_aica_better_lpf = disabled
+chip.RK3399.profile.T1401N.best_validated.reicast_render_queue_no_drop = enabled
 
-device.RG552.profile.T1401M.best_validated.title = Soul Calibur (Japan, RG552 validated)
-device.RG552.profile.T1401M.best_validated.retrorun_loop_declared_fps = true
-device.RG552.profile.T1401M.best_validated.retrorun_drm_direct_scanout = false
-device.RG552.profile.T1401M.best_validated.retrorun_audio_buffer = 735
-device.RG552.profile.T1401M.best_validated.retrorun_audio_stable_buffer = false
-device.RG552.profile.T1401M.best_validated.retrorun_go2_audio_prebuffer_ms = 60
-device.RG552.profile.T1401M.best_validated.retrorun_go2_audio_stretch_percent = 0
-device.RG552.profile.T1401M.best_validated.retrorun_go2_audio_stretch_low_ms = 40
-device.RG552.profile.T1401M.best_validated.retrorun_go2_audio_wsola_profile = disabled
-device.RG552.profile.T1401M.best_validated.retrorun_video_multithread_mode = enabled
-device.RG552.profile.T1401M.best_validated.reicast_system = dreamcast
-device.RG552.profile.T1401M.best_validated.reicast_boot_to_bios = disabled
-device.RG552.profile.T1401M.best_validated.reicast_hle_bios = disabled
-device.RG552.profile.T1401M.best_validated.reicast_internal_resolution = 640x480
-device.RG552.profile.T1401M.best_validated.reicast_screen_rotation = horizontal
-device.RG552.profile.T1401M.best_validated.reicast_cpu_mode = dynamic_recompiler
-device.RG552.profile.T1401M.best_validated.reicast_sh4clock = 200
-device.RG552.profile.T1401M.best_validated.reicast_sh4_cycle_mode = legacy
-device.RG552.profile.T1401M.best_validated.reicast_cable_type = TV (Composite)
-device.RG552.profile.T1401M.best_validated.reicast_broadcast = NTSC
-device.RG552.profile.T1401M.best_validated.reicast_alpha_sorting = per-strip (fast, least accurate)
-device.RG552.profile.T1401M.best_validated.reicast_gdrom_fast_loading = enabled
-device.RG552.profile.T1401M.best_validated.reicast_mipmapping = enabled
-device.RG552.profile.T1401M.best_validated.reicast_fog = enabled
-device.RG552.profile.T1401M.best_validated.reicast_volume_modifier_enable = disabled
-device.RG552.profile.T1401M.best_validated.reicast_enable_dsp = disabled
-device.RG552.profile.T1401M.best_validated.reicast_anisotropic_filtering = disabled
-device.RG552.profile.T1401M.best_validated.reicast_div_matching = auto
-device.RG552.profile.T1401M.best_validated.reicast_texupscale = off
-device.RG552.profile.T1401M.best_validated.reicast_enable_rttb = disabled
-device.RG552.profile.T1401M.best_validated.reicast_enable_purupuru = enabled
-device.RG552.profile.T1401M.best_validated.reicast_framerate = fullspeed
-device.RG552.profile.T1401M.best_validated.reicast_threaded_rendering = enabled
-device.RG552.profile.T1401M.best_validated.reicast_synchronous_rendering = disabled
-device.RG552.profile.T1401M.best_validated.reicast_delay_frame_swapping = disabled
-device.RG552.profile.T1401M.best_validated.reicast_auto_skip_frame = disabled
-device.RG552.profile.T1401M.best_validated.reicast_frame_skipping = disabled
-device.RG552.profile.T1401M.best_validated.reicast_adjacent_state_elision = disabled
-device.RG552.profile.T1401M.best_validated.reicast_translucent_strip_merge = disabled
-device.RG552.profile.T1401M.best_validated.reicast_texture_storage_reuse = disabled
-device.RG552.profile.T1401M.best_validated.reicast_palette_fog_storage_reuse = disabled
-device.RG552.profile.T1401M.best_validated.reicast_fast_depth = disabled
-device.RG552.profile.T1401M.best_validated.reicast_audio_mixer = accurate
-device.RG552.profile.T1401M.best_validated.reicast_opaque_strip_merge = disabled
-device.RG552.profile.T1401M.best_validated.reicast_aica_arm_cycles = 32
-device.RG552.profile.T1401M.best_validated.reicast_accurate_aica_batch = disabled
-device.RG552.profile.T1401M.best_validated.reicast_shared_block_checks = disabled
-device.RG552.profile.T1401M.best_validated.reicast_mmu_address_lut = disabled
-device.RG552.profile.T1401M.best_validated.reicast_fmov_fpr64 = disabled
-device.RG552.profile.T1401M.best_validated.reicast_aica_better_lpf = disabled
-device.RG552.profile.T1401M.best_validated.reicast_render_queue_no_drop = enabled
+chip.RK3399.profile.T1401M.best_validated.title = Soul Calibur (Japan, RG552 validated)
+chip.RK3399.profile.T1401M.best_validated.retrorun_loop_declared_fps = true
+chip.RK3399.profile.T1401M.best_validated.retrorun_drm_direct_scanout = false
+chip.RK3399.profile.T1401M.best_validated.retrorun_audio_buffer = 735
+chip.RK3399.profile.T1401M.best_validated.retrorun_audio_stable_buffer = false
+chip.RK3399.profile.T1401M.best_validated.retrorun_go2_audio_prebuffer_ms = 60
+chip.RK3399.profile.T1401M.best_validated.retrorun_go2_audio_stretch_percent = 0
+chip.RK3399.profile.T1401M.best_validated.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3399.profile.T1401M.best_validated.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3399.profile.T1401M.best_validated.retrorun_video_multithread_mode = enabled
+chip.RK3399.profile.T1401M.best_validated.reicast_system = dreamcast
+chip.RK3399.profile.T1401M.best_validated.reicast_boot_to_bios = disabled
+chip.RK3399.profile.T1401M.best_validated.reicast_hle_bios = disabled
+chip.RK3399.profile.T1401M.best_validated.reicast_internal_resolution = 640x480
+chip.RK3399.profile.T1401M.best_validated.reicast_screen_rotation = horizontal
+chip.RK3399.profile.T1401M.best_validated.reicast_cpu_mode = dynamic_recompiler
+chip.RK3399.profile.T1401M.best_validated.reicast_sh4clock = 200
+chip.RK3399.profile.T1401M.best_validated.reicast_sh4_cycle_mode = legacy
+chip.RK3399.profile.T1401M.best_validated.reicast_cable_type = TV (Composite)
+chip.RK3399.profile.T1401M.best_validated.reicast_broadcast = NTSC
+chip.RK3399.profile.T1401M.best_validated.reicast_alpha_sorting = per-strip (fast, least accurate)
+chip.RK3399.profile.T1401M.best_validated.reicast_gdrom_fast_loading = enabled
+chip.RK3399.profile.T1401M.best_validated.reicast_mipmapping = enabled
+chip.RK3399.profile.T1401M.best_validated.reicast_fog = enabled
+chip.RK3399.profile.T1401M.best_validated.reicast_volume_modifier_enable = disabled
+chip.RK3399.profile.T1401M.best_validated.reicast_enable_dsp = disabled
+chip.RK3399.profile.T1401M.best_validated.reicast_anisotropic_filtering = disabled
+chip.RK3399.profile.T1401M.best_validated.reicast_div_matching = auto
+chip.RK3399.profile.T1401M.best_validated.reicast_texupscale = off
+chip.RK3399.profile.T1401M.best_validated.reicast_enable_rttb = disabled
+chip.RK3399.profile.T1401M.best_validated.reicast_enable_purupuru = enabled
+chip.RK3399.profile.T1401M.best_validated.reicast_framerate = fullspeed
+chip.RK3399.profile.T1401M.best_validated.reicast_threaded_rendering = enabled
+chip.RK3399.profile.T1401M.best_validated.reicast_synchronous_rendering = disabled
+chip.RK3399.profile.T1401M.best_validated.reicast_delay_frame_swapping = disabled
+chip.RK3399.profile.T1401M.best_validated.reicast_auto_skip_frame = disabled
+chip.RK3399.profile.T1401M.best_validated.reicast_frame_skipping = disabled
+chip.RK3399.profile.T1401M.best_validated.reicast_adjacent_state_elision = disabled
+chip.RK3399.profile.T1401M.best_validated.reicast_translucent_strip_merge = disabled
+chip.RK3399.profile.T1401M.best_validated.reicast_texture_storage_reuse = disabled
+chip.RK3399.profile.T1401M.best_validated.reicast_palette_fog_storage_reuse = disabled
+chip.RK3399.profile.T1401M.best_validated.reicast_fast_depth = disabled
+chip.RK3399.profile.T1401M.best_validated.reicast_audio_mixer = accurate
+chip.RK3399.profile.T1401M.best_validated.reicast_opaque_strip_merge = disabled
+chip.RK3399.profile.T1401M.best_validated.reicast_aica_arm_cycles = 32
+chip.RK3399.profile.T1401M.best_validated.reicast_accurate_aica_batch = disabled
+chip.RK3399.profile.T1401M.best_validated.reicast_shared_block_checks = disabled
+chip.RK3399.profile.T1401M.best_validated.reicast_mmu_address_lut = disabled
+chip.RK3399.profile.T1401M.best_validated.reicast_fmov_fpr64 = disabled
+chip.RK3399.profile.T1401M.best_validated.reicast_aica_better_lpf = disabled
+chip.RK3399.profile.T1401M.best_validated.reicast_render_queue_no_drop = enabled
 
 profile.T38706M.best_validated.title = Ikaruga
 profile.T38706M.best_validated.retrorun_adaptive_frameskip = false
@@ -701,18 +702,18 @@ profile.T38706M.best_validated.retrorun_egl_depth_bits = 24
 profile.T38706M.best_validated.retrorun_egl_stencil_bits = 0
 profile.T38706M.best_validated.reicast_aica_arm_cycles = 16
 
-device.RG353M.profile.T38706M.best_performance.title = Ikaruga (Japan, RG353M validated)
-device.RG353M.profile.T38706M.best_performance.reicast_internal_resolution = 640x480
-device.RG353M.profile.T38706M.best_performance.reicast_framerate = normal
-device.RG353M.profile.T38706M.best_performance.reicast_anisotropic_filtering = off
-device.RG353M.profile.T38706M.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.T38706M.best_performance.retrorun_audio_buffer = 735
-device.RG353M.profile.T38706M.best_performance.retrorun_audio_stable_buffer = true
-device.RG353M.profile.T38706M.best_performance.retrorun_go2_audio_prebuffer_ms = 60
-device.RG353M.profile.T38706M.best_performance.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.T38706M.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.T38706M.best_performance.retrorun_go2_audio_wsola_profile = disabled
-device.RG353M.profile.T38706M.best_performance.reicast_frame_skipping = disabled
+chip.RK3566.profile.T38706M.best_performance.title = Ikaruga (Japan, RG353M validated)
+chip.RK3566.profile.T38706M.best_performance.reicast_internal_resolution = 640x480
+chip.RK3566.profile.T38706M.best_performance.reicast_framerate = normal
+chip.RK3566.profile.T38706M.best_performance.reicast_anisotropic_filtering = off
+chip.RK3566.profile.T38706M.best_performance.retrorun_loop_declared_fps = false
+chip.RK3566.profile.T38706M.best_performance.retrorun_audio_buffer = 735
+chip.RK3566.profile.T38706M.best_performance.retrorun_audio_stable_buffer = true
+chip.RK3566.profile.T38706M.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+chip.RK3566.profile.T38706M.best_performance.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.T38706M.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.T38706M.best_performance.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3566.profile.T38706M.best_performance.reicast_frame_skipping = disabled
 
 profile.T1212N.best_validated.title = Marvel vs. Capcom 2
 profile.T1212N.best_validated.retrorun_adaptive_frameskip = false
@@ -810,50 +811,50 @@ profile.T1215M.best_validated.retrorun_egl_depth_bits = 24
 profile.T1215M.best_validated.retrorun_egl_stencil_bits = 0
 profile.T1215M.best_validated.reicast_aica_arm_cycles = 8
 
-device.RG353M.profile.T1212N.best_performance.title = Marvel vs. Capcom 2 (USA, RG353M validated)
-device.RG353M.profile.T1212N.best_performance.reicast_internal_resolution = 640x480
-device.RG353M.profile.T1212N.best_performance.reicast_framerate = normal
-device.RG353M.profile.T1212N.best_performance.reicast_anisotropic_filtering = off
-device.RG353M.profile.T1212N.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.T1212N.best_performance.retrorun_audio_buffer = 735
-device.RG353M.profile.T1212N.best_performance.retrorun_audio_stable_buffer = false
-device.RG353M.profile.T1212N.best_performance.retrorun_go2_audio_prebuffer_ms = 60
-device.RG353M.profile.T1212N.best_performance.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.T1212N.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.T1212N.best_performance.retrorun_go2_audio_wsola_profile = disabled
-device.RG353M.profile.T1212N.best_performance.reicast_frame_skipping = disabled
-device.RG353M.profile.T1212N.best_performance.reicast_audio_mixer = fast
-device.RG353M.profile.T1212N.best_performance.reicast_aica_arm_cycles = 16
+chip.RK3566.profile.T1212N.best_performance.title = Marvel vs. Capcom 2 (USA, RG353M validated)
+chip.RK3566.profile.T1212N.best_performance.reicast_internal_resolution = 640x480
+chip.RK3566.profile.T1212N.best_performance.reicast_framerate = normal
+chip.RK3566.profile.T1212N.best_performance.reicast_anisotropic_filtering = off
+chip.RK3566.profile.T1212N.best_performance.retrorun_loop_declared_fps = false
+chip.RK3566.profile.T1212N.best_performance.retrorun_audio_buffer = 735
+chip.RK3566.profile.T1212N.best_performance.retrorun_audio_stable_buffer = false
+chip.RK3566.profile.T1212N.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+chip.RK3566.profile.T1212N.best_performance.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.T1212N.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.T1212N.best_performance.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3566.profile.T1212N.best_performance.reicast_frame_skipping = disabled
+chip.RK3566.profile.T1212N.best_performance.reicast_audio_mixer = fast
+chip.RK3566.profile.T1212N.best_performance.reicast_aica_arm_cycles = 16
 
-device.RG353M.profile.T7010D50.best_performance.title = Marvel vs. Capcom 2 (Europe, RG353M validated)
-device.RG353M.profile.T7010D50.best_performance.reicast_internal_resolution = 640x480
-device.RG353M.profile.T7010D50.best_performance.reicast_framerate = normal
-device.RG353M.profile.T7010D50.best_performance.reicast_anisotropic_filtering = off
-device.RG353M.profile.T7010D50.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.T7010D50.best_performance.retrorun_audio_buffer = 735
-device.RG353M.profile.T7010D50.best_performance.retrorun_audio_stable_buffer = false
-device.RG353M.profile.T7010D50.best_performance.retrorun_go2_audio_prebuffer_ms = 60
-device.RG353M.profile.T7010D50.best_performance.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.T7010D50.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.T7010D50.best_performance.retrorun_go2_audio_wsola_profile = disabled
-device.RG353M.profile.T7010D50.best_performance.reicast_frame_skipping = disabled
-device.RG353M.profile.T7010D50.best_performance.reicast_audio_mixer = fast
-device.RG353M.profile.T7010D50.best_performance.reicast_aica_arm_cycles = 16
+chip.RK3566.profile.T7010D50.best_performance.title = Marvel vs. Capcom 2 (Europe, RG353M validated)
+chip.RK3566.profile.T7010D50.best_performance.reicast_internal_resolution = 640x480
+chip.RK3566.profile.T7010D50.best_performance.reicast_framerate = normal
+chip.RK3566.profile.T7010D50.best_performance.reicast_anisotropic_filtering = off
+chip.RK3566.profile.T7010D50.best_performance.retrorun_loop_declared_fps = false
+chip.RK3566.profile.T7010D50.best_performance.retrorun_audio_buffer = 735
+chip.RK3566.profile.T7010D50.best_performance.retrorun_audio_stable_buffer = false
+chip.RK3566.profile.T7010D50.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+chip.RK3566.profile.T7010D50.best_performance.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.T7010D50.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.T7010D50.best_performance.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3566.profile.T7010D50.best_performance.reicast_frame_skipping = disabled
+chip.RK3566.profile.T7010D50.best_performance.reicast_audio_mixer = fast
+chip.RK3566.profile.T7010D50.best_performance.reicast_aica_arm_cycles = 16
 
-device.RG353M.profile.T1215M.best_performance.title = Marvel vs. Capcom 2 (Japan, RG353M validated)
-device.RG353M.profile.T1215M.best_performance.reicast_internal_resolution = 640x480
-device.RG353M.profile.T1215M.best_performance.reicast_framerate = normal
-device.RG353M.profile.T1215M.best_performance.reicast_anisotropic_filtering = off
-device.RG353M.profile.T1215M.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.T1215M.best_performance.retrorun_audio_buffer = 735
-device.RG353M.profile.T1215M.best_performance.retrorun_audio_stable_buffer = false
-device.RG353M.profile.T1215M.best_performance.retrorun_go2_audio_prebuffer_ms = 60
-device.RG353M.profile.T1215M.best_performance.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.T1215M.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.T1215M.best_performance.retrorun_go2_audio_wsola_profile = disabled
-device.RG353M.profile.T1215M.best_performance.reicast_frame_skipping = disabled
-device.RG353M.profile.T1215M.best_performance.reicast_audio_mixer = fast
-device.RG353M.profile.T1215M.best_performance.reicast_aica_arm_cycles = 16
+chip.RK3566.profile.T1215M.best_performance.title = Marvel vs. Capcom 2 (Japan, RG353M validated)
+chip.RK3566.profile.T1215M.best_performance.reicast_internal_resolution = 640x480
+chip.RK3566.profile.T1215M.best_performance.reicast_framerate = normal
+chip.RK3566.profile.T1215M.best_performance.reicast_anisotropic_filtering = off
+chip.RK3566.profile.T1215M.best_performance.retrorun_loop_declared_fps = false
+chip.RK3566.profile.T1215M.best_performance.retrorun_audio_buffer = 735
+chip.RK3566.profile.T1215M.best_performance.retrorun_audio_stable_buffer = false
+chip.RK3566.profile.T1215M.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+chip.RK3566.profile.T1215M.best_performance.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.T1215M.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.T1215M.best_performance.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3566.profile.T1215M.best_performance.reicast_frame_skipping = disabled
+chip.RK3566.profile.T1215M.best_performance.reicast_audio_mixer = fast
+chip.RK3566.profile.T1215M.best_performance.reicast_aica_arm_cycles = 16
 
 profile.MK-51054.best_validated.title = Virtua Tennis
 profile.MK-51054.best_validated.retrorun_adaptive_frameskip = false
@@ -917,31 +918,31 @@ profile.HDR-0113.best_validated.retrorun_egl_depth_bits = 24
 profile.HDR-0113.best_validated.retrorun_egl_stencil_bits = 0
 profile.HDR-0113.best_validated.reicast_aica_arm_cycles = 16
 
-device.RG353M.profile.MK-51054.best_performance.title = Virtua Tennis (RG353M validated)
-device.RG353M.profile.MK-51054.best_performance.reicast_internal_resolution = 640x480
-device.RG353M.profile.MK-51054.best_performance.reicast_framerate = normal
-device.RG353M.profile.MK-51054.best_performance.reicast_anisotropic_filtering = off
-device.RG353M.profile.MK-51054.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.MK-51054.best_performance.retrorun_audio_buffer = 1470
-device.RG353M.profile.MK-51054.best_performance.retrorun_audio_stable_buffer = true
-device.RG353M.profile.MK-51054.best_performance.retrorun_go2_audio_prebuffer_ms = 60
-device.RG353M.profile.MK-51054.best_performance.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.MK-51054.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.MK-51054.best_performance.retrorun_go2_audio_wsola_profile = disabled
-device.RG353M.profile.MK-51054.best_performance.reicast_frame_skipping = disabled
+chip.RK3566.profile.MK-51054.best_performance.title = Virtua Tennis (RG353M validated)
+chip.RK3566.profile.MK-51054.best_performance.reicast_internal_resolution = 640x480
+chip.RK3566.profile.MK-51054.best_performance.reicast_framerate = normal
+chip.RK3566.profile.MK-51054.best_performance.reicast_anisotropic_filtering = off
+chip.RK3566.profile.MK-51054.best_performance.retrorun_loop_declared_fps = false
+chip.RK3566.profile.MK-51054.best_performance.retrorun_audio_buffer = 1470
+chip.RK3566.profile.MK-51054.best_performance.retrorun_audio_stable_buffer = true
+chip.RK3566.profile.MK-51054.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+chip.RK3566.profile.MK-51054.best_performance.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.MK-51054.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.MK-51054.best_performance.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3566.profile.MK-51054.best_performance.reicast_frame_skipping = disabled
 
-device.RG353M.profile.HDR-0113.best_performance.title = Power Smash (Japan, RG353M validated)
-device.RG353M.profile.HDR-0113.best_performance.reicast_internal_resolution = 640x480
-device.RG353M.profile.HDR-0113.best_performance.reicast_framerate = normal
-device.RG353M.profile.HDR-0113.best_performance.reicast_anisotropic_filtering = off
-device.RG353M.profile.HDR-0113.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.HDR-0113.best_performance.retrorun_audio_buffer = 1470
-device.RG353M.profile.HDR-0113.best_performance.retrorun_audio_stable_buffer = true
-device.RG353M.profile.HDR-0113.best_performance.retrorun_go2_audio_prebuffer_ms = 60
-device.RG353M.profile.HDR-0113.best_performance.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.HDR-0113.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.HDR-0113.best_performance.retrorun_go2_audio_wsola_profile = disabled
-device.RG353M.profile.HDR-0113.best_performance.reicast_frame_skipping = disabled
+chip.RK3566.profile.HDR-0113.best_performance.title = Power Smash (Japan, RG353M validated)
+chip.RK3566.profile.HDR-0113.best_performance.reicast_internal_resolution = 640x480
+chip.RK3566.profile.HDR-0113.best_performance.reicast_framerate = normal
+chip.RK3566.profile.HDR-0113.best_performance.reicast_anisotropic_filtering = off
+chip.RK3566.profile.HDR-0113.best_performance.retrorun_loop_declared_fps = false
+chip.RK3566.profile.HDR-0113.best_performance.retrorun_audio_buffer = 1470
+chip.RK3566.profile.HDR-0113.best_performance.retrorun_audio_stable_buffer = true
+chip.RK3566.profile.HDR-0113.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+chip.RK3566.profile.HDR-0113.best_performance.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.HDR-0113.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.HDR-0113.best_performance.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3566.profile.HDR-0113.best_performance.reicast_frame_skipping = disabled
 
 profile.MK-51000.best_validated.title = Sonic Adventure (baseline)
 
@@ -964,17 +965,17 @@ profile.MK-51000.best_performance.reicast_framerate = fullspeed
 profile.MK-51000.best_performance.reicast_loop_declared_fps = false
 profile.MK-51000.best_performance.reicast_audio_mixer = lowend
 
-device.RG353M.profile.MK-51000.best_performance.title = Sonic Adventure (Europe / North America, RG353M validated)
-device.RG353M.profile.MK-51000.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.MK-51000.best_performance.retrorun_audio_buffer = 735
-device.RG353M.profile.MK-51000.best_performance.retrorun_audio_stable_buffer = false
-device.RG353M.profile.MK-51000.best_performance.retrorun_go2_audio_prebuffer_ms = 60
-device.RG353M.profile.MK-51000.best_performance.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.MK-51000.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.MK-51000.best_performance.retrorun_go2_audio_wsola_profile = disabled
-device.RG353M.profile.MK-51000.best_performance.reicast_internal_resolution = 640x480
-device.RG353M.profile.MK-51000.best_performance.reicast_anisotropic_filtering = off
-device.RG353M.profile.MK-51000.best_performance.reicast_frame_skipping = disabled
+chip.RK3566.profile.MK-51000.best_performance.title = Sonic Adventure (Europe / North America, RG353M validated)
+chip.RK3566.profile.MK-51000.best_performance.retrorun_loop_declared_fps = false
+chip.RK3566.profile.MK-51000.best_performance.retrorun_audio_buffer = 735
+chip.RK3566.profile.MK-51000.best_performance.retrorun_audio_stable_buffer = false
+chip.RK3566.profile.MK-51000.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+chip.RK3566.profile.MK-51000.best_performance.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.MK-51000.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.MK-51000.best_performance.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3566.profile.MK-51000.best_performance.reicast_internal_resolution = 640x480
+chip.RK3566.profile.MK-51000.best_performance.reicast_anisotropic_filtering = off
+chip.RK3566.profile.MK-51000.best_performance.reicast_frame_skipping = disabled
 
 profile.HDR-0001.best_validated.title = Sonic Adventure (Japan, baseline)
 
@@ -1012,65 +1013,65 @@ profile.HDR-0031.best_performance.retrorun_go2_audio_wsola_profile = disabled
 profile.HDR-0031.best_performance.reicast_aica_arm_cycles = 24
 profile.HDR-0031.best_performance.reicast_fast_depth = menu_guarded
 
-device.RG353M.profile.MK-51059.best_performance.title = Shenmue (USA, RG353M validated)
-device.RG353M.profile.MK-51059.best_performance.reicast_internal_resolution = 640x480
-device.RG353M.profile.MK-51059.best_performance.reicast_anisotropic_filtering = off
-device.RG353M.profile.MK-51059.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.MK-51059.best_performance.retrorun_audio_buffer = -1
-device.RG353M.profile.MK-51059.best_performance.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.MK-51059.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.MK-51059.best_performance.reicast_hle_bios = enabled
-device.RG353M.profile.MK-51059.best_performance.reicast_gdrom_fast_loading = enabled
-device.RG353M.profile.MK-51059.best_performance.reicast_framerate = normal
-device.RG353M.profile.MK-51059.best_performance.reicast_translucent_strip_merge = disabled
-device.RG353M.profile.MK-51059.best_performance.reicast_fast_depth = vertex_fast_log
-device.RG353M.profile.MK-51059.best_performance.reicast_audio_mixer = lowend
-device.RG353M.profile.MK-51059.best_performance.reicast_aica_arm_cycles = 32
+chip.RK3566.profile.MK-51059.best_performance.title = Shenmue (USA, RG353M validated)
+chip.RK3566.profile.MK-51059.best_performance.reicast_internal_resolution = 640x480
+chip.RK3566.profile.MK-51059.best_performance.reicast_anisotropic_filtering = off
+chip.RK3566.profile.MK-51059.best_performance.retrorun_loop_declared_fps = false
+chip.RK3566.profile.MK-51059.best_performance.retrorun_audio_buffer = -1
+chip.RK3566.profile.MK-51059.best_performance.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.MK-51059.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.MK-51059.best_performance.reicast_hle_bios = enabled
+chip.RK3566.profile.MK-51059.best_performance.reicast_gdrom_fast_loading = enabled
+chip.RK3566.profile.MK-51059.best_performance.reicast_framerate = normal
+chip.RK3566.profile.MK-51059.best_performance.reicast_translucent_strip_merge = disabled
+chip.RK3566.profile.MK-51059.best_performance.reicast_fast_depth = vertex_fast_log
+chip.RK3566.profile.MK-51059.best_performance.reicast_audio_mixer = lowend
+chip.RK3566.profile.MK-51059.best_performance.reicast_aica_arm_cycles = 32
 
-device.RG353M.profile.MK-51131.best_performance.title = Shenmue (USA revision, RG353M validated)
-device.RG353M.profile.MK-51131.best_performance.reicast_internal_resolution = 640x480
-device.RG353M.profile.MK-51131.best_performance.reicast_anisotropic_filtering = off
-device.RG353M.profile.MK-51131.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.MK-51131.best_performance.retrorun_audio_buffer = -1
-device.RG353M.profile.MK-51131.best_performance.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.MK-51131.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.MK-51131.best_performance.reicast_hle_bios = enabled
-device.RG353M.profile.MK-51131.best_performance.reicast_gdrom_fast_loading = enabled
-device.RG353M.profile.MK-51131.best_performance.reicast_framerate = normal
-device.RG353M.profile.MK-51131.best_performance.reicast_translucent_strip_merge = disabled
-device.RG353M.profile.MK-51131.best_performance.reicast_fast_depth = vertex_fast_log
-device.RG353M.profile.MK-51131.best_performance.reicast_audio_mixer = lowend
-device.RG353M.profile.MK-51131.best_performance.reicast_aica_arm_cycles = 32
+chip.RK3566.profile.MK-51131.best_performance.title = Shenmue (USA revision, RG353M validated)
+chip.RK3566.profile.MK-51131.best_performance.reicast_internal_resolution = 640x480
+chip.RK3566.profile.MK-51131.best_performance.reicast_anisotropic_filtering = off
+chip.RK3566.profile.MK-51131.best_performance.retrorun_loop_declared_fps = false
+chip.RK3566.profile.MK-51131.best_performance.retrorun_audio_buffer = -1
+chip.RK3566.profile.MK-51131.best_performance.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.MK-51131.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.MK-51131.best_performance.reicast_hle_bios = enabled
+chip.RK3566.profile.MK-51131.best_performance.reicast_gdrom_fast_loading = enabled
+chip.RK3566.profile.MK-51131.best_performance.reicast_framerate = normal
+chip.RK3566.profile.MK-51131.best_performance.reicast_translucent_strip_merge = disabled
+chip.RK3566.profile.MK-51131.best_performance.reicast_fast_depth = vertex_fast_log
+chip.RK3566.profile.MK-51131.best_performance.reicast_audio_mixer = lowend
+chip.RK3566.profile.MK-51131.best_performance.reicast_aica_arm_cycles = 32
 
-device.RG353M.profile.HDR-0016.best_performance.title = Shenmue (Japan, RG353M validated)
-device.RG353M.profile.HDR-0016.best_performance.reicast_internal_resolution = 640x480
-device.RG353M.profile.HDR-0016.best_performance.reicast_anisotropic_filtering = off
-device.RG353M.profile.HDR-0016.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.HDR-0016.best_performance.retrorun_audio_buffer = -1
-device.RG353M.profile.HDR-0016.best_performance.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.HDR-0016.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.HDR-0016.best_performance.reicast_hle_bios = enabled
-device.RG353M.profile.HDR-0016.best_performance.reicast_gdrom_fast_loading = enabled
-device.RG353M.profile.HDR-0016.best_performance.reicast_framerate = normal
-device.RG353M.profile.HDR-0016.best_performance.reicast_translucent_strip_merge = disabled
-device.RG353M.profile.HDR-0016.best_performance.reicast_fast_depth = vertex_fast_log
-device.RG353M.profile.HDR-0016.best_performance.reicast_audio_mixer = lowend
-device.RG353M.profile.HDR-0016.best_performance.reicast_aica_arm_cycles = 32
+chip.RK3566.profile.HDR-0016.best_performance.title = Shenmue (Japan, RG353M validated)
+chip.RK3566.profile.HDR-0016.best_performance.reicast_internal_resolution = 640x480
+chip.RK3566.profile.HDR-0016.best_performance.reicast_anisotropic_filtering = off
+chip.RK3566.profile.HDR-0016.best_performance.retrorun_loop_declared_fps = false
+chip.RK3566.profile.HDR-0016.best_performance.retrorun_audio_buffer = -1
+chip.RK3566.profile.HDR-0016.best_performance.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.HDR-0016.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.HDR-0016.best_performance.reicast_hle_bios = enabled
+chip.RK3566.profile.HDR-0016.best_performance.reicast_gdrom_fast_loading = enabled
+chip.RK3566.profile.HDR-0016.best_performance.reicast_framerate = normal
+chip.RK3566.profile.HDR-0016.best_performance.reicast_translucent_strip_merge = disabled
+chip.RK3566.profile.HDR-0016.best_performance.reicast_fast_depth = vertex_fast_log
+chip.RK3566.profile.HDR-0016.best_performance.reicast_audio_mixer = lowend
+chip.RK3566.profile.HDR-0016.best_performance.reicast_aica_arm_cycles = 32
 
-device.RG353M.profile.HDR-0031.best_performance.title = Shenmue (Japan revision, RG353M validated)
-device.RG353M.profile.HDR-0031.best_performance.reicast_internal_resolution = 640x480
-device.RG353M.profile.HDR-0031.best_performance.reicast_anisotropic_filtering = off
-device.RG353M.profile.HDR-0031.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.HDR-0031.best_performance.retrorun_audio_buffer = -1
-device.RG353M.profile.HDR-0031.best_performance.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.HDR-0031.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.HDR-0031.best_performance.reicast_hle_bios = enabled
-device.RG353M.profile.HDR-0031.best_performance.reicast_gdrom_fast_loading = enabled
-device.RG353M.profile.HDR-0031.best_performance.reicast_framerate = normal
-device.RG353M.profile.HDR-0031.best_performance.reicast_translucent_strip_merge = disabled
-device.RG353M.profile.HDR-0031.best_performance.reicast_fast_depth = vertex_fast_log
-device.RG353M.profile.HDR-0031.best_performance.reicast_audio_mixer = lowend
-device.RG353M.profile.HDR-0031.best_performance.reicast_aica_arm_cycles = 32
+chip.RK3566.profile.HDR-0031.best_performance.title = Shenmue (Japan revision, RG353M validated)
+chip.RK3566.profile.HDR-0031.best_performance.reicast_internal_resolution = 640x480
+chip.RK3566.profile.HDR-0031.best_performance.reicast_anisotropic_filtering = off
+chip.RK3566.profile.HDR-0031.best_performance.retrorun_loop_declared_fps = false
+chip.RK3566.profile.HDR-0031.best_performance.retrorun_audio_buffer = -1
+chip.RK3566.profile.HDR-0031.best_performance.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.HDR-0031.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.HDR-0031.best_performance.reicast_hle_bios = enabled
+chip.RK3566.profile.HDR-0031.best_performance.reicast_gdrom_fast_loading = enabled
+chip.RK3566.profile.HDR-0031.best_performance.reicast_framerate = normal
+chip.RK3566.profile.HDR-0031.best_performance.reicast_translucent_strip_merge = disabled
+chip.RK3566.profile.HDR-0031.best_performance.reicast_fast_depth = vertex_fast_log
+chip.RK3566.profile.HDR-0031.best_performance.reicast_audio_mixer = lowend
+chip.RK3566.profile.HDR-0031.best_performance.reicast_aica_arm_cycles = 32
 
 profile.MK-5118450.best_validated.title = Shenmue II (Europe, RG351MP validated)
 profile.MK-5118450.best_validated.retrorun_audio_buffer = 4096
@@ -1094,39 +1095,39 @@ profile.MK-5118450.best_validated.reicast_audio_mixer = accurate
 profile.MK-5118450.best_validated.reicast_opaque_strip_merge = disabled
 profile.MK-5118450.best_validated.reicast_aica_arm_cycles = 32
 
-device.RG351MP.profile.MK-5118450.best_performance.title = Shenmue II (Europe, RG351MP batch validated)
-device.RG351MP.profile.MK-5118450.best_performance.reicast_accurate_aica_batch = enabled
+chip.RK3326.profile.MK-5118450.best_performance.title = Shenmue II (Europe, RG351MP batch validated)
+chip.RK3326.profile.MK-5118450.best_performance.reicast_accurate_aica_batch = enabled
 
-device.RG353M.profile.MK-5118450.best_performance.title = Shenmue II (Europe, RG353M validated)
-device.RG353M.profile.MK-5118450.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.MK-5118450.best_performance.retrorun_audio_buffer = 735
-device.RG353M.profile.MK-5118450.best_performance.retrorun_audio_stable_buffer = true
-device.RG353M.profile.MK-5118450.best_performance.retrorun_go2_audio_prebuffer_ms = 60
-device.RG353M.profile.MK-5118450.best_performance.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.MK-5118450.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.MK-5118450.best_performance.retrorun_go2_audio_wsola_profile = disabled
-device.RG353M.profile.MK-5118450.best_performance.retrorun_egl_depth_bits = 24
-device.RG353M.profile.MK-5118450.best_performance.retrorun_egl_stencil_bits = 0
-device.RG353M.profile.MK-5118450.best_performance.reicast_hle_bios = enabled
-device.RG353M.profile.MK-5118450.best_performance.reicast_gdrom_fast_loading = enabled
-device.RG353M.profile.MK-5118450.best_performance.reicast_sh4clock = 200
-device.RG353M.profile.MK-5118450.best_performance.reicast_internal_resolution = 640x480
-device.RG353M.profile.MK-5118450.best_performance.reicast_framerate = normal
-device.RG353M.profile.MK-5118450.best_performance.reicast_alpha_sorting = per-strip (fast, least accurate)
-device.RG353M.profile.MK-5118450.best_performance.reicast_mipmapping = enabled
-device.RG353M.profile.MK-5118450.best_performance.reicast_fog = enabled
-device.RG353M.profile.MK-5118450.best_performance.reicast_volume_modifier_enable = disabled
-device.RG353M.profile.MK-5118450.best_performance.reicast_frame_skipping = disabled
-device.RG353M.profile.MK-5118450.best_performance.reicast_anisotropic_filtering = off
-device.RG353M.profile.MK-5118450.best_performance.reicast_threaded_rendering = enabled
-device.RG353M.profile.MK-5118450.best_performance.reicast_translucent_strip_merge = disabled
-device.RG353M.profile.MK-5118450.best_performance.reicast_texture_storage_reuse = enabled
-device.RG353M.profile.MK-5118450.best_performance.reicast_palette_fog_storage_reuse = disabled
-device.RG353M.profile.MK-5118450.best_performance.reicast_adjacent_state_elision = disabled
-device.RG353M.profile.MK-5118450.best_performance.reicast_fast_depth = menu_guarded_shadow_safe
-device.RG353M.profile.MK-5118450.best_performance.reicast_audio_mixer = lowend
-device.RG353M.profile.MK-5118450.best_performance.reicast_opaque_strip_merge = enabled
-device.RG353M.profile.MK-5118450.best_performance.reicast_aica_arm_cycles = 32
+chip.RK3566.profile.MK-5118450.best_performance.title = Shenmue II (Europe, RG353M validated)
+chip.RK3566.profile.MK-5118450.best_performance.retrorun_loop_declared_fps = false
+chip.RK3566.profile.MK-5118450.best_performance.retrorun_audio_buffer = 735
+chip.RK3566.profile.MK-5118450.best_performance.retrorun_audio_stable_buffer = true
+chip.RK3566.profile.MK-5118450.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+chip.RK3566.profile.MK-5118450.best_performance.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.MK-5118450.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.MK-5118450.best_performance.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3566.profile.MK-5118450.best_performance.retrorun_egl_depth_bits = 24
+chip.RK3566.profile.MK-5118450.best_performance.retrorun_egl_stencil_bits = 0
+chip.RK3566.profile.MK-5118450.best_performance.reicast_hle_bios = enabled
+chip.RK3566.profile.MK-5118450.best_performance.reicast_gdrom_fast_loading = enabled
+chip.RK3566.profile.MK-5118450.best_performance.reicast_sh4clock = 200
+chip.RK3566.profile.MK-5118450.best_performance.reicast_internal_resolution = 640x480
+chip.RK3566.profile.MK-5118450.best_performance.reicast_framerate = normal
+chip.RK3566.profile.MK-5118450.best_performance.reicast_alpha_sorting = per-strip (fast, least accurate)
+chip.RK3566.profile.MK-5118450.best_performance.reicast_mipmapping = enabled
+chip.RK3566.profile.MK-5118450.best_performance.reicast_fog = enabled
+chip.RK3566.profile.MK-5118450.best_performance.reicast_volume_modifier_enable = disabled
+chip.RK3566.profile.MK-5118450.best_performance.reicast_frame_skipping = disabled
+chip.RK3566.profile.MK-5118450.best_performance.reicast_anisotropic_filtering = off
+chip.RK3566.profile.MK-5118450.best_performance.reicast_threaded_rendering = enabled
+chip.RK3566.profile.MK-5118450.best_performance.reicast_translucent_strip_merge = disabled
+chip.RK3566.profile.MK-5118450.best_performance.reicast_texture_storage_reuse = enabled
+chip.RK3566.profile.MK-5118450.best_performance.reicast_palette_fog_storage_reuse = disabled
+chip.RK3566.profile.MK-5118450.best_performance.reicast_adjacent_state_elision = disabled
+chip.RK3566.profile.MK-5118450.best_performance.reicast_fast_depth = menu_guarded_shadow_safe
+chip.RK3566.profile.MK-5118450.best_performance.reicast_audio_mixer = lowend
+chip.RK3566.profile.MK-5118450.best_performance.reicast_opaque_strip_merge = enabled
+chip.RK3566.profile.MK-5118450.best_performance.reicast_aica_arm_cycles = 32
 
 profile.HDR-0164.best_validated.title = Shenmue II (Japan, baseline)
 
@@ -1188,37 +1189,37 @@ profile.MK-51058.best_validated.reicast_audio_mixer = accurate
 profile.MK-51058.best_validated.reicast_opaque_strip_merge = enabled
 profile.MK-51058.best_validated.reicast_aica_arm_cycles = 32
 
-device.RG353M.profile.MK-51058.best_performance.title = Jet Grind Radio (USA, RG353M validated)
-device.RG353M.profile.MK-51058.best_performance.retrorun_flycast_core_variant = upstream_620
-device.RG353M.profile.MK-51058.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.MK-51058.best_performance.retrorun_audio_buffer = 735
-device.RG353M.profile.MK-51058.best_performance.retrorun_audio_stable_buffer = true
-device.RG353M.profile.MK-51058.best_performance.retrorun_go2_audio_prebuffer_ms = 60
-device.RG353M.profile.MK-51058.best_performance.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.MK-51058.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.MK-51058.best_performance.retrorun_go2_audio_wsola_profile = disabled
-device.RG353M.profile.MK-51058.best_performance.retrorun_egl_depth_bits = 24
-device.RG353M.profile.MK-51058.best_performance.retrorun_egl_stencil_bits = 0
-device.RG353M.profile.MK-51058.best_performance.reicast_hle_bios = enabled
-device.RG353M.profile.MK-51058.best_performance.reicast_gdrom_fast_loading = enabled
-device.RG353M.profile.MK-51058.best_performance.reicast_sh4clock = 200
-device.RG353M.profile.MK-51058.best_performance.reicast_internal_resolution = 640x480
-device.RG353M.profile.MK-51058.best_performance.reicast_framerate = normal
-device.RG353M.profile.MK-51058.best_performance.reicast_alpha_sorting = per-strip (fast, least accurate)
-device.RG353M.profile.MK-51058.best_performance.reicast_mipmapping = enabled
-device.RG353M.profile.MK-51058.best_performance.reicast_fog = enabled
-device.RG353M.profile.MK-51058.best_performance.reicast_volume_modifier_enable = disabled
-device.RG353M.profile.MK-51058.best_performance.reicast_frame_skipping = disabled
-device.RG353M.profile.MK-51058.best_performance.reicast_anisotropic_filtering = off
-device.RG353M.profile.MK-51058.best_performance.reicast_threaded_rendering = enabled
-device.RG353M.profile.MK-51058.best_performance.reicast_translucent_strip_merge = disabled
-device.RG353M.profile.MK-51058.best_performance.reicast_texture_storage_reuse = enabled
-device.RG353M.profile.MK-51058.best_performance.reicast_palette_fog_storage_reuse = disabled
-device.RG353M.profile.MK-51058.best_performance.reicast_adjacent_state_elision = disabled
-device.RG353M.profile.MK-51058.best_performance.reicast_fast_depth = menu_guarded_shadow_safe
-device.RG353M.profile.MK-51058.best_performance.reicast_audio_mixer = lowend
-device.RG353M.profile.MK-51058.best_performance.reicast_opaque_strip_merge = enabled
-device.RG353M.profile.MK-51058.best_performance.reicast_aica_arm_cycles = 32
+chip.RK3566.profile.MK-51058.best_performance.title = Jet Grind Radio (USA, RG353M validated)
+chip.RK3566.profile.MK-51058.best_performance.retrorun_flycast_core_variant = upstream_620
+chip.RK3566.profile.MK-51058.best_performance.retrorun_loop_declared_fps = false
+chip.RK3566.profile.MK-51058.best_performance.retrorun_audio_buffer = 735
+chip.RK3566.profile.MK-51058.best_performance.retrorun_audio_stable_buffer = true
+chip.RK3566.profile.MK-51058.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+chip.RK3566.profile.MK-51058.best_performance.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.MK-51058.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.MK-51058.best_performance.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3566.profile.MK-51058.best_performance.retrorun_egl_depth_bits = 24
+chip.RK3566.profile.MK-51058.best_performance.retrorun_egl_stencil_bits = 0
+chip.RK3566.profile.MK-51058.best_performance.reicast_hle_bios = enabled
+chip.RK3566.profile.MK-51058.best_performance.reicast_gdrom_fast_loading = enabled
+chip.RK3566.profile.MK-51058.best_performance.reicast_sh4clock = 200
+chip.RK3566.profile.MK-51058.best_performance.reicast_internal_resolution = 640x480
+chip.RK3566.profile.MK-51058.best_performance.reicast_framerate = normal
+chip.RK3566.profile.MK-51058.best_performance.reicast_alpha_sorting = per-strip (fast, least accurate)
+chip.RK3566.profile.MK-51058.best_performance.reicast_mipmapping = enabled
+chip.RK3566.profile.MK-51058.best_performance.reicast_fog = enabled
+chip.RK3566.profile.MK-51058.best_performance.reicast_volume_modifier_enable = disabled
+chip.RK3566.profile.MK-51058.best_performance.reicast_frame_skipping = disabled
+chip.RK3566.profile.MK-51058.best_performance.reicast_anisotropic_filtering = off
+chip.RK3566.profile.MK-51058.best_performance.reicast_threaded_rendering = enabled
+chip.RK3566.profile.MK-51058.best_performance.reicast_translucent_strip_merge = disabled
+chip.RK3566.profile.MK-51058.best_performance.reicast_texture_storage_reuse = enabled
+chip.RK3566.profile.MK-51058.best_performance.reicast_palette_fog_storage_reuse = disabled
+chip.RK3566.profile.MK-51058.best_performance.reicast_adjacent_state_elision = disabled
+chip.RK3566.profile.MK-51058.best_performance.reicast_fast_depth = menu_guarded_shadow_safe
+chip.RK3566.profile.MK-51058.best_performance.reicast_audio_mixer = lowend
+chip.RK3566.profile.MK-51058.best_performance.reicast_opaque_strip_merge = enabled
+chip.RK3566.profile.MK-51058.best_performance.reicast_aica_arm_cycles = 32
 
 profile.MK-51084.best_validated.title = Jet Grind Radio (USA revision, baseline)
 
@@ -1270,165 +1271,165 @@ profile.T1201M.best_validated.title = Power Stone (Japan, baseline)
 
 profile.T1201N.best_validated.title = Power Stone (USA, baseline)
 
-device.RG353M.profile.T36801D61.best_performance.title = Power Stone (Europe 61, RG353M candidate)
-device.RG353M.profile.T36801D61.best_performance.retrorun_flycast_core_variant = upstream_620
-device.RG353M.profile.T36801D61.best_performance.retrorun_adaptive_frameskip = false
-device.RG353M.profile.T36801D61.best_performance.retrorun_frameskip = 0
-device.RG353M.profile.T36801D61.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.T36801D61.best_performance.retrorun_audio_buffer = 735
-device.RG353M.profile.T36801D61.best_performance.retrorun_audio_stable_buffer = false
-device.RG353M.profile.T36801D61.best_performance.retrorun_go2_audio_prebuffer_ms = 60
-device.RG353M.profile.T36801D61.best_performance.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.T36801D61.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.T36801D61.best_performance.retrorun_go2_audio_wsola_profile = disabled
-device.RG353M.profile.T36801D61.best_performance.retrorun_egl_depth_bits = 24
-device.RG353M.profile.T36801D61.best_performance.retrorun_egl_stencil_bits = 0
-device.RG353M.profile.T36801D61.best_performance.reicast_hle_bios = enabled
-device.RG353M.profile.T36801D61.best_performance.reicast_gdrom_fast_loading = disabled
-device.RG353M.profile.T36801D61.best_performance.reicast_sh4clock = 200
-device.RG353M.profile.T36801D61.best_performance.reicast_internal_resolution = 640x480
-device.RG353M.profile.T36801D61.best_performance.reicast_framerate = normal
-device.RG353M.profile.T36801D61.best_performance.reicast_anisotropic_filtering = off
-device.RG353M.profile.T36801D61.best_performance.reicast_alpha_sorting = per-strip (fast, least accurate)
-device.RG353M.profile.T36801D61.best_performance.reicast_mipmapping = disabled
-device.RG353M.profile.T36801D61.best_performance.reicast_fog = disabled
-device.RG353M.profile.T36801D61.best_performance.reicast_volume_modifier_enable = disabled
-device.RG353M.profile.T36801D61.best_performance.reicast_frame_skipping = disabled
-device.RG353M.profile.T36801D61.best_performance.reicast_threaded_rendering = enabled
-device.RG353M.profile.T36801D61.best_performance.reicast_translucent_strip_merge = menu_guarded
-device.RG353M.profile.T36801D61.best_performance.reicast_translucent_menu_guard_strategy = hud_last
-device.RG353M.profile.T36801D61.best_performance.reicast_translucent_menu_guard_max_vertices = 64
-device.RG353M.profile.T36801D61.best_performance.reicast_translucent_menu_guard_risk = 5
-device.RG353M.profile.T36801D61.best_performance.reicast_translucent_menu_guard_depth_tolerance = 0.0001
-device.RG353M.profile.T36801D61.best_performance.reicast_translucent_menu_guard_overlap = risky
-device.RG353M.profile.T36801D61.best_performance.reicast_translucent_menu_guard_draw_sorting = standard
-device.RG353M.profile.T36801D61.best_performance.reicast_texture_storage_reuse = enabled
-device.RG353M.profile.T36801D61.best_performance.reicast_palette_fog_storage_reuse = disabled
-device.RG353M.profile.T36801D61.best_performance.reicast_adjacent_state_elision = disabled
-device.RG353M.profile.T36801D61.best_performance.reicast_fast_depth = menu_guarded
-device.RG353M.profile.T36801D61.best_performance.reicast_audio_mixer = fast
-device.RG353M.profile.T36801D61.best_performance.reicast_opaque_strip_merge = enabled
-device.RG353M.profile.T36801D61.best_performance.reicast_aica_arm_cycles = 16
+chip.RK3566.profile.T36801D61.best_performance.title = Power Stone (Europe 61, RG353M candidate)
+chip.RK3566.profile.T36801D61.best_performance.retrorun_flycast_core_variant = upstream_620
+chip.RK3566.profile.T36801D61.best_performance.retrorun_adaptive_frameskip = false
+chip.RK3566.profile.T36801D61.best_performance.retrorun_frameskip = 0
+chip.RK3566.profile.T36801D61.best_performance.retrorun_loop_declared_fps = false
+chip.RK3566.profile.T36801D61.best_performance.retrorun_audio_buffer = 735
+chip.RK3566.profile.T36801D61.best_performance.retrorun_audio_stable_buffer = false
+chip.RK3566.profile.T36801D61.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+chip.RK3566.profile.T36801D61.best_performance.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.T36801D61.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.T36801D61.best_performance.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3566.profile.T36801D61.best_performance.retrorun_egl_depth_bits = 24
+chip.RK3566.profile.T36801D61.best_performance.retrorun_egl_stencil_bits = 0
+chip.RK3566.profile.T36801D61.best_performance.reicast_hle_bios = enabled
+chip.RK3566.profile.T36801D61.best_performance.reicast_gdrom_fast_loading = disabled
+chip.RK3566.profile.T36801D61.best_performance.reicast_sh4clock = 200
+chip.RK3566.profile.T36801D61.best_performance.reicast_internal_resolution = 640x480
+chip.RK3566.profile.T36801D61.best_performance.reicast_framerate = normal
+chip.RK3566.profile.T36801D61.best_performance.reicast_anisotropic_filtering = off
+chip.RK3566.profile.T36801D61.best_performance.reicast_alpha_sorting = per-strip (fast, least accurate)
+chip.RK3566.profile.T36801D61.best_performance.reicast_mipmapping = disabled
+chip.RK3566.profile.T36801D61.best_performance.reicast_fog = disabled
+chip.RK3566.profile.T36801D61.best_performance.reicast_volume_modifier_enable = disabled
+chip.RK3566.profile.T36801D61.best_performance.reicast_frame_skipping = disabled
+chip.RK3566.profile.T36801D61.best_performance.reicast_threaded_rendering = enabled
+chip.RK3566.profile.T36801D61.best_performance.reicast_translucent_strip_merge = menu_guarded
+chip.RK3566.profile.T36801D61.best_performance.reicast_translucent_menu_guard_strategy = hud_last
+chip.RK3566.profile.T36801D61.best_performance.reicast_translucent_menu_guard_max_vertices = 64
+chip.RK3566.profile.T36801D61.best_performance.reicast_translucent_menu_guard_risk = 5
+chip.RK3566.profile.T36801D61.best_performance.reicast_translucent_menu_guard_depth_tolerance = 0.0001
+chip.RK3566.profile.T36801D61.best_performance.reicast_translucent_menu_guard_overlap = risky
+chip.RK3566.profile.T36801D61.best_performance.reicast_translucent_menu_guard_draw_sorting = standard
+chip.RK3566.profile.T36801D61.best_performance.reicast_texture_storage_reuse = enabled
+chip.RK3566.profile.T36801D61.best_performance.reicast_palette_fog_storage_reuse = disabled
+chip.RK3566.profile.T36801D61.best_performance.reicast_adjacent_state_elision = disabled
+chip.RK3566.profile.T36801D61.best_performance.reicast_fast_depth = menu_guarded
+chip.RK3566.profile.T36801D61.best_performance.reicast_audio_mixer = fast
+chip.RK3566.profile.T36801D61.best_performance.reicast_opaque_strip_merge = enabled
+chip.RK3566.profile.T36801D61.best_performance.reicast_aica_arm_cycles = 16
 
-device.RG353M.profile.T36801D64.best_performance.title = Power Stone (Europe 64, RG353M candidate)
-device.RG353M.profile.T36801D64.best_performance.retrorun_flycast_core_variant = upstream_620
-device.RG353M.profile.T36801D64.best_performance.retrorun_adaptive_frameskip = false
-device.RG353M.profile.T36801D64.best_performance.retrorun_frameskip = 0
-device.RG353M.profile.T36801D64.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.T36801D64.best_performance.retrorun_audio_buffer = 735
-device.RG353M.profile.T36801D64.best_performance.retrorun_audio_stable_buffer = false
-device.RG353M.profile.T36801D64.best_performance.retrorun_go2_audio_prebuffer_ms = 60
-device.RG353M.profile.T36801D64.best_performance.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.T36801D64.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.T36801D64.best_performance.retrorun_go2_audio_wsola_profile = disabled
-device.RG353M.profile.T36801D64.best_performance.retrorun_egl_depth_bits = 24
-device.RG353M.profile.T36801D64.best_performance.retrorun_egl_stencil_bits = 0
-device.RG353M.profile.T36801D64.best_performance.reicast_hle_bios = enabled
-device.RG353M.profile.T36801D64.best_performance.reicast_gdrom_fast_loading = disabled
-device.RG353M.profile.T36801D64.best_performance.reicast_sh4clock = 200
-device.RG353M.profile.T36801D64.best_performance.reicast_internal_resolution = 640x480
-device.RG353M.profile.T36801D64.best_performance.reicast_framerate = normal
-device.RG353M.profile.T36801D64.best_performance.reicast_anisotropic_filtering = off
-device.RG353M.profile.T36801D64.best_performance.reicast_alpha_sorting = per-strip (fast, least accurate)
-device.RG353M.profile.T36801D64.best_performance.reicast_mipmapping = disabled
-device.RG353M.profile.T36801D64.best_performance.reicast_fog = disabled
-device.RG353M.profile.T36801D64.best_performance.reicast_volume_modifier_enable = disabled
-device.RG353M.profile.T36801D64.best_performance.reicast_frame_skipping = disabled
-device.RG353M.profile.T36801D64.best_performance.reicast_threaded_rendering = enabled
-device.RG353M.profile.T36801D64.best_performance.reicast_translucent_strip_merge = menu_guarded
-device.RG353M.profile.T36801D64.best_performance.reicast_translucent_menu_guard_strategy = hud_last
-device.RG353M.profile.T36801D64.best_performance.reicast_translucent_menu_guard_max_vertices = 64
-device.RG353M.profile.T36801D64.best_performance.reicast_translucent_menu_guard_risk = 5
-device.RG353M.profile.T36801D64.best_performance.reicast_translucent_menu_guard_depth_tolerance = 0.0001
-device.RG353M.profile.T36801D64.best_performance.reicast_translucent_menu_guard_overlap = risky
-device.RG353M.profile.T36801D64.best_performance.reicast_translucent_menu_guard_draw_sorting = standard
-device.RG353M.profile.T36801D64.best_performance.reicast_texture_storage_reuse = enabled
-device.RG353M.profile.T36801D64.best_performance.reicast_palette_fog_storage_reuse = disabled
-device.RG353M.profile.T36801D64.best_performance.reicast_adjacent_state_elision = disabled
-device.RG353M.profile.T36801D64.best_performance.reicast_fast_depth = menu_guarded
-device.RG353M.profile.T36801D64.best_performance.reicast_audio_mixer = fast
-device.RG353M.profile.T36801D64.best_performance.reicast_opaque_strip_merge = enabled
-device.RG353M.profile.T36801D64.best_performance.reicast_aica_arm_cycles = 16
+chip.RK3566.profile.T36801D64.best_performance.title = Power Stone (Europe 64, RG353M candidate)
+chip.RK3566.profile.T36801D64.best_performance.retrorun_flycast_core_variant = upstream_620
+chip.RK3566.profile.T36801D64.best_performance.retrorun_adaptive_frameskip = false
+chip.RK3566.profile.T36801D64.best_performance.retrorun_frameskip = 0
+chip.RK3566.profile.T36801D64.best_performance.retrorun_loop_declared_fps = false
+chip.RK3566.profile.T36801D64.best_performance.retrorun_audio_buffer = 735
+chip.RK3566.profile.T36801D64.best_performance.retrorun_audio_stable_buffer = false
+chip.RK3566.profile.T36801D64.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+chip.RK3566.profile.T36801D64.best_performance.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.T36801D64.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.T36801D64.best_performance.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3566.profile.T36801D64.best_performance.retrorun_egl_depth_bits = 24
+chip.RK3566.profile.T36801D64.best_performance.retrorun_egl_stencil_bits = 0
+chip.RK3566.profile.T36801D64.best_performance.reicast_hle_bios = enabled
+chip.RK3566.profile.T36801D64.best_performance.reicast_gdrom_fast_loading = disabled
+chip.RK3566.profile.T36801D64.best_performance.reicast_sh4clock = 200
+chip.RK3566.profile.T36801D64.best_performance.reicast_internal_resolution = 640x480
+chip.RK3566.profile.T36801D64.best_performance.reicast_framerate = normal
+chip.RK3566.profile.T36801D64.best_performance.reicast_anisotropic_filtering = off
+chip.RK3566.profile.T36801D64.best_performance.reicast_alpha_sorting = per-strip (fast, least accurate)
+chip.RK3566.profile.T36801D64.best_performance.reicast_mipmapping = disabled
+chip.RK3566.profile.T36801D64.best_performance.reicast_fog = disabled
+chip.RK3566.profile.T36801D64.best_performance.reicast_volume_modifier_enable = disabled
+chip.RK3566.profile.T36801D64.best_performance.reicast_frame_skipping = disabled
+chip.RK3566.profile.T36801D64.best_performance.reicast_threaded_rendering = enabled
+chip.RK3566.profile.T36801D64.best_performance.reicast_translucent_strip_merge = menu_guarded
+chip.RK3566.profile.T36801D64.best_performance.reicast_translucent_menu_guard_strategy = hud_last
+chip.RK3566.profile.T36801D64.best_performance.reicast_translucent_menu_guard_max_vertices = 64
+chip.RK3566.profile.T36801D64.best_performance.reicast_translucent_menu_guard_risk = 5
+chip.RK3566.profile.T36801D64.best_performance.reicast_translucent_menu_guard_depth_tolerance = 0.0001
+chip.RK3566.profile.T36801D64.best_performance.reicast_translucent_menu_guard_overlap = risky
+chip.RK3566.profile.T36801D64.best_performance.reicast_translucent_menu_guard_draw_sorting = standard
+chip.RK3566.profile.T36801D64.best_performance.reicast_texture_storage_reuse = enabled
+chip.RK3566.profile.T36801D64.best_performance.reicast_palette_fog_storage_reuse = disabled
+chip.RK3566.profile.T36801D64.best_performance.reicast_adjacent_state_elision = disabled
+chip.RK3566.profile.T36801D64.best_performance.reicast_fast_depth = menu_guarded
+chip.RK3566.profile.T36801D64.best_performance.reicast_audio_mixer = fast
+chip.RK3566.profile.T36801D64.best_performance.reicast_opaque_strip_merge = enabled
+chip.RK3566.profile.T36801D64.best_performance.reicast_aica_arm_cycles = 16
 
-device.RG353M.profile.T1201M.best_performance.title = Power Stone (Japan, RG353M candidate)
-device.RG353M.profile.T1201M.best_performance.retrorun_flycast_core_variant = upstream_620
-device.RG353M.profile.T1201M.best_performance.retrorun_adaptive_frameskip = false
-device.RG353M.profile.T1201M.best_performance.retrorun_frameskip = 0
-device.RG353M.profile.T1201M.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.T1201M.best_performance.retrorun_audio_buffer = 735
-device.RG353M.profile.T1201M.best_performance.retrorun_audio_stable_buffer = false
-device.RG353M.profile.T1201M.best_performance.retrorun_go2_audio_prebuffer_ms = 60
-device.RG353M.profile.T1201M.best_performance.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.T1201M.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.T1201M.best_performance.retrorun_go2_audio_wsola_profile = disabled
-device.RG353M.profile.T1201M.best_performance.retrorun_egl_depth_bits = 24
-device.RG353M.profile.T1201M.best_performance.retrorun_egl_stencil_bits = 0
-device.RG353M.profile.T1201M.best_performance.reicast_hle_bios = enabled
-device.RG353M.profile.T1201M.best_performance.reicast_gdrom_fast_loading = disabled
-device.RG353M.profile.T1201M.best_performance.reicast_sh4clock = 200
-device.RG353M.profile.T1201M.best_performance.reicast_internal_resolution = 640x480
-device.RG353M.profile.T1201M.best_performance.reicast_framerate = normal
-device.RG353M.profile.T1201M.best_performance.reicast_anisotropic_filtering = off
-device.RG353M.profile.T1201M.best_performance.reicast_alpha_sorting = per-strip (fast, least accurate)
-device.RG353M.profile.T1201M.best_performance.reicast_mipmapping = disabled
-device.RG353M.profile.T1201M.best_performance.reicast_fog = disabled
-device.RG353M.profile.T1201M.best_performance.reicast_volume_modifier_enable = disabled
-device.RG353M.profile.T1201M.best_performance.reicast_frame_skipping = disabled
-device.RG353M.profile.T1201M.best_performance.reicast_threaded_rendering = enabled
-device.RG353M.profile.T1201M.best_performance.reicast_translucent_strip_merge = menu_guarded
-device.RG353M.profile.T1201M.best_performance.reicast_translucent_menu_guard_strategy = hud_last
-device.RG353M.profile.T1201M.best_performance.reicast_translucent_menu_guard_max_vertices = 64
-device.RG353M.profile.T1201M.best_performance.reicast_translucent_menu_guard_risk = 5
-device.RG353M.profile.T1201M.best_performance.reicast_translucent_menu_guard_depth_tolerance = 0.0001
-device.RG353M.profile.T1201M.best_performance.reicast_translucent_menu_guard_overlap = risky
-device.RG353M.profile.T1201M.best_performance.reicast_translucent_menu_guard_draw_sorting = standard
-device.RG353M.profile.T1201M.best_performance.reicast_texture_storage_reuse = enabled
-device.RG353M.profile.T1201M.best_performance.reicast_palette_fog_storage_reuse = disabled
-device.RG353M.profile.T1201M.best_performance.reicast_adjacent_state_elision = disabled
-device.RG353M.profile.T1201M.best_performance.reicast_fast_depth = menu_guarded
-device.RG353M.profile.T1201M.best_performance.reicast_audio_mixer = fast
-device.RG353M.profile.T1201M.best_performance.reicast_opaque_strip_merge = enabled
-device.RG353M.profile.T1201M.best_performance.reicast_aica_arm_cycles = 16
+chip.RK3566.profile.T1201M.best_performance.title = Power Stone (Japan, RG353M candidate)
+chip.RK3566.profile.T1201M.best_performance.retrorun_flycast_core_variant = upstream_620
+chip.RK3566.profile.T1201M.best_performance.retrorun_adaptive_frameskip = false
+chip.RK3566.profile.T1201M.best_performance.retrorun_frameskip = 0
+chip.RK3566.profile.T1201M.best_performance.retrorun_loop_declared_fps = false
+chip.RK3566.profile.T1201M.best_performance.retrorun_audio_buffer = 735
+chip.RK3566.profile.T1201M.best_performance.retrorun_audio_stable_buffer = false
+chip.RK3566.profile.T1201M.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+chip.RK3566.profile.T1201M.best_performance.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.T1201M.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.T1201M.best_performance.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3566.profile.T1201M.best_performance.retrorun_egl_depth_bits = 24
+chip.RK3566.profile.T1201M.best_performance.retrorun_egl_stencil_bits = 0
+chip.RK3566.profile.T1201M.best_performance.reicast_hle_bios = enabled
+chip.RK3566.profile.T1201M.best_performance.reicast_gdrom_fast_loading = disabled
+chip.RK3566.profile.T1201M.best_performance.reicast_sh4clock = 200
+chip.RK3566.profile.T1201M.best_performance.reicast_internal_resolution = 640x480
+chip.RK3566.profile.T1201M.best_performance.reicast_framerate = normal
+chip.RK3566.profile.T1201M.best_performance.reicast_anisotropic_filtering = off
+chip.RK3566.profile.T1201M.best_performance.reicast_alpha_sorting = per-strip (fast, least accurate)
+chip.RK3566.profile.T1201M.best_performance.reicast_mipmapping = disabled
+chip.RK3566.profile.T1201M.best_performance.reicast_fog = disabled
+chip.RK3566.profile.T1201M.best_performance.reicast_volume_modifier_enable = disabled
+chip.RK3566.profile.T1201M.best_performance.reicast_frame_skipping = disabled
+chip.RK3566.profile.T1201M.best_performance.reicast_threaded_rendering = enabled
+chip.RK3566.profile.T1201M.best_performance.reicast_translucent_strip_merge = menu_guarded
+chip.RK3566.profile.T1201M.best_performance.reicast_translucent_menu_guard_strategy = hud_last
+chip.RK3566.profile.T1201M.best_performance.reicast_translucent_menu_guard_max_vertices = 64
+chip.RK3566.profile.T1201M.best_performance.reicast_translucent_menu_guard_risk = 5
+chip.RK3566.profile.T1201M.best_performance.reicast_translucent_menu_guard_depth_tolerance = 0.0001
+chip.RK3566.profile.T1201M.best_performance.reicast_translucent_menu_guard_overlap = risky
+chip.RK3566.profile.T1201M.best_performance.reicast_translucent_menu_guard_draw_sorting = standard
+chip.RK3566.profile.T1201M.best_performance.reicast_texture_storage_reuse = enabled
+chip.RK3566.profile.T1201M.best_performance.reicast_palette_fog_storage_reuse = disabled
+chip.RK3566.profile.T1201M.best_performance.reicast_adjacent_state_elision = disabled
+chip.RK3566.profile.T1201M.best_performance.reicast_fast_depth = menu_guarded
+chip.RK3566.profile.T1201M.best_performance.reicast_audio_mixer = fast
+chip.RK3566.profile.T1201M.best_performance.reicast_opaque_strip_merge = enabled
+chip.RK3566.profile.T1201M.best_performance.reicast_aica_arm_cycles = 16
 
-device.RG353M.profile.T1201N.best_performance.title = Power Stone (USA, RG353M candidate)
-device.RG353M.profile.T1201N.best_performance.retrorun_flycast_core_variant = upstream_620
-device.RG353M.profile.T1201N.best_performance.retrorun_adaptive_frameskip = false
-device.RG353M.profile.T1201N.best_performance.retrorun_frameskip = 0
-device.RG353M.profile.T1201N.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.T1201N.best_performance.retrorun_audio_buffer = 735
-device.RG353M.profile.T1201N.best_performance.retrorun_audio_stable_buffer = false
-device.RG353M.profile.T1201N.best_performance.retrorun_go2_audio_prebuffer_ms = 60
-device.RG353M.profile.T1201N.best_performance.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.T1201N.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.T1201N.best_performance.retrorun_go2_audio_wsola_profile = disabled
-device.RG353M.profile.T1201N.best_performance.retrorun_egl_depth_bits = 24
-device.RG353M.profile.T1201N.best_performance.retrorun_egl_stencil_bits = 0
-device.RG353M.profile.T1201N.best_performance.reicast_hle_bios = enabled
-device.RG353M.profile.T1201N.best_performance.reicast_gdrom_fast_loading = disabled
-device.RG353M.profile.T1201N.best_performance.reicast_sh4clock = 200
-device.RG353M.profile.T1201N.best_performance.reicast_internal_resolution = 640x480
-device.RG353M.profile.T1201N.best_performance.reicast_framerate = normal
-device.RG353M.profile.T1201N.best_performance.reicast_anisotropic_filtering = off
-device.RG353M.profile.T1201N.best_performance.reicast_alpha_sorting = per-strip (fast, least accurate)
-device.RG353M.profile.T1201N.best_performance.reicast_mipmapping = disabled
-device.RG353M.profile.T1201N.best_performance.reicast_fog = disabled
-device.RG353M.profile.T1201N.best_performance.reicast_volume_modifier_enable = disabled
-device.RG353M.profile.T1201N.best_performance.reicast_frame_skipping = disabled
-device.RG353M.profile.T1201N.best_performance.reicast_threaded_rendering = enabled
-device.RG353M.profile.T1201N.best_performance.reicast_translucent_strip_merge = menu_guarded
-device.RG353M.profile.T1201N.best_performance.reicast_translucent_menu_guard_strategy = hud_last
-device.RG353M.profile.T1201N.best_performance.reicast_translucent_menu_guard_max_vertices = 64
-device.RG353M.profile.T1201N.best_performance.reicast_translucent_menu_guard_risk = 5
-device.RG353M.profile.T1201N.best_performance.reicast_translucent_menu_guard_depth_tolerance = 0.0001
-device.RG353M.profile.T1201N.best_performance.reicast_translucent_menu_guard_overlap = risky
-device.RG353M.profile.T1201N.best_performance.reicast_translucent_menu_guard_draw_sorting = standard
-device.RG353M.profile.T1201N.best_performance.reicast_texture_storage_reuse = enabled
-device.RG353M.profile.T1201N.best_performance.reicast_palette_fog_storage_reuse = disabled
-device.RG353M.profile.T1201N.best_performance.reicast_adjacent_state_elision = disabled
-device.RG353M.profile.T1201N.best_performance.reicast_fast_depth = menu_guarded
-device.RG353M.profile.T1201N.best_performance.reicast_audio_mixer = fast
-device.RG353M.profile.T1201N.best_performance.reicast_opaque_strip_merge = enabled
-device.RG353M.profile.T1201N.best_performance.reicast_aica_arm_cycles = 16
+chip.RK3566.profile.T1201N.best_performance.title = Power Stone (USA, RG353M candidate)
+chip.RK3566.profile.T1201N.best_performance.retrorun_flycast_core_variant = upstream_620
+chip.RK3566.profile.T1201N.best_performance.retrorun_adaptive_frameskip = false
+chip.RK3566.profile.T1201N.best_performance.retrorun_frameskip = 0
+chip.RK3566.profile.T1201N.best_performance.retrorun_loop_declared_fps = false
+chip.RK3566.profile.T1201N.best_performance.retrorun_audio_buffer = 735
+chip.RK3566.profile.T1201N.best_performance.retrorun_audio_stable_buffer = false
+chip.RK3566.profile.T1201N.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+chip.RK3566.profile.T1201N.best_performance.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.T1201N.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.T1201N.best_performance.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3566.profile.T1201N.best_performance.retrorun_egl_depth_bits = 24
+chip.RK3566.profile.T1201N.best_performance.retrorun_egl_stencil_bits = 0
+chip.RK3566.profile.T1201N.best_performance.reicast_hle_bios = enabled
+chip.RK3566.profile.T1201N.best_performance.reicast_gdrom_fast_loading = disabled
+chip.RK3566.profile.T1201N.best_performance.reicast_sh4clock = 200
+chip.RK3566.profile.T1201N.best_performance.reicast_internal_resolution = 640x480
+chip.RK3566.profile.T1201N.best_performance.reicast_framerate = normal
+chip.RK3566.profile.T1201N.best_performance.reicast_anisotropic_filtering = off
+chip.RK3566.profile.T1201N.best_performance.reicast_alpha_sorting = per-strip (fast, least accurate)
+chip.RK3566.profile.T1201N.best_performance.reicast_mipmapping = disabled
+chip.RK3566.profile.T1201N.best_performance.reicast_fog = disabled
+chip.RK3566.profile.T1201N.best_performance.reicast_volume_modifier_enable = disabled
+chip.RK3566.profile.T1201N.best_performance.reicast_frame_skipping = disabled
+chip.RK3566.profile.T1201N.best_performance.reicast_threaded_rendering = enabled
+chip.RK3566.profile.T1201N.best_performance.reicast_translucent_strip_merge = menu_guarded
+chip.RK3566.profile.T1201N.best_performance.reicast_translucent_menu_guard_strategy = hud_last
+chip.RK3566.profile.T1201N.best_performance.reicast_translucent_menu_guard_max_vertices = 64
+chip.RK3566.profile.T1201N.best_performance.reicast_translucent_menu_guard_risk = 5
+chip.RK3566.profile.T1201N.best_performance.reicast_translucent_menu_guard_depth_tolerance = 0.0001
+chip.RK3566.profile.T1201N.best_performance.reicast_translucent_menu_guard_overlap = risky
+chip.RK3566.profile.T1201N.best_performance.reicast_translucent_menu_guard_draw_sorting = standard
+chip.RK3566.profile.T1201N.best_performance.reicast_texture_storage_reuse = enabled
+chip.RK3566.profile.T1201N.best_performance.reicast_palette_fog_storage_reuse = disabled
+chip.RK3566.profile.T1201N.best_performance.reicast_adjacent_state_elision = disabled
+chip.RK3566.profile.T1201N.best_performance.reicast_fast_depth = menu_guarded
+chip.RK3566.profile.T1201N.best_performance.reicast_audio_mixer = fast
+chip.RK3566.profile.T1201N.best_performance.reicast_opaque_strip_merge = enabled
+chip.RK3566.profile.T1201N.best_performance.reicast_aica_arm_cycles = 16
 
 profile.MK-51049.best_validated.title = ChuChu Rocket (USA, RG351V)
 profile.MK-51049.best_validated.retrorun_adaptive_frameskip = false
@@ -1464,17 +1465,17 @@ profile.MK-51049.best_validated.reicast_opaque_strip_merge = disabled
 profile.MK-51049.best_performance.title = ChuChu Rocket (USA, RG351V)
 profile.MK-51049.best_performance.inherits = best_validated
 
-device.RG353M.profile.MK-51049.best_performance.title = ChuChu Rocket (USA, RG353M validated)
-device.RG353M.profile.MK-51049.best_performance.retrorun_flycast_core_variant = upstream_620
-device.RG353M.profile.MK-51049.best_performance.reicast_internal_resolution = 640x480
-device.RG353M.profile.MK-51049.best_performance.reicast_framerate = normal
-device.RG353M.profile.MK-51049.best_performance.reicast_anisotropic_filtering = off
-device.RG353M.profile.MK-51049.best_performance.retrorun_audio_buffer = 735
-device.RG353M.profile.MK-51049.best_performance.retrorun_audio_stable_buffer = true
-device.RG353M.profile.MK-51049.best_performance.retrorun_go2_audio_prebuffer_ms = 60
-device.RG353M.profile.MK-51049.best_performance.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.MK-51049.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.MK-51049.best_performance.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3566.profile.MK-51049.best_performance.title = ChuChu Rocket (USA, RG353M validated)
+chip.RK3566.profile.MK-51049.best_performance.retrorun_flycast_core_variant = upstream_620
+chip.RK3566.profile.MK-51049.best_performance.reicast_internal_resolution = 640x480
+chip.RK3566.profile.MK-51049.best_performance.reicast_framerate = normal
+chip.RK3566.profile.MK-51049.best_performance.reicast_anisotropic_filtering = off
+chip.RK3566.profile.MK-51049.best_performance.retrorun_audio_buffer = 735
+chip.RK3566.profile.MK-51049.best_performance.retrorun_audio_stable_buffer = true
+chip.RK3566.profile.MK-51049.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+chip.RK3566.profile.MK-51049.best_performance.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.MK-51049.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.MK-51049.best_performance.retrorun_go2_audio_wsola_profile = disabled
 
 profile.T36812D61.best_validated.title = Power Stone 2 (Europe 61, baseline)
 
@@ -1484,133 +1485,133 @@ profile.T1218M.best_validated.title = Power Stone 2 (Japan, baseline)
 
 profile.T1211N.best_validated.title = Power Stone 2 (USA, baseline)
 
-device.RG353M.profile.T36812D61.best_performance.title = Power Stone 2 (Europe 61, RG353M validated)
-device.RG353M.profile.T36812D61.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.T36812D61.best_performance.retrorun_audio_buffer = 735
-device.RG353M.profile.T36812D61.best_performance.retrorun_audio_stable_buffer = true
-device.RG353M.profile.T36812D61.best_performance.retrorun_go2_audio_prebuffer_ms = 60
-device.RG353M.profile.T36812D61.best_performance.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.T36812D61.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.T36812D61.best_performance.retrorun_go2_audio_wsola_profile = disabled
-device.RG353M.profile.T36812D61.best_performance.retrorun_egl_depth_bits = 24
-device.RG353M.profile.T36812D61.best_performance.retrorun_egl_stencil_bits = 0
-device.RG353M.profile.T36812D61.best_performance.reicast_hle_bios = enabled
-device.RG353M.profile.T36812D61.best_performance.reicast_gdrom_fast_loading = disabled
-device.RG353M.profile.T36812D61.best_performance.reicast_sh4clock = 200
-device.RG353M.profile.T36812D61.best_performance.reicast_internal_resolution = 640x480
-device.RG353M.profile.T36812D61.best_performance.reicast_framerate = normal
-device.RG353M.profile.T36812D61.best_performance.reicast_loop_declared_fps = false
-device.RG353M.profile.T36812D61.best_performance.reicast_anisotropic_filtering = off
-device.RG353M.profile.T36812D61.best_performance.reicast_threaded_rendering = enabled
-device.RG353M.profile.T36812D61.best_performance.reicast_alpha_sorting = per-triangle (normal)
-device.RG353M.profile.T36812D61.best_performance.reicast_mipmapping = disabled
-device.RG353M.profile.T36812D61.best_performance.reicast_fog = disabled
-device.RG353M.profile.T36812D61.best_performance.reicast_frame_skipping = disabled
-device.RG353M.profile.T36812D61.best_performance.reicast_translucent_strip_merge = menu_guarded
-device.RG353M.profile.T36812D61.best_performance.reicast_translucent_menu_guard_strategy = hud_last
-device.RG353M.profile.T36812D61.best_performance.reicast_texture_storage_reuse = enabled
-device.RG353M.profile.T36812D61.best_performance.reicast_palette_fog_storage_reuse = disabled
-device.RG353M.profile.T36812D61.best_performance.reicast_adjacent_state_elision = disabled
-device.RG353M.profile.T36812D61.best_performance.reicast_fast_depth = menu_guarded
-device.RG353M.profile.T36812D61.best_performance.reicast_audio_mixer = fast
-device.RG353M.profile.T36812D61.best_performance.reicast_opaque_strip_merge = enabled
-device.RG353M.profile.T36812D61.best_performance.reicast_aica_arm_cycles = 16
+chip.RK3566.profile.T36812D61.best_performance.title = Power Stone 2 (Europe 61, RG353M validated)
+chip.RK3566.profile.T36812D61.best_performance.retrorun_loop_declared_fps = false
+chip.RK3566.profile.T36812D61.best_performance.retrorun_audio_buffer = 735
+chip.RK3566.profile.T36812D61.best_performance.retrorun_audio_stable_buffer = true
+chip.RK3566.profile.T36812D61.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+chip.RK3566.profile.T36812D61.best_performance.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.T36812D61.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.T36812D61.best_performance.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3566.profile.T36812D61.best_performance.retrorun_egl_depth_bits = 24
+chip.RK3566.profile.T36812D61.best_performance.retrorun_egl_stencil_bits = 0
+chip.RK3566.profile.T36812D61.best_performance.reicast_hle_bios = enabled
+chip.RK3566.profile.T36812D61.best_performance.reicast_gdrom_fast_loading = disabled
+chip.RK3566.profile.T36812D61.best_performance.reicast_sh4clock = 200
+chip.RK3566.profile.T36812D61.best_performance.reicast_internal_resolution = 640x480
+chip.RK3566.profile.T36812D61.best_performance.reicast_framerate = normal
+chip.RK3566.profile.T36812D61.best_performance.reicast_loop_declared_fps = false
+chip.RK3566.profile.T36812D61.best_performance.reicast_anisotropic_filtering = off
+chip.RK3566.profile.T36812D61.best_performance.reicast_threaded_rendering = enabled
+chip.RK3566.profile.T36812D61.best_performance.reicast_alpha_sorting = per-triangle (normal)
+chip.RK3566.profile.T36812D61.best_performance.reicast_mipmapping = disabled
+chip.RK3566.profile.T36812D61.best_performance.reicast_fog = disabled
+chip.RK3566.profile.T36812D61.best_performance.reicast_frame_skipping = disabled
+chip.RK3566.profile.T36812D61.best_performance.reicast_translucent_strip_merge = menu_guarded
+chip.RK3566.profile.T36812D61.best_performance.reicast_translucent_menu_guard_strategy = hud_last
+chip.RK3566.profile.T36812D61.best_performance.reicast_texture_storage_reuse = enabled
+chip.RK3566.profile.T36812D61.best_performance.reicast_palette_fog_storage_reuse = disabled
+chip.RK3566.profile.T36812D61.best_performance.reicast_adjacent_state_elision = disabled
+chip.RK3566.profile.T36812D61.best_performance.reicast_fast_depth = menu_guarded
+chip.RK3566.profile.T36812D61.best_performance.reicast_audio_mixer = fast
+chip.RK3566.profile.T36812D61.best_performance.reicast_opaque_strip_merge = enabled
+chip.RK3566.profile.T36812D61.best_performance.reicast_aica_arm_cycles = 16
 
-device.RG353M.profile.T36812D64.best_performance.title = Power Stone 2 (Europe 64, RG353M validated)
-device.RG353M.profile.T36812D64.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.T36812D64.best_performance.retrorun_audio_buffer = 735
-device.RG353M.profile.T36812D64.best_performance.retrorun_audio_stable_buffer = true
-device.RG353M.profile.T36812D64.best_performance.retrorun_go2_audio_prebuffer_ms = 60
-device.RG353M.profile.T36812D64.best_performance.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.T36812D64.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.T36812D64.best_performance.retrorun_go2_audio_wsola_profile = disabled
-device.RG353M.profile.T36812D64.best_performance.retrorun_egl_depth_bits = 24
-device.RG353M.profile.T36812D64.best_performance.retrorun_egl_stencil_bits = 0
-device.RG353M.profile.T36812D64.best_performance.reicast_hle_bios = enabled
-device.RG353M.profile.T36812D64.best_performance.reicast_gdrom_fast_loading = disabled
-device.RG353M.profile.T36812D64.best_performance.reicast_sh4clock = 200
-device.RG353M.profile.T36812D64.best_performance.reicast_internal_resolution = 640x480
-device.RG353M.profile.T36812D64.best_performance.reicast_framerate = normal
-device.RG353M.profile.T36812D64.best_performance.reicast_loop_declared_fps = false
-device.RG353M.profile.T36812D64.best_performance.reicast_anisotropic_filtering = off
-device.RG353M.profile.T36812D64.best_performance.reicast_threaded_rendering = enabled
-device.RG353M.profile.T36812D64.best_performance.reicast_alpha_sorting = per-triangle (normal)
-device.RG353M.profile.T36812D64.best_performance.reicast_mipmapping = disabled
-device.RG353M.profile.T36812D64.best_performance.reicast_fog = disabled
-device.RG353M.profile.T36812D64.best_performance.reicast_frame_skipping = disabled
-device.RG353M.profile.T36812D64.best_performance.reicast_translucent_strip_merge = menu_guarded
-device.RG353M.profile.T36812D64.best_performance.reicast_translucent_menu_guard_strategy = hud_last
-device.RG353M.profile.T36812D64.best_performance.reicast_texture_storage_reuse = enabled
-device.RG353M.profile.T36812D64.best_performance.reicast_palette_fog_storage_reuse = disabled
-device.RG353M.profile.T36812D64.best_performance.reicast_adjacent_state_elision = disabled
-device.RG353M.profile.T36812D64.best_performance.reicast_fast_depth = menu_guarded
-device.RG353M.profile.T36812D64.best_performance.reicast_audio_mixer = fast
-device.RG353M.profile.T36812D64.best_performance.reicast_opaque_strip_merge = enabled
-device.RG353M.profile.T36812D64.best_performance.reicast_aica_arm_cycles = 16
+chip.RK3566.profile.T36812D64.best_performance.title = Power Stone 2 (Europe 64, RG353M validated)
+chip.RK3566.profile.T36812D64.best_performance.retrorun_loop_declared_fps = false
+chip.RK3566.profile.T36812D64.best_performance.retrorun_audio_buffer = 735
+chip.RK3566.profile.T36812D64.best_performance.retrorun_audio_stable_buffer = true
+chip.RK3566.profile.T36812D64.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+chip.RK3566.profile.T36812D64.best_performance.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.T36812D64.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.T36812D64.best_performance.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3566.profile.T36812D64.best_performance.retrorun_egl_depth_bits = 24
+chip.RK3566.profile.T36812D64.best_performance.retrorun_egl_stencil_bits = 0
+chip.RK3566.profile.T36812D64.best_performance.reicast_hle_bios = enabled
+chip.RK3566.profile.T36812D64.best_performance.reicast_gdrom_fast_loading = disabled
+chip.RK3566.profile.T36812D64.best_performance.reicast_sh4clock = 200
+chip.RK3566.profile.T36812D64.best_performance.reicast_internal_resolution = 640x480
+chip.RK3566.profile.T36812D64.best_performance.reicast_framerate = normal
+chip.RK3566.profile.T36812D64.best_performance.reicast_loop_declared_fps = false
+chip.RK3566.profile.T36812D64.best_performance.reicast_anisotropic_filtering = off
+chip.RK3566.profile.T36812D64.best_performance.reicast_threaded_rendering = enabled
+chip.RK3566.profile.T36812D64.best_performance.reicast_alpha_sorting = per-triangle (normal)
+chip.RK3566.profile.T36812D64.best_performance.reicast_mipmapping = disabled
+chip.RK3566.profile.T36812D64.best_performance.reicast_fog = disabled
+chip.RK3566.profile.T36812D64.best_performance.reicast_frame_skipping = disabled
+chip.RK3566.profile.T36812D64.best_performance.reicast_translucent_strip_merge = menu_guarded
+chip.RK3566.profile.T36812D64.best_performance.reicast_translucent_menu_guard_strategy = hud_last
+chip.RK3566.profile.T36812D64.best_performance.reicast_texture_storage_reuse = enabled
+chip.RK3566.profile.T36812D64.best_performance.reicast_palette_fog_storage_reuse = disabled
+chip.RK3566.profile.T36812D64.best_performance.reicast_adjacent_state_elision = disabled
+chip.RK3566.profile.T36812D64.best_performance.reicast_fast_depth = menu_guarded
+chip.RK3566.profile.T36812D64.best_performance.reicast_audio_mixer = fast
+chip.RK3566.profile.T36812D64.best_performance.reicast_opaque_strip_merge = enabled
+chip.RK3566.profile.T36812D64.best_performance.reicast_aica_arm_cycles = 16
 
-device.RG353M.profile.T1218M.best_performance.title = Power Stone 2 (Japan, RG353M validated)
-device.RG353M.profile.T1218M.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.T1218M.best_performance.retrorun_audio_buffer = 735
-device.RG353M.profile.T1218M.best_performance.retrorun_audio_stable_buffer = true
-device.RG353M.profile.T1218M.best_performance.retrorun_go2_audio_prebuffer_ms = 60
-device.RG353M.profile.T1218M.best_performance.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.T1218M.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.T1218M.best_performance.retrorun_go2_audio_wsola_profile = disabled
-device.RG353M.profile.T1218M.best_performance.retrorun_egl_depth_bits = 24
-device.RG353M.profile.T1218M.best_performance.retrorun_egl_stencil_bits = 0
-device.RG353M.profile.T1218M.best_performance.reicast_hle_bios = enabled
-device.RG353M.profile.T1218M.best_performance.reicast_gdrom_fast_loading = disabled
-device.RG353M.profile.T1218M.best_performance.reicast_sh4clock = 200
-device.RG353M.profile.T1218M.best_performance.reicast_internal_resolution = 640x480
-device.RG353M.profile.T1218M.best_performance.reicast_framerate = normal
-device.RG353M.profile.T1218M.best_performance.reicast_loop_declared_fps = false
-device.RG353M.profile.T1218M.best_performance.reicast_anisotropic_filtering = off
-device.RG353M.profile.T1218M.best_performance.reicast_threaded_rendering = enabled
-device.RG353M.profile.T1218M.best_performance.reicast_alpha_sorting = per-triangle (normal)
-device.RG353M.profile.T1218M.best_performance.reicast_mipmapping = disabled
-device.RG353M.profile.T1218M.best_performance.reicast_fog = disabled
-device.RG353M.profile.T1218M.best_performance.reicast_frame_skipping = disabled
-device.RG353M.profile.T1218M.best_performance.reicast_translucent_strip_merge = menu_guarded
-device.RG353M.profile.T1218M.best_performance.reicast_translucent_menu_guard_strategy = hud_last
-device.RG353M.profile.T1218M.best_performance.reicast_texture_storage_reuse = enabled
-device.RG353M.profile.T1218M.best_performance.reicast_palette_fog_storage_reuse = disabled
-device.RG353M.profile.T1218M.best_performance.reicast_adjacent_state_elision = disabled
-device.RG353M.profile.T1218M.best_performance.reicast_fast_depth = menu_guarded
-device.RG353M.profile.T1218M.best_performance.reicast_audio_mixer = fast
-device.RG353M.profile.T1218M.best_performance.reicast_opaque_strip_merge = enabled
-device.RG353M.profile.T1218M.best_performance.reicast_aica_arm_cycles = 16
+chip.RK3566.profile.T1218M.best_performance.title = Power Stone 2 (Japan, RG353M validated)
+chip.RK3566.profile.T1218M.best_performance.retrorun_loop_declared_fps = false
+chip.RK3566.profile.T1218M.best_performance.retrorun_audio_buffer = 735
+chip.RK3566.profile.T1218M.best_performance.retrorun_audio_stable_buffer = true
+chip.RK3566.profile.T1218M.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+chip.RK3566.profile.T1218M.best_performance.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.T1218M.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.T1218M.best_performance.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3566.profile.T1218M.best_performance.retrorun_egl_depth_bits = 24
+chip.RK3566.profile.T1218M.best_performance.retrorun_egl_stencil_bits = 0
+chip.RK3566.profile.T1218M.best_performance.reicast_hle_bios = enabled
+chip.RK3566.profile.T1218M.best_performance.reicast_gdrom_fast_loading = disabled
+chip.RK3566.profile.T1218M.best_performance.reicast_sh4clock = 200
+chip.RK3566.profile.T1218M.best_performance.reicast_internal_resolution = 640x480
+chip.RK3566.profile.T1218M.best_performance.reicast_framerate = normal
+chip.RK3566.profile.T1218M.best_performance.reicast_loop_declared_fps = false
+chip.RK3566.profile.T1218M.best_performance.reicast_anisotropic_filtering = off
+chip.RK3566.profile.T1218M.best_performance.reicast_threaded_rendering = enabled
+chip.RK3566.profile.T1218M.best_performance.reicast_alpha_sorting = per-triangle (normal)
+chip.RK3566.profile.T1218M.best_performance.reicast_mipmapping = disabled
+chip.RK3566.profile.T1218M.best_performance.reicast_fog = disabled
+chip.RK3566.profile.T1218M.best_performance.reicast_frame_skipping = disabled
+chip.RK3566.profile.T1218M.best_performance.reicast_translucent_strip_merge = menu_guarded
+chip.RK3566.profile.T1218M.best_performance.reicast_translucent_menu_guard_strategy = hud_last
+chip.RK3566.profile.T1218M.best_performance.reicast_texture_storage_reuse = enabled
+chip.RK3566.profile.T1218M.best_performance.reicast_palette_fog_storage_reuse = disabled
+chip.RK3566.profile.T1218M.best_performance.reicast_adjacent_state_elision = disabled
+chip.RK3566.profile.T1218M.best_performance.reicast_fast_depth = menu_guarded
+chip.RK3566.profile.T1218M.best_performance.reicast_audio_mixer = fast
+chip.RK3566.profile.T1218M.best_performance.reicast_opaque_strip_merge = enabled
+chip.RK3566.profile.T1218M.best_performance.reicast_aica_arm_cycles = 16
 
-device.RG353M.profile.T1211N.best_performance.title = Power Stone 2 (USA, RG353M validated)
-device.RG353M.profile.T1211N.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.T1211N.best_performance.retrorun_audio_buffer = 735
-device.RG353M.profile.T1211N.best_performance.retrorun_audio_stable_buffer = true
-device.RG353M.profile.T1211N.best_performance.retrorun_go2_audio_prebuffer_ms = 60
-device.RG353M.profile.T1211N.best_performance.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.T1211N.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.T1211N.best_performance.retrorun_go2_audio_wsola_profile = disabled
-device.RG353M.profile.T1211N.best_performance.retrorun_egl_depth_bits = 24
-device.RG353M.profile.T1211N.best_performance.retrorun_egl_stencil_bits = 0
-device.RG353M.profile.T1211N.best_performance.reicast_hle_bios = enabled
-device.RG353M.profile.T1211N.best_performance.reicast_gdrom_fast_loading = disabled
-device.RG353M.profile.T1211N.best_performance.reicast_sh4clock = 200
-device.RG353M.profile.T1211N.best_performance.reicast_internal_resolution = 640x480
-device.RG353M.profile.T1211N.best_performance.reicast_framerate = normal
-device.RG353M.profile.T1211N.best_performance.reicast_loop_declared_fps = false
-device.RG353M.profile.T1211N.best_performance.reicast_anisotropic_filtering = off
-device.RG353M.profile.T1211N.best_performance.reicast_threaded_rendering = enabled
-device.RG353M.profile.T1211N.best_performance.reicast_alpha_sorting = per-triangle (normal)
-device.RG353M.profile.T1211N.best_performance.reicast_mipmapping = disabled
-device.RG353M.profile.T1211N.best_performance.reicast_fog = disabled
-device.RG353M.profile.T1211N.best_performance.reicast_frame_skipping = disabled
-device.RG353M.profile.T1211N.best_performance.reicast_translucent_strip_merge = menu_guarded
-device.RG353M.profile.T1211N.best_performance.reicast_translucent_menu_guard_strategy = hud_last
-device.RG353M.profile.T1211N.best_performance.reicast_texture_storage_reuse = enabled
-device.RG353M.profile.T1211N.best_performance.reicast_palette_fog_storage_reuse = disabled
-device.RG353M.profile.T1211N.best_performance.reicast_adjacent_state_elision = disabled
-device.RG353M.profile.T1211N.best_performance.reicast_fast_depth = menu_guarded
-device.RG353M.profile.T1211N.best_performance.reicast_audio_mixer = fast
-device.RG353M.profile.T1211N.best_performance.reicast_opaque_strip_merge = enabled
-device.RG353M.profile.T1211N.best_performance.reicast_aica_arm_cycles = 16
+chip.RK3566.profile.T1211N.best_performance.title = Power Stone 2 (USA, RG353M validated)
+chip.RK3566.profile.T1211N.best_performance.retrorun_loop_declared_fps = false
+chip.RK3566.profile.T1211N.best_performance.retrorun_audio_buffer = 735
+chip.RK3566.profile.T1211N.best_performance.retrorun_audio_stable_buffer = true
+chip.RK3566.profile.T1211N.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+chip.RK3566.profile.T1211N.best_performance.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.T1211N.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.T1211N.best_performance.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3566.profile.T1211N.best_performance.retrorun_egl_depth_bits = 24
+chip.RK3566.profile.T1211N.best_performance.retrorun_egl_stencil_bits = 0
+chip.RK3566.profile.T1211N.best_performance.reicast_hle_bios = enabled
+chip.RK3566.profile.T1211N.best_performance.reicast_gdrom_fast_loading = disabled
+chip.RK3566.profile.T1211N.best_performance.reicast_sh4clock = 200
+chip.RK3566.profile.T1211N.best_performance.reicast_internal_resolution = 640x480
+chip.RK3566.profile.T1211N.best_performance.reicast_framerate = normal
+chip.RK3566.profile.T1211N.best_performance.reicast_loop_declared_fps = false
+chip.RK3566.profile.T1211N.best_performance.reicast_anisotropic_filtering = off
+chip.RK3566.profile.T1211N.best_performance.reicast_threaded_rendering = enabled
+chip.RK3566.profile.T1211N.best_performance.reicast_alpha_sorting = per-triangle (normal)
+chip.RK3566.profile.T1211N.best_performance.reicast_mipmapping = disabled
+chip.RK3566.profile.T1211N.best_performance.reicast_fog = disabled
+chip.RK3566.profile.T1211N.best_performance.reicast_frame_skipping = disabled
+chip.RK3566.profile.T1211N.best_performance.reicast_translucent_strip_merge = menu_guarded
+chip.RK3566.profile.T1211N.best_performance.reicast_translucent_menu_guard_strategy = hud_last
+chip.RK3566.profile.T1211N.best_performance.reicast_texture_storage_reuse = enabled
+chip.RK3566.profile.T1211N.best_performance.reicast_palette_fog_storage_reuse = disabled
+chip.RK3566.profile.T1211N.best_performance.reicast_adjacent_state_elision = disabled
+chip.RK3566.profile.T1211N.best_performance.reicast_fast_depth = menu_guarded
+chip.RK3566.profile.T1211N.best_performance.reicast_audio_mixer = fast
+chip.RK3566.profile.T1211N.best_performance.reicast_opaque_strip_merge = enabled
+chip.RK3566.profile.T1211N.best_performance.reicast_aica_arm_cycles = 16
 
 profile.MK-51052.best_validated.title = Skies of Arcadia (baseline)
 
@@ -1630,36 +1631,36 @@ profile.MK-51002.best_validated.title = The House of the Dead 2 (baseline)
 
 profile.MK-5100250.best_validated.title = The House of the Dead 2 (Europe, observed CHD baseline)
 
-device.RG353M.profile.MK-5100250.best_performance.title = The House of the Dead 2 (Europe, RG353M validated)
-device.RG353M.profile.MK-5100250.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.MK-5100250.best_performance.retrorun_audio_buffer = 735
-device.RG353M.profile.MK-5100250.best_performance.retrorun_audio_stable_buffer = true
-device.RG353M.profile.MK-5100250.best_performance.retrorun_go2_audio_prebuffer_ms = 60
-device.RG353M.profile.MK-5100250.best_performance.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.MK-5100250.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.MK-5100250.best_performance.retrorun_go2_audio_wsola_profile = disabled
-device.RG353M.profile.MK-5100250.best_performance.retrorun_egl_depth_bits = 24
-device.RG353M.profile.MK-5100250.best_performance.retrorun_egl_stencil_bits = 0
-device.RG353M.profile.MK-5100250.best_performance.reicast_hle_bios = enabled
-device.RG353M.profile.MK-5100250.best_performance.reicast_gdrom_fast_loading = enabled
-device.RG353M.profile.MK-5100250.best_performance.reicast_sh4clock = 200
-device.RG353M.profile.MK-5100250.best_performance.reicast_internal_resolution = 640x480
-device.RG353M.profile.MK-5100250.best_performance.reicast_framerate = normal
-device.RG353M.profile.MK-5100250.best_performance.reicast_alpha_sorting = per-strip (fast, least accurate)
-device.RG353M.profile.MK-5100250.best_performance.reicast_mipmapping = enabled
-device.RG353M.profile.MK-5100250.best_performance.reicast_fog = enabled
-device.RG353M.profile.MK-5100250.best_performance.reicast_volume_modifier_enable = disabled
-device.RG353M.profile.MK-5100250.best_performance.reicast_frame_skipping = disabled
-device.RG353M.profile.MK-5100250.best_performance.reicast_anisotropic_filtering = off
-device.RG353M.profile.MK-5100250.best_performance.reicast_threaded_rendering = enabled
-device.RG353M.profile.MK-5100250.best_performance.reicast_translucent_strip_merge = disabled
-device.RG353M.profile.MK-5100250.best_performance.reicast_texture_storage_reuse = enabled
-device.RG353M.profile.MK-5100250.best_performance.reicast_palette_fog_storage_reuse = enabled
-device.RG353M.profile.MK-5100250.best_performance.reicast_adjacent_state_elision = disabled
-device.RG353M.profile.MK-5100250.best_performance.reicast_fast_depth = enabled
-device.RG353M.profile.MK-5100250.best_performance.reicast_audio_mixer = lowend
-device.RG353M.profile.MK-5100250.best_performance.reicast_opaque_strip_merge = enabled
-device.RG353M.profile.MK-5100250.best_performance.reicast_aica_arm_cycles = 32
+chip.RK3566.profile.MK-5100250.best_performance.title = The House of the Dead 2 (Europe, RG353M validated)
+chip.RK3566.profile.MK-5100250.best_performance.retrorun_loop_declared_fps = false
+chip.RK3566.profile.MK-5100250.best_performance.retrorun_audio_buffer = 735
+chip.RK3566.profile.MK-5100250.best_performance.retrorun_audio_stable_buffer = true
+chip.RK3566.profile.MK-5100250.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+chip.RK3566.profile.MK-5100250.best_performance.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.MK-5100250.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.MK-5100250.best_performance.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3566.profile.MK-5100250.best_performance.retrorun_egl_depth_bits = 24
+chip.RK3566.profile.MK-5100250.best_performance.retrorun_egl_stencil_bits = 0
+chip.RK3566.profile.MK-5100250.best_performance.reicast_hle_bios = enabled
+chip.RK3566.profile.MK-5100250.best_performance.reicast_gdrom_fast_loading = enabled
+chip.RK3566.profile.MK-5100250.best_performance.reicast_sh4clock = 200
+chip.RK3566.profile.MK-5100250.best_performance.reicast_internal_resolution = 640x480
+chip.RK3566.profile.MK-5100250.best_performance.reicast_framerate = normal
+chip.RK3566.profile.MK-5100250.best_performance.reicast_alpha_sorting = per-strip (fast, least accurate)
+chip.RK3566.profile.MK-5100250.best_performance.reicast_mipmapping = enabled
+chip.RK3566.profile.MK-5100250.best_performance.reicast_fog = enabled
+chip.RK3566.profile.MK-5100250.best_performance.reicast_volume_modifier_enable = disabled
+chip.RK3566.profile.MK-5100250.best_performance.reicast_frame_skipping = disabled
+chip.RK3566.profile.MK-5100250.best_performance.reicast_anisotropic_filtering = off
+chip.RK3566.profile.MK-5100250.best_performance.reicast_threaded_rendering = enabled
+chip.RK3566.profile.MK-5100250.best_performance.reicast_translucent_strip_merge = disabled
+chip.RK3566.profile.MK-5100250.best_performance.reicast_texture_storage_reuse = enabled
+chip.RK3566.profile.MK-5100250.best_performance.reicast_palette_fog_storage_reuse = enabled
+chip.RK3566.profile.MK-5100250.best_performance.reicast_adjacent_state_elision = disabled
+chip.RK3566.profile.MK-5100250.best_performance.reicast_fast_depth = enabled
+chip.RK3566.profile.MK-5100250.best_performance.reicast_audio_mixer = lowend
+chip.RK3566.profile.MK-5100250.best_performance.reicast_opaque_strip_merge = enabled
+chip.RK3566.profile.MK-5100250.best_performance.reicast_aica_arm_cycles = 32
 
 profile.MK-55045.best_validated.title = The House of the Dead 2 (Europe revision, baseline)
 
@@ -1683,7 +1684,7 @@ profile.MK-51019.best_validated.title = Sega Rally 2 (baseline)
 
 profile.HDR-0010.best_validated.title = Sega Rally 2 (Japan, baseline)
 
-; RG351MP: confirmed visually with the USA release.  This intentionally uses
+; RK3326, confirmed visually on RG351MP with the USA release. This uses
 ; the conservative renderer path; the generic aggressive configuration drops
 ; environment geometry in Sega Rally 2.  The title is Windows CE and its
 ; NoBatch AICA path requires 32 ARM samples per tick; lower values underproduce
@@ -1691,233 +1692,233 @@ profile.HDR-0010.best_validated.title = Sega Rally 2 (Japan, baseline)
 ; SH4 scheduler settings below are measurably faster than the generic fallback
 ; while preserving the conservative renderer. best_performance falls back here
 ; until an independently validated faster path exists.
-device.RG351MP.profile.MK-51019.best_validated.title = Sega Rally 2 (USA, RG351MP safe)
-device.RG351MP.profile.MK-51019.best_validated.retrorun_loop_declared_fps = true
-device.RG351MP.profile.MK-51019.best_validated.retrorun_adaptive_frameskip = false
-device.RG351MP.profile.MK-51019.best_validated.retrorun_frameskip = 0
-device.RG351MP.profile.MK-51019.best_validated.retrorun_audio_buffer = 4096
-device.RG351MP.profile.MK-51019.best_validated.retrorun_audio_stable_buffer = true
-device.RG351MP.profile.MK-51019.best_validated.retrorun_go2_audio_stretch_percent = 0
-device.RG351MP.profile.MK-51019.best_validated.retrorun_go2_audio_stretch_low_ms = 150
-device.RG351MP.profile.MK-51019.best_validated.retrorun_go2_audio_wsola_profile = lowend_heavy_100
-device.RG351MP.profile.MK-51019.best_validated.retrorun_egl_depth_bits = 24
-device.RG351MP.profile.MK-51019.best_validated.retrorun_egl_stencil_bits = 0
-device.RG351MP.profile.MK-51019.best_validated.reicast_hle_bios = enabled
-device.RG351MP.profile.MK-51019.best_validated.reicast_internal_resolution = 640x480
-device.RG351MP.profile.MK-51019.best_validated.reicast_sh4clock = 200
-device.RG351MP.profile.MK-51019.best_validated.reicast_alpha_sorting = per-triangle (normal)
-device.RG351MP.profile.MK-51019.best_validated.reicast_gdrom_fast_loading = disabled
-device.RG351MP.profile.MK-51019.best_validated.reicast_mipmapping = enabled
-device.RG351MP.profile.MK-51019.best_validated.reicast_fog = enabled
-device.RG351MP.profile.MK-51019.best_validated.reicast_volume_modifier_enable = enabled
-device.RG351MP.profile.MK-51019.best_validated.reicast_enable_dsp = enabled
-device.RG351MP.profile.MK-51019.best_validated.reicast_anisotropic_filtering = off
-device.RG351MP.profile.MK-51019.best_validated.reicast_framerate = fullspeed
-device.RG351MP.profile.MK-51019.best_validated.reicast_threaded_rendering = enabled
-device.RG351MP.profile.MK-51019.best_validated.reicast_synchronous_rendering = disabled
-device.RG351MP.profile.MK-51019.best_validated.reicast_delay_frame_swapping = disabled
-device.RG351MP.profile.MK-51019.best_validated.reicast_frame_skipping = disabled
-device.RG351MP.profile.MK-51019.best_validated.reicast_adjacent_state_elision = disabled
-device.RG351MP.profile.MK-51019.best_validated.reicast_translucent_strip_merge = disabled
-device.RG351MP.profile.MK-51019.best_validated.reicast_texture_storage_reuse = disabled
-device.RG351MP.profile.MK-51019.best_validated.reicast_palette_fog_storage_reuse = disabled
-device.RG351MP.profile.MK-51019.best_validated.reicast_fast_depth = disabled
-device.RG351MP.profile.MK-51019.best_validated.reicast_audio_mixer = accurate
-device.RG351MP.profile.MK-51019.best_validated.reicast_opaque_strip_merge = disabled
-device.RG351MP.profile.MK-51019.best_validated.reicast_aica_arm_cycles = 32
-device.RG351MP.profile.MK-51019.best_validated.reicast_shared_block_checks = disabled
-device.RG351MP.profile.MK-51019.best_validated.reicast_mmu_address_lut = enabled
-device.RG351MP.profile.MK-51019.best_validated.reicast_fmov_fpr64 = disabled
-device.RG351MP.profile.MK-51019.best_validated.reicast_aica_better_lpf = disabled
-device.RG351MP.profile.MK-51019.best_validated.reicast_sh4_cycle_mode = accurate
+chip.RK3326.profile.MK-51019.best_validated.title = Sega Rally 2 (USA, RG351MP safe)
+chip.RK3326.profile.MK-51019.best_validated.retrorun_loop_declared_fps = true
+chip.RK3326.profile.MK-51019.best_validated.retrorun_adaptive_frameskip = false
+chip.RK3326.profile.MK-51019.best_validated.retrorun_frameskip = 0
+chip.RK3326.profile.MK-51019.best_validated.retrorun_audio_buffer = 4096
+chip.RK3326.profile.MK-51019.best_validated.retrorun_audio_stable_buffer = true
+chip.RK3326.profile.MK-51019.best_validated.retrorun_go2_audio_stretch_percent = 0
+chip.RK3326.profile.MK-51019.best_validated.retrorun_go2_audio_stretch_low_ms = 150
+chip.RK3326.profile.MK-51019.best_validated.retrorun_go2_audio_wsola_profile = lowend_heavy_100
+chip.RK3326.profile.MK-51019.best_validated.retrorun_egl_depth_bits = 24
+chip.RK3326.profile.MK-51019.best_validated.retrorun_egl_stencil_bits = 0
+chip.RK3326.profile.MK-51019.best_validated.reicast_hle_bios = enabled
+chip.RK3326.profile.MK-51019.best_validated.reicast_internal_resolution = 640x480
+chip.RK3326.profile.MK-51019.best_validated.reicast_sh4clock = 200
+chip.RK3326.profile.MK-51019.best_validated.reicast_alpha_sorting = per-triangle (normal)
+chip.RK3326.profile.MK-51019.best_validated.reicast_gdrom_fast_loading = disabled
+chip.RK3326.profile.MK-51019.best_validated.reicast_mipmapping = enabled
+chip.RK3326.profile.MK-51019.best_validated.reicast_fog = enabled
+chip.RK3326.profile.MK-51019.best_validated.reicast_volume_modifier_enable = enabled
+chip.RK3326.profile.MK-51019.best_validated.reicast_enable_dsp = enabled
+chip.RK3326.profile.MK-51019.best_validated.reicast_anisotropic_filtering = off
+chip.RK3326.profile.MK-51019.best_validated.reicast_framerate = fullspeed
+chip.RK3326.profile.MK-51019.best_validated.reicast_threaded_rendering = enabled
+chip.RK3326.profile.MK-51019.best_validated.reicast_synchronous_rendering = disabled
+chip.RK3326.profile.MK-51019.best_validated.reicast_delay_frame_swapping = disabled
+chip.RK3326.profile.MK-51019.best_validated.reicast_frame_skipping = disabled
+chip.RK3326.profile.MK-51019.best_validated.reicast_adjacent_state_elision = disabled
+chip.RK3326.profile.MK-51019.best_validated.reicast_translucent_strip_merge = disabled
+chip.RK3326.profile.MK-51019.best_validated.reicast_texture_storage_reuse = disabled
+chip.RK3326.profile.MK-51019.best_validated.reicast_palette_fog_storage_reuse = disabled
+chip.RK3326.profile.MK-51019.best_validated.reicast_fast_depth = disabled
+chip.RK3326.profile.MK-51019.best_validated.reicast_audio_mixer = accurate
+chip.RK3326.profile.MK-51019.best_validated.reicast_opaque_strip_merge = disabled
+chip.RK3326.profile.MK-51019.best_validated.reicast_aica_arm_cycles = 32
+chip.RK3326.profile.MK-51019.best_validated.reicast_shared_block_checks = disabled
+chip.RK3326.profile.MK-51019.best_validated.reicast_mmu_address_lut = enabled
+chip.RK3326.profile.MK-51019.best_validated.reicast_fmov_fpr64 = disabled
+chip.RK3326.profile.MK-51019.best_validated.reicast_aica_better_lpf = disabled
+chip.RK3326.profile.MK-51019.best_validated.reicast_sh4_cycle_mode = accurate
 
-device.RG353M.profile.MK-51019.best_performance.title = Sega Rally 2 (RG353M validated)
-device.RG353M.profile.MK-51019.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.MK-51019.best_performance.retrorun_audio_buffer = 1470
-device.RG353M.profile.MK-51019.best_performance.retrorun_audio_stable_buffer = true
-device.RG353M.profile.MK-51019.best_performance.retrorun_go2_audio_prebuffer_ms = 60
-device.RG353M.profile.MK-51019.best_performance.retrorun_go2_audio_stretch_percent = 10
-device.RG353M.profile.MK-51019.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.MK-51019.best_performance.retrorun_go2_audio_wsola_profile = lowend_stable_96
-device.RG353M.profile.MK-51019.best_performance.retrorun_egl_depth_bits = 24
-device.RG353M.profile.MK-51019.best_performance.retrorun_egl_stencil_bits = 0
-device.RG353M.profile.MK-51019.best_performance.reicast_hle_bios = disabled
-device.RG353M.profile.MK-51019.best_performance.reicast_gdrom_fast_loading = enabled
-device.RG353M.profile.MK-51019.best_performance.reicast_sh4clock = 110
-device.RG353M.profile.MK-51019.best_performance.reicast_sh4_cycle_mode = legacy
-device.RG353M.profile.MK-51019.best_performance.reicast_shared_block_checks = enabled
-device.RG353M.profile.MK-51019.best_performance.reicast_mmu_address_lut = enabled
-device.RG353M.profile.MK-51019.best_performance.reicast_fmov_fpr64 = enabled
-device.RG353M.profile.MK-51019.best_performance.reicast_aica_better_lpf = enabled
-device.RG353M.profile.MK-51019.best_performance.reicast_internal_resolution = 640x480
-device.RG353M.profile.MK-51019.best_performance.reicast_alpha_sorting = per-strip (fast, least accurate)
-device.RG353M.profile.MK-51019.best_performance.reicast_mipmapping = enabled
-device.RG353M.profile.MK-51019.best_performance.reicast_fog = enabled
-device.RG353M.profile.MK-51019.best_performance.reicast_volume_modifier_enable = disabled
-device.RG353M.profile.MK-51019.best_performance.reicast_frame_skipping = disabled
-device.RG353M.profile.MK-51019.best_performance.reicast_anisotropic_filtering = off
-device.RG353M.profile.MK-51019.best_performance.reicast_threaded_rendering = enabled
-device.RG353M.profile.MK-51019.best_performance.reicast_audio_mixer = accurate
-device.RG353M.profile.MK-51019.best_performance.reicast_aica_arm_cycles = 32
+chip.RK3566.profile.MK-51019.best_performance.title = Sega Rally 2 (RG353M validated)
+chip.RK3566.profile.MK-51019.best_performance.retrorun_loop_declared_fps = false
+chip.RK3566.profile.MK-51019.best_performance.retrorun_audio_buffer = 1470
+chip.RK3566.profile.MK-51019.best_performance.retrorun_audio_stable_buffer = true
+chip.RK3566.profile.MK-51019.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+chip.RK3566.profile.MK-51019.best_performance.retrorun_go2_audio_stretch_percent = 10
+chip.RK3566.profile.MK-51019.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.MK-51019.best_performance.retrorun_go2_audio_wsola_profile = lowend_stable_96
+chip.RK3566.profile.MK-51019.best_performance.retrorun_egl_depth_bits = 24
+chip.RK3566.profile.MK-51019.best_performance.retrorun_egl_stencil_bits = 0
+chip.RK3566.profile.MK-51019.best_performance.reicast_hle_bios = disabled
+chip.RK3566.profile.MK-51019.best_performance.reicast_gdrom_fast_loading = enabled
+chip.RK3566.profile.MK-51019.best_performance.reicast_sh4clock = 110
+chip.RK3566.profile.MK-51019.best_performance.reicast_sh4_cycle_mode = legacy
+chip.RK3566.profile.MK-51019.best_performance.reicast_shared_block_checks = enabled
+chip.RK3566.profile.MK-51019.best_performance.reicast_mmu_address_lut = enabled
+chip.RK3566.profile.MK-51019.best_performance.reicast_fmov_fpr64 = enabled
+chip.RK3566.profile.MK-51019.best_performance.reicast_aica_better_lpf = enabled
+chip.RK3566.profile.MK-51019.best_performance.reicast_internal_resolution = 640x480
+chip.RK3566.profile.MK-51019.best_performance.reicast_alpha_sorting = per-strip (fast, least accurate)
+chip.RK3566.profile.MK-51019.best_performance.reicast_mipmapping = enabled
+chip.RK3566.profile.MK-51019.best_performance.reicast_fog = enabled
+chip.RK3566.profile.MK-51019.best_performance.reicast_volume_modifier_enable = disabled
+chip.RK3566.profile.MK-51019.best_performance.reicast_frame_skipping = disabled
+chip.RK3566.profile.MK-51019.best_performance.reicast_anisotropic_filtering = off
+chip.RK3566.profile.MK-51019.best_performance.reicast_threaded_rendering = enabled
+chip.RK3566.profile.MK-51019.best_performance.reicast_audio_mixer = accurate
+chip.RK3566.profile.MK-51019.best_performance.reicast_aica_arm_cycles = 32
 
-device.RG353M.profile.HDR-0010.best_performance.title = Sega Rally 2 (Japan, RG353M validated)
-device.RG353M.profile.HDR-0010.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.HDR-0010.best_performance.retrorun_audio_buffer = 1470
-device.RG353M.profile.HDR-0010.best_performance.retrorun_audio_stable_buffer = true
-device.RG353M.profile.HDR-0010.best_performance.retrorun_go2_audio_prebuffer_ms = 60
-device.RG353M.profile.HDR-0010.best_performance.retrorun_go2_audio_stretch_percent = 10
-device.RG353M.profile.HDR-0010.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.HDR-0010.best_performance.retrorun_go2_audio_wsola_profile = lowend_stable_96
-device.RG353M.profile.HDR-0010.best_performance.retrorun_egl_depth_bits = 24
-device.RG353M.profile.HDR-0010.best_performance.retrorun_egl_stencil_bits = 0
-device.RG353M.profile.HDR-0010.best_performance.reicast_hle_bios = disabled
-device.RG353M.profile.HDR-0010.best_performance.reicast_gdrom_fast_loading = enabled
-device.RG353M.profile.HDR-0010.best_performance.reicast_sh4clock = 110
-device.RG353M.profile.HDR-0010.best_performance.reicast_sh4_cycle_mode = legacy
-device.RG353M.profile.HDR-0010.best_performance.reicast_shared_block_checks = enabled
-device.RG353M.profile.HDR-0010.best_performance.reicast_mmu_address_lut = enabled
-device.RG353M.profile.HDR-0010.best_performance.reicast_fmov_fpr64 = enabled
-device.RG353M.profile.HDR-0010.best_performance.reicast_aica_better_lpf = enabled
-device.RG353M.profile.HDR-0010.best_performance.reicast_internal_resolution = 640x480
-device.RG353M.profile.HDR-0010.best_performance.reicast_alpha_sorting = per-strip (fast, least accurate)
-device.RG353M.profile.HDR-0010.best_performance.reicast_mipmapping = enabled
-device.RG353M.profile.HDR-0010.best_performance.reicast_fog = enabled
-device.RG353M.profile.HDR-0010.best_performance.reicast_volume_modifier_enable = disabled
-device.RG353M.profile.HDR-0010.best_performance.reicast_frame_skipping = disabled
-device.RG353M.profile.HDR-0010.best_performance.reicast_anisotropic_filtering = off
-device.RG353M.profile.HDR-0010.best_performance.reicast_threaded_rendering = enabled
-device.RG353M.profile.HDR-0010.best_performance.reicast_audio_mixer = accurate
-device.RG353M.profile.HDR-0010.best_performance.reicast_aica_arm_cycles = 32
+chip.RK3566.profile.HDR-0010.best_performance.title = Sega Rally 2 (Japan, RG353M validated)
+chip.RK3566.profile.HDR-0010.best_performance.retrorun_loop_declared_fps = false
+chip.RK3566.profile.HDR-0010.best_performance.retrorun_audio_buffer = 1470
+chip.RK3566.profile.HDR-0010.best_performance.retrorun_audio_stable_buffer = true
+chip.RK3566.profile.HDR-0010.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+chip.RK3566.profile.HDR-0010.best_performance.retrorun_go2_audio_stretch_percent = 10
+chip.RK3566.profile.HDR-0010.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.HDR-0010.best_performance.retrorun_go2_audio_wsola_profile = lowend_stable_96
+chip.RK3566.profile.HDR-0010.best_performance.retrorun_egl_depth_bits = 24
+chip.RK3566.profile.HDR-0010.best_performance.retrorun_egl_stencil_bits = 0
+chip.RK3566.profile.HDR-0010.best_performance.reicast_hle_bios = disabled
+chip.RK3566.profile.HDR-0010.best_performance.reicast_gdrom_fast_loading = enabled
+chip.RK3566.profile.HDR-0010.best_performance.reicast_sh4clock = 110
+chip.RK3566.profile.HDR-0010.best_performance.reicast_sh4_cycle_mode = legacy
+chip.RK3566.profile.HDR-0010.best_performance.reicast_shared_block_checks = enabled
+chip.RK3566.profile.HDR-0010.best_performance.reicast_mmu_address_lut = enabled
+chip.RK3566.profile.HDR-0010.best_performance.reicast_fmov_fpr64 = enabled
+chip.RK3566.profile.HDR-0010.best_performance.reicast_aica_better_lpf = enabled
+chip.RK3566.profile.HDR-0010.best_performance.reicast_internal_resolution = 640x480
+chip.RK3566.profile.HDR-0010.best_performance.reicast_alpha_sorting = per-strip (fast, least accurate)
+chip.RK3566.profile.HDR-0010.best_performance.reicast_mipmapping = enabled
+chip.RK3566.profile.HDR-0010.best_performance.reicast_fog = enabled
+chip.RK3566.profile.HDR-0010.best_performance.reicast_volume_modifier_enable = disabled
+chip.RK3566.profile.HDR-0010.best_performance.reicast_frame_skipping = disabled
+chip.RK3566.profile.HDR-0010.best_performance.reicast_anisotropic_filtering = off
+chip.RK3566.profile.HDR-0010.best_performance.reicast_threaded_rendering = enabled
+chip.RK3566.profile.HDR-0010.best_performance.reicast_audio_mixer = accurate
+chip.RK3566.profile.HDR-0010.best_performance.reicast_aica_arm_cycles = 32
 
-; RG552: fixed-gameplay-state, same-binary 3x60-second validation.  These
-; device overrides inherit the existing graphics profiles and enable only the
-; render-queue policy demonstrated on RG552.  Ikaruga, MVC2 and Virtua Tennis
+; RK3399: fixed-gameplay-state, same-binary 3x60-second RG552 validation. These
+; chip profiles inherit the existing graphics profiles and enable only the
+; render-queue policy demonstrated on RG552. Ikaruga, MVC2 and Virtua Tennis
 ; also disable the core's adaptive frame skipping so presented FPS is not
 ; artificially halved.  Sonic and House of the Dead 2 use the independently
 ; validated stable audio bundle. Sega Rally remains on its separate
 ; no-drop-disabled profile below.
-device.RG552.profile.MK-51049.best_validated.title = ChuChu Rocket (USA, RG552 validated)
-device.RG552.profile.MK-51049.best_validated.reicast_render_queue_no_drop = enabled
+chip.RK3399.profile.MK-51049.best_validated.title = ChuChu Rocket (USA, RG552 validated)
+chip.RK3399.profile.MK-51049.best_validated.reicast_render_queue_no_drop = enabled
 
-device.RG552.profile.T8116D50.best_validated.title = Dead or Alive 2 (Europe, RG552 validated)
-device.RG552.profile.T8116D50.best_validated.reicast_render_queue_no_drop = enabled
+chip.RK3399.profile.T8116D50.best_validated.title = Dead or Alive 2 (Europe, RG552 validated)
+chip.RK3399.profile.T8116D50.best_validated.reicast_render_queue_no_drop = enabled
 
-device.RG552.profile.T38706M.best_validated.title = Ikaruga (Japan, RG552 validated)
-device.RG552.profile.T38706M.best_validated.reicast_frame_skipping = disabled
-device.RG552.profile.T38706M.best_validated.reicast_render_queue_no_drop = enabled
+chip.RK3399.profile.T38706M.best_validated.title = Ikaruga (Japan, RG552 validated)
+chip.RK3399.profile.T38706M.best_validated.reicast_frame_skipping = disabled
+chip.RK3399.profile.T38706M.best_validated.reicast_render_queue_no_drop = enabled
 
-device.RG552.profile.MK-51035.best_validated.title = Crazy Taxi (USA/Europe, RG552 validated)
-device.RG552.profile.MK-51035.best_validated.reicast_render_queue_no_drop = enabled
+chip.RK3399.profile.MK-51035.best_validated.title = Crazy Taxi (USA/Europe, RG552 validated)
+chip.RK3399.profile.MK-51035.best_validated.reicast_render_queue_no_drop = enabled
 
-device.RG552.profile.T7010D50.best_validated.title = Marvel vs. Capcom 2 (Europe, RG552 validated)
-device.RG552.profile.T7010D50.best_validated.reicast_frame_skipping = disabled
-device.RG552.profile.T7010D50.best_validated.reicast_render_queue_no_drop = enabled
+chip.RK3399.profile.T7010D50.best_validated.title = Marvel vs. Capcom 2 (Europe, RG552 validated)
+chip.RK3399.profile.T7010D50.best_validated.reicast_frame_skipping = disabled
+chip.RK3399.profile.T7010D50.best_validated.reicast_render_queue_no_drop = enabled
 
-device.RG552.profile.T1213N.best_validated.title = Street Fighter III: 3rd Strike (USA, RG552 validated)
-device.RG552.profile.T1213N.best_validated.reicast_render_queue_no_drop = enabled
+chip.RK3399.profile.T1213N.best_validated.title = Street Fighter III: 3rd Strike (USA, RG552 validated)
+chip.RK3399.profile.T1213N.best_validated.reicast_render_queue_no_drop = enabled
 
-device.RG552.profile.MK-51054.best_validated.title = Virtua Tennis (USA, RG552 validated)
-device.RG552.profile.MK-51054.best_validated.reicast_frame_skipping = disabled
-device.RG552.profile.MK-51054.best_validated.reicast_render_queue_no_drop = enabled
+chip.RK3399.profile.MK-51054.best_validated.title = Virtua Tennis (USA, RG552 validated)
+chip.RK3399.profile.MK-51054.best_validated.reicast_frame_skipping = disabled
+chip.RK3399.profile.MK-51054.best_validated.reicast_render_queue_no_drop = enabled
 
-device.RG552.profile.T1215N.best_validated.title = Cannon Spike (USA, RG552 validated)
-device.RG552.profile.T1215N.best_validated.reicast_render_queue_no_drop = enabled
+chip.RK3399.profile.T1215N.best_validated.title = Cannon Spike (USA, RG552 validated)
+chip.RK3399.profile.T1215N.best_validated.reicast_render_queue_no_drop = enabled
 
-device.RG552.profile.MK-51037.best_validated.title = Daytona USA (USA, RG552 validated)
-device.RG552.profile.MK-51037.best_validated.reicast_render_queue_no_drop = enabled
+chip.RK3399.profile.MK-51037.best_validated.title = Daytona USA (USA, RG552 validated)
+chip.RK3399.profile.MK-51037.best_validated.reicast_render_queue_no_drop = enabled
 
-device.RG552.profile.MK-51058.best_validated.title = Jet Grind Radio (USA, RG552 validated)
-device.RG552.profile.MK-51058.best_validated.reicast_render_queue_no_drop = enabled
+chip.RK3399.profile.MK-51058.best_validated.title = Jet Grind Radio (USA, RG552 validated)
+chip.RK3399.profile.MK-51058.best_validated.reicast_render_queue_no_drop = enabled
 
-device.RG552.profile.MK-51117.best_validated.title = Sonic Adventure 2 (USA, RG552 validated)
-device.RG552.profile.MK-51117.best_validated.retrorun_audio_buffer = 2048
-device.RG552.profile.MK-51117.best_validated.retrorun_audio_stable_buffer = true
-device.RG552.profile.MK-51117.best_validated.retrorun_go2_audio_stretch_low_ms = 150
-device.RG552.profile.MK-51117.best_validated.retrorun_go2_audio_wsola_profile = lowend_stable_96
-device.RG552.profile.MK-51117.best_validated.reicast_render_queue_no_drop = enabled
+chip.RK3399.profile.MK-51117.best_validated.title = Sonic Adventure 2 (USA, RG552 validated)
+chip.RK3399.profile.MK-51117.best_validated.retrorun_audio_buffer = 2048
+chip.RK3399.profile.MK-51117.best_validated.retrorun_audio_stable_buffer = true
+chip.RK3399.profile.MK-51117.best_validated.retrorun_go2_audio_stretch_low_ms = 150
+chip.RK3399.profile.MK-51117.best_validated.retrorun_go2_audio_wsola_profile = lowend_stable_96
+chip.RK3399.profile.MK-51117.best_validated.reicast_render_queue_no_drop = enabled
 
-device.RG552.profile.MK-5118450.best_validated.title = Shenmue II (Europe, RG552 validated)
-device.RG552.profile.MK-5118450.best_validated.reicast_render_queue_no_drop = enabled
+chip.RK3399.profile.MK-5118450.best_validated.title = Shenmue II (Europe, RG552 validated)
+chip.RK3399.profile.MK-5118450.best_validated.reicast_render_queue_no_drop = enabled
 
-device.RG552.profile.MK-51000.best_validated.title = Sonic Adventure (USA/Europe, RG552 validated)
-device.RG552.profile.MK-51000.best_validated.reicast_render_queue_no_drop = enabled
+chip.RK3399.profile.MK-51000.best_validated.title = Sonic Adventure (USA/Europe, RG552 validated)
+chip.RK3399.profile.MK-51000.best_validated.reicast_render_queue_no_drop = enabled
 
-device.RG552.profile.T1201N.best_validated.title = Power Stone (USA, RG552 validated)
-device.RG552.profile.T1201N.best_validated.reicast_render_queue_no_drop = enabled
+chip.RK3399.profile.T1201N.best_validated.title = Power Stone (USA, RG552 validated)
+chip.RK3399.profile.T1201N.best_validated.reicast_render_queue_no_drop = enabled
 
-device.RG552.profile.T1211N.best_validated.title = Power Stone 2 (USA, RG552 validated)
-device.RG552.profile.T1211N.best_validated.reicast_render_queue_no_drop = enabled
+chip.RK3399.profile.T1211N.best_validated.title = Power Stone 2 (USA, RG552 validated)
+chip.RK3399.profile.T1211N.best_validated.reicast_render_queue_no_drop = enabled
 
-device.RG552.profile.MK-5100250.best_validated.title = The House of the Dead 2 (Europe, RG552 validated)
-device.RG552.profile.MK-5100250.best_validated.retrorun_audio_buffer = 2048
-device.RG552.profile.MK-5100250.best_validated.retrorun_audio_stable_buffer = true
-device.RG552.profile.MK-5100250.best_validated.retrorun_go2_audio_stretch_low_ms = 150
-device.RG552.profile.MK-5100250.best_validated.retrorun_go2_audio_wsola_profile = lowend_stable_96
-device.RG552.profile.MK-5100250.best_validated.reicast_render_queue_no_drop = enabled
+chip.RK3399.profile.MK-5100250.best_validated.title = The House of the Dead 2 (Europe, RG552 validated)
+chip.RK3399.profile.MK-5100250.best_validated.retrorun_audio_buffer = 2048
+chip.RK3399.profile.MK-5100250.best_validated.retrorun_audio_stable_buffer = true
+chip.RK3399.profile.MK-5100250.best_validated.retrorun_go2_audio_stretch_low_ms = 150
+chip.RK3399.profile.MK-5100250.best_validated.retrorun_go2_audio_wsola_profile = lowend_stable_96
+chip.RK3399.profile.MK-5100250.best_validated.reicast_render_queue_no_drop = enabled
 
 ; Code Veronica already reaches its native 30 FPS cap on RG552. Accurate SH4
 ; cycle accounting preserved that throughput and cut audio producer lateness
 ; above 20 ms from 32--35 to 5--9 events per minute, with zero underruns.
-device.RG552.profile.T1204N.best_validated.title = Resident Evil: Code Veronica (USA, RG552 validated)
-device.RG552.profile.T1204N.best_validated.reicast_sh4_cycle_mode = accurate
+chip.RK3399.profile.T1204N.best_validated.title = Resident Evil: Code Veronica (USA, RG552 validated)
+chip.RK3399.profile.T1204N.best_validated.reicast_sh4_cycle_mode = accurate
 
-; RG552: manually approved with the single deployed Flycast 2022 Low-End B0
+; RK3399: manually approved on RG552 with the deployed Flycast 2022 Low-End B0
 ; build (838b83b64). This reproduces the no-WSOLA reference configuration and
 ; explicitly pins the frontend video worker that the historical RG552/Low-End
 ; automatic path enabled during validation. It deliberately does not request an
 ; alternate core. best_performance falls back to this best_validated profile for
 ; both retail Product-number variants.
-device.RG552.profile.MK-51019.best_validated.title = Sega Rally 2 (USA, RG552 validated)
-device.RG552.profile.MK-51019.best_validated.retrorun_audio_buffer = 2048
-device.RG552.profile.MK-51019.best_validated.retrorun_audio_stable_buffer = true
-device.RG552.profile.MK-51019.best_validated.retrorun_go2_audio_wsola_profile = disabled
-device.RG552.profile.MK-51019.best_validated.retrorun_video_multithread_mode = enabled
-device.RG552.profile.MK-51019.best_validated.reicast_threaded_rendering = enabled
-device.RG552.profile.MK-51019.best_validated.reicast_internal_resolution = 640x480
-device.RG552.profile.MK-51019.best_validated.reicast_anisotropic_filtering = off
-device.RG552.profile.MK-51019.best_validated.reicast_enable_dsp = disabled
-device.RG552.profile.MK-51019.best_validated.reicast_synchronous_rendering = disabled
-device.RG552.profile.MK-51019.best_validated.reicast_enable_rttb = disabled
-device.RG552.profile.MK-51019.best_validated.reicast_delay_frame_swapping = disabled
-device.RG552.profile.MK-51019.best_validated.reicast_alpha_sorting = per-strip (fast, least accurate)
-device.RG552.profile.MK-51019.best_validated.reicast_div_matching = auto
-device.RG552.profile.MK-51019.best_validated.reicast_texupscale = 1
-device.RG552.profile.MK-51019.best_validated.reicast_enable_purupuru = enabled
-device.RG552.profile.MK-51019.best_validated.reicast_auto_skip_frame = disabled
-device.RG552.profile.MK-51019.best_validated.reicast_gdrom_fast_loading = enabled
-device.RG552.profile.MK-51019.best_validated.reicast_volume_modifier_enable = disabled
-device.RG552.profile.MK-51019.best_validated.reicast_framerate = fullspeed
-device.RG552.profile.MK-51019.best_validated.reicast_mmu_address_lut = enabled
-device.RG552.profile.MK-51019.best_validated.reicast_shared_block_checks = enabled
-device.RG552.profile.MK-51019.best_validated.reicast_fmov_fpr64 = enabled
-device.RG552.profile.MK-51019.best_validated.reicast_aica_better_lpf = enabled
-device.RG552.profile.MK-51019.best_validated.reicast_sh4_cycle_mode = accurate
+chip.RK3399.profile.MK-51019.best_validated.title = Sega Rally 2 (USA, RG552 validated)
+chip.RK3399.profile.MK-51019.best_validated.retrorun_audio_buffer = 2048
+chip.RK3399.profile.MK-51019.best_validated.retrorun_audio_stable_buffer = true
+chip.RK3399.profile.MK-51019.best_validated.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3399.profile.MK-51019.best_validated.retrorun_video_multithread_mode = enabled
+chip.RK3399.profile.MK-51019.best_validated.reicast_threaded_rendering = enabled
+chip.RK3399.profile.MK-51019.best_validated.reicast_internal_resolution = 640x480
+chip.RK3399.profile.MK-51019.best_validated.reicast_anisotropic_filtering = off
+chip.RK3399.profile.MK-51019.best_validated.reicast_enable_dsp = disabled
+chip.RK3399.profile.MK-51019.best_validated.reicast_synchronous_rendering = disabled
+chip.RK3399.profile.MK-51019.best_validated.reicast_enable_rttb = disabled
+chip.RK3399.profile.MK-51019.best_validated.reicast_delay_frame_swapping = disabled
+chip.RK3399.profile.MK-51019.best_validated.reicast_alpha_sorting = per-strip (fast, least accurate)
+chip.RK3399.profile.MK-51019.best_validated.reicast_div_matching = auto
+chip.RK3399.profile.MK-51019.best_validated.reicast_texupscale = 1
+chip.RK3399.profile.MK-51019.best_validated.reicast_enable_purupuru = enabled
+chip.RK3399.profile.MK-51019.best_validated.reicast_auto_skip_frame = disabled
+chip.RK3399.profile.MK-51019.best_validated.reicast_gdrom_fast_loading = enabled
+chip.RK3399.profile.MK-51019.best_validated.reicast_volume_modifier_enable = disabled
+chip.RK3399.profile.MK-51019.best_validated.reicast_framerate = fullspeed
+chip.RK3399.profile.MK-51019.best_validated.reicast_mmu_address_lut = enabled
+chip.RK3399.profile.MK-51019.best_validated.reicast_shared_block_checks = enabled
+chip.RK3399.profile.MK-51019.best_validated.reicast_fmov_fpr64 = enabled
+chip.RK3399.profile.MK-51019.best_validated.reicast_aica_better_lpf = enabled
+chip.RK3399.profile.MK-51019.best_validated.reicast_sh4_cycle_mode = accurate
 
-device.RG552.profile.HDR-0010.best_validated.title = Sega Rally 2 (Japan, RG552 validated)
-device.RG552.profile.HDR-0010.best_validated.retrorun_audio_buffer = 2048
-device.RG552.profile.HDR-0010.best_validated.retrorun_audio_stable_buffer = true
-device.RG552.profile.HDR-0010.best_validated.retrorun_go2_audio_wsola_profile = disabled
-device.RG552.profile.HDR-0010.best_validated.retrorun_video_multithread_mode = enabled
-device.RG552.profile.HDR-0010.best_validated.reicast_threaded_rendering = enabled
-device.RG552.profile.HDR-0010.best_validated.reicast_internal_resolution = 640x480
-device.RG552.profile.HDR-0010.best_validated.reicast_anisotropic_filtering = off
-device.RG552.profile.HDR-0010.best_validated.reicast_enable_dsp = disabled
-device.RG552.profile.HDR-0010.best_validated.reicast_synchronous_rendering = disabled
-device.RG552.profile.HDR-0010.best_validated.reicast_enable_rttb = disabled
-device.RG552.profile.HDR-0010.best_validated.reicast_delay_frame_swapping = disabled
-device.RG552.profile.HDR-0010.best_validated.reicast_alpha_sorting = per-strip (fast, least accurate)
-device.RG552.profile.HDR-0010.best_validated.reicast_div_matching = auto
-device.RG552.profile.HDR-0010.best_validated.reicast_texupscale = 1
-device.RG552.profile.HDR-0010.best_validated.reicast_enable_purupuru = enabled
-device.RG552.profile.HDR-0010.best_validated.reicast_auto_skip_frame = disabled
-device.RG552.profile.HDR-0010.best_validated.reicast_gdrom_fast_loading = enabled
-device.RG552.profile.HDR-0010.best_validated.reicast_volume_modifier_enable = disabled
-device.RG552.profile.HDR-0010.best_validated.reicast_framerate = fullspeed
-device.RG552.profile.HDR-0010.best_validated.reicast_mmu_address_lut = enabled
-device.RG552.profile.HDR-0010.best_validated.reicast_shared_block_checks = enabled
-device.RG552.profile.HDR-0010.best_validated.reicast_fmov_fpr64 = enabled
-device.RG552.profile.HDR-0010.best_validated.reicast_aica_better_lpf = enabled
-device.RG552.profile.HDR-0010.best_validated.reicast_sh4_cycle_mode = accurate
+chip.RK3399.profile.HDR-0010.best_validated.title = Sega Rally 2 (Japan, RG552 validated)
+chip.RK3399.profile.HDR-0010.best_validated.retrorun_audio_buffer = 2048
+chip.RK3399.profile.HDR-0010.best_validated.retrorun_audio_stable_buffer = true
+chip.RK3399.profile.HDR-0010.best_validated.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3399.profile.HDR-0010.best_validated.retrorun_video_multithread_mode = enabled
+chip.RK3399.profile.HDR-0010.best_validated.reicast_threaded_rendering = enabled
+chip.RK3399.profile.HDR-0010.best_validated.reicast_internal_resolution = 640x480
+chip.RK3399.profile.HDR-0010.best_validated.reicast_anisotropic_filtering = off
+chip.RK3399.profile.HDR-0010.best_validated.reicast_enable_dsp = disabled
+chip.RK3399.profile.HDR-0010.best_validated.reicast_synchronous_rendering = disabled
+chip.RK3399.profile.HDR-0010.best_validated.reicast_enable_rttb = disabled
+chip.RK3399.profile.HDR-0010.best_validated.reicast_delay_frame_swapping = disabled
+chip.RK3399.profile.HDR-0010.best_validated.reicast_alpha_sorting = per-strip (fast, least accurate)
+chip.RK3399.profile.HDR-0010.best_validated.reicast_div_matching = auto
+chip.RK3399.profile.HDR-0010.best_validated.reicast_texupscale = 1
+chip.RK3399.profile.HDR-0010.best_validated.reicast_enable_purupuru = enabled
+chip.RK3399.profile.HDR-0010.best_validated.reicast_auto_skip_frame = disabled
+chip.RK3399.profile.HDR-0010.best_validated.reicast_gdrom_fast_loading = enabled
+chip.RK3399.profile.HDR-0010.best_validated.reicast_volume_modifier_enable = disabled
+chip.RK3399.profile.HDR-0010.best_validated.reicast_framerate = fullspeed
+chip.RK3399.profile.HDR-0010.best_validated.reicast_mmu_address_lut = enabled
+chip.RK3399.profile.HDR-0010.best_validated.reicast_shared_block_checks = enabled
+chip.RK3399.profile.HDR-0010.best_validated.reicast_fmov_fpr64 = enabled
+chip.RK3399.profile.HDR-0010.best_validated.reicast_aica_better_lpf = enabled
+chip.RK3399.profile.HDR-0010.best_validated.reicast_sh4_cycle_mode = accurate
 
 profile.T9702D51.best_validated.title = Hydro Thunder (Europe, baseline)
 
@@ -1951,36 +1952,36 @@ profile.MK-51037.best_validated.reicast_audio_mixer = accurate
 profile.MK-51037.best_validated.reicast_opaque_strip_merge = enabled
 profile.MK-51037.best_validated.reicast_aica_arm_cycles = 32
 
-device.RG353M.profile.MK-51037.best_performance.title = Daytona USA 2001 (USA, RG353M validated)
-device.RG353M.profile.MK-51037.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.MK-51037.best_performance.retrorun_audio_buffer = 735
-device.RG353M.profile.MK-51037.best_performance.retrorun_audio_stable_buffer = true
-device.RG353M.profile.MK-51037.best_performance.retrorun_go2_audio_prebuffer_ms = 60
-device.RG353M.profile.MK-51037.best_performance.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.MK-51037.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.MK-51037.best_performance.retrorun_go2_audio_wsola_profile = disabled
-device.RG353M.profile.MK-51037.best_performance.retrorun_egl_depth_bits = 24
-device.RG353M.profile.MK-51037.best_performance.retrorun_egl_stencil_bits = 0
-device.RG353M.profile.MK-51037.best_performance.reicast_hle_bios = enabled
-device.RG353M.profile.MK-51037.best_performance.reicast_gdrom_fast_loading = enabled
-device.RG353M.profile.MK-51037.best_performance.reicast_sh4clock = 200
-device.RG353M.profile.MK-51037.best_performance.reicast_internal_resolution = 640x480
-device.RG353M.profile.MK-51037.best_performance.reicast_framerate = normal
-device.RG353M.profile.MK-51037.best_performance.reicast_alpha_sorting = per-strip (fast, least accurate)
-device.RG353M.profile.MK-51037.best_performance.reicast_mipmapping = enabled
-device.RG353M.profile.MK-51037.best_performance.reicast_fog = enabled
-device.RG353M.profile.MK-51037.best_performance.reicast_volume_modifier_enable = disabled
-device.RG353M.profile.MK-51037.best_performance.reicast_frame_skipping = disabled
-device.RG353M.profile.MK-51037.best_performance.reicast_anisotropic_filtering = off
-device.RG353M.profile.MK-51037.best_performance.reicast_threaded_rendering = enabled
-device.RG353M.profile.MK-51037.best_performance.reicast_translucent_strip_merge = disabled
-device.RG353M.profile.MK-51037.best_performance.reicast_texture_storage_reuse = enabled
-device.RG353M.profile.MK-51037.best_performance.reicast_palette_fog_storage_reuse = enabled
-device.RG353M.profile.MK-51037.best_performance.reicast_adjacent_state_elision = enabled
-device.RG353M.profile.MK-51037.best_performance.reicast_fast_depth = enabled
-device.RG353M.profile.MK-51037.best_performance.reicast_audio_mixer = lowend
-device.RG353M.profile.MK-51037.best_performance.reicast_opaque_strip_merge = enabled
-device.RG353M.profile.MK-51037.best_performance.reicast_aica_arm_cycles = 32
+chip.RK3566.profile.MK-51037.best_performance.title = Daytona USA 2001 (USA, RG353M validated)
+chip.RK3566.profile.MK-51037.best_performance.retrorun_loop_declared_fps = false
+chip.RK3566.profile.MK-51037.best_performance.retrorun_audio_buffer = 735
+chip.RK3566.profile.MK-51037.best_performance.retrorun_audio_stable_buffer = true
+chip.RK3566.profile.MK-51037.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+chip.RK3566.profile.MK-51037.best_performance.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.MK-51037.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.MK-51037.best_performance.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3566.profile.MK-51037.best_performance.retrorun_egl_depth_bits = 24
+chip.RK3566.profile.MK-51037.best_performance.retrorun_egl_stencil_bits = 0
+chip.RK3566.profile.MK-51037.best_performance.reicast_hle_bios = enabled
+chip.RK3566.profile.MK-51037.best_performance.reicast_gdrom_fast_loading = enabled
+chip.RK3566.profile.MK-51037.best_performance.reicast_sh4clock = 200
+chip.RK3566.profile.MK-51037.best_performance.reicast_internal_resolution = 640x480
+chip.RK3566.profile.MK-51037.best_performance.reicast_framerate = normal
+chip.RK3566.profile.MK-51037.best_performance.reicast_alpha_sorting = per-strip (fast, least accurate)
+chip.RK3566.profile.MK-51037.best_performance.reicast_mipmapping = enabled
+chip.RK3566.profile.MK-51037.best_performance.reicast_fog = enabled
+chip.RK3566.profile.MK-51037.best_performance.reicast_volume_modifier_enable = disabled
+chip.RK3566.profile.MK-51037.best_performance.reicast_frame_skipping = disabled
+chip.RK3566.profile.MK-51037.best_performance.reicast_anisotropic_filtering = off
+chip.RK3566.profile.MK-51037.best_performance.reicast_threaded_rendering = enabled
+chip.RK3566.profile.MK-51037.best_performance.reicast_translucent_strip_merge = disabled
+chip.RK3566.profile.MK-51037.best_performance.reicast_texture_storage_reuse = enabled
+chip.RK3566.profile.MK-51037.best_performance.reicast_palette_fog_storage_reuse = enabled
+chip.RK3566.profile.MK-51037.best_performance.reicast_adjacent_state_elision = enabled
+chip.RK3566.profile.MK-51037.best_performance.reicast_fast_depth = enabled
+chip.RK3566.profile.MK-51037.best_performance.reicast_audio_mixer = lowend
+chip.RK3566.profile.MK-51037.best_performance.reicast_opaque_strip_merge = enabled
+chip.RK3566.profile.MK-51037.best_performance.reicast_aica_arm_cycles = 32
 
 profile.HDR-0106.best_validated.title = Daytona USA 2001 (Japan, baseline)
 
@@ -2018,36 +2019,36 @@ profile.T1215N.best_validated.reicast_audio_mixer = accurate
 profile.T1215N.best_validated.reicast_opaque_strip_merge = enabled
 profile.T1215N.best_validated.reicast_aica_arm_cycles = 32
 
-device.RG353M.profile.T1215N.best_performance.title = Cannon Spike (USA, RG353M validated)
-device.RG353M.profile.T1215N.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.T1215N.best_performance.retrorun_audio_buffer = 735
-device.RG353M.profile.T1215N.best_performance.retrorun_audio_stable_buffer = true
-device.RG353M.profile.T1215N.best_performance.retrorun_go2_audio_prebuffer_ms = 60
-device.RG353M.profile.T1215N.best_performance.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.T1215N.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.T1215N.best_performance.retrorun_go2_audio_wsola_profile = disabled
-device.RG353M.profile.T1215N.best_performance.retrorun_egl_depth_bits = 24
-device.RG353M.profile.T1215N.best_performance.retrorun_egl_stencil_bits = 0
-device.RG353M.profile.T1215N.best_performance.reicast_hle_bios = enabled
-device.RG353M.profile.T1215N.best_performance.reicast_gdrom_fast_loading = enabled
-device.RG353M.profile.T1215N.best_performance.reicast_sh4clock = 200
-device.RG353M.profile.T1215N.best_performance.reicast_internal_resolution = 640x480
-device.RG353M.profile.T1215N.best_performance.reicast_framerate = normal
-device.RG353M.profile.T1215N.best_performance.reicast_alpha_sorting = per-strip (fast, least accurate)
-device.RG353M.profile.T1215N.best_performance.reicast_mipmapping = enabled
-device.RG353M.profile.T1215N.best_performance.reicast_fog = enabled
-device.RG353M.profile.T1215N.best_performance.reicast_volume_modifier_enable = disabled
-device.RG353M.profile.T1215N.best_performance.reicast_frame_skipping = disabled
-device.RG353M.profile.T1215N.best_performance.reicast_anisotropic_filtering = off
-device.RG353M.profile.T1215N.best_performance.reicast_threaded_rendering = enabled
-device.RG353M.profile.T1215N.best_performance.reicast_translucent_strip_merge = disabled
-device.RG353M.profile.T1215N.best_performance.reicast_texture_storage_reuse = enabled
-device.RG353M.profile.T1215N.best_performance.reicast_palette_fog_storage_reuse = disabled
-device.RG353M.profile.T1215N.best_performance.reicast_adjacent_state_elision = disabled
-device.RG353M.profile.T1215N.best_performance.reicast_fast_depth = menu_guarded_shadow_safe
-device.RG353M.profile.T1215N.best_performance.reicast_audio_mixer = lowend
-device.RG353M.profile.T1215N.best_performance.reicast_opaque_strip_merge = enabled
-device.RG353M.profile.T1215N.best_performance.reicast_aica_arm_cycles = 32
+chip.RK3566.profile.T1215N.best_performance.title = Cannon Spike (USA, RG353M validated)
+chip.RK3566.profile.T1215N.best_performance.retrorun_loop_declared_fps = false
+chip.RK3566.profile.T1215N.best_performance.retrorun_audio_buffer = 735
+chip.RK3566.profile.T1215N.best_performance.retrorun_audio_stable_buffer = true
+chip.RK3566.profile.T1215N.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+chip.RK3566.profile.T1215N.best_performance.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.T1215N.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.T1215N.best_performance.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3566.profile.T1215N.best_performance.retrorun_egl_depth_bits = 24
+chip.RK3566.profile.T1215N.best_performance.retrorun_egl_stencil_bits = 0
+chip.RK3566.profile.T1215N.best_performance.reicast_hle_bios = enabled
+chip.RK3566.profile.T1215N.best_performance.reicast_gdrom_fast_loading = enabled
+chip.RK3566.profile.T1215N.best_performance.reicast_sh4clock = 200
+chip.RK3566.profile.T1215N.best_performance.reicast_internal_resolution = 640x480
+chip.RK3566.profile.T1215N.best_performance.reicast_framerate = normal
+chip.RK3566.profile.T1215N.best_performance.reicast_alpha_sorting = per-strip (fast, least accurate)
+chip.RK3566.profile.T1215N.best_performance.reicast_mipmapping = enabled
+chip.RK3566.profile.T1215N.best_performance.reicast_fog = enabled
+chip.RK3566.profile.T1215N.best_performance.reicast_volume_modifier_enable = disabled
+chip.RK3566.profile.T1215N.best_performance.reicast_frame_skipping = disabled
+chip.RK3566.profile.T1215N.best_performance.reicast_anisotropic_filtering = off
+chip.RK3566.profile.T1215N.best_performance.reicast_threaded_rendering = enabled
+chip.RK3566.profile.T1215N.best_performance.reicast_translucent_strip_merge = disabled
+chip.RK3566.profile.T1215N.best_performance.reicast_texture_storage_reuse = enabled
+chip.RK3566.profile.T1215N.best_performance.reicast_palette_fog_storage_reuse = disabled
+chip.RK3566.profile.T1215N.best_performance.reicast_adjacent_state_elision = disabled
+chip.RK3566.profile.T1215N.best_performance.reicast_fast_depth = menu_guarded_shadow_safe
+chip.RK3566.profile.T1215N.best_performance.reicast_audio_mixer = lowend
+chip.RK3566.profile.T1215N.best_performance.reicast_opaque_strip_merge = enabled
+chip.RK3566.profile.T1215N.best_performance.reicast_aica_arm_cycles = 32
 
 profile.T1219M.best_validated.title = Gunspike (Japan, baseline)
 
@@ -2127,68 +2128,68 @@ profile.T1209M.best_validated.reicast_aica_arm_cycles = 32
 profile.T1209M.best_performance.title = Street Fighter III: 3rd Strike (Japan, best performance)
 profile.T1209M.best_performance.inherits = best_validated
 
-device.RG351MP.profile.T7013D50.best_performance.title = Street Fighter III: 3rd Strike (Europe, RG351MP upstream 620 validated)
-device.RG351MP.profile.T7013D50.best_performance.retrorun_flycast_core_variant = upstream_620
+chip.RK3326.profile.T7013D50.best_performance.title = Street Fighter III: 3rd Strike (Europe, RG351MP upstream 620 validated)
+chip.RK3326.profile.T7013D50.best_performance.retrorun_flycast_core_variant = upstream_620
 
-device.RG351MP.profile.T1213N.best_performance.title = Street Fighter III: 3rd Strike (USA, RG351MP upstream 620 validated)
-device.RG351MP.profile.T1213N.best_performance.retrorun_flycast_core_variant = upstream_620
+chip.RK3326.profile.T1213N.best_performance.title = Street Fighter III: 3rd Strike (USA, RG351MP upstream 620 validated)
+chip.RK3326.profile.T1213N.best_performance.retrorun_flycast_core_variant = upstream_620
 
-device.RG351MP.profile.T1209M.best_performance.title = Street Fighter III: 3rd Strike (Japan, RG351MP upstream 620 validated)
-device.RG351MP.profile.T1209M.best_performance.retrorun_flycast_core_variant = upstream_620
+chip.RK3326.profile.T1209M.best_performance.title = Street Fighter III: 3rd Strike (Japan, RG351MP upstream 620 validated)
+chip.RK3326.profile.T1209M.best_performance.retrorun_flycast_core_variant = upstream_620
 
-device.RG353M.profile.T7013D50.best_performance.title = Street Fighter III: 3rd Strike (Europe, RG353M validated)
-device.RG353M.profile.T7013D50.best_performance.retrorun_flycast_core_variant = upstream_620
-device.RG353M.profile.T7013D50.best_performance.reicast_internal_resolution = 640x480
-device.RG353M.profile.T7013D50.best_performance.reicast_anisotropic_filtering = off
-device.RG353M.profile.T7013D50.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.T7013D50.best_performance.retrorun_audio_buffer = 735
-device.RG353M.profile.T7013D50.best_performance.retrorun_audio_stable_buffer = true
-device.RG353M.profile.T7013D50.best_performance.retrorun_go2_audio_prebuffer_ms = 60
-device.RG353M.profile.T7013D50.best_performance.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.T7013D50.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.T7013D50.best_performance.retrorun_go2_audio_wsola_profile = disabled
-device.RG353M.profile.T7013D50.best_performance.retrorun_egl_stencil_bits = 0
-device.RG353M.profile.T7013D50.best_performance.reicast_gdrom_fast_loading = enabled
-device.RG353M.profile.T7013D50.best_performance.reicast_framerate = normal
-device.RG353M.profile.T7013D50.best_performance.reicast_texture_storage_reuse = enabled
-device.RG353M.profile.T7013D50.best_performance.reicast_fast_depth = menu_guarded_shadow_safe
-device.RG353M.profile.T7013D50.best_performance.reicast_audio_mixer = lowend
+chip.RK3566.profile.T7013D50.best_performance.title = Street Fighter III: 3rd Strike (Europe, RG353M validated)
+chip.RK3566.profile.T7013D50.best_performance.retrorun_flycast_core_variant = upstream_620
+chip.RK3566.profile.T7013D50.best_performance.reicast_internal_resolution = 640x480
+chip.RK3566.profile.T7013D50.best_performance.reicast_anisotropic_filtering = off
+chip.RK3566.profile.T7013D50.best_performance.retrorun_loop_declared_fps = false
+chip.RK3566.profile.T7013D50.best_performance.retrorun_audio_buffer = 735
+chip.RK3566.profile.T7013D50.best_performance.retrorun_audio_stable_buffer = true
+chip.RK3566.profile.T7013D50.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+chip.RK3566.profile.T7013D50.best_performance.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.T7013D50.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.T7013D50.best_performance.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3566.profile.T7013D50.best_performance.retrorun_egl_stencil_bits = 0
+chip.RK3566.profile.T7013D50.best_performance.reicast_gdrom_fast_loading = enabled
+chip.RK3566.profile.T7013D50.best_performance.reicast_framerate = normal
+chip.RK3566.profile.T7013D50.best_performance.reicast_texture_storage_reuse = enabled
+chip.RK3566.profile.T7013D50.best_performance.reicast_fast_depth = menu_guarded_shadow_safe
+chip.RK3566.profile.T7013D50.best_performance.reicast_audio_mixer = lowend
 
-device.RG353M.profile.T1213N.best_performance.title = Street Fighter III: 3rd Strike (USA, RG353M validated)
-device.RG353M.profile.T1213N.best_performance.retrorun_flycast_core_variant = upstream_620
-device.RG353M.profile.T1213N.best_performance.reicast_internal_resolution = 640x480
-device.RG353M.profile.T1213N.best_performance.reicast_anisotropic_filtering = off
-device.RG353M.profile.T1213N.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.T1213N.best_performance.retrorun_audio_buffer = 735
-device.RG353M.profile.T1213N.best_performance.retrorun_audio_stable_buffer = true
-device.RG353M.profile.T1213N.best_performance.retrorun_go2_audio_prebuffer_ms = 60
-device.RG353M.profile.T1213N.best_performance.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.T1213N.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.T1213N.best_performance.retrorun_go2_audio_wsola_profile = disabled
-device.RG353M.profile.T1213N.best_performance.retrorun_egl_stencil_bits = 0
-device.RG353M.profile.T1213N.best_performance.reicast_gdrom_fast_loading = enabled
-device.RG353M.profile.T1213N.best_performance.reicast_framerate = normal
-device.RG353M.profile.T1213N.best_performance.reicast_texture_storage_reuse = enabled
-device.RG353M.profile.T1213N.best_performance.reicast_fast_depth = menu_guarded_shadow_safe
-device.RG353M.profile.T1213N.best_performance.reicast_audio_mixer = lowend
+chip.RK3566.profile.T1213N.best_performance.title = Street Fighter III: 3rd Strike (USA, RG353M validated)
+chip.RK3566.profile.T1213N.best_performance.retrorun_flycast_core_variant = upstream_620
+chip.RK3566.profile.T1213N.best_performance.reicast_internal_resolution = 640x480
+chip.RK3566.profile.T1213N.best_performance.reicast_anisotropic_filtering = off
+chip.RK3566.profile.T1213N.best_performance.retrorun_loop_declared_fps = false
+chip.RK3566.profile.T1213N.best_performance.retrorun_audio_buffer = 735
+chip.RK3566.profile.T1213N.best_performance.retrorun_audio_stable_buffer = true
+chip.RK3566.profile.T1213N.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+chip.RK3566.profile.T1213N.best_performance.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.T1213N.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.T1213N.best_performance.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3566.profile.T1213N.best_performance.retrorun_egl_stencil_bits = 0
+chip.RK3566.profile.T1213N.best_performance.reicast_gdrom_fast_loading = enabled
+chip.RK3566.profile.T1213N.best_performance.reicast_framerate = normal
+chip.RK3566.profile.T1213N.best_performance.reicast_texture_storage_reuse = enabled
+chip.RK3566.profile.T1213N.best_performance.reicast_fast_depth = menu_guarded_shadow_safe
+chip.RK3566.profile.T1213N.best_performance.reicast_audio_mixer = lowend
 
-device.RG353M.profile.T1209M.best_performance.title = Street Fighter III: 3rd Strike (Japan, RG353M validated)
-device.RG353M.profile.T1209M.best_performance.retrorun_flycast_core_variant = upstream_620
-device.RG353M.profile.T1209M.best_performance.reicast_internal_resolution = 640x480
-device.RG353M.profile.T1209M.best_performance.reicast_anisotropic_filtering = off
-device.RG353M.profile.T1209M.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.T1209M.best_performance.retrorun_audio_buffer = 735
-device.RG353M.profile.T1209M.best_performance.retrorun_audio_stable_buffer = true
-device.RG353M.profile.T1209M.best_performance.retrorun_go2_audio_prebuffer_ms = 60
-device.RG353M.profile.T1209M.best_performance.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.T1209M.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.T1209M.best_performance.retrorun_go2_audio_wsola_profile = disabled
-device.RG353M.profile.T1209M.best_performance.retrorun_egl_stencil_bits = 0
-device.RG353M.profile.T1209M.best_performance.reicast_gdrom_fast_loading = enabled
-device.RG353M.profile.T1209M.best_performance.reicast_framerate = normal
-device.RG353M.profile.T1209M.best_performance.reicast_texture_storage_reuse = enabled
-device.RG353M.profile.T1209M.best_performance.reicast_fast_depth = menu_guarded_shadow_safe
-device.RG353M.profile.T1209M.best_performance.reicast_audio_mixer = lowend
+chip.RK3566.profile.T1209M.best_performance.title = Street Fighter III: 3rd Strike (Japan, RG353M validated)
+chip.RK3566.profile.T1209M.best_performance.retrorun_flycast_core_variant = upstream_620
+chip.RK3566.profile.T1209M.best_performance.reicast_internal_resolution = 640x480
+chip.RK3566.profile.T1209M.best_performance.reicast_anisotropic_filtering = off
+chip.RK3566.profile.T1209M.best_performance.retrorun_loop_declared_fps = false
+chip.RK3566.profile.T1209M.best_performance.retrorun_audio_buffer = 735
+chip.RK3566.profile.T1209M.best_performance.retrorun_audio_stable_buffer = true
+chip.RK3566.profile.T1209M.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+chip.RK3566.profile.T1209M.best_performance.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.T1209M.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.T1209M.best_performance.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3566.profile.T1209M.best_performance.retrorun_egl_stencil_bits = 0
+chip.RK3566.profile.T1209M.best_performance.reicast_gdrom_fast_loading = enabled
+chip.RK3566.profile.T1209M.best_performance.reicast_framerate = normal
+chip.RK3566.profile.T1209M.best_performance.reicast_texture_storage_reuse = enabled
+chip.RK3566.profile.T1209M.best_performance.reicast_fast_depth = menu_guarded_shadow_safe
+chip.RK3566.profile.T1209M.best_performance.reicast_audio_mixer = lowend
 
 profile.T7005D50.best_validated.title = Street Fighter Alpha 3 (Europe, baseline)
 
@@ -2254,59 +2255,59 @@ profile.HDR-0053.best_validated.retrorun_egl_depth_bits = 24
 profile.HDR-0053.best_validated.retrorun_egl_stencil_bits = 8
 profile.HDR-0053.best_validated.reicast_aica_arm_cycles = 32
 
-device.RG353M.profile.MK-51035.best_performance.title = Crazy Taxi (USA/Europe, RG353M candidate)
-device.RG353M.profile.MK-51035.best_performance.reicast_internal_resolution = 640x480
-device.RG353M.profile.MK-51035.best_performance.reicast_framerate = normal
-device.RG353M.profile.MK-51035.best_performance.reicast_anisotropic_filtering = off
-device.RG353M.profile.MK-51035.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.MK-51035.best_performance.retrorun_audio_buffer = 735
-device.RG353M.profile.MK-51035.best_performance.retrorun_audio_stable_buffer = false
-device.RG353M.profile.MK-51035.best_performance.retrorun_go2_audio_prebuffer_ms = 60
-device.RG353M.profile.MK-51035.best_performance.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.MK-51035.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.MK-51035.best_performance.retrorun_go2_audio_wsola_profile = disabled
-device.RG353M.profile.MK-51035.best_performance.reicast_gdrom_fast_loading = enabled
-device.RG353M.profile.MK-51035.best_performance.reicast_alpha_sorting = per-strip (fast, least accurate)
-device.RG353M.profile.MK-51035.best_performance.reicast_mipmapping = enabled
-device.RG353M.profile.MK-51035.best_performance.reicast_fog = enabled
-device.RG353M.profile.MK-51035.best_performance.reicast_frame_skipping = disabled
-device.RG353M.profile.MK-51035.best_performance.reicast_translucent_strip_merge = disabled
-device.RG353M.profile.MK-51035.best_performance.reicast_texture_storage_reuse = enabled
-device.RG353M.profile.MK-51035.best_performance.reicast_palette_fog_storage_reuse = disabled
-device.RG353M.profile.MK-51035.best_performance.reicast_adjacent_state_elision = disabled
-device.RG353M.profile.MK-51035.best_performance.reicast_fast_depth = disabled
-device.RG353M.profile.MK-51035.best_performance.reicast_audio_mixer = fast
-device.RG353M.profile.MK-51035.best_performance.reicast_opaque_strip_merge = enabled
-device.RG353M.profile.MK-51035.best_performance.retrorun_egl_depth_bits = 24
-device.RG353M.profile.MK-51035.best_performance.retrorun_egl_stencil_bits = 8
-device.RG353M.profile.MK-51035.best_performance.reicast_aica_arm_cycles = 16
+chip.RK3566.profile.MK-51035.best_performance.title = Crazy Taxi (USA/Europe, RG353M candidate)
+chip.RK3566.profile.MK-51035.best_performance.reicast_internal_resolution = 640x480
+chip.RK3566.profile.MK-51035.best_performance.reicast_framerate = normal
+chip.RK3566.profile.MK-51035.best_performance.reicast_anisotropic_filtering = off
+chip.RK3566.profile.MK-51035.best_performance.retrorun_loop_declared_fps = false
+chip.RK3566.profile.MK-51035.best_performance.retrorun_audio_buffer = 735
+chip.RK3566.profile.MK-51035.best_performance.retrorun_audio_stable_buffer = false
+chip.RK3566.profile.MK-51035.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+chip.RK3566.profile.MK-51035.best_performance.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.MK-51035.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.MK-51035.best_performance.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3566.profile.MK-51035.best_performance.reicast_gdrom_fast_loading = enabled
+chip.RK3566.profile.MK-51035.best_performance.reicast_alpha_sorting = per-strip (fast, least accurate)
+chip.RK3566.profile.MK-51035.best_performance.reicast_mipmapping = enabled
+chip.RK3566.profile.MK-51035.best_performance.reicast_fog = enabled
+chip.RK3566.profile.MK-51035.best_performance.reicast_frame_skipping = disabled
+chip.RK3566.profile.MK-51035.best_performance.reicast_translucent_strip_merge = disabled
+chip.RK3566.profile.MK-51035.best_performance.reicast_texture_storage_reuse = enabled
+chip.RK3566.profile.MK-51035.best_performance.reicast_palette_fog_storage_reuse = disabled
+chip.RK3566.profile.MK-51035.best_performance.reicast_adjacent_state_elision = disabled
+chip.RK3566.profile.MK-51035.best_performance.reicast_fast_depth = disabled
+chip.RK3566.profile.MK-51035.best_performance.reicast_audio_mixer = fast
+chip.RK3566.profile.MK-51035.best_performance.reicast_opaque_strip_merge = enabled
+chip.RK3566.profile.MK-51035.best_performance.retrorun_egl_depth_bits = 24
+chip.RK3566.profile.MK-51035.best_performance.retrorun_egl_stencil_bits = 8
+chip.RK3566.profile.MK-51035.best_performance.reicast_aica_arm_cycles = 16
 
-device.RG353M.profile.HDR-0053.best_performance.title = Crazy Taxi (Japan, RG353M candidate)
-device.RG353M.profile.HDR-0053.best_performance.reicast_internal_resolution = 640x480
-device.RG353M.profile.HDR-0053.best_performance.reicast_framerate = normal
-device.RG353M.profile.HDR-0053.best_performance.reicast_anisotropic_filtering = off
-device.RG353M.profile.HDR-0053.best_performance.retrorun_loop_declared_fps = false
-device.RG353M.profile.HDR-0053.best_performance.retrorun_audio_buffer = 735
-device.RG353M.profile.HDR-0053.best_performance.retrorun_audio_stable_buffer = false
-device.RG353M.profile.HDR-0053.best_performance.retrorun_go2_audio_prebuffer_ms = 60
-device.RG353M.profile.HDR-0053.best_performance.retrorun_go2_audio_stretch_percent = 0
-device.RG353M.profile.HDR-0053.best_performance.retrorun_go2_audio_stretch_low_ms = 40
-device.RG353M.profile.HDR-0053.best_performance.retrorun_go2_audio_wsola_profile = disabled
-device.RG353M.profile.HDR-0053.best_performance.reicast_gdrom_fast_loading = enabled
-device.RG353M.profile.HDR-0053.best_performance.reicast_alpha_sorting = per-strip (fast, least accurate)
-device.RG353M.profile.HDR-0053.best_performance.reicast_mipmapping = enabled
-device.RG353M.profile.HDR-0053.best_performance.reicast_fog = enabled
-device.RG353M.profile.HDR-0053.best_performance.reicast_frame_skipping = disabled
-device.RG353M.profile.HDR-0053.best_performance.reicast_translucent_strip_merge = disabled
-device.RG353M.profile.HDR-0053.best_performance.reicast_texture_storage_reuse = enabled
-device.RG353M.profile.HDR-0053.best_performance.reicast_palette_fog_storage_reuse = disabled
-device.RG353M.profile.HDR-0053.best_performance.reicast_adjacent_state_elision = disabled
-device.RG353M.profile.HDR-0053.best_performance.reicast_fast_depth = disabled
-device.RG353M.profile.HDR-0053.best_performance.reicast_audio_mixer = fast
-device.RG353M.profile.HDR-0053.best_performance.reicast_opaque_strip_merge = enabled
-device.RG353M.profile.HDR-0053.best_performance.retrorun_egl_depth_bits = 24
-device.RG353M.profile.HDR-0053.best_performance.retrorun_egl_stencil_bits = 8
-device.RG353M.profile.HDR-0053.best_performance.reicast_aica_arm_cycles = 16
+chip.RK3566.profile.HDR-0053.best_performance.title = Crazy Taxi (Japan, RG353M candidate)
+chip.RK3566.profile.HDR-0053.best_performance.reicast_internal_resolution = 640x480
+chip.RK3566.profile.HDR-0053.best_performance.reicast_framerate = normal
+chip.RK3566.profile.HDR-0053.best_performance.reicast_anisotropic_filtering = off
+chip.RK3566.profile.HDR-0053.best_performance.retrorun_loop_declared_fps = false
+chip.RK3566.profile.HDR-0053.best_performance.retrorun_audio_buffer = 735
+chip.RK3566.profile.HDR-0053.best_performance.retrorun_audio_stable_buffer = false
+chip.RK3566.profile.HDR-0053.best_performance.retrorun_go2_audio_prebuffer_ms = 60
+chip.RK3566.profile.HDR-0053.best_performance.retrorun_go2_audio_stretch_percent = 0
+chip.RK3566.profile.HDR-0053.best_performance.retrorun_go2_audio_stretch_low_ms = 40
+chip.RK3566.profile.HDR-0053.best_performance.retrorun_go2_audio_wsola_profile = disabled
+chip.RK3566.profile.HDR-0053.best_performance.reicast_gdrom_fast_loading = enabled
+chip.RK3566.profile.HDR-0053.best_performance.reicast_alpha_sorting = per-strip (fast, least accurate)
+chip.RK3566.profile.HDR-0053.best_performance.reicast_mipmapping = enabled
+chip.RK3566.profile.HDR-0053.best_performance.reicast_fog = enabled
+chip.RK3566.profile.HDR-0053.best_performance.reicast_frame_skipping = disabled
+chip.RK3566.profile.HDR-0053.best_performance.reicast_translucent_strip_merge = disabled
+chip.RK3566.profile.HDR-0053.best_performance.reicast_texture_storage_reuse = enabled
+chip.RK3566.profile.HDR-0053.best_performance.reicast_palette_fog_storage_reuse = disabled
+chip.RK3566.profile.HDR-0053.best_performance.reicast_adjacent_state_elision = disabled
+chip.RK3566.profile.HDR-0053.best_performance.reicast_fast_depth = disabled
+chip.RK3566.profile.HDR-0053.best_performance.reicast_audio_mixer = fast
+chip.RK3566.profile.HDR-0053.best_performance.reicast_opaque_strip_merge = enabled
+chip.RK3566.profile.HDR-0053.best_performance.retrorun_egl_depth_bits = 24
+chip.RK3566.profile.HDR-0053.best_performance.retrorun_egl_stencil_bits = 8
+chip.RK3566.profile.HDR-0053.best_performance.reicast_aica_arm_cycles = 16
 )catalog";
 
 struct RawProfile
@@ -2442,6 +2443,27 @@ bool splitDeviceProfileKey(const std::string &key, std::string &device,
     return splitProfileKey(profileKey, product, mode, field);
 }
 
+bool splitChipProfileKey(const std::string &key, std::string &chip,
+                         std::string &product, std::string &mode,
+                         std::string &field)
+{
+    constexpr const char *prefix = "chip.";
+    constexpr const char *profileMarker = ".profile.";
+    if (key.compare(0, std::char_traits<char>::length(prefix), prefix) != 0)
+        return false;
+
+    const std::size_t chipStart = std::char_traits<char>::length(prefix);
+    const std::size_t chipEnd = key.find(profileMarker, chipStart);
+    if (chipEnd == std::string::npos || chipEnd == chipStart)
+        return false;
+
+    chip = key.substr(chipStart, chipEnd - chipStart);
+    const std::string profileKey =
+        "profile." + key.substr(chipEnd +
+            std::char_traits<char>::length(profileMarker));
+    return splitProfileKey(profileKey, product, mode, field);
+}
+
 bool validTextValue(const std::string &value, std::size_t maximum)
 {
     if (value.empty() || value.size() > maximum)
@@ -2509,15 +2531,17 @@ bool resolveProfile(const std::string &product, Mode mode,
     return true;
 }
 
-using DeviceProfileIdentity = std::tuple<std::string, std::string, Mode>;
+using ScopedProfileIdentity = std::tuple<std::string, std::string, Mode>;
 
-bool resolveDeviceProfile(
-    const std::string &device, const std::string &product, Mode mode,
-    const std::map<DeviceProfileIdentity, RawProfile> &raw,
+bool resolveScopedProfile(
+    const std::string &scopeKind, const std::string &scope,
+    const std::string &product, Mode mode,
+    const std::map<ScopedProfileIdentity, RawProfile> &raw,
+    const std::map<std::string, std::map<Mode, Profile>> *preferredBase,
     const std::map<std::string, std::map<Mode, Profile>> &globalProfiles,
     Profile &profile, std::vector<std::string> &diagnostics)
 {
-    const auto found = raw.find({device, product, mode});
+    const auto found = raw.find({scope, product, mode});
     if (found == raw.end())
         return false;
 
@@ -2531,41 +2555,48 @@ bool resolveDeviceProfile(
         const Mode inheritedMode = parseMode(record.inheritance);
         if (mode != Mode::BestPerformance ||
             inheritedMode != Mode::BestValidated ||
-            !resolveDeviceProfile(device, product, inheritedMode, raw,
-                                  globalProfiles, profile, diagnostics))
+            !resolveScopedProfile(scopeKind, scope, product, inheritedMode,
+                                  raw, preferredBase, globalProfiles,
+                                  profile, diagnostics))
         {
             diagnostics.push_back(
-                "device." + device + ".profile." + product + "." +
+                scopeKind + "." + scope + ".profile." + product + "." +
                 modeName(mode) +
-                ": only best_performance may inherit an existing device best_validated profile");
+                ": only best_performance may inherit an existing scoped best_validated profile");
             return false;
         }
         profile.mode = mode;
     }
     else
     {
-        const auto globalProduct = globalProfiles.find(product);
-        if (globalProduct == globalProfiles.end())
+        const Profile *base = nullptr;
+        const auto findBase = [&base, &product, mode](
+            const std::map<std::string, std::map<Mode, Profile>> &profiles)
+        {
+            const auto foundProduct = profiles.find(product);
+            if (foundProduct == profiles.end())
+                return;
+            auto foundMode = foundProduct->second.find(mode);
+            if (foundMode == foundProduct->second.end() &&
+                mode == Mode::BestPerformance)
+                foundMode = foundProduct->second.find(Mode::BestValidated);
+            if (foundMode != foundProduct->second.end())
+                base = &foundMode->second;
+        };
+        if (preferredBase)
+            findBase(*preferredBase);
+        if (!base)
+            findBase(globalProfiles);
+        if (!base)
         {
             diagnostics.push_back(
-                "device." + device + ".profile." + product +
-                ": missing global product profile");
+                scopeKind + "." + scope + ".profile." + product +
+                ": missing base product profile");
             return false;
         }
-        auto globalMode = globalProduct->second.find(mode);
-        if (globalMode == globalProduct->second.end() &&
-            mode == Mode::BestPerformance)
-            globalMode = globalProduct->second.find(Mode::BestValidated);
-        if (globalMode == globalProduct->second.end())
-        {
-            diagnostics.push_back(
-                "device." + device + ".profile." + product + "." +
-                modeName(mode) + ": missing global base profile");
-            return false;
-        }
-        profile.settings = globalMode->second.settings;
-        profile.title = globalMode->second.title;
-        profile.validated = globalMode->second.validated;
+        profile.settings = base->settings;
+        profile.title = base->title;
+        profile.validated = base->validated;
     }
 
     if (!record.title.empty())
@@ -2620,6 +2651,86 @@ std::string normalizeDeviceName(const std::string &device_name)
     return normalizeProductNumber(device_name);
 }
 
+std::string normalizeChipName(const std::string &chip_name)
+{
+    return normalizeProductNumber(chip_name);
+}
+
+std::string chipForDeviceName(const std::string &device_name)
+{
+    static const std::map<std::string, std::string> deviceChips = {
+        {"RK3326", "RK3326"},
+        {"RK3399", "RK3399"},
+        {"RK3566", "RK3566"},
+        {"RG351P", "RK3326"},
+        {"RG351M", "RK3326"},
+        {"RG351V", "RK3326"},
+        {"RG351MP", "RK3326"},
+        {"RGB20S", "RK3326"},
+        {"XU10", "RK3326"},
+        {"R35S", "RK3326"},
+        {"RG552", "RK3399"},
+        {"RG503", "RK3566"},
+        {"RG353P", "RK3566"},
+        {"RG353PS", "RK3566"},
+        {"RG353V", "RK3566"},
+        {"RG353VS", "RK3566"},
+        {"RG353M", "RK3566"},
+        {"MINILOONGPOCKET1", "RK3566"},
+    };
+
+    const auto found = deviceChips.find(normalizeDeviceName(device_name));
+    return found == deviceChips.end() ? std::string() : found->second;
+}
+
+std::string chipFromDeviceTreeCompatible(const std::string &compatible_data)
+{
+    std::size_t begin = 0;
+    while (begin < compatible_data.size())
+    {
+        std::size_t end = compatible_data.find('\0', begin);
+        if (end == std::string::npos)
+            end = compatible_data.size();
+        const std::string compatible = normalizeChipName(
+            compatible_data.substr(begin, end - begin));
+        if (compatible == "ROCKCHIP,RK3326")
+            return "RK3326";
+        if (compatible == "ROCKCHIP,RK3399")
+            return "RK3399";
+        if (compatible == "ROCKCHIP,RK3566")
+            return "RK3566";
+        begin = end + 1;
+    }
+    return {};
+}
+
+std::string detectDeviceChip(const std::string &device_name)
+{
+    const std::string mapped = chipForDeviceName(device_name);
+    if (!mapped.empty())
+        return mapped;
+
+#ifdef __linux__
+    static const char *compatiblePaths[] = {
+        "/proc/device-tree/compatible",
+        "/sys/firmware/devicetree/base/compatible",
+    };
+    for (const char *path : compatiblePaths)
+    {
+        std::ifstream input(path, std::ios::binary);
+        if (!input.good())
+            continue;
+        const std::string data(
+            std::istreambuf_iterator<char>(input),
+            std::istreambuf_iterator<char>());
+        const std::string detected = chipFromDeviceTreeCompatible(data);
+        if (!detected.empty())
+            return detected;
+    }
+#endif
+    return {};
+}
+
 bool parseCatalog(std::istream &input, const std::string &source,
                   Catalog &catalog, std::vector<std::string> &diagnostics)
 {
@@ -2655,7 +2766,8 @@ bool parseCatalog(std::istream &input, const std::string &source,
 
     std::map<std::string, std::string> defaults;
     std::map<std::pair<std::string, Mode>, RawProfile> rawProfiles;
-    std::map<DeviceProfileIdentity, RawProfile> rawDeviceProfiles;
+    std::map<ScopedProfileIdentity, RawProfile> rawChipProfiles;
+    std::map<ScopedProfileIdentity, RawProfile> rawDeviceProfiles;
     for (const auto &[key, value] : document.values)
     {
         if (key == "schema_version" || key == "catalog_version")
@@ -2679,12 +2791,15 @@ bool parseCatalog(std::istream &input, const std::string &source,
         }
 
         std::string device;
+        std::string chip;
         std::string product;
         std::string modeText;
         std::string field;
         const bool deviceScoped =
             splitDeviceProfileKey(key, device, product, modeText, field);
-        if (!deviceScoped &&
+        const bool chipScoped = !deviceScoped &&
+            splitChipProfileKey(key, chip, product, modeText, field);
+        if (!deviceScoped && !chipScoped &&
             !splitProfileKey(key, product, modeText, field))
         {
             diagnostics.push_back("unknown catalog key '" + key + "'");
@@ -2707,6 +2822,22 @@ bool parseCatalog(std::istream &input, const std::string &source,
                 continue;
             }
         }
+        else if (chipScoped)
+        {
+            const std::string normalizedChip = normalizeChipName(chip);
+            if (catalog.schema_version < 3)
+            {
+                diagnostics.push_back(
+                    "chip profiles require schema_version 3");
+                continue;
+            }
+            if (normalizedChip != chip || normalizedChip.empty())
+            {
+                diagnostics.push_back("chip key '" + chip +
+                                      "' is not normalized");
+                continue;
+            }
+        }
 
         const std::string normalizedProduct = normalizeProductNumber(product);
         const Mode mode = parseMode(modeText);
@@ -2722,21 +2853,25 @@ bool parseCatalog(std::istream &input, const std::string &source,
             continue;
         }
 
-        RawProfile &profile = deviceScoped
-            ? rawDeviceProfiles[{device, product, mode}]
-            : rawProfiles[{product, mode}];
-        profile.mode = mode;
+        RawProfile *profile = nullptr;
+        if (deviceScoped)
+            profile = &rawDeviceProfiles[{device, product, mode}];
+        else if (chipScoped)
+            profile = &rawChipProfiles[{chip, product, mode}];
+        else
+            profile = &rawProfiles[{product, mode}];
+        profile->mode = mode;
         if (field == "title")
         {
             if (!validTextValue(value, 128))
                 diagnostics.push_back("invalid title for product '" +
                                       product + "'");
             else
-                profile.title = value;
+                profile->title = value;
         }
         else if (field == "inherits")
         {
-            profile.inheritance = value;
+            profile->inheritance = value;
         }
         else if (allowedSettings().find(field) == allowedSettings().end())
         {
@@ -2750,7 +2885,7 @@ bool parseCatalog(std::istream &input, const std::string &source,
         }
         else
         {
-            profile.settings[field] = value;
+            profile->settings[field] = value;
         }
     }
 
@@ -2787,12 +2922,30 @@ bool parseCatalog(std::istream &input, const std::string &source,
             std::move(profile);
     }
 
+    for (const auto &[identity, raw] : rawChipProfiles)
+    {
+        (void)raw;
+        const auto &[chip, product, mode] = identity;
+        Profile profile;
+        if (!resolveScopedProfile("chip", chip, product, mode,
+                                  rawChipProfiles, nullptr, catalog.profiles,
+                                  profile, diagnostics))
+            continue;
+        catalog.chip_profiles[chip][product][mode] = std::move(profile);
+    }
+
     for (const auto &[identity, raw] : rawDeviceProfiles)
     {
         (void)raw;
         const auto &[device, product, mode] = identity;
+        const std::string chip = chipForDeviceName(device);
+        const auto chipProfiles = catalog.chip_profiles.find(chip);
+        const std::map<std::string, std::map<Mode, Profile>> *chipBase =
+            chipProfiles == catalog.chip_profiles.end()
+                ? nullptr : &chipProfiles->second;
         Profile profile;
-        if (!resolveDeviceProfile(device, product, mode, rawDeviceProfiles,
+        if (!resolveScopedProfile("device", device, product, mode,
+                                  rawDeviceProfiles, chipBase,
                                   catalog.profiles, profile, diagnostics))
             continue;
         catalog.device_profiles[device][product][mode] = std::move(profile);
@@ -2858,7 +3011,8 @@ std::string cachedCatalogPath(const std::string &active_config_file)
 
 bool selectProfile(const Catalog &catalog, const std::string &product_number,
                    Mode mode, Profile &profile, bool &used_fallback,
-                   const std::string &device_name)
+                   const std::string &device_name,
+                   const std::string &chip_name)
 {
     used_fallback = false;
     profile = {};
@@ -2867,51 +3021,46 @@ bool selectProfile(const Catalog &catalog, const std::string &product_number,
 
     const std::string normalized = normalizeProductNumber(product_number);
     const std::string normalizedDevice = normalizeDeviceName(device_name);
+    const std::string mappedChip = chipForDeviceName(normalizedDevice);
+    const std::string normalizedChip = !mappedChip.empty()
+        ? mappedChip : normalizeChipName(chip_name);
+
+    const auto selectFromProducts =
+        [&normalized, mode, &profile, &used_fallback](
+            const std::map<std::string, std::map<Mode, Profile>> &products)
+    {
+        const auto product = products.find(normalized);
+        if (product == products.end())
+            return false;
+
+        auto selected = product->second.find(mode);
+        if (selected == product->second.end() &&
+            mode == Mode::BestPerformance)
+        {
+            selected = product->second.find(Mode::BestValidated);
+            used_fallback = selected != product->second.end();
+        }
+        if (selected == product->second.end() || !selected->second.validated)
+        {
+            used_fallback = false;
+            return false;
+        }
+
+        profile = selected->second;
+        return true;
+    };
 
     const auto device = catalog.device_profiles.find(normalizedDevice);
-    if (device != catalog.device_profiles.end())
-    {
-        const auto deviceProduct = device->second.find(normalized);
-        if (deviceProduct != device->second.end())
-        {
-            auto selected = deviceProduct->second.find(mode);
-            if (selected == deviceProduct->second.end() &&
-                mode == Mode::BestPerformance)
-            {
-                selected =
-                    deviceProduct->second.find(Mode::BestValidated);
-                used_fallback =
-                    selected != deviceProduct->second.end();
-            }
-            if (selected != deviceProduct->second.end() &&
-                selected->second.validated)
-            {
-                profile = selected->second;
-                return true;
-            }
-            used_fallback = false;
-        }
-    }
+    if (device != catalog.device_profiles.end() &&
+        selectFromProducts(device->second))
+        return true;
 
-    const auto product = catalog.profiles.find(normalized);
-    if (product == catalog.profiles.end())
-        return false;
+    const auto chip = catalog.chip_profiles.find(normalizedChip);
+    if (chip != catalog.chip_profiles.end() &&
+        selectFromProducts(chip->second))
+        return true;
 
-    auto selected = product->second.find(mode);
-    if (selected == product->second.end() &&
-        mode == Mode::BestPerformance)
-    {
-        selected = product->second.find(Mode::BestValidated);
-        used_fallback = selected != product->second.end();
-    }
-    if (selected == product->second.end() || !selected->second.validated)
-    {
-        used_fallback = false;
-        return false;
-    }
-
-    profile = selected->second;
-    return true;
+    return selectFromProducts(catalog.profiles);
 }
 
 std::map<std::string, Profile> validatedCatalogProfiles(
@@ -2932,6 +3081,12 @@ std::map<std::string, Profile> validatedCatalogProfiles(
 
     for (const auto &[product, profiles] : catalog.profiles)
         addProduct(product, profiles);
+    for (const auto &[chip, products] : catalog.chip_profiles)
+    {
+        (void)chip;
+        for (const auto &[product, profiles] : products)
+            addProduct(product, profiles);
+    }
     for (const auto &[device, products] : catalog.device_profiles)
     {
         (void)device;

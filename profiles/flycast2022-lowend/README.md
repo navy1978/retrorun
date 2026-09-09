@@ -1,17 +1,37 @@
-# Flycast 2022 Low-End RK3326 profiles
+# Flycast 2022 Low-End game profiles
 
 These files preserve the per-game RetroRun configurations used during the
-RG351V and RG351MP Flycast 2022 Low-End investigations. They are snapshots of
-tested or retained profiles, not global defaults.
+RG351, RG353 and RG552 Flycast 2022 Low-End investigations. They are snapshots
+of tested or retained profiles, not unconditional global defaults.
 
 See [GAME_PROFILE_MODES.md](GAME_PROFILE_MODES.md) for the implemented
 `disabled`, `best_validated` and `best_performance` selection modes and the
 current per-game differences.
 
 `flycast-game-catalog.ini` is the editable source form of catalog version
-`20260926`. The same data is built into RetroRun, so the feature works when
+`20260927`. The same data is built into RetroRun, so the feature works when
 distributions install only the executable. A copy beside RetroRun is used only
 when its `catalog_version` is greater than the built-in version.
+
+`catalog_version` is a monotonically increasing revision identifier, not a
+literal release date. The previous assigned revision was `20260926`, so this
+revision is `20260927` even though it was produced on 2026-09-09; decreasing it
+to the calendar date would make the updater reject it as older.
+
+Schema 3 resolves a profile as `global → chip → device`, with the most
+specific value winning option by option. Current chip families are:
+
+- RK3326: RG351P, RG351M, RG351V, RG351MP, RGB20S, XU10 and R35S; the shared
+  profiles were validated on RG351MP.
+- RK3399: RG552; the shared profiles were validated on RG552.
+- RK3566: RG503, RG353P, RG353PS, RG353V, RG353VS and RG353M; the shared
+  profiles were validated on RG353M.
+
+RetroRun first maps the device name obtained through its existing detection
+chain. Only when that name is unknown does it read the NUL-separated Device
+Tree `compatible` property from `/proc/device-tree/compatible`, with the sysfs
+mirror as a fallback. A future `device.<MODEL>.profile...` record remains a
+sparse final override over its chip profile.
 
 When `retrorun_flycast_catalog_update = auto`, RetroRun also checks the
 repository copy at most once per day without blocking game startup. A newer
@@ -22,34 +42,36 @@ configuration file, and considered from the next launch.
 Catalog version `20260905` separates title metadata from profiles that were
 actually validated. Title-only baseline entries remain useful for tracking
 retail Product numbers, but are neither selectable nor shown in RetroRun's
-`Catalog` menu and leave the active `retrorun.cfg` untouched. A validated
-device override may still use the correctness-first baseline as its explicit
-starting point. Unknown Product numbers behave the same way.
+`Catalog` menu and leave the active `retrorun.cfg` untouched. A validated chip
+or device override may still use the correctness-first baseline as its
+explicit starting point. Unknown Product numbers behave the same way.
 
 The filename includes the Dreamcast product number printed by Flycast at boot.
 Select profiles by product number rather than by ROM filename:
 
-RG353M profiles that passed validation with the experimental upstream
-`62085539` dynarec request `retrorun_flycast_core_variant = upstream_620`.
+RK3566 profiles that passed validation on RG353M with the experimental
+upstream `62085539` dynarec request
+`retrorun_flycast_core_variant = upstream_620`.
 RetroRun then restarts once, before loading content, with
 `flycast_upstream_620_libretro.so` beside the originally requested core. An
 explicit `retrorun_flycast_upstream_620_core` path may be configured instead.
 If that file is absent, RetroRun logs the condition and safely retains the
-normal core. RG351-class profiles retain the normal core except for explicitly
-device-validated overrides such as Street Fighter III on RG351MP.
+normal core. Profiles validated on RG351MP now apply to the complete RK3326
+family, including the Street Fighter III `upstream_620` selection.
 
 The same mechanism supports the separately built `48acb03b` snapshot through
 `retrorun_flycast_core_variant = upstream_48ac`. RetroRun looks for
 `flycast_upstream_48ac_libretro.so` beside the requested core, or uses the
 explicit `retrorun_flycast_upstream_48ac_core` path. This variant is selected
-only by device/game profiles that have passed performance, audio and visual
-validation; merely installing the alternate core does not change the default.
+only by chip/game or device/game profiles that have passed performance, audio
+and visual validation; merely installing the alternate core does not change
+the default.
 
 | Product number | Game | Status |
 | --- | --- | --- |
 | `MK-51117`, `HDR-0165` | Sonic Adventure 2 | Retail European/North American and Japanese variants. `best_performance` adds opaque-strip merging and the validated `lowend_stable_96` GO2 audio preset. A fixed 300-frame RG351V comparison presented 299 frames in both modes while the preset improved throughput from 33.47 to 36.29 FPS and reduced audio underruns from 19 to 2. Shadows, menus, audio and gameplay were manually approved. |
 | `RDC-0140`, `RDC-0149`, `T8116D 50`, `T3602M`, `T3601M`, `T3601N` | Dead or Alive 2 | Observed CDI images plus the Redump retail regional variants. RG353M requires the accurate mixer and 32 ARM7 AICA cycles: 8 cycles dropped impact effects, while 16 cycles restored them but was slower. The current core measured about 48.4 FPS on the fixed state. The experimental `48acb03b` core reached 49.6-54.6 FPS but remained audio-starved in heavy scenes (up to 109 underruns per 12 seconds); it is therefore not selected for this game. |
-| `T1401D  50`, `T1401M`, `T1401N` | Soul Calibur | European, Japanese and North American retail variants. The generic and RG353M profiles retain `framerate=normal` with disabled frontend pacing. RG552 instead has a complete device-scoped `best_validated` profile matching the clean same-binary A/B: 640x480 per-strip threaded rendering, the frontend video worker, accurate audio with a 735-frame buffer and no WSOLA, and the selectable no-drop render queue. It reached 59.941 presented FPS in the 60-second stability run with complete graphics, correct audio and no underruns; `best_performance` falls back to that same validated profile. Other games and devices do not enable the queue policy. |
+| `T1401D  50`, `T1401M`, `T1401N` | Soul Calibur | European, Japanese and North American retail variants. The generic and RK3566 profiles retain `framerate=normal` with disabled frontend pacing. RK3399 has the complete `best_validated` profile validated on RG552: 640x480 per-strip threaded rendering, the frontend video worker, accurate audio with a 735-frame buffer and no WSOLA, and the selectable no-drop render queue. It reached 59.941 presented FPS in the 60-second stability run with complete graphics, correct audio and no underruns; `best_performance` falls back to that same validated profile. Other games and chips do not enable this queue policy unless explicitly catalogued. |
 | `MK-51035`, `HDR-0053` | Crazy Taxi | European/North American and Japanese retail variants. Accurate control profile. No experimental performance candidate produced a repeatable useful gain. |
 | `T38706M` | Ikaruga | Japanese retail release. Adaptive v9 profile with accurate per-triangle alpha sorting; manual RG351V review confirmed that it removes the ship rectangles while preserving excellent gameplay. |
 | `T1212N`, `T7010D 50`, `T1215M` | Marvel vs. Capcom 2 | North American, European and Japanese retail variants. The approved v28/v9 adaptive profile uses per-triangle alpha sorting to correct the 2D fighter sprites. On the fixed 600-frame USA save state it measured 49.1 FPS, 300 presented frames and zero audio underruns; the faster inaccurate sorter reached 52.1 FPS but visibly corrupted sprites. |
@@ -58,12 +80,12 @@ validation; merely installing the alternate core does not change the default.
 | `T1215N` | Cannon Spike | The North American retail image was validated on RG351MP/dArkOS from a fixed gameplay savestate. Opaque-strip merging averaged 38.00 presented frames/s versus 33.56 for the conservative baseline (+13.2%), with every frame presented and no audio faults. Fast depth was faster but rejected because it produced obvious graphical artifacts. `best_performance` falls back to the visually approved opaque-only profile. |
 | `MK-51037` | Daytona USA 2001 / Daytona USA | The North American retail image was validated on RG351MP/dArkOS from a fixed race savestate. Per-strip alpha sorting plus opaque-strip merging averaged 23.75 presented frames/s versus 16.20 for the conservative baseline (+46.6%), reduced active-frame p95 from 89.27 to 58.52 ms and recorded no skipped frames or audio faults. Both the sorter and final combination passed manual race review. `best_performance` falls back to this validated profile. |
 | `MK-5118450` | Shenmue II (Europe) | The European retail image was tested on RG351MP/dArkOS from fixed 3D savestates. Per-strip alpha plus `vertex_fast_log` improved the original 300-frame screen from 14.85 to 19.00 presented frames/s (+27.9%) and reduced active-frame p95 from 91.40 to 54.43 ms; graphics passed manual review. On a later, heavier state with CPU, GPU and DMC governors at `performance`, the `lowend_heavy_100` profile and a 4096-frame buffer reduced the three-run median from 10 to 4 audio underruns and queue-low observations from 98 to 11 versus the 55% WSOLA reference, while retaining 100% playback speed and essentially unchanged throughput (17.38 versus 17.39 frames/s). Adaptive core frameskip reduced underruns to 2 but was rejected because it presented only 160 of 300 frames; direct scanout was unavailable and its fallback was slower. Pinning the OpenAL and frontend audio workers to a reserved fourth CPU raised throughput to 18.48 frames/s but increased median underruns from 4 to 15 and introduced 172 backpressure events, so single-thread audio remains selected. Occasional gaps in the heaviest scene remain a documented RK3326 limitation. Japanese `HDR-0164` and `HDR-0179` releases remain conservative baselines until tested. |
-| `T7013D50`, `T1213N`, `T1209M` | Street Fighter III: 3rd Strike | The European, North American and Japanese retail releases use distinct catalog records with the same RG351MP-validated settings. On a fixed USA fight savestate, accurate per-triangle alpha, `vertex_fast_log` depth and opaque-strip merging reached a three-run median of 47.76 FPS versus 44.39 (+7.58%), reduced active-frame p95 from 43.63 to 41.43 ms and recorded no audio underruns or empty queues. The inaccurate per-strip sorter was slower and visually unsafe. A later three-run RG351MP comparison measured 58.05 FPS with the upstream `62085539` core versus 46.73 with the current core (+24.2%); characters, backgrounds, animation, controls and audio passed manual review. The RG351MP `best_performance` override therefore selects `upstream_620`, while other RG351 devices retain the current core until tested. |
-| `MK-51019`, `HDR-0010` | Sega Rally 2 | European/North American and Japanese retail variants. The RG353M-specific `best_performance` profile uses the current low-end core with the validated WinCE MMU address LUT, shared block checks, PR=1 FPU-transfer compilation and corrected upstream AICA low-pass filter. It preserves the visually approved 640x480 renderer and accurate mixer, uses 110 MHz legacy SH4 timing, a stable 1470-frame buffer and the 10% `lowend_stable_96` GO2 stretch path. The final fixed eight-second run measured 26.62 presented FPS and two underruns; the same build without the LPF correction measured 26.63 FPS and two underruns. Audio and gameplay were manually approved as almost perfect. The faster `upstream_48ac` snapshot was rejected because it produced 71 underruns and audibly worse audio despite reaching 40.81 FPS. On RG552, both variants use the manually approved `best_validated` no-WSOLA configuration with the single deployed Low-End B0 (`838b83b64`) and explicitly enable the frontend video worker; no alternate core is requested, and `best_performance` falls back to this profile. |
-| `MK-51000` | Sonic Adventure | The European/North American retail Product number has an RG353M-specific `best_performance` profile. On the fixed gameplay state it reached 27.96 FPS versus 25.59 for the dArkOS stock stack (+9.3%), improved active-frame p95 from 69.22 to 64.11 ms and recorded no skipped frames, audio underruns or empty queues; stock recorded two underruns and two empty queues. Graphics, audio and gameplay were manually approved. Japanese `HDR-0001` and `HDR-0043` remain conservative baselines until tested. |
-| `T36801D61`, `T36801D64`, `T1201M`, `T1201N` | Power Stone | Regional releases remain title-only except for device-specific profiles. The RG552 `T1201N` profile enables the manually approved no-drop queue over the safe inherited renderer and improved the fixed combat state from 45.812 to 59.958 presented FPS (+30.9%). |
-| `T36812D61`, `T36812D64`, `T1218M`, `T1211N` | Power Stone 2 | The RG353M-specific profile was measured on the North American release from a fixed combat state and associated with all known retail regional Product numbers. Accurate per-triangle alpha reached 58.96 FPS versus 56.17 for the dArkOS stock stack (+5.0%), presented every frame and recorded no audio faults. The per-strip candidate reached only 0.13 FPS more, so it was rejected in favour of the safer renderer. Fast depth, AICA 8 and additional state reuse were all slower. Graphics, HUD, audio and gameplay were manually approved. On RG552, the tested North American `T1211N` release enables no-drop over the inherited safe profile and reached 59.942 FPS versus 54.466. |
-| `MK-51002`, `MK-5100250`, `MK-55045`, `HDR-0007`, `HDR-0011` | The House of the Dead 2 | Untested variants remain title-only. The observed European `MK-5100250` release has an RG552 profile combining no-drop with the 2048-frame stable `lowend_stable_96` audio bundle; the captured fixed-state candidate reached 52.787 FPS with zero underruns, and graphics, audio and lightgun input were manually approved. |
+| `T7013D50`, `T1213N`, `T1209M` | Street Fighter III: 3rd Strike | The European, North American and Japanese retail releases use distinct catalog records with the same RG351MP-validated settings. On a fixed USA fight savestate, accurate per-triangle alpha, `vertex_fast_log` depth and opaque-strip merging reached a three-run median of 47.76 FPS versus 44.39 (+7.58%), reduced active-frame p95 from 43.63 to 41.43 ms and recorded no audio underruns or empty queues. The inaccurate per-strip sorter was slower and visually unsafe. A later three-run RG351MP comparison measured 58.05 FPS with the upstream `62085539` core versus 46.73 with the current core (+24.2%); characters, backgrounds, animation, controls and audio passed manual review. The shared RK3326 `best_performance` profile therefore selects `upstream_620` on every mapped RK3326 device. |
+| `MK-51019`, `HDR-0010` | Sega Rally 2 | European/North American and Japanese retail variants. The RK3566 `best_performance` profile, validated on RG353M, uses the current low-end core with the validated WinCE MMU address LUT, shared block checks, PR=1 FPU-transfer compilation and corrected upstream AICA low-pass filter. It preserves the visually approved 640x480 renderer and accurate mixer, uses 110 MHz legacy SH4 timing, a stable 1470-frame buffer and the 10% `lowend_stable_96` GO2 stretch path. The final fixed eight-second run measured 26.62 presented FPS and two underruns; the same build without the LPF correction measured 26.63 FPS and two underruns. Audio and gameplay were manually approved as almost perfect. The faster `upstream_48ac` snapshot was rejected because it produced 71 underruns and audibly worse audio despite reaching 40.81 FPS. On RK3399, both variants use the manually approved RG552 `best_validated` no-WSOLA configuration with the single deployed Low-End B0 (`838b83b64`) and explicitly enable the frontend video worker; no alternate core is requested, and `best_performance` falls back to this profile. |
+| `MK-51000` | Sonic Adventure | The European/North American retail Product number has an RK3566 `best_performance` profile validated on RG353M. On the fixed gameplay state it reached 27.96 FPS versus 25.59 for the dArkOS stock stack (+9.3%), improved active-frame p95 from 69.22 to 64.11 ms and recorded no skipped frames, audio underruns or empty queues; stock recorded two underruns and two empty queues. Graphics, audio and gameplay were manually approved. Japanese `HDR-0001` and `HDR-0043` remain conservative baselines until tested. |
+| `T36801D61`, `T36801D64`, `T1201M`, `T1201N` | Power Stone | Regional releases remain title-only except for chip-specific profiles. The RK3399 `T1201N` profile validated on RG552 enables the manually approved no-drop queue over the safe inherited renderer and improved the fixed combat state from 45.812 to 59.958 presented FPS (+30.9%). |
+| `T36812D61`, `T36812D64`, `T1218M`, `T1211N` | Power Stone 2 | The RK3566 profile was measured on RG353M with the North American release and associated with all known retail regional Product numbers. Accurate per-triangle alpha reached 58.96 FPS versus 56.17 for the dArkOS stock stack (+5.0%), presented every frame and recorded no audio faults. The per-strip candidate reached only 0.13 FPS more, so it was rejected in favour of the safer renderer. Fast depth, AICA 8 and additional state reuse were all slower. Graphics, HUD, audio and gameplay were manually approved. On RK3399, the tested North American `T1211N` release enables no-drop over the inherited safe profile and reached 59.942 FPS versus 54.466 on RG552. |
+| `MK-51002`, `MK-5100250`, `MK-55045`, `HDR-0007`, `HDR-0011` | The House of the Dead 2 | Untested variants remain title-only. The observed European `MK-5100250` release has an RK3399 profile, validated on RG552, combining no-drop with the 2048-frame stable `lowend_stable_96` audio bundle; the captured fixed-state candidate reached 52.787 FPS with zero underruns, and graphics, audio and lightgun input were manually approved. |
 
 Catalog `20260902` added device-scoped RG353M profiles for `T1215N` (Cannon
 Spike), `MK-51037` (Daytona USA 2001), `MK-5100250` (the observed European
@@ -197,6 +219,15 @@ reached 52.787 FPS with zero underruns. Graphics, HUD, audio and controls (or
 lightgun input for House of the Dead 2) were approved from immutable fixed
 states. The overrides remain limited to the exact retail Product numbers and
 to RG552; untested regional variants stay title-only.
+
+Catalog `20260927` introduces schema 3 and migrates the three validated device
+catalogs to SoC scopes. RG351MP results now form the RK3326 catalog, RG353M
+results the RK3566 catalog, and RG552 results the RK3399 catalog. Every mapped
+device on the same chip reuses those settings; a sparse device-specific record
+can still override individual values last. Model mapping takes precedence, and
+only an unknown model falls back to the Device Tree `compatible` property.
+This revision number is the monotonic successor of `20260926`, not the date on
+which the change was made.
 
 `dreamcast-product-variants.tsv` is the machine-checked map between the Redump
 retail releases and the Product numbers returned by Flycast. When adding a
