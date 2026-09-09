@@ -2720,9 +2720,9 @@ std::string detectDeviceChip(const std::string &device_name)
         std::ifstream input(path, std::ios::binary);
         if (!input.good())
             continue;
-        const std::string data(
+        const std::string data{
             std::istreambuf_iterator<char>(input),
-            std::istreambuf_iterator<char>());
+            std::istreambuf_iterator<char>()};
         const std::string detected = chipFromDeviceTreeCompatible(data);
         if (!detected.empty())
             return detected;
