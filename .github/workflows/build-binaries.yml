@@ -1,6 +1,12 @@
 name: Build RetroRun binaries
 
 on:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/workflows/build-binaries.yml
+      - .github/patches/amberelec-retrorun-opengles.patch
   workflow_dispatch:
     inputs:
       build_go2:
@@ -29,7 +35,7 @@ env:
 jobs:
   linux-go2:
     name: Linux GO2/DRM (ARM64)
-    if: ${{ inputs.build_go2 }}
+    if: ${{ github.event_name == 'push' || inputs.build_go2 }}
     # Build through AmberELEC so librga and all target headers come from the
     # same cross-compilation sysroot used by the distribution.
     runs-on: ubuntu-24.04

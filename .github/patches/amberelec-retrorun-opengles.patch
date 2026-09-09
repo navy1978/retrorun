@@ -8,11 +8,11 @@ index 94a0350c..e4f6934a 100644
 -PKG_DEPENDS_TARGET="toolchain libdrm libpng linux libevdev librga openal-soft"
 +PKG_DEPENDS_TARGET="toolchain libdrm libpng linux libevdev librga openal-soft curl ${OPENGLES}"
  PKG_TOOLCHAIN="make"
-@@ -12,5 +12,7 @@ PKG_TOOLCHAIN="make"
- pre_configure_target() {
-   CFLAGS+=" -I$(get_build_dir libdrm)/include/drm"
-+  CFLAGS+=" -I$(get_build_dir ${OPENGLES})/include"
-+  CFLAGS+=" -I$(get_build_dir ${OPENGLES})/include/GBM"
-   CFLAGS+=" -I$(get_build_dir linux)/include/uapi"
-   CFLAGS+=" -I$(get_build_dir linux)/tools/include"
+@@ -16,5 +16,7 @@ pre_configure_target() {
+     local INC_FLAGS="-I$(get_build_dir libdrm)/include/drm -I$(get_build_dir linux)/include/uapi -I$(get_build_dir linux)/tools/include"
+   fi
++  INC_FLAGS+=" -I$(get_build_dir ${OPENGLES})/include"
++  INC_FLAGS+=" -I$(get_build_dir ${OPENGLES})/include/GBM"
+   CFLAGS+=" ${INC_FLAGS}"
+   CXXFLAGS+=" ${INC_FLAGS} -std=gnu++17"
  }
