@@ -22,7 +22,7 @@ constexpr const char *CatalogFilename = "flycast-game-catalog.ini";
 
 const char *BuiltinCatalogText = R"catalog(
 schema_version = 3
-catalog_version = 20260930
+catalog_version = 20261001
 
 default.retrorun_vsync = false
 default.retrorun_loop_declared_fps = true
@@ -332,6 +332,7 @@ chip.RK3566.profile.T8116D50.best_validated.reicast_translucent_strip_merge = me
 chip.RK3566.profile.T8116D50.best_validated.reicast_translucent_menu_guard_strategy = top_hud_last
 chip.RK3566.profile.T8116D50.best_validated.reicast_audio_mixer = accurate
 chip.RK3566.profile.T8116D50.best_validated.reicast_aica_arm_cycles = 32
+chip.RK3566.profile.T8116D50.best_validated.reicast_render_queue_no_drop = enabled
 
 chip.RK3566.profile.T3602M.best_validated.title = Dead or Alive 2 (Japan, RG353M validated)
 chip.RK3566.profile.T3602M.best_validated.retrorun_loop_declared_fps = false
@@ -1701,7 +1702,7 @@ profile.HDR-0010.best_validated.title = Sega Rally 2 (Japan, baseline)
 ; SH4 scheduler settings below are measurably faster than the generic fallback
 ; while preserving the conservative renderer. best_performance falls back here
 ; until an independently validated faster path exists.
-chip.RK3326.profile.MK-51019.best_validated.title = Sega Rally 2 (USA, RG351MP safe)
+chip.RK3326.profile.MK-51019.best_validated.title = Sega Rally 2 (USA, RK3326 validated)
 chip.RK3326.profile.MK-51019.best_validated.retrorun_loop_declared_fps = true
 chip.RK3326.profile.MK-51019.best_validated.retrorun_adaptive_frameskip = false
 chip.RK3326.profile.MK-51019.best_validated.retrorun_frameskip = 0
@@ -1735,7 +1736,7 @@ chip.RK3326.profile.MK-51019.best_validated.reicast_fast_depth = disabled
 chip.RK3326.profile.MK-51019.best_validated.reicast_audio_mixer = accurate
 chip.RK3326.profile.MK-51019.best_validated.reicast_opaque_strip_merge = disabled
 chip.RK3326.profile.MK-51019.best_validated.reicast_aica_arm_cycles = 32
-chip.RK3326.profile.MK-51019.best_validated.reicast_shared_block_checks = disabled
+chip.RK3326.profile.MK-51019.best_validated.reicast_shared_block_checks = enabled
 chip.RK3326.profile.MK-51019.best_validated.reicast_mmu_address_lut = enabled
 chip.RK3326.profile.MK-51019.best_validated.reicast_fmov_fpr64 = disabled
 chip.RK3326.profile.MK-51019.best_validated.reicast_aica_better_lpf = disabled
@@ -2141,8 +2142,8 @@ profile.T1209M.best_performance.inherits = best_validated
 chip.RK3326.profile.T7013D50.best_performance.title = Street Fighter III: 3rd Strike (Europe, RG351MP upstream 620 validated)
 chip.RK3326.profile.T7013D50.best_performance.retrorun_flycast_core_variant = upstream_620
 
-chip.RK3326.profile.T1213N.best_performance.title = Street Fighter III: 3rd Strike (USA, RG351MP upstream 620 validated)
-chip.RK3326.profile.T1213N.best_performance.retrorun_flycast_core_variant = upstream_620
+chip.RK3326.profile.T1213N.best_performance.title = Street Fighter III: 3rd Strike (USA, RK3326 validated)
+chip.RK3326.profile.T1213N.best_performance.reicast_render_queue_no_drop = enabled
 
 chip.RK3326.profile.T1209M.best_performance.title = Street Fighter III: 3rd Strike (Japan, RG351MP upstream 620 validated)
 chip.RK3326.profile.T1209M.best_performance.retrorun_flycast_core_variant = upstream_620
@@ -2320,6 +2321,29 @@ chip.RK3566.profile.HDR-0053.best_performance.reicast_opaque_strip_merge = enabl
 chip.RK3566.profile.HDR-0053.best_performance.retrorun_egl_depth_bits = 24
 chip.RK3566.profile.HDR-0053.best_performance.retrorun_egl_stencil_bits = 8
 chip.RK3566.profile.HDR-0053.best_performance.reicast_aica_arm_cycles = 16
+
+; Exact-release RK3326 promotions validated on RG351V. Schema 3 shares these
+; profiles with every recognized RK3326 device while retaining device-level
+; override precedence.
+chip.RK3326.profile.T7010D50.best_performance.title = Marvel vs. Capcom 2 (Europe, RK3326 validated)
+chip.RK3326.profile.T7010D50.best_performance.reicast_frame_skipping = disabled
+chip.RK3326.profile.T7010D50.best_performance.reicast_render_queue_no_drop = enabled
+
+chip.RK3326.profile.MK-51058.best_performance.title = Jet Grind Radio (USA, RK3326 validated)
+chip.RK3326.profile.MK-51058.best_performance.reicast_render_queue_no_drop = enabled
+
+chip.RK3326.profile.MK-51035.best_performance.title = Crazy Taxi (USA/Europe, RK3326 validated)
+chip.RK3326.profile.MK-51035.best_performance.reicast_sh4_cycle_mode = accurate
+
+chip.RK3326.profile.MK-51054.best_performance.title = Virtua Tennis (USA, RK3326 validated)
+chip.RK3326.profile.MK-51054.best_performance.reicast_frame_skipping = disabled
+chip.RK3326.profile.MK-51054.best_performance.reicast_render_queue_no_drop = enabled
+
+chip.RK3326.profile.T1204N.best_performance.title = Resident Evil: Code Veronica (USA, RK3326 validated)
+chip.RK3326.profile.T1204N.best_performance.reicast_sh4_cycle_mode = accurate
+
+chip.RK3326.profile.T38706M.best_performance.title = Ikaruga (Japan, RK3326 validated)
+chip.RK3326.profile.T38706M.best_performance.reicast_sh4_cycle_mode = accurate
 )catalog";
 
 struct RawProfile

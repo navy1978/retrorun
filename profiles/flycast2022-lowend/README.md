@@ -9,13 +9,13 @@ See [GAME_PROFILE_MODES.md](GAME_PROFILE_MODES.md) for the implemented
 current per-game differences.
 
 `flycast-game-catalog.ini` is the editable source form of catalog version
-`20260930`. The same data is built into RetroRun, so the feature works when
+`20261001`. The same data is built into RetroRun, so the feature works when
 distributions install only the executable. A copy beside RetroRun is used only
 when its `catalog_version` is greater than the built-in version.
 
 `catalog_version` is a monotonically increasing revision identifier, not a
-literal release date. The previous assigned revision was `20260929`, so this
-revision is `20260930` even though it was produced on 2026-09-11; decreasing it
+literal release date. The previous assigned revision was `20260930`, so this
+revision is `20261001` even though it was produced on 2026-09-11; decreasing it
 to the calendar date would make the updater reject it as older.
 
 Schema 3 resolves a profile as `global → chip → device`, with the most
@@ -284,6 +284,23 @@ median underrun and a much lower 16.779 ms active-frame p95. Ikaruga reached
 57.040 FPS with zero underruns, while House of the Dead 2 reached 53.673 FPS
 with nine median underruns and clean approved busy-scene audio. Untested
 regional siblings remain unchanged.
+
+Catalog `20261001` completes the RG351V/RK3326 review. Exact releases promoted
+after powered fixed-state benchmarks and the final graphics, audio, controls
+and fluidity gate are Marvel vs. Capcom 2 Europe (`T7010D50`), Jet Grind Radio
+USA (`MK-51058`), Crazy Taxi USA/Europe (`MK-51035`), Virtua Tennis USA
+(`MK-51054`), Street Fighter III: 3rd Strike USA (`T1213N`), Code Veronica USA
+(`T1204N`), Ikaruga Japan (`T38706M`) and Sega Rally 2 USA (`MK-51019`). The
+no-drop profiles also disable core-side frame skipping where required. The
+Street Fighter profile now uses current Low-End B0 no-drop instead of
+`upstream_620`; Crazy Taxi, Code Veronica and Ikaruga select accurate SH4 cycle
+accounting, while Sega Rally enables shared dynarec block checks in its safe
+validated fallback. A final Sega Rally no-drop experiment with the bounded
+`renderq_wait8` core was rejected: its 300-frame screen was effectively flat
+at 17.21 versus 17.19 FPS with 22 underruns in both arms, and the manual review
+reported worse audio and fluidity. Schema 3 makes the retained profiles
+available to every recognized RK3326 device, with any device-specific setting
+still taking precedence.
 
 `dreamcast-product-variants.tsv` is the machine-checked map between the Redump
 retail releases and the Product numbers returned by Flycast. When adding a
