@@ -64,6 +64,7 @@ and distributions.
 - [Benchmark and remote validation runbook](doc/BENCHMARK_IMPLEMENTATION_RUNBOOK.md)
 - [RG353M benchmark summary](doc/BENCHMARK_RG353M_RESULTS.md)
 - [RG353M dArkOS stack comparison](doc/BENCHMARK_RG353M_DARKOS_COMPARISON.md)
+- [RG353M Flycast new-lever validation](doc/BENCHMARK_RG353M_NEW_LEVERS_20260909.md)
 - [RG353M SDL2 rendering investigation](doc/SDL2_RG353M_RENDERING_INVESTIGATION.md)
 - [Flycast 2021 RK3326 optimization handoff](doc/FLYCAST2021_RK3326_OPTIMIZATION_HANDOFF.md)
 - [Project TODO](doc/TODO.txt)
@@ -444,7 +445,7 @@ retrorun_flycast_game_profile = best_validated
 `disabled` keeps the normal configuration, `best_validated` selects the
 visually approved profile and `best_performance` selects the fastest retained
 profile, including documented compromises. RetroRun contains catalog version
-`20260927` and checks for a strictly newer `flycast-game-catalog.ini` beside
+`20260930` and checks for a strictly newer `flycast-game-catalog.ini` beside
 its executable. With catalog updates set to `auto` (the default), an
 at-most-daily background check downloads a newer valid catalog from the
 `navy1978/retrorun` repository into the active configuration directory; it is
@@ -463,6 +464,12 @@ settings after the chip profile. Existing device-name detection remains the
 first choice; only an unmapped name falls back to the NUL-separated Device
 Tree `compatible` property in `/proc/device-tree/compatible` (or its sysfs
 mirror). The effective order is global, chip, then device override.
+
+A profile may also request a validated Flycast binary variant before content
+startup. In addition to the existing upstream snapshots, `renderq_wait8`
+selects `flycast_renderq_wait8_libretro.so` beside the requested core, or the
+path configured as `retrorun_flycast_renderq_wait8_core`. RetroRun performs a
+single guarded restart and then reapplies the complete transient game profile.
 
 ### macOS example
 

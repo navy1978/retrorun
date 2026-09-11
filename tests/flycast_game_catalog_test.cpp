@@ -76,7 +76,7 @@ void testBuiltInProfiles()
 {
     const Catalog catalog = builtinCatalog();
     assert(catalog.schema_version == 3);
-    assert(catalog.catalog_version == 20260927);
+    assert(catalog.catalog_version == 20260930);
     assert(catalog.profiles.size() == 98);
     assert(catalog.chip_profiles.size() == 3);
     assert(catalog.device_profiles.empty());
@@ -256,7 +256,6 @@ void testBuiltInProfiles()
     }
 
     const char *segaRallyVariants[] = {"MK-51019", "HDR-0010"};
-    Profile segaRallyReference;
     for (const char *product : segaRallyVariants)
     {
         assert(selectProfile(catalog, product, Mode::BestPerformance,
@@ -276,7 +275,9 @@ void testBuiltInProfiles()
                "lowend_stable_96");
         assert(profile.settings.count("retrorun_flycast_core_variant") == 0);
         assert(profile.settings.at("reicast_sh4clock") == "110");
-        assert(profile.settings.at("reicast_sh4_cycle_mode") == "legacy");
+        assert(profile.settings.at("reicast_sh4_cycle_mode") ==
+               (std::string(product) == "MK-51019" ? "accurate" :
+                                                    "legacy"));
         assert(profile.settings.at("reicast_shared_block_checks") == "enabled");
         assert(profile.settings.at("reicast_mmu_address_lut") == "enabled");
         assert(profile.settings.at("reicast_fmov_fpr64") == "enabled");
@@ -289,10 +290,7 @@ void testBuiltInProfiles()
         assert(profile.settings.at("reicast_audio_mixer") == "accurate");
         assert(profile.settings.at("reicast_aica_arm_cycles") == "32");
 
-        if (segaRallyReference.settings.empty())
-            segaRallyReference = profile;
-        else
-            assert(profile.settings == segaRallyReference.settings);
+        assert(profile.settings.count("reicast_render_queue_no_drop") == 0);
     }
 
     Profile segaRallyRg552Reference;
@@ -393,8 +391,8 @@ void testBuiltInProfiles()
 
     const char *upstream620Variants[] = {
         "T1401D50", "T1401N", "T1401M", "MK-51058",
-        "T36801D61", "T36801D64", "T1201M", "T1201N",
-        "MK-51049", "T7013D50", "T1213N", "T1209M"
+        "T36801D61", "T36801D64", "T1201M",
+        "T7013D50", "T1209M"
     };
     const std::set<std::string> rg351MpUpstream620 = {
         "T7013D50", "T1213N", "T1209M"
@@ -416,6 +414,28 @@ void testBuiltInProfiles()
                 assert(profile.settings.count(
                            "retrorun_flycast_core_variant") == 0);
         }
+    }
+
+    assert(selectProfile(catalog, "T1213N", Mode::BestPerformance,
+                         profile, fallback, "RG353M"));
+    assert(profile.settings.count("retrorun_flycast_core_variant") == 0);
+    assert(profile.settings.at("reicast_render_queue_no_drop") == "enabled");
+    for (const char *device : {"RG351MP", "RG351V"})
+    {
+        assert(selectProfile(catalog, "T1213N", Mode::BestPerformance,
+                             profile, fallback, device));
+        assert(profile.settings.at("retrorun_flycast_core_variant") ==
+               "upstream_620");
+        assert(profile.settings.count("reicast_render_queue_no_drop") == 0);
+    }
+
+    for (const char *product : {"T1201N", "MK-51049"})
+    {
+        assert(selectProfile(catalog, product, Mode::BestPerformance,
+                             profile, fallback, "RG353M"));
+        assert(profile.settings.count("retrorun_flycast_core_variant") == 0);
+        assert(profile.settings.at("reicast_render_queue_no_drop") ==
+               "enabled");
     }
 
     assert(selectProfile(catalog, "RDC-0140", Mode::BestPerformance,
@@ -706,6 +726,14 @@ void testBuiltInProfiles()
     assert(!fallback);
     assert(profile.settings.count("reicast_sh4_cycle_mode") == 0);
 
+    assert(selectProfile(catalog, "T1204N", Mode::BestPerformance,
+                         profile, fallback, "RG353M"));
+    assert(!fallback);
+    assert(profile.title ==
+           "Resident Evil: Code Veronica (USA, RG353M validated)");
+    assert(profile.settings.at("reicast_sh4_cycle_mode") == "accurate");
+    assert(profile.settings.count("reicast_render_queue_no_drop") == 0);
+
     assert(selectProfile(catalog, "MK-51035", Mode::BestValidated,
                          profile, fallback));
     assert(!fallback);
@@ -845,6 +873,34 @@ void testBuiltInProfiles()
         assert(profile.settings.at("reicast_audio_mixer") == "lowend");
         assert(profile.settings.at("reicast_opaque_strip_merge") == "enabled");
         assert(profile.settings.at("reicast_aica_arm_cycles") == "32");
+        if (std::string(expected.product) == "T1215N")
+        {
+            assert(profile.settings.at("reicast_render_queue_no_drop") ==
+                   "enabled");
+            assert(profile.settings.count("retrorun_flycast_core_variant") ==
+                   0);
+        }
+        else if (std::string(expected.product) == "MK-5100250")
+        {
+            assert(profile.settings.at("reicast_render_queue_no_drop") ==
+                   "enabled");
+            assert(profile.settings.at("retrorun_flycast_core_variant") ==
+                   "renderq_wait8");
+        }
+        else if (std::string(expected.product) == "MK-51058")
+        {
+            assert(profile.settings.count("reicast_render_queue_no_drop") ==
+                   0);
+            assert(profile.settings.at("retrorun_flycast_core_variant") ==
+                   "upstream_620");
+        }
+        else
+        {
+            assert(profile.settings.count("reicast_render_queue_no_drop") ==
+                   0);
+            assert(profile.settings.count("retrorun_flycast_core_variant") ==
+                   0);
+        }
     }
 
     assert(selectProfile(catalog, "T38706M", Mode::BestPerformance,
@@ -862,9 +918,11 @@ void testBuiltInProfiles()
     assert(profile.settings.at("reicast_anisotropic_filtering") == "off");
     assert(profile.settings.at("reicast_alpha_sorting") ==
            "per-triangle (normal)");
+    assert(profile.settings.at("retrorun_flycast_core_variant") ==
+           "renderq_wait8");
+    assert(profile.settings.at("reicast_render_queue_no_drop") == "enabled");
 
     const char *marvelRg353Variants[] = {"T1212N", "T7010D50", "T1215M"};
-    Profile marvelRg353Reference;
     for (const char *product : marvelRg353Variants)
     {
         assert(selectProfile(catalog, product, Mode::BestPerformance,
@@ -881,16 +939,21 @@ void testBuiltInProfiles()
         assert(profile.settings.at("reicast_frame_skipping") == "disabled");
         assert(profile.settings.at("reicast_audio_mixer") == "fast");
         assert(profile.settings.at("reicast_aica_arm_cycles") == "16");
-        if (marvelRg353Reference.settings.empty())
-            marvelRg353Reference = profile;
+        if (std::string(product) == "T7010D50")
+        {
+            assert(profile.title ==
+                   "Marvel vs. Capcom 2 (Europe, RG353M validated)");
+            assert(profile.settings.at("reicast_render_queue_no_drop") ==
+                   "enabled");
+        }
         else
-            assert(profile.settings == marvelRg353Reference.settings);
+            assert(profile.settings.count("reicast_render_queue_no_drop") ==
+                   0);
     }
 
     const char *powerStoneVariants[] = {
         "T36801D61", "T36801D64", "T1201M", "T1201N"
     };
-    Profile powerStoneReference;
     for (const char *product : powerStoneVariants)
     {
         assert(selectProfile(catalog, product, Mode::BestPerformance,
@@ -901,21 +964,33 @@ void testBuiltInProfiles()
         assert(profile.settings.at("retrorun_audio_stable_buffer") == "false");
         assert(profile.settings.at("retrorun_go2_audio_prebuffer_ms") == "60");
         assert(profile.settings.at("reicast_alpha_sorting") ==
-               "per-strip (fast, least accurate)");
+               (std::string(product) == "T1201N"
+                    ? "per-triangle (normal)"
+                    : "per-strip (fast, least accurate)"));
         assert(profile.settings.at("reicast_translucent_strip_merge") ==
                "menu_guarded");
         assert(profile.settings.at("reicast_fast_depth") == "menu_guarded");
         assert(profile.settings.at("reicast_audio_mixer") == "fast");
         assert(profile.settings.at("reicast_opaque_strip_merge") == "enabled");
         assert(profile.settings.at("reicast_aica_arm_cycles") == "16");
-        if (powerStoneReference.settings.empty())
-            powerStoneReference = profile;
+        if (std::string(product) == "T1201N")
+        {
+            assert(profile.title == "Power Stone (USA, RG353M validated)");
+            assert(profile.settings.at("reicast_render_queue_no_drop") ==
+                   "enabled");
+            assert(profile.settings.count("retrorun_flycast_core_variant") ==
+                   0);
+        }
         else
-            assert(profile.settings == powerStoneReference.settings);
+        {
+            assert(profile.settings.count("reicast_render_queue_no_drop") ==
+                   0);
+            assert(profile.settings.at("retrorun_flycast_core_variant") ==
+                   "upstream_620");
+        }
     }
 
     const char *crazyTaxiVariants[] = {"MK-51035", "HDR-0053"};
-    Profile crazyTaxiReference;
     for (const char *product : crazyTaxiVariants)
     {
         assert(selectProfile(catalog, product, Mode::BestPerformance,
@@ -928,10 +1003,26 @@ void testBuiltInProfiles()
         assert(profile.settings.at("reicast_fast_depth") == "disabled");
         assert(profile.settings.at("reicast_opaque_strip_merge") == "enabled");
         assert(profile.settings.at("reicast_aica_arm_cycles") == "16");
-        if (crazyTaxiReference.settings.empty())
-            crazyTaxiReference = profile;
+        if (std::string(product) == "MK-51035")
+        {
+            assert(profile.settings.at("retrorun_flycast_core_variant") ==
+                   "renderq_wait8");
+            assert(profile.settings.at("reicast_render_queue_no_drop") ==
+                   "enabled");
+            const auto coreSettings =
+                settingsForOptionPrefix(profile.settings, "flycast2022_");
+            assert(coreSettings.at("flycast2022_render_queue_no_drop") ==
+                   "enabled");
+            assert(coreSettings.at("retrorun_flycast_core_variant") ==
+                   "renderq_wait8");
+        }
         else
-            assert(profile.settings == crazyTaxiReference.settings);
+        {
+            assert(profile.settings.count("retrorun_flycast_core_variant") ==
+                   0);
+            assert(profile.settings.count("reicast_render_queue_no_drop") ==
+                   0);
+        }
     }
 
     const char *virtuaTennisVariants[] = {"MK-51054", "HDR-0113"};
@@ -956,6 +1047,15 @@ void testBuiltInProfiles()
                "hud_last");
         assert(profile.settings.at("reicast_fast_depth") == "enabled");
         assert(profile.settings.at("reicast_aica_arm_cycles") == "16");
+        if (std::string(product) == "MK-51054")
+        {
+            assert(profile.title == "Virtua Tennis (RG353M validated)");
+            assert(profile.settings.at("reicast_render_queue_no_drop") ==
+                   "enabled");
+        }
+        else
+            assert(profile.settings.count("reicast_render_queue_no_drop") ==
+                   0);
     }
 
     const char *shenmueVariants[] = {
@@ -1001,6 +1101,8 @@ void testBuiltInProfiles()
            "menu_guarded");
     assert(profile.settings.at("reicast_fast_depth") == "menu_guarded");
     assert(profile.settings.at("reicast_aica_arm_cycles") == "16");
+    assert(profile.settings.at("reicast_render_queue_no_drop") == "enabled");
+    assert(profile.settings.count("retrorun_flycast_core_variant") == 0);
 
     struct PowerStone2Variant
     {
@@ -1106,7 +1208,6 @@ void testBuiltInProfiles()
             assert(profile.settings == streetFighterReference.settings);
     }
 
-    Profile streetFighterRg353Reference;
     for (const char *product : streetFighterVariants)
     {
         assert(selectProfile(catalog, product, Mode::BestPerformance,
@@ -1144,11 +1245,20 @@ void testBuiltInProfiles()
         assert(profile.settings.at("reicast_fast_depth") ==
                "menu_guarded_shadow_safe");
         assert(profile.settings.at("reicast_audio_mixer") == "lowend");
-
-        if (streetFighterRg353Reference.settings.empty())
-            streetFighterRg353Reference = profile;
+        if (std::string(product) == "T1213N")
+        {
+            assert(profile.settings.count("retrorun_flycast_core_variant") ==
+                   0);
+            assert(profile.settings.at("reicast_render_queue_no_drop") ==
+                   "enabled");
+        }
         else
-            assert(profile.settings == streetFighterRg353Reference.settings);
+        {
+            assert(profile.settings.at("retrorun_flycast_core_variant") ==
+                   "upstream_620");
+            assert(profile.settings.count("reicast_render_queue_no_drop") ==
+                   0);
+        }
     }
     assert(streetFighterReference.title ==
            "Street Fighter III: 3rd Strike (Europe, best performance)");

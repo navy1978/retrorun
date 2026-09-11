@@ -145,6 +145,12 @@ static bool flycastCoreVariantSpec(const std::string &variant,
                 "flycast_upstream_48ac_libretro.so"};
         return true;
     }
+    if (variant == "renderq_wait8")
+    {
+        spec = {"retrorun_flycast_renderq_wait8_core",
+                "flycast_renderq_wait8_libretro.so"};
+        return true;
+    }
     return false;
 }
 
@@ -214,7 +220,18 @@ static void maybeRestartWithFlycastCoreVariant(int argc, char *argv[],
     // process' diagnostics so the log records both sides of the hand-off.
     std::fflush(nullptr);
     setenv("RETRORUN_FLYCAST_VARIANT_RESTARTED", "1", 1);
-    execv("/proc/self/exe", restartArguments.data());
+    // Executing the procfs symlink changes Linux' process name to "exe".
+    // Resolve its target first so distribution process supervision continues
+    // to see the expected "retrorun" name after the in-place restart.
+    std::string restartExecutable = "/proc/self/exe";
+    std::vector<char> executablePath(4096);
+    const ssize_t executablePathLength =
+        readlink("/proc/self/exe", executablePath.data(),
+                 executablePath.size() - 1);
+    if (executablePathLength > 0)
+        restartExecutable.assign(executablePath.data(),
+                                 static_cast<std::size_t>(executablePathLength));
+    execv(restartExecutable.c_str(), restartArguments.data());
     logger.log(Logger::ERR,
                "Unable to restart RetroRun with Flycast core '%s': %s.",
                alternateCore.c_str(), std::strerror(errno));
