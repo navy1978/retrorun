@@ -107,6 +107,8 @@ static std::string flycastFrameSkippingMode()
         option = "flycast2022_frame_skipping";
     else if (coreName == "Flycast 2021" || isFlycast2021LowEnd())
         option = "flycast2021_frame_skipping";
+    else if (isFlycast())
+        option = "flycast_frame_skipping";
     return configValue(option, "disabled");
 }
 
@@ -219,6 +221,9 @@ static void maybeRestartWithFlycastCoreVariant(int argc, char *argv[],
     // execv() does not flush redirected stdio streams. Preserve the first
     // process' diagnostics so the log records both sides of the hand-off.
     std::fflush(nullptr);
+    if (!flycastCatalogStatus.product.empty())
+        setenv("RETRORUN_FLYCAST_RESTART_PRODUCT",
+               flycastCatalogStatus.product.c_str(), 1);
     setenv("RETRORUN_FLYCAST_VARIANT_RESTARTED", "1", 1);
     // Executing the procfs symlink changes Linux' process name to "exe".
     // Resolve its target first so distribution process supervision continues
@@ -451,10 +456,25 @@ static void applyFlycastGameCatalog(const char *executable,
     std::string rawProductNumber;
     if (!core_probe_flycast_product_number(content, rawProductNumber))
     {
-        logger.log(Logger::WARN,
-                   "Flycast game catalog: this core/content cannot provide a Product number before launch; no profile applied.");
-        flycastCatalogStatus.state = "No product";
-        return;
+        const char *restartAttempt =
+            std::getenv("RETRORUN_FLYCAST_VARIANT_RESTARTED");
+        const char *restartProduct =
+            std::getenv("RETRORUN_FLYCAST_RESTART_PRODUCT");
+        if (restartAttempt && std::strcmp(restartAttempt, "1") == 0 &&
+            restartProduct && *restartProduct)
+        {
+            rawProductNumber = restartProduct;
+            logger.log(Logger::INF,
+                       "Flycast game catalog: using preserved Product number '%s' after core-variant restart.",
+                       rawProductNumber.c_str());
+        }
+        else
+        {
+            logger.log(Logger::WARN,
+                       "Flycast game catalog: this core/content cannot provide a Product number before launch; no profile applied.");
+            flycastCatalogStatus.state = "No product";
+            return;
+        }
     }
     // The pre-launch Product-number extension identifies the RetroRun-aware
     // Flycast builds. Stock Flycast cores must not expose catalog UI.
@@ -585,6 +605,8 @@ static void applyFlycastGameCatalog(const char *executable,
         coreOptionPrefix = "flycast2022_";
     else if (coreName == "Flycast 2021" || isFlycast2021LowEnd())
         coreOptionPrefix = "flycast2021_";
+    else if (isFlycast())
+        coreOptionPrefix = "flycast_";
     applyTransientConfigOverrides(
         settingsForOptionPrefix(profile.settings, coreOptionPrefix));
     logger.log(
