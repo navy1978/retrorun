@@ -443,8 +443,10 @@ static void applyFlycastGameCatalog(const char *executable,
     if (!isFlycast2021() && !core_has_flycast_product_number_probe())
         return;
 
-    const std::string configuredMode =
-        configValue("retrorun_flycast_game_profile", "disabled");
+    const bool flycast2021LowEnd = isFlycast2021LowEnd();
+    const std::string configuredMode = flycast2021LowEnd
+        ? configValue("retrorun_flycast2021le_game_profile", "best_performance")
+        : configValue("retrorun_flycast_game_profile", "disabled");
     const Mode mode = parseMode(configuredMode);
     flycastCatalogStatus.requested = configuredMode;
     if (mode == Mode::Invalid)
