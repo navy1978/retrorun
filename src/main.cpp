@@ -105,7 +105,9 @@ static std::string flycastFrameSkippingMode()
     std::string option = "reicast_frame_skipping";
     if (isFlycast2022())
         option = "flycast2022_frame_skipping";
-    else if (coreName == "Flycast 2021" || isFlycast2021LowEnd())
+    else if (isFlycast2021LowEnd())
+        option = "flycast2021le_frame_skipping";
+    else if (coreName == "Flycast 2021")
         option = "flycast2021_frame_skipping";
     else if (isFlycast())
         option = "flycast_frame_skipping";
@@ -603,7 +605,9 @@ static void applyFlycastGameCatalog(const char *executable,
     std::string coreOptionPrefix = "reicast_";
     if (isFlycast2022())
         coreOptionPrefix = "flycast2022_";
-    else if (coreName == "Flycast 2021" || isFlycast2021LowEnd())
+    else if (isFlycast2021LowEnd())
+        coreOptionPrefix = "flycast2021le_";
+    else if (coreName == "Flycast 2021")
         coreOptionPrefix = "flycast2021_";
     else if (isFlycast())
         coreOptionPrefix = "flycast_";
