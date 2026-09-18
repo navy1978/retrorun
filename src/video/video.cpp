@@ -28,6 +28,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "benchmark.h"
 #include "config.h"
 #include "core_loader.h"
+#include "core_option_resolution.h"
 
 #include "input.h"
 #include "libretro.h"
@@ -223,20 +224,7 @@ void video_configure(struct retro_game_geometry *geom)
     // some games like Resident Evil 2 for Flycast has an ovescan issue in 640x480
     bool skipGeomSet = ((isFlycast() || isFlycast2021()) && isRG552());
 
-    if (resolution == R_320_240)
-    {
-        geom->base_height = 240;
-        geom->base_width = 320;
-        geom->max_height = 240;
-        geom->max_width = 320;
-    }
-    else if (resolution == R_640_480 && !skipGeomSet)
-    {
-        geom->base_height = 480;
-        geom->base_width = 640;
-        geom->max_height = 480;
-        geom->max_width = 640;
-    }
+    applyConfiguredResolution(*geom, resolution, skipGeomSet);
 
     logger.log(Logger::DEB, "Game info: base_width=%d, base_height=%d, max_width=%d, max_height=%d", geom->base_width, geom->base_height, geom->max_width, geom->max_height);
 
@@ -370,6 +358,11 @@ bool video_reconfigure_geometry(const struct retro_game_geometry* geom)
     if (!geom || geom->base_width == 0 || geom->base_height == 0 ||
         geom->max_width == 0 || geom->max_height == 0)
         return false;
+
+    retro_game_geometry configured = *geom;
+    const bool skipGeomSet = ((isFlycast() || isFlycast2021()) && isRG552());
+    applyConfiguredResolution(configured, resolution, skipGeomSet);
+    geom = &configured;
 
     video_synchronize();
     const int requested_max_width = static_cast<int>(geom->max_width);

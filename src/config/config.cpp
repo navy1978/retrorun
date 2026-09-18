@@ -74,6 +74,7 @@ static const std::unordered_set<std::string> &knownRetroRunSettings()
         "retrorun_extra_retrogame_name", "retrorun_force_audio_multithread",
         "retrorun_flycast_catalog_update",
         "retrorun_flycast_game_profile",
+        "retrorun_flycast2021le_game_profile",
         "retrorun_force_left_analog_stick", "retrorun_force_video_multithread",
         "retrorun_fps_counter", "retrorun_frameskip",
         "retrorun_go2_audio_prebuffer_ms",
