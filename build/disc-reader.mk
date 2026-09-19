@@ -1,5 +1,5 @@
 # Pinned libchdr, built into the frontend: no new runtime package is required.
-# Included by GO2, Linux SDL, macOS and the isolated disc tests.
+# Included by GO2, Linux SDL and macOS builds.
 RR_ROOT ?= ../..
 CHDR_DIR := $(RR_ROOT)/deps/libchdr
 CHDR_SOURCES := $(wildcard $(CHDR_DIR)/src/*.c) \
