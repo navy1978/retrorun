@@ -53,6 +53,7 @@ SOURCES := \
   src/core/disk_control.cpp \
   src/services/file_browser.cpp \
   src/services/achievements.cpp \
+  src/services/achievement_disc.cpp \
   src/services/network_status.cpp \
   src/main.cpp
 
@@ -63,6 +64,9 @@ RCHEEVOS_SOURCES := deps/rcheevos/src/rc_client.c deps/rcheevos/src/rc_compat.c 
   $(patsubst $(ROOT)/%,%,$(wildcard $(ROOT)/deps/rcheevos/src/rapi/*.c))
 OBJECTS := $(patsubst src/%.cpp,$(OBJDIR)/%.o,$(SOURCES)) \
            $(patsubst deps/rcheevos/src/%.c,$(OBJDIR)/rcheevos/%.o,$(RCHEEVOS_SOURCES))
+
+.DEFAULT_GOAL := all
+include ../disc-reader.mk
 
 .PHONY: all clean
 all: $(TARGET)

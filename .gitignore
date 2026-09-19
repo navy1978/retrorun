@@ -27,3 +27,4 @@ retrorun-sdl2
 /decorations/downloads/
 /tests/*_test
 /tests/*.dSYM/
+.aider*

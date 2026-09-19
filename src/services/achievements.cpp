@@ -1,4 +1,5 @@
 #include "achievements.h"
+#include "achievement_disc.h"
 
 #include "core_loader.h"
 #include "config.h"
@@ -103,17 +104,22 @@ struct HashResult {
     std::string hash;
     uint64_t elapsed_ms = 0;
     bool success = false;
+    bool media_change = false;
+    std::string error;
 };
 std::mutex hash_mutex;
 std::unique_ptr<HashResult> hash_completed;
 std::atomic<bool> hash_result_pending{false};
 std::atomic<bool> hash_in_progress{false};
 std::thread hash_worker;
-bool use_background_fallback_hash = false;
+bool use_background_disc_hash = false;
+std::atomic<bool> hash_cancel{false};
 
 void RC_CCONV core_memory_info(uint32_t id, rc_libretro_core_memory_info_t* info);
 void RC_CCONV game_loaded(int result, const char* error,
                           rc_client_t* active_client, void* userdata);
+
+void RC_CCONV media_changed(int result, const char* error, rc_client_t*, void*);
 
 void fill_notification_rect(uint16_t* pixels, int stride, int width, int height,
                             int x0, int y0, int x1, int y1, uint16_t color) {
@@ -286,13 +292,18 @@ void pump_background_hash() {
                result->success ? result->hash.c_str() : "failed",
                static_cast<unsigned long long>(result->elapsed_ms));
     if (!result->success) {
-        game_load_error = "hash generation failed";
-        notify("Achievements unavailable: hash generation failed");
+        game_load_error = result->error.empty() ? "Disc hash generation failed" : result->error;
+        notify(std::string("Achievements unavailable: ") + game_load_error);
+        if (result->media_change)
+            rc_client_begin_change_media(client, "[NO HASH]", media_changed, nullptr);
         return;
     }
 
     game_load_error.clear();
-    rc_client_begin_load_game(client, result->hash.c_str(), game_loaded, nullptr);
+    if (result->media_change)
+        rc_client_begin_change_media(client, result->hash.c_str(), media_changed, nullptr);
+    else
+        rc_client_begin_load_game(client, result->hash.c_str(), game_loaded, nullptr);
 }
 
 bool decode_badge_png(const std::vector<unsigned char>& data, BadgeImage& badge) {
@@ -491,6 +502,38 @@ void RC_CCONV game_loaded(int result, const char* error, rc_client_t* active_cli
            std::to_string(summary.num_core_achievements) + ")");
 }
 
+// One worker owns the iterator and disc handles. Join before replacing a job
+// or destroying the client, so a completed hash cannot target a later game.
+void start_disc_hash(const std::string& path, uint32_t console, bool media_change) {
+    hash_cancel.store(true, std::memory_order_relaxed);
+    if (hash_worker.joinable()) hash_worker.join();
+    {
+        std::lock_guard<std::mutex> lock(hash_mutex);
+        hash_completed.reset();
+        hash_result_pending.store(false, std::memory_order_relaxed);
+    }
+    hash_cancel.store(false, std::memory_order_relaxed);
+    hash_in_progress.store(true, std::memory_order_release);
+    hash_worker = std::thread([path, console, media_change]() {
+        const auto started = std::chrono::steady_clock::now();
+        auto result = std::make_unique<HashResult>();
+        const auto disc = rr::achievements::hash_disc(path, console, hash_cancel);
+        result->success = !disc.hash.empty();
+        result->hash = disc.hash;
+        result->error = disc.error;
+        result->media_change = media_change;
+        result->elapsed_ms = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - started).count());
+        if (!hash_cancel.load(std::memory_order_relaxed)) {
+            std::lock_guard<std::mutex> lock(hash_mutex);
+            hash_completed = std::move(result);
+            hash_result_pending.store(true, std::memory_order_release);
+        }
+        hash_in_progress.store(false, std::memory_order_release);
+    });
+    logger.log(Logger::INF, "RetroAchievements: hashing disc image in background");
+}
+
 void identify_game() {
     const uint8_t* data = content_data.empty() ? nullptr : content_data.data();
     logger.log(Logger::INF,
@@ -498,40 +541,8 @@ void identify_game() {
                content.c_str(), data ? "memory" : "file", content_data.size());
     game_load_error.clear();
 
-    // rcheevos does not currently have a CDI reader or extension mapping. Its
-    // generic fallback hashes up to the first 64 MiB of the file. Even that
-    // sequential read can block the render thread long enough to look like a
-    // frontend hang on low-end storage. Preserve the fallback hash, but
-    // calculate it away from the emulation thread.
-    if (use_background_fallback_hash) {
-        const std::string path = content;
-        hash_in_progress.store(true, std::memory_order_release);
-        hash_worker = std::thread([path]() {
-            const auto started = std::chrono::steady_clock::now();
-            auto result = std::make_unique<HashResult>();
-            rc_hash_iterator_t iterator = {};
-            char hash[33] = {};
-            rc_hash_initialize_iterator(&iterator, path.c_str(), nullptr, 0);
-            // The global rcheevos message callbacks write through RetroRun's
-            // logger. Suppress them here to avoid concurrent log writes from
-            // the hash worker; the main thread reports success/failure below.
-            iterator.callbacks.verbose_message = nullptr;
-            iterator.callbacks.error_message = nullptr;
-            result->success = rc_hash_iterate(hash, &iterator) != 0;
-            if (result->success) result->hash = hash;
-            rc_hash_destroy_iterator(&iterator);
-            result->elapsed_ms = static_cast<uint64_t>(
-                std::chrono::duration_cast<std::chrono::milliseconds>(
-                    std::chrono::steady_clock::now() - started).count());
-            {
-                std::lock_guard<std::mutex> lock(hash_mutex);
-                hash_completed = std::move(result);
-            }
-            hash_in_progress.store(false, std::memory_order_release);
-            hash_result_pending.store(true, std::memory_order_release);
-        });
-        logger.log(Logger::INF,
-                   "RetroAchievements: hashing unsupported image fallback in background");
+    if (use_background_disc_hash) {
+        start_disc_hash(content, 0, false);
         return;
     }
 
@@ -619,8 +630,7 @@ void achievements_init(const char* content_path) {
                                      extension == ".toc" || extension == ".chd" ||
                                      extension == ".iso" || extension == ".pbp" ||
                                      extension == ".cdi";
-    use_background_fallback_hash =
-        extension == ".cdi" && !path_error && content_size > maximum_buffered_content;
+    use_background_disc_hash = rr::achievements::uses_disc_reader(content);
     if (!path_error && !file_backed_content && content_size > 0 &&
         content_size <= maximum_buffered_content) {
         std::ifstream input(content, std::ios::binary);
@@ -657,6 +667,9 @@ void achievements_init(const char* content_path) {
     }
     client = rc_client_create(read_memory, server_call);
     if (!client) { enabled = false; notify("Cannot initialize RetroAchievements"); return; }
+    rc_hash_callbacks_t hash_callbacks = {};
+    hash_callbacks.cdreader = rr::achievements::disc_reader();
+    rc_client_set_hash_callbacks(client, &hash_callbacks);
     rc_client_set_event_handler(client, event_handler);
     rc_client_enable_logging(client, RC_CLIENT_LOG_LEVEL_INFO, client_log);
     rc_libretro_init_verbose_message_callback(memory_log);
@@ -1100,12 +1113,23 @@ void achievements_set_memory_map(const retro_memory_map* map) {
 }
 
 void achievements_change_media(const char* path) {
-    if (client && path && *path)
-        rc_client_begin_identify_and_change_media(client, path, nullptr, 0,
-                                                  media_changed, nullptr);
+    if (!client || !path || !*path) return;
+    const rc_client_game_t* game = rc_client_get_game_info(client);
+    if (game) {
+        // The bundled rcheevos media-change helper uses global hash callbacks,
+        // not client callbacks. Hash with our iterator and supply the result.
+        start_disc_hash(path, game->console_id, true);
+    } else {
+        // A disc change may arrive while the initial game is still hashing.
+        content = path;
+        content_data.clear();
+        use_background_disc_hash = rr::achievements::uses_disc_reader(content);
+        if (!login_pending) start_disc_hash(content, 0, false);
+    }
 }
 
 void achievements_shutdown() {
+    hash_cancel.store(true, std::memory_order_relaxed);
     if (hash_worker.joinable()) hash_worker.join();
     hash_in_progress.store(false, std::memory_order_relaxed);
     hash_result_pending.store(false, std::memory_order_relaxed);
@@ -1125,7 +1149,7 @@ void achievements_shutdown() {
     rc_libretro_memory_destroy(&memory);
     content.clear(); enabled = false;
     content_data.clear();
-    use_background_fallback_hash = false;
+    use_background_disc_hash = false;
     used_password_login = false;
     login_pending = false;
     login_error.clear();

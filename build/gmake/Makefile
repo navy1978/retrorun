@@ -118,6 +118,7 @@ OBJECTS := \
 	$(OBJDIR)/core/disk_control.o \
 	$(OBJDIR)/services/file_browser.o \
 	$(OBJDIR)/services/achievements.o \
+	$(OBJDIR)/services/achievement_disc.o \
 	$(OBJDIR)/services/network_status.o \
 	$(OBJDIR)/main.o \
   	$(OBJDIR)/go2/audio.o \
@@ -142,6 +143,9 @@ RCHEEVOS_SOURCES := ../../deps/rcheevos/src/rc_client.c ../../deps/rcheevos/src/
 	$(wildcard ../../deps/rcheevos/src/rapi/*.c)
 RCHEEVOS_OBJECTS := $(patsubst ../../deps/rcheevos/src/%.c,$(OBJDIR)/rcheevos/%.o,$(RCHEEVOS_SOURCES))
 OBJECTS += $(RCHEEVOS_OBJECTS)
+
+.DEFAULT_GOAL := all
+include ../disc-reader.mk
 
 RESOURCES := \
 
