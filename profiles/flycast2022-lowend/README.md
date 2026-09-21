@@ -248,9 +248,7 @@ results were measured with the current Low-End B0 core. Sonic Adventure's
 2.39% FPS gain is not selected: underruns doubled, producer lateness did not
 improve and one queue run was an outlier. Untested regional Product numbers
 are deliberately unchanged. The staged profiles remain labelled candidates
-until the final on-device graphics, audio and input review is complete; full
-measurements and remaining work are recorded in
-`doc/BENCHMARK_RG353M_NEW_LEVERS_20260909.md`.
+until the final on-device graphics, audio and input review is complete.
 
 Catalog `20260929` promotes the two exact RK3566 releases that completed the
 manual gate. Street Fighter III: 3rd Strike USA (`T1213N`) uses the current

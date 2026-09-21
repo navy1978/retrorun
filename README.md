@@ -61,13 +61,6 @@ and distributions.
 
 - [Changelog](changelog.txt)
 - [Porting guide](PORTING.md)
-- [Benchmark and remote validation runbook](doc/BENCHMARK_IMPLEMENTATION_RUNBOOK.md)
-- [RG353M benchmark summary](doc/BENCHMARK_RG353M_RESULTS.md)
-- [RG353M dArkOS stack comparison](doc/BENCHMARK_RG353M_DARKOS_COMPARISON.md)
-- [RG353M Flycast new-lever validation](doc/BENCHMARK_RG353M_NEW_LEVERS_20260909.md)
-- [RG353M SDL2 rendering investigation](doc/SDL2_RG353M_RENDERING_INVESTIGATION.md)
-- [Flycast 2021 RK3326 optimization handoff](doc/FLYCAST2021_RK3326_OPTIMIZATION_HANDOFF.md)
-- [Project TODO](doc/TODO.txt)
 
 ### Artwork attribution
 
