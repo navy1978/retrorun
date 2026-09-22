@@ -980,7 +980,7 @@ static void go2_surface_blit_internal(go2_surface_t *srcSurface, int srcX, int s
     src.rect.hstride = srcSurface->height;
     src.rect.format = go2_rkformat_get(srcSurface->format);
     if (alpha_blend)
-        src.blend = 0xff0105; // Porter-Duff source-over with per-pixel alpha.
+        src.blend = 0xff0405; // Source-over for straight (not premultiplied) RGBA artwork.
 
 #if 0
     enum

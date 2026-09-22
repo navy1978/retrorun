@@ -1262,6 +1262,10 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         {
             logger.log(Logger::DEB, "Color format:RR_PIXEL_FORMAT_RGBA5551");
         }
+        else if (color_format == RR_PIXEL_FORMAT_RGB565)
+        {
+            logger.log(Logger::DEB, "Color format:RR_PIXEL_FORMAT_RGB565");
+        }
         else if (color_format == RR_PIXEL_FORMAT_RGB888)
         {
             logger.log(Logger::DEB, "Color format:RR_PIXEL_FORMAT_RGB888");
