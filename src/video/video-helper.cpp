@@ -962,7 +962,9 @@ void showCredits(rr_surface_t **surface)
     drawCreditLine(currentY, "madcat1990", WHITE, surface);
     currentY += stepCredits;
     drawCreditLine(currentY, "pkegg", WHITE, surface);
-     currentY += stepCredits;
+    currentY += stepCredits;
+    drawCreditLine(currentY, "SiTWulf", WHITE, surface);
+    currentY += stepCredits;
     drawCreditLine(currentY, "superdealloc", WHITE, surface);
     currentY += stepCredits;
     drawCreditLine(currentY, "Szalik", WHITE, surface);
