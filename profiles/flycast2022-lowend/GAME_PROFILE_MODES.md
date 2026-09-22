@@ -90,3 +90,9 @@ attiva e usato dal lancio successivo. `disabled` disattiva il controllo remoto.
 `best_performance` non significa “attiva tutte le opzioni veloci”: indica la
 combinazione più rapida realmente conservata per quel gioco. In questo modo non
 vengono riattivati esperimenti già risultati più lenti o instabili.
+
+Su RG351P, `best_performance` di Soul Calibur USA (`T1401N`) applica
+`lowend_stable_96`, buffer audio da 2048 campioni e prebuffer da 100 ms.
+È una compensazione per migliorare la continuità audio, con maggiore latenza
+e playback al 96%; non garantisce 60 FPS. `best_validated` e i profili degli
+altri dispositivi restano invariati.
