@@ -27,7 +27,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <unistd.h>
 
 
-std::string release = "3.2.0";
+std::string release = "3.2.1";
 
 
 

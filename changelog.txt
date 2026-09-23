@@ -8,6 +8,16 @@
                  -= Light Libretro Front-end =-
 
 =================================
+Version 3.2.1 (Sep 23, 2026)
+---------------------------------
+- Fix game alignment within distribution bezels, straight-alpha blending and
+  rotated display viewports. Thanks to SiTWulf for the rotated viewport fix.
+- Fix Flycast LE option namespaces, dedicated profile selection and video geometry.
+- Share Flycast profiles by Rockchip SoC, update validated profiles and align
+  Soul Calibur profiles across RG351 devices.
+- Improve AmberELEC build workflows and artifact discovery.
+
+=================================
 Version 3.2.0 (Aug 31, 2026)
 ---------------------------------
 - Move RetroAchievements fallback hashing for large CDI images to a background

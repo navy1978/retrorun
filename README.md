@@ -9,6 +9,14 @@ systems. It was originally designed for Anbernic devices using the GO2/DRM
 graphics stack and now provides a platform abstraction for input, audio and
 video, with an additional SDL2 backend for macOS and Linux.
 
+## Version 3.2.1
+
+- Fix bezel alignment, transparency and rotated display viewports.
+- Improve Flycast LE option handling and video geometry.
+- Share Flycast profiles by Rockchip SoC and align Soul Calibur profiles across RG351 devices.
+
+See [changelog.txt](changelog.txt) for release history.
+
 ## Highlights
 
 - **Save states:** create and load states from the on-screen menu or controller
