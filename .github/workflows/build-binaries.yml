@@ -53,10 +53,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            amber/build.AmberELEC-RG351P.aarch64*
+            amber/build.AmberELEC-RK3326.aarch64*
             amber/sources
             amber/.ccache-aarch64-cortex-a53
-          key: amberelec-rg351p-aarch64-retrorun-v1
+          key: amberelec-rk3326-aarch64-retrorun-v2
 
       - name: Build GO2/DRM with the AmberELEC toolchain
         run: |
@@ -75,6 +75,10 @@ jobs:
           # Use GNU's canonical archive without modifying the AmberELEC fork.
           sed -i 's#^PKG_URL=.*#PKG_URL="https://ftp.gnu.org/gnu/gmp/${PKG_NAME}-${PKG_VERSION}.tar.xz"#' \
             amber/packages/devel/gmp/package.mk
+          docker run --rm --user "$(id -u):$(id -g)" \
+            -v "${GITHUB_WORKSPACE}/amber:/work" -w /work \
+            ghcr.io/amberelec/amberelec-build \
+            bash -lc 'DEVICE=RK3326 ARCH=aarch64 ./scripts/build toolchain'
           docker run --rm --user "$(id -u):$(id -g)" \
             -v "${GITHUB_WORKSPACE}/amber:/work" -w /work \
             ghcr.io/amberelec/amberelec-build \
