@@ -76,10 +76,10 @@ void testBuiltInProfiles()
 {
     const Catalog catalog = builtinCatalog();
     assert(catalog.schema_version == 3);
-    assert(catalog.catalog_version == 20261002);
+    assert(catalog.catalog_version == 20261003);
     assert(catalog.profiles.size() == 98);
     assert(catalog.chip_profiles.size() == 3);
-    assert(catalog.device_profiles.size() == 1);
+    assert(catalog.device_profiles.empty());
     assert(normalizeProductNumber("T1401D  50 ") == "T1401D50");
     assert(catalog.safe_defaults.at("reicast_alpha_sorting") ==
            "per-triangle (normal)");
@@ -1606,40 +1606,27 @@ void testChipDetectionAndFamilySelection()
     assertSameProfile(reference, candidate);
 }
 
-void testRg351pSoulAudioCompensation()
+void testRg351SoulProfilesMatch()
 {
     const Catalog catalog = builtinCatalog();
-    Profile reference, candidate;
-    bool fallback = false;
-    assert(selectProfile(catalog, "T1401N", Mode::BestPerformance,
-                         reference, fallback, "RG351MP"));
-    assert(!fallback);
-    auto expected = reference.settings;
-    expected["retrorun_go2_audio_wsola_profile"] = "lowend_stable_96";
-    expected["retrorun_audio_buffer"] = "2048";
-    expected["retrorun_go2_audio_prebuffer_ms"] = "100";
-    assert(selectProfile(catalog, "T1401N", Mode::BestPerformance,
-                         candidate, fallback, "RG351P"));
-    assert(!fallback);
-    assert(candidate.settings == expected);
-    for (const char *device : {"RG351V", "RG351M", "RG351MP"})
+    for (const char *product : {"T1401N", "T1401D50", "T1401M"})
     {
-        assert(selectProfile(catalog, "T1401N", Mode::BestPerformance,
-                             candidate, fallback, device));
-        assertSameProfile(reference, candidate);
-    }
-    assert(selectProfile(catalog, "T1401N", Mode::BestValidated,
-                         reference, fallback, "RG351MP"));
-    assert(selectProfile(catalog, "T1401N", Mode::BestValidated,
-                         candidate, fallback, "RG351P"));
-    assertSameProfile(reference, candidate);
-    for (const char *product : {"T1401D50", "T1401M"})
-    {
-        assert(selectProfile(catalog, product, Mode::BestPerformance,
-                             reference, fallback, "RG351MP"));
-        assert(selectProfile(catalog, product, Mode::BestPerformance,
-                             candidate, fallback, "RG351P"));
-        assertSameProfile(reference, candidate);
+        for (Mode mode : {Mode::BestPerformance, Mode::BestValidated})
+        {
+            Profile reference;
+            bool referenceFallback = false;
+            assert(selectProfile(catalog, product, mode, reference,
+                                 referenceFallback, "RG351V"));
+            for (const char *device : {"RG351P", "RG351MP", "RG351M"})
+            {
+                Profile candidate;
+                bool fallback = false;
+                assert(selectProfile(catalog, product, mode, candidate,
+                                     fallback, device));
+                assert(fallback == referenceFallback);
+                assertSameProfile(reference, candidate);
+            }
+        }
     }
 }
 
@@ -1718,7 +1705,7 @@ void testInvalidCatalogIsRejected()
 int main()
 {
     testBuiltInProfiles();
-    testRg351pSoulAudioCompensation();
+    testRg351SoulProfilesMatch();
     testVersionedRepositoryCatalogMatchesBuiltIn();
     testExternalCatalogParsing();
     testChipDetectionAndFamilySelection();
