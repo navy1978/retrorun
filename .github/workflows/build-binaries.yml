@@ -60,6 +60,7 @@ jobs:
 
       - name: Build GO2/DRM with the AmberELEC toolchain
         run: |
+          set -o pipefail
           # The standalone RetroRun package build does not inherit the
           # distribution-level OpenGL ES and curl dependencies. Add
           # AmberELEC's selected target implementation (libmali on RG351P),
