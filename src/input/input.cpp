@@ -36,6 +36,46 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <array>
 #include <cctype>
 
+#if defined(__linux__) && !defined(RR_PLATFORM_SDL)
+#include <fcntl.h>
+#include <glob.h>
+#include <linux/input.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
+#include <cstring>
+
+static bool hasGoSuperButtonLayout()
+{
+    glob_t paths{};
+    if (glob("/dev/input/by-path/platform*-joypad-event-joystick", 0, nullptr, &paths) != 0) {
+        globfree(&paths);
+        return false;
+    }
+
+    bool found = false;
+    for (size_t i = 0; i < paths.gl_pathc && !found; ++i) {
+        const int fd = open(paths.gl_pathv[i], O_RDONLY | O_CLOEXEC);
+        if (fd < 0) continue;
+        char name[128]{};
+        std::array<unsigned char, (KEY_MAX + 8) / 8> keys{};
+        if (ioctl(fd, EVIOCGNAME(sizeof(name)), name) >= 0 &&
+            std::strcmp(name, "GO-Super Gamepad") == 0 &&
+            ioctl(fd, EVIOCGBIT(EV_KEY, keys.size()), keys.data()) >= 0) {
+            const auto hasKey = [&keys](unsigned code) {
+                return (keys[code / 8] & (1u << (code % 8))) != 0;
+            };
+            found = hasKey(BTN_TRIGGER_HAPPY1) && hasKey(BTN_TRIGGER_HAPPY2) &&
+                    hasKey(BTN_TRIGGER_HAPPY3) && hasKey(BTN_TRIGGER_HAPPY4) &&
+                    hasKey(BTN_TRIGGER_HAPPY5) && !hasKey(BTN_SELECT) &&
+                    !hasKey(BTN_START) && !hasKey(BTN_THUMBL) && !hasKey(BTN_THUMBR);
+        }
+        close(fd);
+    }
+    globfree(&paths);
+    return found;
+}
+#endif
+
 extern int opt_backlight;
 extern int opt_volume;
 bool input_ffwd_requested = false;
@@ -373,6 +413,19 @@ void initButtons(){
      }else{
         logger.log(Logger::DEB, "RG351 joypad configuration detected.");
      }
+
+#if defined(__linux__) && !defined(RR_PLATFORM_SDL)
+     // RK3566 kernels can expose either the original retrogame layout or the
+     // AmberELEC GO-Super layout. Select by input capabilities, not OS name.
+     if (isRK3566Device() && hasGoSuperButtonLayout()) {
+         selectButton = RRInputButton_F1;
+         startButton = RRInputButton_F2;
+         l3Button = RRInputButton_F3;
+         r3Button = RRInputButton_F4;
+         f2Button = RRInputButton_F5;
+         logger.log(Logger::DEB, "RK3566 GO-Super joypad configuration detected.");
+     }
+#endif
 
 #ifdef RR_PLATFORM_SDL
      if (isRG351V()) {

@@ -8,6 +8,12 @@
                  -= Light Libretro Front-end =-
 
 =================================
+Version 3.2.2 (Oct 9, 2026)
+---------------------------------
+- Fix GO-Super Gamepad button mapping on RK3566 while preserving the original
+  retrogame_joypad layout.
+
+=================================
 Version 3.2.1 (Sep 23, 2026)
 ---------------------------------
 - Fix game alignment within distribution bezels, straight-alpha blending and
