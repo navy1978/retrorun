@@ -81,3 +81,16 @@ The Linux SDL target asks libretro cores for OpenGL ES 3 and accepts GLES 2/3
 hardware callbacks. Vulkan is intentionally rejected because neither the
 frontend's libretro Vulkan interface nor AmberELEC's SDL2 Vulkan driver is
 currently enabled. Software-rendered cores continue through SDL textures.
+
+## Current SDL2 Linux limitations
+
+- actual compatibility must be validated on every handheld model;
+- KMSDRM display rotation depends on the SDL2 patches shipped by the distro;
+- battery and brightness integration is less complete than in the native GO2 backend;
+- Vulkan is visible as a configuration value but is rejected because the
+  libretro Vulkan interface is not implemented;
+- the SDL2 build currently targets OpenGL ES 3 for hardware-rendered cores.
+
+For supported Anbernic devices, GO2/DRM remains the safest production backend.
+SDL2/KMSDRM is intended as an alternative and as the portable path for new
+devices.

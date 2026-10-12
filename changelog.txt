@@ -15,6 +15,7 @@ Version 3.2.3 (Oct 12, 2026)
 - Select the RG351V input layout using controller capabilities, preserving
   the compact GO-Super layout and existing hotkeys.
 - Fix parallel recursive builds and document SDL2 integration on UnofficialOS.
+- Split user documentation into topic guides linked from the main README.
 
 =================================
 Version 3.2.2 (Oct 9, 2026)
