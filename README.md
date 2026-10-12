@@ -9,11 +9,11 @@ systems. It was originally designed for Anbernic devices using the GO2/DRM
 graphics stack and now provides a platform abstraction for input, audio and
 video, with an additional SDL2 backend for macOS and Linux.
 
-## Version 3.2.1
+## Version 3.2.3
 
-- Fix bezel alignment, transparency and rotated display viewports.
-- Improve Flycast LE option handling and video geometry.
-- Share Flycast profiles by Rockchip SoC and align Soul Calibur profiles across RG351 devices.
+- Improve Linux SDL2 package builds and controller database overrides.
+- Preserve RG351V hotkeys across different SDL controller layouts.
+- Document UnofficialOS integration tested on RG353M.
 
 See [changelog.txt](changelog.txt) for release history.
 
@@ -234,14 +234,18 @@ make PLATFORM=sdl2 config=release
 make sdl2 config=release
 ```
 
-Both commands create `retrorun-sdl2`. The build variables `CXX`, `SDL_CONFIG`,
+Both commands create `retrorun-sdl2`. The build variables `CC`, `CXX`, `SDL_CONFIG`,
 `PKG_CONFIG`, `SDL_CFLAGS`, `SDL_LIBS`, `PNG_CFLAGS`, `PNG_LIBS`,
 `GLES_CFLAGS` and `GLES_LIBS` can be overridden for a cross-compilation
-sysroot. For example:
+sysroot. `CPPFLAGS`, `CFLAGS`, `CXXFLAGS`, `LDFLAGS` and `LDLIBS` supplied by a
+package builder are preserved; required frontend defines and include paths
+remain enabled. Use the target's pkg-config environment, including
+`PKG_CONFIG_SYSROOT_DIR` and `PKG_CONFIG_LIBDIR`. For example:
 
 ```sh
 make sdl2 config=release \
   CXX=aarch64-linux-gnu-g++ \
+  CC=aarch64-linux-gnu-gcc \
   SDL_CONFIG=/path/to/sysroot/usr/bin/sdl2-config \
   PKG_CONFIG=/path/to/target-pkg-config
 ```
@@ -249,6 +253,17 @@ make sdl2 config=release \
 Do not copy a macOS or x86-64 Linux executable to an ARM handheld. RetroRun,
 the libretro core and all linked libraries must be built for the target CPU and
 ABI.
+
+SDL controller databases are loaded from the standard distribution locations,
+then `SDL_GAMECONTROLLERCONFIG_FILE`, then `RETRORUN_SDL_CONTROLLER_DB`.
+An explicit Retrorun database therefore overrides the distribution defaults
+without modifying other emulators. Mappings must use SDL's Xbox positional
+face buttons: RetroRun converts them to RetroPad's Nintendo layout. A database
+that maps Nintendo button labels directly needs a positional mapping for this
+frontend.
+
+See [UnofficialOS on RG353M](doc/UNOFFICIALOS_RG353M.md) for the tested SDL2
+platform configuration and integration details.
 
 ### Hybrid GO2 video/input with selectable audio
 

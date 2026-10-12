@@ -16,7 +16,7 @@ PROJECTS := retrorun
 # Run a sub-build, preserve its exit status, and always report the elapsed time.
 # Usage: $(call timed_build,<make arguments>)
 define timed_build
-	@start=$$(date +%s); \
+	+@start=$$(date +%s); \
 	${MAKE} --no-print-directory $(1); \
 	status=$$?; \
 	end=$$(date +%s); \

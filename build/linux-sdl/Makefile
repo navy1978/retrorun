@@ -25,12 +25,14 @@ COMMON_FLAGS := -std=c++2a -Wall -Wextra -DRR_PLATFORM_SDL -DRR_SDL_GLES -DRC_CL
                 -I$(ROOT)/deps/rcheevos/include -I$(ROOT)/deps/rcheevos/src \
                 $(SDL_CFLAGS) $(PNG_CFLAGS) $(GLES_CFLAGS)
 ifeq ($(config),release)
-  CXXFLAGS := $(COMMON_FLAGS) -O3 -DNDEBUG -flto
-  LDFLAGS_EXTRA := -s -flto
+  RR_CXXFLAGS := -O3 -DNDEBUG -flto
+  RR_LDFLAGS := -s -flto
 else
-  CXXFLAGS := $(COMMON_FLAGS) -g -DDEBUG
+  RR_CXXFLAGS := -g -DDEBUG
 endif
-LDFLAGS := $(SDL_LIBS) $(PNG_LIBS) $(GLES_LIBS) -lcurl -lz -ldl -pthread $(LDFLAGS_EXTRA)
+# Keep toolchain/sysroot flags supplied by distribution package builders.
+# Required frontend flags also apply when CXXFLAGS is set on make's command line.
+RR_LIBS := $(SDL_LIBS) $(PNG_LIBS) $(GLES_LIBS) -lcurl -lz -ldl -pthread
 
 SOURCES := \
   src/diagnostics/logger.cpp \
@@ -76,20 +78,21 @@ OBJECTS := $(patsubst src/%.cpp,$(OBJDIR)/%.o,$(SOURCES)) \
 
 .DEFAULT_GOAL := all
 include ../disc-reader.mk
+COMMON_FLAGS += -I$(CHDR_DIR)/include
 
 .PHONY: all clean
 all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
-	$(CXX) $(OBJECTS) $(LDFLAGS) -o $@
+	$(CXX) $(LDFLAGS) $(RR_LDFLAGS) $(OBJECTS) $(RR_LIBS) $(LDLIBS) -o $@
 
 $(OBJDIR)/%.o: $(ROOT)/src/%.cpp
 	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) -MMD -MP -c $< -o $@
+	$(CXX) $(CPPFLAGS) $(COMMON_FLAGS) $(RR_CXXFLAGS) $(CXXFLAGS) -MMD -MP -c $< -o $@
 
 $(OBJDIR)/rcheevos/%.o: $(ROOT)/deps/rcheevos/src/%.c
 	@mkdir -p $(dir $@)
-	$(CC) -std=c99 -Wall -D_POSIX_C_SOURCE=200809L -include strings.h \
+	$(CC) $(CPPFLAGS) $(CFLAGS) -std=c99 -Wall -D_POSIX_C_SOURCE=200809L -include strings.h \
 		-Werror=implicit-function-declaration \
 		-DRC_CLIENT_SUPPORTS_HASH -I$(ROOT)/deps/rcheevos/include \
 	      -I$(ROOT)/deps/rcheevos/src -I$(ROOT)/src -I$(ROOT)/src/core \

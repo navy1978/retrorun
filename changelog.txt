@@ -8,6 +8,15 @@
                  -= Light Libretro Front-end =-
 
 =================================
+Version 3.2.3 (Oct 12, 2026)
+---------------------------------
+- Preserve distribution compiler and linker flags in Linux SDL2 builds.
+- Give explicitly selected SDL controller databases precedence over defaults.
+- Select the RG351V input layout using controller capabilities, preserving
+  the compact GO-Super layout and existing hotkeys.
+- Fix parallel recursive builds and document SDL2 integration on UnofficialOS.
+
+=================================
 Version 3.2.2 (Oct 9, 2026)
 ---------------------------------
 - Fix GO-Super Gamepad button mapping on RK3566 while preserving the original

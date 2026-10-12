@@ -159,9 +159,6 @@ static void load_controller_mappings() {
     if (controller_mappings_loaded) return;
     controller_mappings_loaded = true;
 
-    // Allow distributions and launch scripts to select their own database.
-    load_controller_mapping_file(std::getenv("RETRORUN_SDL_CONTROLLER_DB"));
-
     // Locations used by AmberELEC/ArkOS and common Linux packages.
     static const char* paths[] = {
         "/storage/.config/SDL-GameControllerDB/gamecontrollerdb.txt",
@@ -170,6 +167,10 @@ static void load_controller_mappings() {
         "/usr/share/SDL_GameControllerDB/gamecontrollerdb.txt",
     };
     for (const char* path : paths) load_controller_mapping_file(path);
+
+    // Explicit overrides must win over the distribution's default mappings.
+    load_controller_mapping_file(std::getenv("SDL_GAMECONTROLLERCONFIG_FILE"));
+    load_controller_mapping_file(std::getenv("RETRORUN_SDL_CONTROLLER_DB"));
 }
 
 static void add_handheld_controller_fallback(int device_index) {
@@ -410,10 +411,13 @@ void rr_input_state_read(rr_input_t* input, rr_input_state_t* state) {
         }
     }
     const int raw_button_count = raw_joystick ? SDL_JoystickNumButtons(raw_joystick) : 0;
-    // The raw b0..b16 profile below is verified specifically on RG351V.
-    // Several devices and distributions reuse the GO-Super name with a
-    // different physical layout, so never select it from the name alone.
-    const bool rg351_physical_layout = isRG351V();
+    // Only the compact GO-Super layout was verified on RG351V. Other
+    // kernels expose the D-pad as buttons or use a different controller;
+    // let their SDL mappings describe those layouts.
+    const char* raw_name = raw_joystick ? SDL_JoystickName(raw_joystick) : NULL;
+    const bool rg351_physical_layout = isRG351V() && raw_name &&
+        std::strcmp(raw_name, "GO-Super Gamepad") == 0 &&
+        raw_button_count == 12 && SDL_JoystickNumHats(raw_joystick) > 0;
 
     if (rg351_physical_layout && raw_joystick && raw_button_count >= 12) {
         auto raw_button = [&](int index, rr_input_button_t portable) {
@@ -515,6 +519,12 @@ void rr_input_state_read(rr_input_t* input, rr_input_state_t* state) {
     // LEFTSTICK/RIGHTSTICK bindings, so read the physical slots as well.
     // GO2/js2xbox exposes the same pair as F2/F5.
     if (isRG351V()) {
+        // Preserve the RG351V portable F1-F6 controls when SDL supplies a
+        // normal mapping instead of the compact physical layout above.
+        state->buttons[RRInputButton_F1] = state->buttons[RRInputButton_SELECT];
+        state->buttons[RRInputButton_F6] = state->buttons[RRInputButton_START];
+        state->buttons[RRInputButton_F4] = state->buttons[RRInputButton_TriggerLeft];
+        state->buttons[RRInputButton_F3] = state->buttons[RRInputButton_TriggerRight];
         if (left_hotkey) state->buttons[RRInputButton_F2] = RRButtonState_Pressed;
         if (right_stick) state->buttons[RRInputButton_F5] = RRButtonState_Pressed;
     }

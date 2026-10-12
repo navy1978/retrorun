@@ -11,5 +11,5 @@ CXXFLAGS += -I$(CHDR_DIR)/include
 
 $(OBJDIR)/libchdr/%.o: $(CHDR_DIR)/%.c
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -std=c99 -D_POSIX_C_SOURCE=200809L -DCHDR_SYSTEM_ZLIB \
+	$(CC) $(CPPFLAGS) $(CFLAGS) -std=c99 -D_POSIX_C_SOURCE=200809L -DCHDR_SYSTEM_ZLIB \
 	  -fvisibility=hidden -O2 -I$(CHDR_DIR)/include -MMD -MP -c $< -o $@
