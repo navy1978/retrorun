@@ -278,6 +278,10 @@ static void reclaim_processed_buffers(go2_audio_t *audio)
     {
         ALuint buffer = 0;
         alSourceUnqueueBuffers(audio->source, 1, &buffer);
+        if (alGetError() != AL_NO_ERROR || buffer_index(audio, buffer) < 0) {
+            logger.log(Logger::ERR, "Cannot reclaim processed audio buffer");
+            return;
+        }
         remove_queued_buffer(audio, buffer);
         const int index = buffer_index(audio, buffer);
         if (index >= 0)
@@ -693,11 +697,14 @@ void go2_audio_flush(go2_audio_t *audio)
     if (alcGetCurrentContext() != audio->context && !alcMakeContextCurrent(audio->context))
         return;
     alSourceStop(audio->source);
-    ALint queued = 0;
-    alGetSourcei(audio->source, AL_BUFFERS_QUEUED, &queued);
-    while (queued-- > 0) {
-        ALuint buffer = 0;
-        alSourceUnqueueBuffers(audio->source, 1, &buffer);
+    // A prebuffering source may still be AL_INITIAL: stopping it does not
+    // make its queued buffers processed. Detach the queue before returning
+    // any buffer to our free list, including during state loads/menu flushes.
+    alSourcei(audio->source, AL_BUFFER, 0);
+    const ALenum error = alGetError();
+    if (error != AL_NO_ERROR) {
+        logger.log(Logger::ERR, "Cannot detach audio queue during flush: 0x%x", error);
+        return;
     }
     audio->queue_order.clear();
     audio->free_buffers.clear();

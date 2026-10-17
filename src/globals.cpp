@@ -443,9 +443,13 @@ bool isMiniloongPocket1()
 {
     return checkDeviceName("Miniloong Pocket 1");
 }
+bool isRGARCD()
+{
+    return checkDeviceName("RGARCD");
+}
 bool isRK3566Device()
 {
-    return isRG503() || isRG353V() || isRG353M() || isMiniloongPocket1();
+    return isRG503() || isRG353V() || isRG353M() || isRGARCD() || isMiniloongPocket1();
 }
 bool isRG353Family()
 {
@@ -480,6 +484,9 @@ bool wideScreenNotRotated(){
 // if getDeviceName was not able to identify the device name we 
 // take this from the retrorun.cfg and then we need to reset the Device name
 void resetDeviceName(){
+    // A blank optional setting must preserve automatic model detection.
+    if (retrorun_device_name.empty())
+        return;
     strncpy(DEVICE_NAME, retrorun_device_name.c_str(), DEVICE_NAME_SIZE - 1);
     DEVICE_NAME[DEVICE_NAME_SIZE - 1] = '\0'; // Ensure null termination
 }

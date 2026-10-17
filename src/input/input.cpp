@@ -35,6 +35,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cstdlib>
 
 #if defined(__linux__) && !defined(RR_PLATFORM_SDL)
 #include <fcntl.h>
@@ -456,6 +457,18 @@ void initButtons(){
      }
 #endif
  
+     if (isRGARCD()) {
+         // Match AmberELEC's native ARC profile. C/Z occupy the existing
+         // R3/L3 logical slots; F is BTN_MODE, and there are no sticks.
+         aButton = RRInputButton_B;
+         bButton = RRInputButton_A;
+         xButton = RRInputButton_Y;
+         yButton = RRInputButton_X;
+         f2Button = RRInputButton_MENU;
+         ignoreF2 = false;
+         logger.log(Logger::DEB, "ARC-D native joypad configuration detected.");
+     }
+
      applyButtonRemapping();
      hotkeyButton = isMiniloongPocket1() ? RRInputButton_MENU : selectButton;
      if (isMiniloongPocket1())
@@ -472,8 +485,13 @@ void input_gamepad_read()
     if (!input)
     {
         if (firstExecution){
+            const char* deviceName = getDeviceName();
             initButtons();
-            input = rr_input_create(getDeviceName());
+            input = rr_input_create(deviceName);
+            if (!input) {
+                logger.log(Logger::ERR, "Cannot initialize controller; exiting.");
+                std::exit(EXIT_FAILURE);
+            }
             firstExecution = false;
         }
         // I think this part has no sense: the has_triggered it's false even when should be true...
@@ -621,6 +639,10 @@ void core_input_poll(void)
     if (!input)
     {
         input = rr_input_create(getDeviceName());
+        if (!input) {
+            logger.log(Logger::ERR, "Cannot initialize controller; exiting.");
+            std::exit(EXIT_FAILURE);
+        }
     }
 
     // Read inputs

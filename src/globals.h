@@ -204,6 +204,7 @@ bool isRG503();
 bool isRG353V();
 bool isRG353M();
 bool isMiniloongPocket1();
+bool isRGARCD();
 bool isRK3566Device();
 bool isRG353Family();
 bool supportsVideoMultithread();

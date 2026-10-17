@@ -1544,6 +1544,46 @@ void go2_presenter_black(go2_presenter_t *presenter, int dstX, int dstY, int dst
 
 int mx = 0;
 
+struct arc_status_rect {
+    double x, y, width, height;
+};
+
+static arc_status_rect arc_status_coordinates(int panel_width, int panel_height,
+        double width, double height, go2_rotation_t rotation, STATUS_POSITION position)
+{
+    if (position == FULL)
+        return {0, 0, double(panel_width), double(panel_height)};
+
+    // Select the anchor in the upright logical canvas, then transform the
+    // complete rectangle to panel coordinates. Rotating only the text leaves
+    // notification anchors in the opposite corner on ARC's +90 degree panel.
+    const bool quarter_turn = rotation == GO2_ROTATION_DEGREES_90 ||
+                              rotation == GO2_ROTATION_DEGREES_270;
+    const double canvas_width = quarter_turn ? panel_height : panel_width;
+    const double canvas_height = quarter_turn ? panel_width : panel_height;
+    const double logical_width = quarter_turn ? height : width;
+    const double logical_height = quarter_turn ? width : height;
+    double x = 0, y = 0;
+    if (position == TOP_RIGHT || position == BUTTOM_RIGHT)
+        x = canvas_width - logical_width;
+    else if (position == BUTTOM_CENTER)
+        x = (canvas_width - logical_width) / 2;
+    if (position == BUTTOM_LEFT || position == BUTTOM_RIGHT || position == BUTTOM_CENTER)
+        y = canvas_height - logical_height;
+
+    switch (rotation) {
+    case GO2_ROTATION_DEGREES_90:
+        return {panel_width - y - logical_height, x, width, height};
+    case GO2_ROTATION_DEGREES_180:
+        return {panel_width - x - logical_width,
+                panel_height - y - logical_height, width, height};
+    case GO2_ROTATION_DEGREES_270:
+        return {y, panel_height - x - logical_width, width, height};
+    default:
+        return {x, y, width, height};
+    }
+}
+
 void blit_surface_status(go2_presenter_t *presenter, go2_surface_t *source_surface, go2_surface_t *dest_surface, int dest_width, int dest_height, go2_rotation_t rotation, STATUS_POSITION position, bool isWideScreen)
 {
 
@@ -1586,7 +1626,7 @@ void blit_surface_status(go2_presenter_t *presenter, go2_surface_t *source_surfa
     // its DRM mode is physically portrait and its platform transform has
     // already been composed into rotation. Use the generic rotated-blit
     // layout below so notification surfaces keep their proportions.
-    if (hasDeviceRotatedScreen() && !isMiniloongPocket1())
+    if (hasDeviceRotatedScreen() && !isMiniloongPocket1() && !isRGARCD())
     {
         // Scale the surface dimensions based on the display resolution
         if ((rotation== GO2_ROTATION_DEGREES_0 || rotation== GO2_ROTATION_DEGREES_180)){
@@ -1703,6 +1743,16 @@ void blit_surface_status(go2_presenter_t *presenter, go2_surface_t *source_surfa
             dest_width_scaled = max_width;   //+(scarto_w/2)-2;
             dest_height_scaled = max_height; //+(scarto_h/2)-2;
         }
+    }
+
+    if (isRGARCD()) {
+        const arc_status_rect rect = arc_status_coordinates(
+            dest_surface->width, dest_surface->height,
+            dest_width_scaled, dest_height_scaled, rotation, position);
+        dest_x = rect.x;
+        dest_y = rect.y;
+        dest_width_scaled = rect.width;
+        dest_height_scaled = rect.height;
     }
 
     // Blit the surface to the destination surface

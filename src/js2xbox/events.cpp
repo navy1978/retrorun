@@ -173,8 +173,16 @@ joypad events::find_event_js(const js_desc** js, js_desc const **out) {
 				 id.vendor == (*p)->vendor &&
 				 id.product == (*p)->product;
 
-			if (isRetrogameJoypad || isOSHController) {
-				if (isRetrogameJoypad) {
+			// ARC-D exposes its native digital controller directly; it needs
+			// neither the RG351 USB translator nor a PWM rumble endpoint.
+			const bool isArcJoypad = strcmp(name, "rg_arc_joypad") == 0 &&
+				id.bustype == BUS_HOST && id.vendor == 0x484b &&
+				id.product == 0x0a2c && id.version == 0x0100;
+
+			if (isRetrogameJoypad || isOSHController || isArcJoypad) {
+				if (isArcJoypad) {
+					ret.setValues(fname, "", false);
+				} else if (isRetrogameJoypad) {
 					ret.setValues(find_existing_evdev(), fname,false);
 				} else {
 					ret.setValues(fname, find_existing_rumble_evdev(),true);

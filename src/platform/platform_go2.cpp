@@ -55,6 +55,17 @@ static_assert(static_cast<int>(RR_ROTATION_VERTICAL) == static_cast<int>(GO2_ROT
               "GO2 and platform rotation layouts must match");
 
 static go2_rotation_t native_rotation(rr_rotation_t value) {
+    // ARC-D's portrait panel needs the opposite fixed transform to the
+    // Miniloong panel. Compose it here for game, menu, OSD and overlays.
+    if (isRGARCD()) {
+        switch (value) {
+        case RR_ROTATION_DEGREES_0:   return GO2_ROTATION_DEGREES_90;
+        case RR_ROTATION_DEGREES_90:  return GO2_ROTATION_DEGREES_180;
+        case RR_ROTATION_DEGREES_180: return GO2_ROTATION_DEGREES_270;
+        case RR_ROTATION_DEGREES_270: return GO2_ROTATION_DEGREES_0;
+        default: break;
+        }
+    }
     // The Miniloong Pocket 1 exposes its 720x1280 panel in portrait through
     // DRM. RetroRun works in its landscape logical coordinate space, so add
     // the panel's fixed 270 degree transform to every GO2 presentation path.

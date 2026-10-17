@@ -466,7 +466,8 @@ go2_input_t *go2_input_create(const char *device)
     if (result->fd < 0)
     {
         logger.log(Logger::ERR,"Joystick: No gamepad found.\n");
-        
+        free(result);
+        return NULL;
     }else{
         logger.log(Logger::DEB,"Descriptor file (EVDEV_NAME=%s) for controller found..\n",EVDEV_NAME);
     }

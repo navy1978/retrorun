@@ -8,8 +8,11 @@
                  -= Light Libretro Front-end =-
 
 =================================
-Version 3.2.3 (Oct 12, 2026)
+Version 3.2.3 (Oct 17, 2026)
 ---------------------------------
+- Add native RG ARC-D controls, panel rotation and on-screen message positioning.
+- Fix OpenAL buffer reuse after audio flushes during save-state loading and
+  menu transitions.
 - Preserve distribution compiler and linker flags in Linux SDL2 builds.
 - Give explicitly selected SDL controller databases precedence over defaults.
 - Select the RG351V input layout using controller capabilities, preserving
