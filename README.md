@@ -10,6 +10,8 @@ menu, RetroAchievements and screen decorations.
 
 ## Version 3.2.3
 
+- Add native RG ARC-D controls, game/menu rotation and on-screen message positioning.
+- Fix OpenAL audio buffer reuse during save-state loading and menu transitions.
 - Improve Linux SDL2 package builds and controller database overrides.
 - Preserve RG351V hotkeys across different SDL controller layouts.
 - Document UnofficialOS integration tested on RG353M.
@@ -24,8 +26,9 @@ See [changelog.txt](changelog.txt) for release history.
 | Linux handhelds and desktops | SDL2 + OpenGL ES | `retrorun-sdl2` |
 | macOS | SDL2 + Desktop OpenGL | `retrorun` |
 
-The native backend supports RG351 M/P/V/MP, RG552, RG503, RG353M, RG353V
-and Miniloong Pocket 1. SDL2 compatibility depends on the device and distribution.
+The native backend supports Anbernic RG351M, RG351P, RG351V, RG351MP,
+RG552, RG503, RG353M, RG353V and RG ARC-D, plus Miniloong Pocket 1.
+SDL2 compatibility depends on the device and distribution.
 
 ## Documentation
 
