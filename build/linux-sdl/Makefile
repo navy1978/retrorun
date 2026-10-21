@@ -58,6 +58,7 @@ SOURCES := \
   src/config/flycast_game_catalog.cpp \
   src/config/flycast_game_catalog_update.cpp \
   src/core/core_loader.cpp \
+  src/core/archive_content.cpp \
   src/core/savestate.cpp \
   src/menu_setup.cpp \
   src/input/keyboard.cpp \
@@ -79,6 +80,7 @@ OBJECTS := $(patsubst src/%.cpp,$(OBJDIR)/%.o,$(SOURCES)) \
 .DEFAULT_GOAL := all
 include ../disc-reader.mk
 COMMON_FLAGS += -I$(CHDR_DIR)/include
+include ../archive-reader.mk
 
 .PHONY: all clean
 all: $(TARGET)

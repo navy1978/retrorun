@@ -34,6 +34,7 @@ SDL2 compatibility depends on the device and distribution.
 
 - [Building](doc/BUILDING.md): dependencies, GO2, SDL2, hybrid and macOS builds.
 - [Running](doc/RUNNING.md): launch options, cores and Flycast game profiles.
+- [ZIP game content](docs/zip-content.md): temporary extraction, memory use and archive limitations.
 - [Configuration](doc/CONFIGURATION.md): config files and frontend settings.
 - [Core options](doc/CORE_OPTIONS.md): libretro configuration examples.
 - [Controls and button remapping](doc/CONTROLS.md): keyboard, shortcuts and custom mappings.

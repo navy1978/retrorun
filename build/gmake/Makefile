@@ -112,6 +112,7 @@ OBJECTS := \
 	$(OBJDIR)/config/flycast_game_catalog.o \
 	$(OBJDIR)/config/flycast_game_catalog_update.o \
 	$(OBJDIR)/core/core_loader.o \
+	$(OBJDIR)/core/archive_content.o \
 	$(OBJDIR)/core/savestate.o \
 	$(OBJDIR)/menu_setup.o \
 	$(OBJDIR)/input/keyboard.o \
@@ -146,6 +147,7 @@ OBJECTS += $(RCHEEVOS_OBJECTS)
 
 .DEFAULT_GOAL := all
 include ../disc-reader.mk
+include ../archive-reader.mk
 
 RESOURCES := \
 

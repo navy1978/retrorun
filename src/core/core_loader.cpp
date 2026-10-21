@@ -5,6 +5,8 @@ Copyright (C) 2021-present  navy1978
 */
 
 #include "core_loader.h"
+#include "archive_content.h"
+#include <memory>
 #include "core_option_resolution.h"
 #include "globals.h"
 #include "config.h"
@@ -51,6 +53,7 @@ retro_hw_context_reset_t retro_context_destroy;
 
 static struct retro_perf_counter *perf_counters[MAX_COUNTERS];
 static int perf_counter_count = 0;
+static rr::ArchiveContent game_archive;
 
 typedef std::map<std::string, std::string> varmap_t;
 static varmap_t variables;
@@ -704,7 +707,7 @@ void core_load(const char *sofile)
 
     logger.log(Logger::DEB, "Core Info: library_name='%s'", system.library_name);
     logger.log(Logger::DEB, "Core Info: library_version='%s'", system.library_version);
-    logger.log(Logger::DEB, "Core Info: can extract zip files='%s'", system.block_extract ? "true" : "false");
+    logger.log(Logger::DEB, "Core Info: blocks frontend archive extraction='%s'", system.block_extract ? "true" : "false");
 
     if (strcmp(system.library_name, "Atari800") == 0)
     {
@@ -776,36 +779,50 @@ void core_load_game(const char *filename)
     struct retro_game_geometry geom = {100, 100, 100, 100, 1.0f};
     struct retro_system_av_info av = {geom, timing};
     struct retro_system_info system = {0, 0, 0, false, false};
-    struct retro_game_info info = {filename, 0, 0, NULL};
-
-    FILE *file = fopen(filename, "rb");
-    if (!file)
-        goto libc_error;
-
-    fseek(file, 0, SEEK_END);
-    info.size = ftell(file);
-    rewind(file);
-
     g_retro.retro_get_system_info(&system);
-
-    if (!system.need_fullpath)
+    std::string archiveError;
+    if (!game_archive.prepare(filename, system.valid_extensions,
+                              system.block_extract, archiveError, opt_savedir))
     {
-        info.data = malloc(info.size);
-        if (!info.data || !fread((void *)info.data, info.size, 1, file))
-            goto libc_error;
-    }
-
-    if (!g_retro.retro_load_game(&info))
-    {
-        fclose(file);
-        free(const_cast<void *>(info.data));
-        logger.log(Logger::ERR, "The core failed to load the content.");
+        logger.log(Logger::ERR, "Failed to prepare content '%s': %s",
+                   filename, archiveError.c_str());
+        game_archive.reset();
         exit(1);
     }
-
+    if (game_archive.extracted())
+        logger.log(Logger::INF, "ZIP content extracted to temporary file '%s'",
+                   game_archive.path().c_str());
+    struct retro_game_info info = {game_archive.path().c_str(), 0, 0, NULL};
+    std::unique_ptr<FILE, decltype(&fclose)> file(fopen(info.path, "rb"), &fclose);
+    std::unique_ptr<void, decltype(&free)> data(nullptr, &free);
+    bool loaded = false;
+    if (file && fseek(file.get(), 0, SEEK_END) == 0)
+    {
+        const long length = ftell(file.get());
+        if (length > 0 && fseek(file.get(), 0, SEEK_SET) == 0)
+        {
+            info.size = static_cast<size_t>(length);
+            if (!system.need_fullpath)
+            {
+                // libretro requires a memory buffer for these cores. ZIP inflation
+                // itself uses only 32 KiB; this buffer is released after load_game.
+                data.reset(malloc(info.size));
+                if (data && fread(data.get(), 1, info.size, file.get()) == info.size)
+                    info.data = data.get();
+            }
+            if (system.need_fullpath || info.data)
+                loaded = g_retro.retro_load_game(&info);
+        }
+    }
+    file.reset();
+    data.reset();
+    if (!loaded)
+    {
+        game_archive.reset();
+        logger.log(Logger::ERR, "The core failed to load content '%s'.", filename);
+        exit(1);
+    }
     g_retro.game_loaded = true;
-    fclose(file);
-    free(const_cast<void *>(info.data));
 
     g_retro.retro_get_system_av_info(&av);
     core_clear_pending_av_info();
@@ -813,12 +830,6 @@ void core_load_game(const char *filename)
     audio_init(av.timing.sample_rate, av.timing.fps);
     return;
 
-libc_error:
-    if (file)
-        fclose(file);
-    free(const_cast<void *>(info.data));
-    logger.log(Logger::ERR, "Failed to load content '%s'", filename);
-    exit(1);
 }
 
 // --- Core unload ---
@@ -875,6 +886,7 @@ void core_close()
         dlclose(g_retro.handle);
         g_retro.handle = nullptr;
     }
+    game_archive.reset();
     retro_context_reset = nullptr;
     retro_context_destroy = nullptr;
     core_clear_pending_av_info();

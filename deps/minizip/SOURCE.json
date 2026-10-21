@@ -1,0 +1,26 @@
+{
+  "upstream": "madler/zlib",
+  "tag": "v1.3.1",
+  "files": {
+    "unzip.c": {
+      "url": "https://raw.githubusercontent.com/madler/zlib/v1.3.1/contrib/minizip/unzip.c",
+      "sha256": "10881ab576f49fe0825a21f77e322ece6ee88d34ed66fb3a3ce7a22f4b6cd2d9"
+    },
+    "unzip.h": {
+      "url": "https://raw.githubusercontent.com/madler/zlib/v1.3.1/contrib/minizip/unzip.h",
+      "sha256": "2ff9df0b1da7499adc806bc0ec098ef1c7b9d361a8fd5b08a98299a1a4e88399"
+    },
+    "ioapi.c": {
+      "url": "https://raw.githubusercontent.com/madler/zlib/v1.3.1/contrib/minizip/ioapi.c",
+      "sha256": "6dff11ded396f5e3147c632a639423e80ced6705bf7bf75d21cda0c571fdf86b"
+    },
+    "ioapi.h": {
+      "url": "https://raw.githubusercontent.com/madler/zlib/v1.3.1/contrib/minizip/ioapi.h",
+      "sha256": "6d2f2c3520dfc3061ea9128a1afb843f5cfe8d7317adcefe3a45884bc06e06a1"
+    },
+    "crypt.h": {
+      "url": "https://raw.githubusercontent.com/madler/zlib/v1.3.1/contrib/minizip/crypt.h",
+      "sha256": "5c978923cff1e80f76baf437eed699d5b4ad1bf515008d669475d3dd0d89ef70"
+    }
+  }
+}

@@ -10,7 +10,7 @@ COMMON_FLAGS := $(CXXFLAGS) $(SANITIZER) $(INCLUDES) -pthread
 
 .PHONY: all run clean
 
-all: benchmark_test audio_worker_test transition_test config_file_test flycast_game_catalog_test core_option_resolution_test video_multithread_mode_test
+all: archive_content_test benchmark_test audio_worker_test transition_test config_file_test flycast_game_catalog_test core_option_resolution_test video_multithread_mode_test
 
 benchmark_test: benchmark_test.cpp $(ROOT)/src/diagnostics/benchmark.cpp $(ROOT)/src/diagnostics/benchmark.h
 	$(CXX) $(COMMON_FLAGS) benchmark_test.cpp $(ROOT)/src/diagnostics/benchmark.cpp -o $@
@@ -43,6 +43,7 @@ video_multithread_mode_test: video_multithread_mode_test.cpp \
 	$(CXX) $(COMMON_FLAGS) video_multithread_mode_test.cpp -o $@
 
 run: all
+	python3 archive_content_test.py ./archive_content_test
 	./benchmark_test
 	./audio_worker_test
 	./transition_test
@@ -52,4 +53,13 @@ run: all
 	./video_multithread_mode_test
 
 clean:
-	rm -f benchmark_test audio_worker_test transition_test config_file_test flycast_game_catalog_test core_option_resolution_test video_multithread_mode_test benchmark-result-1.json benchmark-result-2.json transition-test.state
+	rm -f archive_content_test archive_unzip.o archive_ioapi.o benchmark_test audio_worker_test transition_test config_file_test flycast_game_catalog_test core_option_resolution_test video_multithread_mode_test benchmark-result-1.json benchmark-result-2.json transition-test.state
+
+archive_unzip.o: $(ROOT)/deps/minizip/unzip.c
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(SANITIZER) -std=c99 -D_POSIX_C_SOURCE=200809L -DNOUNCRYPT -c $< -o $@
+
+archive_ioapi.o: $(ROOT)/deps/minizip/ioapi.c
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(SANITIZER) -std=c99 -D_POSIX_C_SOURCE=200809L -c $< -o $@
+
+archive_content_test: archive_content_test.cpp $(ROOT)/src/core/archive_content.cpp $(ROOT)/src/core/archive_content.h archive_unzip.o archive_ioapi.o
+	$(CXX) $(COMMON_FLAGS) archive_content_test.cpp $(ROOT)/src/core/archive_content.cpp archive_unzip.o archive_ioapi.o -lz -o $@
