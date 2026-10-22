@@ -8,6 +8,21 @@
                  -= Light Libretro Front-end =-
 
 =================================
+Version 3.2.4 (Oct 22, 2026)
+---------------------------------
+- Save an optional, aspect-correct PNG preview beside each successfully saved
+  state, using the game frame without UI overlays (maximum 320x240).
+- Write states and previews through temporary files and atomic replacement;
+  preserve existing states on serialization/write failure and remove stale
+  previews when a new capture fails. Support long legal state filenames.
+- Add --resume-slot 1|2|3 to explicitly restore a manual slot independently of
+  automatic loading, and --start-new to bypass loading and automatic saving for
+  that session while preserving existing manual slots.
+- Report failed saves accurately instead of showing a successful-save message.
+- Cover software, OpenGL and direct-scanout preview paths with bounded capture
+  helpers; add native failure/rotation/slot tests and an original diagnostic core.
+
+=================================
 Version 3.2.3 (Oct 17, 2026)
 ---------------------------------
 - Add native RG ARC-D controls, panel rotation and on-screen message positioning.

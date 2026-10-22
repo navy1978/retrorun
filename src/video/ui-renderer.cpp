@@ -305,8 +305,9 @@ void renderStateMessage() {
             if (!lastLoadSaveStateDoneOk) color = RED;
         }
     } else if (input_slot_memory_save_done) {
-        label = "Slot " + std::to_string(currentSlot) + " saved";
-        icon = PopupIcon::Success;
+        label = lastLoadSaveStateDoneOk ? "Slot " + std::to_string(currentSlot) + " saved" : "Save failed";
+        icon = lastLoadSaveStateDoneOk ? PopupIcon::Success : PopupIcon::Error;
+        if (!lastLoadSaveStateDoneOk) color = RED;
     } else if (input_slot_memory_reset_done) {
         label = "Core reset";
         icon = PopupIcon::Reset;

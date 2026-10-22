@@ -253,6 +253,8 @@ static struct option longopts[] = {
     {"volume", required_argument, NULL, 'v'},
     {"backlight", required_argument, NULL, 'b'},
     {"restart", no_argument, NULL, 'r'},
+    {"resume-slot", required_argument, NULL, 1005},
+    {"start-new", no_argument, NULL, 1006},
     {"triggers", no_argument, NULL, 't'},
     {"analog", no_argument, NULL, 'n'},
     {"analog-to-digital", required_argument, NULL, 'A'},
@@ -640,6 +642,8 @@ int main(int argc, char *argv[])
     int c;
     int option_index = 0;
 
+    int resumeSlot=0;
+    bool startNew=false;
     std::string analogModeOverride;
     BenchmarkOptions benchmarkOptions;
     bool benchmarkOptionSeen = false;
@@ -718,14 +722,26 @@ int main(int argc, char *argv[])
                 return EXIT_FAILURE;
             }
             break;
+        case 1006:
+            startNew=true;opt_restart=true;
+            break;
+        case 1005:
+            if (!optarg || optarg[0]<'1' || optarg[0]>'3' || optarg[1]) {
+                std::fprintf(stderr, "--resume-slot must be 1, 2 or 3.\n");
+                return EXIT_FAILURE;
+            }
+            resumeSlot=optarg[0]-'0';
+            break;
         default:
             logger.log(Logger::ERR, "Unknown option. '%s'", longopts[option_index].name);
             exit(EXIT_FAILURE);
         }
     }
 
+    if(resumeSlot && opt_restart){std::fprintf(stderr,"--restart and --resume-slot conflict.\n");return EXIT_FAILURE;}
     getDeviceName();
     initConfig();
+    if(startNew)auto_save=false; // Preserve existing slots during an explicit fresh session.
 
     if (benchmarkModifierSeen && !benchmarkOptionSeen)
     {
@@ -881,17 +897,22 @@ int main(int argc, char *argv[])
     logger.log(Logger::DEB, "savePath='%s'", savePath);
     logger.log(Logger::DEB, "sramPath='%s'", sramPath);
 
+    const std::string startupState=std::string(savePath)+(resumeSlot>1?std::to_string(resumeSlot-1):"");
+    if(resumeSlot && !fileExists(startupState.c_str())) {
+        logger.log(Logger::ERR,"Selected save slot %d is unavailable; refusing to start a new game.",resumeSlot);
+        return EXIT_FAILURE;
+    }
     if (opt_restart)
     {
         logger.log(Logger::WARN, "Restarting...");
     }
     else
     {
-        if (auto_load && fileExists(savePath))
+        if ((resumeSlot || auto_load) && fileExists(startupState.c_str()))
         {
             input_message = true;
             status_message = "Loading saved game...";
-            logger.log(Logger::DEB, "Loading saved state - File '%s'", savePath);
+            logger.log(Logger::DEB, "Loading saved state - File '%s'", startupState.c_str());
             input_slot_memory_load_requested = true;
             lastLoadSaveStateRequestTime = static_cast<double>(time(NULL));
 
@@ -903,7 +924,8 @@ int main(int argc, char *argv[])
                 sleep(1);
                 g_retro.retro_run();
             }
-            StartLoadStateAsync(savePath, 0, true);
+            if(resumeSlot)currentSlot=resumeSlot;
+            StartLoadStateAsync(startupState.c_str(), resumeSlot, resumeSlot==0);
         }
         else if (auto_load)
         {

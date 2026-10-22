@@ -24,6 +24,7 @@ struct rr_surface { go2_surface_t* native; };
 struct rr_presenter { go2_presenter_t* native; };
 struct rr_context {
     go2_context_t* native;
+    rr_surface_t last_frame{};
     int width;
     int height;
     GLuint framebuffer;
@@ -191,6 +192,7 @@ int rr_surface_stride_get(rr_surface_t* surface) { return go2_surface_stride_get
 void* rr_surface_map(rr_surface_t* surface) { return go2_surface_map(surface->native); }
 void rr_surface_unmap(rr_surface_t* surface) { go2_surface_unmap(surface->native); }
 void rr_surface_blit(rr_surface_t* source, int sx, int sy, int sw, int sh, rr_surface_t* dest, int dx, int dy, int dw, int dh, rr_rotation_t rotation) { go2_surface_blit(source->native, sx, sy, sw, sh, dest->native, dx, dy, dw, dh, native_rotation(rotation)); }
+void rr_surface_blit_pixels(rr_surface_t* source,int sx,int sy,int sw,int sh,rr_surface_t* dest,int dx,int dy,int dw,int dh) { go2_surface_blit(source->native,sx,sy,sw,sh,dest->native,dx,dy,dw,dh,GO2_ROTATION_DEGREES_0); }
 int rr_surface_save_as_png(rr_surface_t* surface, const char* filename) { return go2_surface_save_as_png(surface->native, filename); }
 
 rr_presenter_t* rr_presenter_create(rr_display_t* display, uint32_t format, uint32_t background) { go2_presenter_t* native = go2_presenter_create(display->native, format, background); if (!native) return NULL; rr_presenter_t* p = new rr_presenter_t; p->native = native; return p; }
@@ -467,7 +469,8 @@ void rr_context_swap_buffers(rr_context_t* context, int source_width, int source
     glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(previous_framebuffer));
 }
 uintptr_t rr_context_framebuffer_get(rr_context_t* context) { return context ? context->framebuffer : 0; }
-rr_surface_t* rr_context_surface_lock(rr_context_t* context) { go2_surface_t* native = go2_context_surface_lock(context->native); if (!native) return NULL; rr_surface_t* s = new rr_surface_t; s->native=native; return s; }
+rr_surface_t* rr_context_surface_lock(rr_context_t* context) { go2_surface_t* native = go2_context_surface_lock(context->native); if (!native) return NULL; rr_surface_t* s = new rr_surface_t; s->native=native; context->last_frame.native=native; return s; }
+rr_surface_t* rr_context_surface_last(rr_context_t* context) { return context && context->last_frame.native ? &context->last_frame : nullptr; }
 void rr_context_surface_unlock(rr_context_t* context, rr_surface_t* surface) { go2_context_surface_unlock(context->native, surface->native); delete surface; }
 void* rr_context_get_proc_address(const char* symbol) { return reinterpret_cast<void*>(eglGetProcAddress(symbol)); }
 void rr_video_sync() {

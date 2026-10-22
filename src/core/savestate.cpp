@@ -5,9 +5,11 @@ Copyright (C) 2021-present  navy1978
 */
 
 #include "savestate.h"
+#include "state_file.h"
 #include "core_loader.h"
 #include "config.h"
 #include "globals.h"
+#include "video-helper.h"
 #include "input.h"
 #include "audio.h"
 #include "video.h"
@@ -450,36 +452,23 @@ void SaveState(const char *saveName)
     }
     lastSaveTime = currentTime;
 
-    size_t size = g_retro.retro_serialize_size();
-    void *ptr = malloc(size);
-    if (!ptr)
-    {
-        logger.log(Logger::ERR, "Error saving state: ptr not valid!");
-        exit(1);
-    }
-
-    g_retro.retro_serialize(ptr, size);
-    FILE *file = fopen(saveName, "wb");
-    if (!file)
-    {
-        logger.log(Logger::ERR, "Error saving state: File '%s' cannot be opened!", saveName);
-        free(ptr);
-        exit(1);
-    }
-
-    size_t count = fwrite(ptr, 1, size, file);
-    if (count != size)
-    {
-        logger.log(Logger::ERR, "Error saving state: File '%s' count not valid!", saveName);
-        free(ptr);
-        exit(1);
-    }
-
-    fclose(file);
-    free(ptr);
-    logger.log(Logger::DEB, "File '%s': saved correctly!", saveName);
     input_slot_memory_save_done = true;
-    lastLoadSaveStateDoneTime = (double)time(NULL);
+    lastLoadSaveStateDoneOk = false;
+    lastLoadSaveStateDoneTime = static_cast<double>(time(NULL));
+    video_synchronize();
+    const size_t size = g_retro.retro_serialize_size();
+    if (!size) { logger.log(Logger::ERR, "Core does not support save states."); return; }
+    void *ptr = malloc(size);
+    if (!ptr) { logger.log(Logger::ERR, "Cannot allocate save state."); return; }
+    const bool serialized = g_retro.retro_serialize(ptr, size);
+    const bool saved = serialized && state_file::write(saveName ? saveName : "", ptr, size);
+    free(ptr); // Do not retain the core state buffer while capturing/encoding PNG.
+    if (!saved) { logger.log(Logger::ERR, "Save state failed; previous slot preserved."); return; }
+    lastLoadSaveStateDoneOk = true;
+    logger.log(Logger::DEB, "File '%s': saved correctly!", saveName);
+    if (!state_file::preview(saveName, [](const char* path){return saveStateScreenshot(path);}))
+        logger.log(Logger::WARN, "State saved without preview: '%s'", saveName);
+
 }
 
 // --- SaveSram ---

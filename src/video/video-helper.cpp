@@ -20,6 +20,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 #include "globals.h"
 #include "video-helper.h"
+#include "screenshot_capture.h"
 #include <algorithm>
 #include <cctype>
 #include <ctime>
@@ -1306,60 +1307,47 @@ void showImage(Image img, rr_surface_t **surface)
 
 
 
-void takeScreenshot(int w, int h)
-{
-    logger.log(Logger::DEB, "Taking a screenshot!");
-    rr_surface_t *source = surface;
+namespace {
+bool gameScreenshot(const char* path,bool thumbnail){
+    if(thumbnail && (!currentWidth || !currentHeight))return false;
+    rr_surface_t* source=surface;
 #ifdef RR_PLATFORM_SDL
-    rr_surface_t *captured_surface = nullptr;
-    if (isOpenGL)
-    {
-        captured_surface = rr_context_surface_lock(context3D);
-        source = captured_surface;
-    }
+    rr_surface_t* captured=nullptr;
+    if(isOpenGL && context3D){captured=rr_context_surface_lock(context3D);source=captured;}
 #else
-    if (isOpenGL)
-        source = gles_surface;
+    // gles_surface's wrapper is released after presentation. The context keeps
+    // a non-owning view of its native BO, valid after video_synchronize(), so
+    // saving a state never dereferences that released wrapper or locks GBM twice.
+    if(isOpenGL)source=thumbnail?rr_context_surface_last(context3D):gles_surface;
 #endif
-    if (!source)
-    {
-        logger.log(Logger::ERR, "Screenshot capture failed: video surface is not available.");
-        screenshot_requested = false;
-        return;
+    bool ok=false;
+    if(source){
+        int width=rr_surface_width_get(source),height=rr_surface_height_get(source),sy=0;
+        if(thumbnail && currentWidth && currentHeight){
+            width=std::min(width,static_cast<int>(currentWidth));
+            const int activeHeight=std::min(height,static_cast<int>(currentHeight));
+            if(isOpenGL)sy=height-activeHeight;
+            height=activeHeight;
+        }
+        ok=captureSurfacePng(display,source,0,sy,width,height,path,thumbnail?320:0,thumbnail?240:0,getBlitRotation());
     }
-
-    w = rr_surface_width_get(source);
-    h = rr_surface_height_get(source);
-    rr_surface_t *screenshot = rr_surface_create(display, w, h, RR_PIXEL_FORMAT_RGB888);
-    if (!screenshot)
-    {
-        logger.log(Logger::ERR, "rr_surface_create for screenshot failed.");
 #ifdef RR_PLATFORM_SDL
-        if (captured_surface)
-            rr_context_surface_unlock(context3D, captured_surface);
+    if(captured)rr_context_surface_unlock(context3D,captured);
 #endif
-        screenshot_requested = false;
-        return;
-    }
-
-    rr_surface_blit(source,
-                     0, 0, w, h,
-                     screenshot,
-                     0, 0, w, h,
-                     getBlitRotation());
-#ifdef RR_PLATFORM_SDL
-    if (captured_surface)
-        rr_context_surface_unlock(context3D, captured_surface);
-#endif
-
-    // snap in screenshot directory
-    std::string fullPath = screenShotFolder + "/" + romName + "-" + getCurrentTimeForFileName() + ".png";
-    rr_surface_save_as_png(screenshot, fullPath.c_str());
-    logger.log(Logger::DEB, "Screenshot saved:'%s'\n", fullPath.c_str());
-    rr_surface_destroy(screenshot);
-    screenshot_requested = false;
-    flash = true;
-    t_flash_start = std::chrono::high_resolution_clock::now();
+    return ok;
+}
+}
+bool saveStateScreenshot(const char* path){
+    // SaveState already synchronized video before serialization. No new frame
+    // is emulated, no menu/OSD is composited and no screenshot notification fires.
+    return gameScreenshot(path,true);
+}
+void takeScreenshot(int, int){
+    const std::string path=screenShotFolder+"/"+romName+"-"+getCurrentTimeForFileName()+".png";
+    const bool saved=gameScreenshot(path.c_str(),false);screenshot_requested=false;
+    if(!saved){logger.log(Logger::ERR,"Screenshot capture/write failed.");return;}
+    logger.log(Logger::DEB,"Screenshot saved: '%s'",path.c_str());
+    flash=true;t_flash_start=std::chrono::high_resolution_clock::now();
 }
 
 

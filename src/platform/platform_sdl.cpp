@@ -746,6 +746,7 @@ void rr_surface_blit(rr_surface_t* source, int sx, int sy, int sw, int sh,
     if (src) SDL_FreeSurface(src);
     if (dst) SDL_FreeSurface(dst);
 }
+void rr_surface_blit_pixels(rr_surface_t* source,int sx,int sy,int sw,int sh,rr_surface_t* dest,int dx,int dy,int dw,int dh) { rr_surface_blit(source,sx,sy,sw,sh,dest,dx,dy,dw,dh,RR_ROTATION_DEGREES_0); }
 int rr_surface_save_as_png(rr_surface_t* surface, const char* filename) {
     SDL_Surface* wrapped = wrap_surface(surface);
     SDL_Surface* rgba = wrapped ? SDL_ConvertSurfaceFormat(wrapped, SDL_PIXELFORMAT_RGBA32, 0) : NULL;
@@ -1595,6 +1596,7 @@ void rr_context_swap_buffers(rr_context_t* context, int source_width, int source
 uintptr_t rr_context_framebuffer_get(rr_context_t* context) {
     return context ? static_cast<uintptr_t>(context->framebuffer) : 0;
 }
+rr_surface_t* rr_context_surface_last(rr_context_t*) { return nullptr; }
 rr_surface_t* rr_context_surface_lock(rr_context_t* context) {
     if (!context) return NULL;
     rr_context_make_current(context);

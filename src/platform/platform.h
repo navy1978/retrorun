@@ -185,6 +185,9 @@ void rr_surface_unmap(rr_surface_t* surface);
 void rr_surface_blit(rr_surface_t* source, int src_x, int src_y, int src_w, int src_h,
                      rr_surface_t* dest, int dst_x, int dst_y, int dst_w, int dst_h,
                      rr_rotation_t rotation);
+// Pixel conversion/scaling without a device's fixed display-panel transform.
+void rr_surface_blit_pixels(rr_surface_t* source,int sx,int sy,int sw,int sh,
+                           rr_surface_t* dest,int dx,int dy,int dw,int dh);
 int rr_surface_save_as_png(rr_surface_t* surface, const char* filename);
 
 rr_presenter_t* rr_presenter_create(rr_display_t* display, uint32_t format, uint32_t background);
@@ -215,6 +218,9 @@ void rr_context_swap_buffers(rr_context_t* context, int source_width, int source
                              int dest_x, int dest_y, int dest_width, int dest_height,
                              status* overlays, rr_rotation_t rotation);
 uintptr_t rr_context_framebuffer_get(rr_context_t* context);
+// Borrow the most recently completed GO2 frame without locking another GBM
+// buffer. Valid only while the context lives and rendering is synchronized.
+rr_surface_t* rr_context_surface_last(rr_context_t* context);
 rr_surface_t* rr_context_surface_lock(rr_context_t* context);
 void rr_context_surface_unlock(rr_context_t* context, rr_surface_t* surface);
 void* rr_context_get_proc_address(const char* symbol);

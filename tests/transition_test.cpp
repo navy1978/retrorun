@@ -29,6 +29,7 @@ int video_barriers = 0;
 int unserializes = 0;
 int serialize_size_calls = 0;
 int disk_step = 0;
+int preview_calls = 0;
 bool ejected = false;
 bool flycast2021 = false;
 bool flycast2021LowEnd = false;
@@ -76,6 +77,7 @@ bool replace_index(unsigned index, const retro_game_info* info)
 bool add_index() { assert(disk_step == 1); disk_step = 2; return true; }
 }
 
+bool saveStateScreenshot(const char*) { ++preview_calls; return false; }
 bool audio_flush() { ++audio_flushes; return true; }
 void video_synchronize() { ++video_barriers; }
 void achievements_change_media(const char*) {}
@@ -174,5 +176,18 @@ int main()
     assert(error.empty());
     assert(disk_step == 5);
     rr_disk_control_clear();
+    // A failed serialize must preserve both an old state and its thumbnail.
+    file=std::fopen(state_path,"wb");assert(file);std::fwrite("previous",1,8,file);std::fclose(file);
+    const std::string preview=std::string(state_path)+".png";
+    file=std::fopen(preview.c_str(),"wb");assert(file);std::fwrite("old-preview",1,11,file);std::fclose(file);
+    g_retro.retro_serialize=[](void*,size_t){return false;};
+    SaveState(state_path);assert(!lastLoadSaveStateDoneOk && preview_calls==0);
+    char old[12]={};file=std::fopen(state_path,"rb");assert(file);assert(std::fread(old,1,8,file)==8);std::fclose(file);assert(std::string(old)=="previous");
+    std::this_thread::sleep_for(std::chrono::milliseconds(1100));
+    g_retro.retro_serialize=[](void* data,size_t size){std::memset(data,7,size);return true;};
+    SaveState(state_path);assert(lastLoadSaveStateDoneOk && preview_calls==1);
+    file=std::fopen(state_path,"rb");assert(file);assert(std::fgetc(file)==7);std::fclose(file);
+    assert(std::fopen(preview.c_str(),"rb")==nullptr); // Failed capture leaves no stale image.
+    std::remove(state_path);
     return 0;
 }

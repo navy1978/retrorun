@@ -114,6 +114,8 @@ void showFullImage(int x, int y, int width, int height, const uint8_t *src, rr_s
 // refactor
 void showImage(Image img, rr_surface_t **surface);
 void takeScreenshot(int w, int h);
+// Bounded, silent slot preview: no screenshot hotkey flash or gallery entry.
+bool saveStateScreenshot(const char* path);
 void makeScreenBlackCredits(rr_surface_t *rr_surface, int res_width, int res_height);
 void makeScreenTotalBlack(rr_surface_t *rr_surface, int res_width, int res_height);
 void makeScreenBlack(rr_surface_t *rr_surface, int res_width, int res_height);
