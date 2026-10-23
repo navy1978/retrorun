@@ -1,3 +1,4 @@
+#include "../core/state_context.h"
 
 /*
 retrorun - libretro frontend for Anbernic Devices
@@ -1346,6 +1347,7 @@ void takeScreenshot(int, int){
     const std::string path=screenShotFolder+"/"+romName+"-"+getCurrentTimeForFileName()+".png";
     const bool saved=gameScreenshot(path.c_str(),false);screenshot_requested=false;
     if(!saved){logger.log(Logger::ERR,"Screenshot capture/write failed.");return;}
+    if(!rr::state_context::record(path,"screenshot"))logger.log(Logger::WARN,"Screenshot saved without game association.");
     logger.log(Logger::DEB,"Screenshot saved: '%s'",path.c_str());
     flash=true;t_flash_start=std::chrono::high_resolution_clock::now();
 }

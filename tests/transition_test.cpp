@@ -2,6 +2,8 @@
 #include "disk_control.h"
 #include "logger.h"
 #include "savestate.h"
+#include "state_context.h"
+#include <fstream>
 
 #include <cassert>
 #include <chrono>
@@ -118,6 +120,10 @@ int main()
     assert(file);
     assert(std::fwrite(state, 1, sizeof(state), file) == sizeof(state));
     std::fclose(file);
+    std::ofstream("transition-test.rom")<<"owned synthetic ROM";
+    std::ofstream("transition-test.core")<<"owned synthetic core";
+    rr::state_context::configure("transition-test.rom","transition-test.core");
+    assert(rr::state_context::record(state_path,"latest",state,sizeof(state)));
     assert(StartLoadStateAsync(state_path, 0, true));
     while (LoadStateProgress() < 100)
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -189,5 +195,7 @@ int main()
     file=std::fopen(state_path,"rb");assert(file);assert(std::fgetc(file)==7);std::fclose(file);
     assert(std::fopen(preview.c_str(),"rb")==nullptr); // Failed capture leaves no stale image.
     std::remove(state_path);
+    std::remove((std::string(state_path)+".identity").c_str());
+    std::remove("transition-test.rom");std::remove("transition-test.core");
     return 0;
 }

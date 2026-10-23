@@ -6,6 +6,7 @@ Copyright (C) 2021-present  navy1978
 
 #include "savestate.h"
 #include "state_file.h"
+#include "state_context.h"
 #include "core_loader.h"
 #include "config.h"
 #include "globals.h"
@@ -165,7 +166,9 @@ int LoadState(const char *saveName)
         return -1;
     }
 
-    bool result = apply_state_buffer(ptr, size);
+    const bool compatible = rr::state_context::canLoad(saveName,ptr,size,false);
+    bool result = compatible && apply_state_buffer(ptr, size);
+    if(!compatible)logger.log(Logger::WARN,"State identity/integrity check failed; no state applied.");
 
     free(ptr);
 
@@ -262,7 +265,11 @@ bool StartLoadStateAsync(const char *saveName, int slotNumber, bool autoLoad)
                     asyncLoadProgress.store(progress, std::memory_order_release);
                     set_async_load_message("Loading state " + label + "...");
                 }
-                if (totalRead == pending->size) {
+                if(totalRead==pending->size && !rr::state_context::canLoad(path,pending->data,pending->size,autoLoad)){
+                    pending->error="State compatibility/integrity check failed";
+                    set_async_load_message("State cannot be verified for this core/game");
+                    free(pending->data);pending->data=nullptr;pending->size=0;
+                } else if (totalRead == pending->size) {
                     pending->success = true;
                     asyncLoadProgress.store(100, std::memory_order_release);
                     set_async_load_message("Applying state " + label + "...");
@@ -462,6 +469,8 @@ void SaveState(const char *saveName)
     if (!ptr) { logger.log(Logger::ERR, "Cannot allocate save state."); return; }
     const bool serialized = g_retro.retro_serialize(ptr, size);
     const bool saved = serialized && state_file::write(saveName ? saveName : "", ptr, size);
+    if(saved && !rr::state_context::record(saveName,std::string(saveName).size()>=7 && std::string(saveName).compare(std::string(saveName).size()-7,7,".latest")==0?"latest":"manual",ptr,size))
+        logger.log(Logger::WARN,"State saved without verifiable identity metadata.");
     free(ptr); // Do not retain the core state buffer while capturing/encoding PNG.
     if (!saved) { logger.log(Logger::ERR, "Save state failed; previous slot preserved."); return; }
     lastLoadSaveStateDoneOk = true;

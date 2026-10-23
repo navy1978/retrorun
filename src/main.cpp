@@ -24,6 +24,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "config/catalog_precedence.h"
 #include "core_loader.h"
 #include "savestate.h"
+#include "core/state_context.h"
 #include "menu_setup.h"
 #include "video-helper.h"
 #include "video.h"
@@ -648,7 +649,6 @@ int main(int argc, char *argv[])
     int option_index = 0;
 
     int resumeSlot=0;
-    bool startNew=false;
     std::string analogModeOverride;
     BenchmarkOptions benchmarkOptions;
     bool benchmarkOptionSeen = false;
@@ -728,11 +728,11 @@ int main(int argc, char *argv[])
             }
             break;
         case 1006:
-            startNew=true;opt_restart=true;
+            opt_restart=true;
             break;
         case 1005:
-            if (!optarg || optarg[0]<'1' || optarg[0]>'3' || optarg[1]) {
-                std::fprintf(stderr, "--resume-slot must be 1, 2 or 3.\n");
+            if (!optarg || optarg[0]<'1' || optarg[0]>'4' || optarg[1]) {
+                std::fprintf(stderr, "--resume-slot must be 1, 2, 3 or 4 (latest session).\n");
                 return EXIT_FAILURE;
             }
             resumeSlot=optarg[0]-'0';
@@ -746,7 +746,7 @@ int main(int argc, char *argv[])
     if(resumeSlot && opt_restart){std::fprintf(stderr,"--restart and --resume-slot conflict.\n");return EXIT_FAILURE;}
     getDeviceName();
     initConfig();
-    if(startNew)auto_save=false; // Preserve existing slots during an explicit fresh session.
+    // A fresh session may update only the independent automatic state; manual slots are preserved.
 
     if (benchmarkModifierSeen && !benchmarkOptionSeen)
     {
@@ -897,12 +897,17 @@ int main(int argc, char *argv[])
 
     // State paths
     char *sramPath = createSramPath(arg_rom, opt_savedir);
-    char *savePath = createSavePath(arg_rom, opt_savedir);
+    char *manualPath = createSavePath(arg_rom, opt_savedir);
+    const std::string latestPath=rr::state_context::latestPath(manualPath);
+    char *savePath = strdup(latestPath.c_str());
+    rr::state_context::configure(arg_rom,arg_core);
 
     logger.log(Logger::DEB, "savePath='%s'", savePath);
     logger.log(Logger::DEB, "sramPath='%s'", sramPath);
 
-    const std::string startupState=std::string(savePath)+(resumeSlot>1?std::to_string(resumeSlot-1):"");
+    const std::string startupState=(resumeSlot==0 || resumeSlot==4)?latestPath:
+        std::string(manualPath)+(resumeSlot>1?std::to_string(resumeSlot-1):"");
+    free(manualPath);
     if(resumeSlot && !fileExists(startupState.c_str())) {
         logger.log(Logger::ERR,"Selected save slot %d is unavailable; refusing to start a new game.",resumeSlot);
         return EXIT_FAILURE;
@@ -929,7 +934,7 @@ int main(int argc, char *argv[])
                 sleep(1);
                 g_retro.retro_run();
             }
-            if(resumeSlot)currentSlot=resumeSlot;
+            if(resumeSlot>0 && resumeSlot<=3)currentSlot=resumeSlot;
             StartLoadStateAsync(startupState.c_str(), resumeSlot, resumeSlot==0);
         }
         else if (auto_load)
