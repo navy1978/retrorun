@@ -4,9 +4,11 @@
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <sys/resource.h>
 
 int main(int argc, char** argv) {
     assert(argc == 2);
+    rusage baseline{};getrusage(RUSAGE_SELF,&baseline);
     const std::string root = argv[1];
     std::string error, temporary, directory;
     rr::ArchiveContent content;
@@ -28,6 +30,19 @@ int main(int argc, char** argv) {
         assert(!std::filesystem::exists(directory));
         content.reset(); // Idempotent cleanup.
     }
+    for(const auto* extension:{"gb","gbc","gba","md","sms","gg","32x","a26","z64","j64","vb"}){
+        assert(content.prepare(root+"/family-"+extension+".zip",extension,false,error));
+        assert(content.extracted() && std::filesystem::path(content.path()).extension()==std::string(".")+extension);
+        content.reset();
+    }
+    assert(content.prepare(root+"/large.zip","z64",false,error));
+    assert(content.extracted() && std::filesystem::file_size(content.path())==64ULL*1024*1024);
+    content.reset();
+#ifdef __linux__
+    rusage usage{};getrusage(RUSAGE_SELF,&usage);assert(usage.ru_maxrss<baseline.ru_maxrss+8*1024);
+#endif
+    assert(content.prepare(root+"/native-multifile.zip","zip|bin",true,error));
+    assert(!content.extracted() && content.path()==root+"/native-multifile.zip");
     for (const auto* name : {"invalid.zip", "empty.zip", "no-match.zip", "multiple.zip",
                             "unsafe.zip", "corrupt.zip", "encrypted.zip", "oversized.zip"}) {
         assert(!content.prepare(root + "/" + name, "nes", false, error));

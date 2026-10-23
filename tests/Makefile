@@ -10,7 +10,7 @@ COMMON_FLAGS := $(CXXFLAGS) $(SANITIZER) $(INCLUDES) -pthread
 
 .PHONY: all run clean
 
-all: state_preview_test archive_content_test benchmark_test audio_worker_test transition_test config_file_test flycast_game_catalog_test core_option_resolution_test video_multithread_mode_test
+all: catalog_precedence_test state_preview_test archive_content_test benchmark_test audio_worker_test transition_test config_file_test flycast_game_catalog_test core_option_resolution_test video_multithread_mode_test
 
 state_preview_test: state_preview_test.cpp $(ROOT)/src/core/state_file.h $(ROOT)/src/video/screenshot_capture.h
 	$(CXX) $(COMMON_FLAGS) state_preview_test.cpp -o $@
@@ -45,7 +45,11 @@ video_multithread_mode_test: video_multithread_mode_test.cpp \
 		$(ROOT)/src/video/video_multithread_mode.h
 	$(CXX) $(COMMON_FLAGS) video_multithread_mode_test.cpp -o $@
 
+catalog_precedence_test: catalog_precedence_test.cpp $(ROOT)/src/config/catalog_precedence.h
+	$(CXX) $(COMMON_FLAGS) catalog_precedence_test.cpp -o $@
+
 run: all
+	./catalog_precedence_test
 	./state_preview_test
 	python3 archive_content_test.py ./archive_content_test
 	./benchmark_test
@@ -57,7 +61,7 @@ run: all
 	./video_multithread_mode_test
 
 clean:
-	rm -f state_preview_test archive_content_test archive_unzip.o archive_ioapi.o benchmark_test audio_worker_test transition_test config_file_test flycast_game_catalog_test core_option_resolution_test video_multithread_mode_test benchmark-result-1.json benchmark-result-2.json transition-test.state
+	rm -f catalog_precedence_test state_preview_test archive_content_test archive_unzip.o archive_ioapi.o benchmark_test audio_worker_test transition_test config_file_test flycast_game_catalog_test core_option_resolution_test video_multithread_mode_test benchmark-result-1.json benchmark-result-2.json transition-test.state
 
 archive_unzip.o: $(ROOT)/deps/minizip/unzip.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(SANITIZER) -std=c99 -D_POSIX_C_SOURCE=200809L -DNOUNCRYPT -c $< -o $@

@@ -8,6 +8,16 @@
                  -= Light Libretro Front-end =-
 
 =================================
+Unreleased
+---------------------------------
+- Preserve explicit launcher system/game settings and core choices when applying
+  optional Flycast performance catalog recommendations.
+- Allow an independently configured hotkey button, retaining device defaults
+  when the setting is absent or invalid.
+- Extend disk-backed ZIP regression coverage to supported cartridge families,
+  native multi-file archives and bounded memory use for large members.
+
+=================================
 Version 3.2.4 (Oct 22, 2026)
 ---------------------------------
 - Save an optional, aspect-correct PNG preview beside each successfully saved

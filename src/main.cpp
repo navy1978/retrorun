@@ -21,6 +21,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "globals.h"
 #include "config.h"
 #include "config/flycast_game_catalog.h"
+#include "config/catalog_precedence.h"
 #include "core_loader.h"
 #include "savestate.h"
 #include "menu_setup.h"
@@ -597,6 +598,10 @@ static void applyFlycastGameCatalog(const char *executable,
     flycastCatalogStatus.applied = modeName(profile.mode);
     if (usedFallback)
         flycastCatalogStatus.applied += " fallback";
+
+    const auto protectedSettings = rr::config_policy::preserveManualCatalogSettings(profile.settings, conf_map);
+    if (protectedSettings)
+        logger.log(Logger::INF, "Flycast catalog: kept %zu explicit system/game settings.", protectedSettings);
 
     const auto coreVariant =
         profile.settings.find("retrorun_flycast_core_variant");

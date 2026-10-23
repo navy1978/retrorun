@@ -40,4 +40,10 @@ with tempfile.TemporaryDirectory(prefix="rr-archive-test-") as tmp:
     central = oversized.index(b"PK\x01\x02")
     struct.pack_into("<I", oversized, central + 24, 512 * 1024 * 1024 + 1)
     (root / "oversized.zip").write_bytes(oversized)
+    for extension in ('gb','gbc','gba','md','sms','gg','32x','a26','z64','j64','vb'):
+        archive('family-'+extension+'.zip', [('game.'+extension, data)])
+    archive('native-multifile.zip', [('program.bin', data), ('data.bin', data)])
+    with zipfile.ZipFile(root/'large.zip','w',compression=zipfile.ZIP_DEFLATED) as output:
+        with output.open('game.z64','w') as member:
+            for _ in range(1024): member.write(b'X'*65536)
     subprocess.run([sys.argv[1], str(root)], check=True)

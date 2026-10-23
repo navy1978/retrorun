@@ -19,6 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 
 #include "input.h"
+#include "button_names.h"
 
 #include "globals.h"
 #include "video.h"
@@ -473,6 +474,13 @@ void initButtons(){
      hotkeyButton = isMiniloongPocket1() ? RRInputButton_MENU : selectButton;
      if (isMiniloongPocket1())
          logger.log(Logger::INF, "Miniloong Pocket 1 hotkey: Menu (BTN_MODE).");
+     const auto hotkeySetting = conf_map.find("retrorun_mapping_button_hotkey");
+     const auto configuredHotkey = hotkeySetting==conf_map.end()?std::string():hotkeySetting->second;
+     if (!configuredHotkey.empty()) {
+         if (rr::configurableButtonName(configuredHotkey))
+             hotkeyButton = stringToGo2Button(configuredHotkey);
+         else logger.log(Logger::WARN, "Invalid configured hotkey button; keeping device default.");
+     }
  
 }
 
