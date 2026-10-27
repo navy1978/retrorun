@@ -99,3 +99,28 @@ On macOS, `RR_OSD_GL_TEST=1` also checks the actual OpenGL overlay blend against
 known pixels and verifies that blend color and enable state are restored. This
 uses a hidden GL window and requires a graphics session. The software-composition
 fixture still runs without that optional check.
+
+### Loading and SDL input compatibility
+
+RetroRun uses a minimal centered `Loading` label with zero through three dots,
+advancing every 350 ms using elapsed time. Classic retains its existing logo
+and Please wait presentation. The loading choice is a compiled theme property.
+
+The GO-Super SDL database maps the handheld's printed ABXY labels directly to
+RetroPad/GO2 buttons. These mappings must not receive the positional Xbox ABXY
+swap used for ordinary desktop controllers. The screenshot shortcut therefore
+continues to use the configured hotkey plus B on the handheld. PNG capture tests
+cover SDL software surfaces, slot previews and OpenGL FBO readback; GL capture
+restores the read framebuffer before its associated read-buffer selection.
+
+SDL software XRGB8888 surfaces use SDL's packed RGB888 format, not ARGB8888:
+the unused high byte must not become alpha during PNG conversion. The actual
+capture probe verifies opaque RGB pixel values using zero-high-byte NES-style
+frames, alongside RGB565 and OpenGL readback. Software screenshots crop aligned
+surface padding to the active core frame dimensions.
+
+Flycast identity compatibility: `Flycast 2022 LE` and the legacy
+`Flycast 2022 Low-End` library names must resolve to the same runtime family.
+This selects the `flycast2022_` catalog namespace and the existing Flycast video
+handling. The real-runtime probe checks both aliases and Soul Calibur T1401N
+best_performance translation (lowend mixer, fast depth and opaque strip merge).

@@ -8,13 +8,13 @@ int main() {
     assert(focusFill(false)==0x214a && focusFill(true)==0x2b5f);
     assert(theme().metrics.handheldWidth==240 && theme().metrics.handheldHeight==160);
     assert(theme().metrics.handheldRow==10 && theme().metrics.desktopRow==12);
-    assert(theme().menuOpacity==255);
+    assert(theme().menuOpacity==255 && !theme().minimalLoading);
     assert(valueColor("yes",0x1234)==0x1234 && valueColor("no",0x1234)==0x1234);
     assert(select("retrorun") && &theme()==&retrorun);
     assert(focusFill(false)==focusFill(true));
     assert(theme().colors.active==rgb565(255,205,64));
     assert(theme().colors.focusSDL==rgb565(195,0,25));
-    assert(theme().menuOpacity>0 && theme().menuOpacity<255);
+    assert(theme().menuOpacity>0 && theme().menuOpacity<255 && theme().minimalLoading);
     assert(valueColor("yes",theme().colors.focusText)==theme().colors.active);
     assert(valueColor("ON",theme().colors.primary)==theme().colors.active);
     assert(valueColor("no",theme().colors.primary)==theme().colors.disabled);

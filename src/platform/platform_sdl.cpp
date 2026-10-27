@@ -276,7 +276,7 @@ static Uint32 sdl_pixel_format(uint32_t format) {
     switch (format) {
     case RR_PIXEL_FORMAT_RGB565: return SDL_PIXELFORMAT_RGB565;
     case RR_PIXEL_FORMAT_RGB888: return SDL_PIXELFORMAT_RGB24;
-    case RR_PIXEL_FORMAT_XRGB8888: return SDL_PIXELFORMAT_ARGB8888;
+    case RR_PIXEL_FORMAT_XRGB8888: return SDL_PIXELFORMAT_RGB888; // Packed XRGB: the high byte is not alpha.
     case RR_PIXEL_FORMAT_RGBA8888: return SDL_PIXELFORMAT_ABGR8888;
     case RR_PIXEL_FORMAT_RGBA5551: return SDL_PIXELFORMAT_ARGB1555;
     default: return SDL_PIXELFORMAT_UNKNOWN;
@@ -464,12 +464,23 @@ void rr_input_state_read(rr_input_t* input, rr_input_state_t* state) {
     PAD_BUTTON(SDL_CONTROLLER_BUTTON_DPAD_DOWN, RRInputButton_DPadDown);
     PAD_BUTTON(SDL_CONTROLLER_BUTTON_DPAD_LEFT, RRInputButton_DPadLeft);
     PAD_BUTTON(SDL_CONTROLLER_BUTTON_DPAD_RIGHT, RRInputButton_DPadRight);
-    // SDL uses the Xbox positional convention (A bottom, B right, X left,
-    // Y top); RetroPad uses B bottom, A right, Y left, X top.
-    PAD_BUTTON(SDL_CONTROLLER_BUTTON_A, RRInputButton_B);
-    PAD_BUTTON(SDL_CONTROLLER_BUTTON_B, RRInputButton_A);
-    PAD_BUTTON(SDL_CONTROLLER_BUTTON_X, RRInputButton_Y);
-    PAD_BUTTON(SDL_CONTROLLER_BUTTON_Y, RRInputButton_X);
+    // The distribution GO-Super database uses the handheld's printed Nintendo
+    // ABXY labels (a:b1, b:b0), already matching GO2/RetroPad. Desktop/Xbox
+    // controllers still need the positional translation. Do not swap both.
+    const char* mapped_name=SDL_GameControllerName(pad);
+    const bool handheld_labels=(mapped_name && std::strcmp(mapped_name,"GO-Super Gamepad")==0) ||
+        (raw_name && std::strcmp(raw_name,"GO-Super Gamepad")==0);
+    if(handheld_labels){
+        PAD_BUTTON(SDL_CONTROLLER_BUTTON_A, RRInputButton_A);
+        PAD_BUTTON(SDL_CONTROLLER_BUTTON_B, RRInputButton_B);
+        PAD_BUTTON(SDL_CONTROLLER_BUTTON_X, RRInputButton_X);
+        PAD_BUTTON(SDL_CONTROLLER_BUTTON_Y, RRInputButton_Y);
+    }else{
+        PAD_BUTTON(SDL_CONTROLLER_BUTTON_A, RRInputButton_B);
+        PAD_BUTTON(SDL_CONTROLLER_BUTTON_B, RRInputButton_A);
+        PAD_BUTTON(SDL_CONTROLLER_BUTTON_X, RRInputButton_Y);
+        PAD_BUTTON(SDL_CONTROLLER_BUTTON_Y, RRInputButton_X);
+    }
     PAD_BUTTON(SDL_CONTROLLER_BUTTON_BACK, RRInputButton_SELECT);
     PAD_BUTTON(SDL_CONTROLLER_BUTTON_START, RRInputButton_START);
     PAD_BUTTON(SDL_CONTROLLER_BUTTON_LEFTSHOULDER, RRInputButton_TopLeft);
@@ -1644,9 +1655,11 @@ rr_surface_t* rr_context_surface_lock(rr_context_t* context) {
     glReadPixels(0, 0, context->width, context->height, GL_RGBA, GL_UNSIGNED_BYTE,
                  bottom_up.data());
     glPixelStorei(GL_PACK_ALIGNMENT, previous_pack_alignment);
-    glReadBuffer(static_cast<GLenum>(previous_read_buffer));
+    // Read-buffer names belong to their framebuffer (GL_BACK is invalid on
+    // an FBO). Restore the binding first so a capture leaves no GL error.
     glBindFramebuffer(GL_READ_FRAMEBUFFER,
                       static_cast<GLuint>(previous_read_framebuffer));
+    glReadBuffer(static_cast<GLenum>(previous_read_buffer));
     for (int row = 0; row < context->height; ++row) {
         std::memcpy(surface->pixels.data() + static_cast<size_t>(row) * surface->stride,
                     bottom_up.data() + static_cast<size_t>(context->height - 1 - row) * surface->stride,

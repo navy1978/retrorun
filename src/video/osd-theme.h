@@ -35,6 +35,7 @@ struct Theme {
     Metrics metrics{};
     uint8_t menuOpacity = 255;
     bool emphasizeValues = false;
+    bool minimalLoading = false;
 };
 inline constexpr Theme classic{};
 constexpr uint16_t rgb565(unsigned red, unsigned green, unsigned blue) {
@@ -64,7 +65,7 @@ inline constexpr Theme retrorun = [] {
     t.metrics.handheldWidth = 320; t.metrics.handheldHeight = 240;
     t.metrics.handheldRow = t.metrics.desktopRow = 14;
     t.metrics.maxVisibleRows = 10; t.metrics.footerHint = "A Select   B Back";
-    t.menuOpacity = 220; t.emphasizeValues = true;
+    t.menuOpacity = 220; t.emphasizeValues = true; t.minimalLoading = true;
     return t;
 }();
 // Selected once during config loading, before render/audio workers start.

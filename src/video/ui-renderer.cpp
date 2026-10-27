@@ -266,13 +266,21 @@ void renderFullOverlay(int width, int height) {
             logger.log(Logger::DEB, "Loading screen: presenting the first loading overlay frame");
             loading_overlay_logged = true;
         }
-        const std::string label = (++loading_frame % 30 > 15) ? ". Please wait ." : "  Please wait  ";
         makeScreenBlack(status_surface_full, width, height);
-        showFullImage((width - static_cast<int>(retrorun_logo.width)) / 2, 18,
-                      retrorun_logo.width, retrorun_logo.height,
-                      retrorun_logo.pixel_data, &status_surface_full);
-        showTextBigger(width / 2 - static_cast<int>(label.length()) * 4,
-                       116, label.c_str(), osd::theme().colors.primary, &status_surface_full);
+        if(osd::theme().minimalLoading){
+            const auto started=loading_started_ns.load();
+            const auto milliseconds=started?std::max<int64_t>(0,(steadyNowNs()-started)/1000000):0;
+            const std::string label="Loading"+std::string((milliseconds/350)%4,'.');
+            // Reserve all three dots so the word stays stationary as they appear.
+            showTextBigger(width/2-10*4,height/2-4,label.c_str(),osd::theme().colors.primary,&status_surface_full);
+        }else{
+            const std::string label = (++loading_frame % 30 > 15) ? ". Please wait ." : "  Please wait  ";
+            showFullImage((width - static_cast<int>(retrorun_logo.width)) / 2, 18,
+                          retrorun_logo.width, retrorun_logo.height,
+                          retrorun_logo.pixel_data, &status_surface_full);
+            showTextBigger(width / 2 - static_cast<int>(label.length()) * 4,
+                           116, label.c_str(), osd::theme().colors.primary, &status_surface_full);
+        }
     } else {
         drawMenuInfoBackgroud(status_surface_full, width, height);
         showInfo(gs_w, &status_surface_full);

@@ -158,7 +158,7 @@ bool isFlycast2021LowEnd()
 
 bool isFlycast2022()
 {
-    return coreName == "Flycast 2022 Low-End";
+    return coreName == "Flycast 2022 Low-End" || coreName == "Flycast 2022 LE";
 }
 
 bool isParalleln64()

@@ -1330,7 +1330,7 @@ bool gameScreenshot(const char* path,bool thumbnail){
     bool ok=false;
     if(source){
         int width=rr_surface_width_get(source),height=rr_surface_height_get(source),sy=0;
-        if(thumbnail && currentWidth && currentHeight){
+        if((thumbnail || !isOpenGL) && currentWidth && currentHeight){
             width=std::min(width,static_cast<int>(currentWidth));
             const int activeHeight=std::min(height,static_cast<int>(currentHeight));
             if(isOpenGL)sy=height-activeHeight;
