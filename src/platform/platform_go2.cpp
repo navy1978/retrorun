@@ -223,6 +223,7 @@ void rr_presenter_post_multiple(rr_presenter_t* p, rr_surface_t* s, status* o, i
     native.show_top_right=o->show_top_right; native.show_bottom_right=o->show_bottom_right;
     native.show_bottom_center=o->show_bottom_center; native.show_top_left=o->show_top_left;
     native.show_bottom_left=o->show_bottom_left; native.show_full=o->show_full;
+    native.full_opacity=o->full_opacity;
     native.show_decoration=o->show_decoration;
     native.clean_top_right=o->clean_top_right; native.clean_bottom_right=o->clean_bottom_right;
     native.clean_bottom_center=o->clean_bottom_center; native.clean_top_left=o->clean_top_left;

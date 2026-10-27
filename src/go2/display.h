@@ -50,6 +50,7 @@ typedef struct go2_status {
     go2_surface_t *top_left, *bottom_left, *full, *decoration, *decoration_background;
     bool show_top_right, show_bottom_right, show_bottom_center;
     bool show_top_left, show_bottom_left, show_full, show_decoration;
+    uint8_t full_opacity; // Zero preserves legacy opaque callers.
     bool clean_top_right, clean_bottom_right, clean_bottom_center;
     bool clean_top_left, clean_bottom_left, clean_full;
 } go2_status_t;

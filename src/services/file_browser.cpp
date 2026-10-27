@@ -1,3 +1,4 @@
+#include "osd-theme.h"
 #include "file_browser.h"
 
 #include "disk_control.h"
@@ -68,11 +69,11 @@ void rr_file_browser_render(rr_surface* surface, int width, int height) {
     if (!surface) return;
     uint16_t* pixels = static_cast<uint16_t*>(rr_surface_map(surface));
     const int stride = rr_surface_stride_get(surface) / 2;
-    std::fill(pixels, pixels + stride * height, static_cast<uint16_t>(0x0841));
-    basic_text_out16_nf_color_clipped(pixels, stride, width, height, 8, 7, "SELECT DISK IMAGE", 0xffff);
+    std::fill(pixels, pixels + stride * height, static_cast<uint16_t>(osd::theme().colors.background));
+    basic_text_out16_nf_color_clipped(pixels, stride, width, height, 8, 7, "SELECT DISK IMAGE", osd::theme().colors.primary);
     std::string path = directory.string();
     if (path.size() > static_cast<size_t>((width - 16) / 6)) path = "..." + path.substr(path.size() - (width - 34) / 6);
-    basic_text_out16_nf_color_clipped(pixels, stride, width, height, 8, 19, path.c_str(), 0x7bef);
+    basic_text_out16_nf_color_clipped(pixels, stride, width, height, 8, 19, path.c_str(), osd::theme().colors.label);
     const int first = selected > 5 ? static_cast<int>(selected) - 5 : 0;
     const int rows = std::max(1, (height - 58) / 11);
     for (int line = 0; line < rows && first + line < static_cast<int>(entries.size()); ++line) {
@@ -81,9 +82,9 @@ void rr_file_browser_render(rr_surface* surface, int width, int height) {
         const size_t max_chars = std::max(1, (width - 22) / 6);
         if (label.size() > max_chars) label.resize(max_chars);
         basic_text_out16_nf_color_clipped(pixels, stride, width, height, 8, 35 + line * 11,
-                                         label.c_str(), index == static_cast<int>(selected) ? 0xffe0 : 0xffff);
+                                         label.c_str(), index == static_cast<int>(selected) ? osd::theme().colors.cursor : osd::theme().colors.primary);
     }
     const char* help = message.empty() ? "D-PAD Move  A Select  B Close" : message.c_str();
-    basic_text_out16_nf_color_clipped(pixels, stride, width, height, 8, height - 13, help, message.empty() ? 0xbdf7 : 0xf800);
+    basic_text_out16_nf_color_clipped(pixels, stride, width, height, 8, height - 13, help, message.empty() ? osd::theme().colors.secondary : osd::theme().colors.error);
     rr_surface_unmap(surface);
 }

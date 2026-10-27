@@ -52,6 +52,7 @@ class status  {
     bool show_top_left;
     bool show_bottom_left;
     bool show_full;
+    uint8_t full_opacity = 255;
     bool show_decoration;
 
     bool clean_top_right;

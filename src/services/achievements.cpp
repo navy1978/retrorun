@@ -1,3 +1,4 @@
+#include "osd-theme.h"
 #include "achievements.h"
 #include "achievement_disc.h"
 
@@ -149,9 +150,9 @@ void draw_notification_frame(uint16_t* pixels, int stride, int width, int height
 }
 
 void draw_notification_trophy(uint16_t* pixels, int stride, int width, int height) {
-    constexpr uint16_t white = 0xffff;
-    constexpr uint16_t highlight = 0xd69a;
-    constexpr uint16_t background = 0x4a49;
+    const uint16_t white = osd::theme().colors.primary;
+    const uint16_t highlight = osd::theme().colors.iconHighlight;
+    const uint16_t background = osd::theme().colors.popup;
     fill_notification_rect(pixels, stride, width, height, 18, 16, 35, 18, white);
     fill_notification_rect(pixels, stride, width, height, 20, 19, 33, 28, white);
     fill_notification_rect(pixels, stride, width, height, 17, 19, 19, 24, white);
@@ -915,14 +916,14 @@ void achievements_view_render(rr_surface_t* surface, int width, int height) {
     uint16_t* pixels = static_cast<uint16_t*>(rr_surface_map(surface));
     if (!pixels) return;
     const int stride = rr_surface_stride_get(surface) / 2;
-    std::fill(pixels, pixels + stride * height, static_cast<uint16_t>(0x0841));
+    std::fill(pixels, pixels + stride * height, static_cast<uint16_t>(osd::theme().colors.background));
     const rc_client_game_t* game = client ? rc_client_get_game_info(client) : nullptr;
     if (!client || !rc_client_is_game_loaded(client)) {
         basic_text_out16_nf_color_clipped(pixels, stride, width, height, 8, 7,
-                                         "ACHIEVEMENTS", 0xffe0);
+                                         "ACHIEVEMENTS", osd::theme().colors.cursor);
         int y = 29;
         draw_wrapped(pixels, stride, width, height, 8, y,
-                     "No achievement set is loaded.", 0xffff, 2);
+                     "No achievement set is loaded.", osd::theme().colors.primary, 2);
         static const char* states[] = {"Not started", "Waiting for login", "Identifying game",
                                       "Fetching game data", "Starting session", "Loaded", "Aborted"};
         const int state = client ? rc_client_get_load_game_state(client)
@@ -931,16 +932,16 @@ void achievements_view_render(rr_surface_t* surface, int width, int height) {
             ? "State: Hashing game in background"
             : std::string("State: ") +
                 ((state >= 0 && state <= RC_CLIENT_LOAD_GAME_STATE_ABORTED) ? states[state] : "Unknown");
-        draw_wrapped(pixels, stride, width, height, 8, y, state_text, 0xbdf7, 2);
+        draw_wrapped(pixels, stride, width, height, 8, y, state_text, osd::theme().colors.secondary, 2);
         if (!game_load_error.empty())
             draw_wrapped(pixels, stride, width, height, 8, y,
-                         "Error: " + game_load_error, 0xf800,
+                         "Error: " + game_load_error, osd::theme().colors.error,
                          std::max(1, (height - y - 24) / 10));
         else
             draw_wrapped(pixels, stride, width, height, 8, y,
-                         "Check the startup log for identification details.", 0x7bef, 3);
+                         "Check the startup log for identification details.", osd::theme().colors.label, 3);
         basic_text_out16_nf_color_clipped(pixels, stride, width, height, 8, height - 13,
-                                         "B Back", 0xffff);
+                                         "B Back", osd::theme().colors.primary);
         rr_surface_unmap(surface);
         return;
     }
@@ -954,17 +955,17 @@ void achievements_view_render(rr_surface_t* surface, int width, int height) {
         1, (width - static_cast<int>(count.size()) * 8 - 32) / 8));
     if (game_title.size() > title_chars) game_title.resize(title_chars);
     basic_text_out16_nf_color_clipped(pixels, stride, width, height, 8, 7,
-                                     game_title.c_str(), 0xffe0);
+                                     game_title.c_str(), osd::theme().colors.cursor);
     basic_text_out16_nf_color_clipped(pixels, stride, width, height,
                                      std::max(8, width - static_cast<int>(count.size()) * 8 - 8),
-                                     7, count.c_str(), 0xffff);
+                                     7, count.c_str(), osd::theme().colors.primary);
 
     std::vector<size_t> indices = filtered_achievement_indices();
     if (achievement_view_detail && !indices.empty()) {
         const AchievementEntry& item = achievement_entries[indices[achievement_view_selected]];
         request_badge(item.badge_url);
         int y = 31;
-        draw_wrapped(pixels, stride, width, height, 66, y, item.title, 0xffff, 3);
+        draw_wrapped(pixels, stride, width, height, 66, y, item.title, osd::theme().colors.primary, 3);
         const auto badge_it = badge_cache.find(item.badge_url);
         if (badge_it != badge_cache.end() && !badge_it->second.pixels.empty()) {
             const BadgeImage& badge = badge_it->second;
@@ -979,25 +980,25 @@ void achievements_view_render(rr_surface_t* surface, int width, int height) {
             }
         } else {
             basic_text_out16_nf_color_clipped(pixels, stride, width, height,
-                                             8, 45, "[badge]", 0x7bef);
+                                             8, 45, "[badge]", osd::theme().colors.label);
         }
         // The title is placed beside the 48x48 badge. Start the description
         // below both elements so long or short titles never overlap it.
         y = std::max(y + 6, 85);
-        draw_wrapped(pixels, stride, width, height, 8, y, item.description, 0xbdf7,
+        draw_wrapped(pixels, stride, width, height, 8, y, item.description, osd::theme().colors.secondary,
                      std::max(1, (height - y - 35) / 10));
         const bool unlocked = item.unlocked != RC_CLIENT_ACHIEVEMENT_UNLOCKED_NONE;
         const std::string footer = std::string("Points: ") + std::to_string(item.points) +
                                    "  Status: " + (unlocked ? "Unlocked" : "Locked");
         basic_text_out16_nf_color_clipped(pixels, stride, width, height, 8, height - 25,
-                                         footer.c_str(), unlocked ? 0x07e0 : 0x7bef);
+                                         footer.c_str(), unlocked ? osd::theme().colors.active : osd::theme().colors.label);
         basic_text_out16_nf_color_clipped(pixels, stride, width, height, 8, height - 13,
-                                         "B Back", 0xffff);
+                                         "B Back", osd::theme().colors.primary);
     } else {
         static const char* filters[] = {"ALL", "LOCKED", "UNLOCKED"};
         const std::string filter_line = std::string("< ") + filters[achievement_view_filter] + " >";
         basic_text_out16_nf_color_clipped(pixels, stride, width, height, 8, 21,
-                                         filter_line.c_str(), 0xbdf7);
+                                         filter_line.c_str(), osd::theme().colors.secondary);
         const int visible_rows = std::max(1, (height - 55) / 11);
         const int first = achievement_view_selected >= static_cast<size_t>(visible_rows)
             ? static_cast<int>(achievement_view_selected) - visible_rows + 1 : 0;
@@ -1010,13 +1011,13 @@ void achievements_view_render(rr_surface_t* surface, int width, int height) {
             label += item.title;
             const size_t max_chars = static_cast<size_t>(std::max(1, (width - 16) / 8));
             if (label.size() > max_chars) label.resize(max_chars);
-            const uint16_t color = filtered_index == achievement_view_selected ? 0xffe0
-                                   : unlocked ? 0x07e0 : unsupported ? 0xf800 : 0xffff;
+            const uint16_t color = filtered_index == achievement_view_selected ? osd::theme().colors.cursor
+                                   : unlocked ? osd::theme().colors.active : unsupported ? osd::theme().colors.error : osd::theme().colors.primary;
             basic_text_out16_nf_color_clipped(pixels, stride, width, height, 8,
                                              35 + row * 11, label.c_str(), color);
         }
         basic_text_out16_nf_color_clipped(pixels, stride, width, height, 8, height - 13,
-                                         "D-PAD Move/Filter  A Info  B Back", 0x7bef);
+                                         "D-PAD Move/Filter  A Info  B Back", osd::theme().colors.label);
     }
     rr_surface_unmap(surface);
 }
@@ -1045,16 +1046,16 @@ void achievements_render_notification(rr_surface_t* surface) {
     const int width = rr_surface_width_get(surface);
     const int height = rr_surface_height_get(surface);
     const int stride = rr_surface_stride_get(surface) / 2;
-    constexpr uint16_t popup_background = 0x4a49;
-    constexpr uint16_t accent = 0xfbe4;
+    const uint16_t popup_background = osd::theme().colors.popup;
+    const uint16_t accent = osd::theme().colors.popupAccent;
     std::fill(pixels, pixels + stride * height, popup_background);
     // Match the opaque bevel used by frontend popups. Unlike the old black
     // notification, this remains visually connected to pause/save/FF messages
     // on displays without an alpha channel.
-    fill_notification_rect(pixels, stride, width, height, 0, 0, width - 1, 2, 0x6b4d);
-    fill_notification_rect(pixels, stride, width, height, 0, 3, 2, height - 1, 0x5acb);
-    fill_notification_rect(pixels, stride, width, height, 3, height - 3, width - 1, height - 1, 0x18e3);
-    fill_notification_rect(pixels, stride, width, height, width - 3, 3, width - 1, height - 4, 0x2124);
+    fill_notification_rect(pixels, stride, width, height, 0, 0, width - 1, 2, osd::theme().colors.bevelTop);
+    fill_notification_rect(pixels, stride, width, height, 0, 3, 2, height - 1, osd::theme().colors.bevelLeft);
+    fill_notification_rect(pixels, stride, width, height, 3, height - 3, width - 1, height - 1, osd::theme().colors.bevelBottom);
+    fill_notification_rect(pixels, stride, width, height, width - 3, 3, width - 1, height - 4, osd::theme().colors.bevelRight);
     draw_notification_frame(pixels, stride, width, height, 6, 7, 40, 44, accent);
     const int text_x = 57;
     if (badge_pixels) {
@@ -1075,7 +1076,7 @@ void achievements_render_notification(rr_surface_t* surface) {
         draw_notification_trophy(pixels, stride, width, height);
     }
     basic_text_out16_nf_color_clipped(pixels, stride, width, height,
-                                     text_x + 1, 9, "ACHIEVEMENT", 0x0000);
+                                     text_x + 1, 9, "ACHIEVEMENT", osd::theme().colors.shadow);
     basic_text_out16_nf_color_clipped(pixels, stride, width, height,
                                      text_x, 8, "ACHIEVEMENT", accent);
     // basic_text_out16 uses 8-pixel-wide glyph cells.
@@ -1090,9 +1091,9 @@ void achievements_render_notification(rr_surface_t* surface) {
         }
         const std::string line = notification_text.substr(start, length);
         basic_text_out16_nf_color_clipped(pixels, stride, width, height,
-                                         text_x + 1, y + 1, line.c_str(), 0x0000);
+                                         text_x + 1, y + 1, line.c_str(), osd::theme().colors.shadow);
         basic_text_out16_nf_color_clipped(pixels, stride, width, height,
-                                         text_x, y, line.c_str(), 0xffff);
+                                         text_x, y, line.c_str(), osd::theme().colors.primary);
         start += length;
         while (start < notification_text.size() && notification_text[start] == ' ') ++start;
         y += 10;

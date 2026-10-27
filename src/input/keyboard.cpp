@@ -7,6 +7,7 @@ events into RRKeyEvent and calls rr_keyboard_event(). This module forwards
 the event to the core's retro_keyboard_event_t callback if one was registered.
 */
 
+#include "osd-theme.h"
 #include "keyboard.h"
 #include "logger.h"
 #include "fonts.h"
@@ -73,8 +74,8 @@ static void draw_key_rect(uint16_t* pixels, int stride, int width, int height,
                           int x, int y, int w, int h, bool selected)
 {
     constexpr int border_width = 1;
-    const uint16_t border = selected ? 0xffe0 : 0xbdf7;
-    const uint16_t background = selected ? 0x39e7 : 0x1082;
+    const uint16_t border = selected ? osd::theme().colors.cursor : osd::theme().colors.secondary;
+    const uint16_t background = selected ? osd::theme().colors.keyFocus : osd::theme().colors.keyPanel;
     fill_rect(pixels, stride, width, height, x, y, w, h, border);
     fill_rect(pixels, stride, width, height,
               x + border_width, y + border_width,
@@ -187,15 +188,15 @@ void rr_keyboard_virtual_render(rr_surface_t* surface, int width, int height)
     if (!surface) return;
     uint16_t* pixels = static_cast<uint16_t*>(rr_surface_map(surface));
     const int stride = rr_surface_stride_get(surface) / 2;
-    std::fill(pixels, pixels + stride * height, static_cast<uint16_t>(0x0841));
+    std::fill(pixels, pixels + stride * height, static_cast<uint16_t>(osd::theme().colors.background));
     basic_text_out16_nf_color_clipped(pixels, stride, width, height, 8, 8,
-                                     s_text_editing ? s_text_title.c_str() : "VIRTUAL KEYBOARD", 0xffff);
+                                     s_text_editing ? s_text_title.c_str() : "VIRTUAL KEYBOARD", osd::theme().colors.primary);
     // Keep the help line inside the 240-pixel handheld canvas.  The previous
     // wording was wider than the RG552 menu surface and was visibly clipped.
     basic_text_out16_nf_color_clipped(pixels, stride, width, height, 4, 20,
                                      s_text_editing
                                          ? "D-PAD A:Type B:Cancel X:Case"
-                                         : "D-PAD A:Type B:Close X:Case", 0xbdf7);
+                                         : "D-PAD A:Type B:Close X:Case", osd::theme().colors.secondary);
     int top = 42;
     if (s_text_editing) {
         const size_t max_chars = static_cast<size_t>(std::max(1, (width - 16) / 8));
@@ -203,7 +204,7 @@ void rr_keyboard_virtual_render(rr_surface_t* surface, int width, int height)
         if (shown.size() > max_chars) shown = shown.substr(shown.size() - max_chars);
         shown.push_back('_');
         basic_text_out16_nf_color_clipped(pixels, stride, width, height, 8, 34,
-                                         shown.c_str(), 0xffe0);
+                                         shown.c_str(), osd::theme().colors.cursor);
         top = 56;
     }
     const int horizontal_margin = 6;
@@ -243,18 +244,18 @@ void rr_keyboard_virtual_render(rr_surface_t* surface, int width, int height)
             if (compact_label) {
                 basic_text_out16_6x8_nf_color_clipped(pixels, stride, width, height,
                                                       label_x, label_y, label,
-                                                      selected ? 0xffe0 : 0xffff);
+                                                      selected ? osd::theme().colors.keyText : osd::theme().colors.primary);
             } else {
                 basic_text_out16_nf_color_clipped(pixels, stride, width, height,
                                                   label_x, label_y, label,
-                                                  selected ? 0xffe0 : 0xffff);
+                                                  selected ? osd::theme().colors.keyText : osd::theme().colors.primary);
             }
         }
     }
     basic_text_out16_nf_color_clipped(pixels, stride, width, height, 8, status_y,
                                      s_symbols ? "PAGE: SYMBOLS" :
                                      (s_shift ? "CASE: UPPERCASE" : "CASE: lowercase"),
-                                     (s_symbols || s_shift) ? 0xffe0 : 0x7bef);
+                                     (s_symbols || s_shift) ? osd::theme().colors.cursor : osd::theme().colors.label);
     rr_surface_unmap(surface);
 }
 

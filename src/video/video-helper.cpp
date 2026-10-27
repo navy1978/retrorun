@@ -1,3 +1,4 @@
+#include "osd-theme.h"
 #include "../core/state_context.h"
 
 /*
@@ -72,8 +73,8 @@ uint32_t format_565 = RR_PIXEL_FORMAT_RGB565; // RR_PIXEL_FORMAT_RGB888; // RR_P
 int width_fixed = 640;
 int height_fixed = 480;
 
-int INFO_MENU_WIDTH = 240;  // 288;
-int INFO_MENU_HEIGHT = 160; // 192;
+int INFO_MENU_WIDTH = osd::theme().metrics.handheldWidth;  // 288;
+int INFO_MENU_HEIGHT = osd::theme().metrics.handheldHeight; // 192;
 UIProfile uiProfile = UIProfile::Auto;
 
 void setUIProfile(UIProfile profile)
@@ -106,8 +107,8 @@ void updateUIMenuDimensions(int destination_width, int destination_height)
     const int previous_width = INFO_MENU_WIDTH;
     const int previous_height = INFO_MENU_HEIGHT;
     if (getResolvedUIProfile() == UIProfile::Handheld) {
-        INFO_MENU_WIDTH = 240;
-        INFO_MENU_HEIGHT = 160;
+        INFO_MENU_WIDTH = osd::theme().metrics.handheldWidth;
+        INFO_MENU_HEIGHT = osd::theme().metrics.handheldHeight;
     } else {
         INFO_MENU_WIDTH = std::max(320, destination_width / 2);
         INFO_MENU_HEIGHT = std::max(240, destination_height / 2);
@@ -370,8 +371,8 @@ void showTextBigger(int x, int y, const char *text, unsigned short color, rr_sur
 int getRowForText()
 {
     const int row_step = getResolvedUIProfile() == UIProfile::Handheld
-                             ? 10
-                             : 12;
+                             ? osd::theme().metrics.handheldRow
+                             : osd::theme().metrics.desktopRow;
     rowForText += row_step;
     return rowForText;
 }
@@ -511,16 +512,16 @@ static void drawSelectedMenuRow(int y, rr_surface_t **surface)
     const int width = rr_surface_width_get(*surface);
     const int height = rr_surface_height_get(*surface);
     const int stride = rr_surface_stride_get(*surface) / sizeof(uint16_t);
-    const int row_height = getResolvedUIProfile() == UIProfile::Handheld ? 10 : 12;
+    const int row_height = getResolvedUIProfile() == UIProfile::Handheld ? osd::theme().metrics.handheldRow : osd::theme().metrics.desktopRow;
     const int top = std::max(0, y - 1);
     const int bottom = std::min(height, top + row_height);
-    const int left = 4;
-    const int right = std::max(left, width - 4);
+    const int left = osd::theme().metrics.rowMargin;
+    const int right = std::max(left, width - osd::theme().metrics.rowMargin);
 #ifdef RR_PLATFORM_GO2
     // The native handheld panels render very dark RGB565 blues close to black.
-    constexpr uint16_t selected_blue = 0x2b5f;
+    const uint16_t selected_blue = osd::focusFill(true);
 #else
-    constexpr uint16_t selected_blue = 0x214a;
+    const uint16_t selected_blue = osd::focusFill(false);
 #endif
 
     for (int py = top; py < bottom; ++py)
@@ -532,10 +533,10 @@ static void drawSelectedMenuRow(int y, rr_surface_t **surface)
 
 static void drawMenuRowColumns(int y, const std::string &label,
                                const std::string &right_text,
-                               unsigned short color, rr_surface_t **surface)
+                               unsigned short color, rr_surface_t **surface, const char* value = nullptr)
 {
-    constexpr int margin = 12;
-    constexpr int glyph_width = 8;
+    const int margin = osd::theme().metrics.textMargin;
+    const int glyph_width = osd::theme().metrics.glyphWidth;
     const int right_edge = INFO_MENU_WIDTH - margin;
     const int right_width = static_cast<int>(right_text.size()) * glyph_width;
     const int right_x = right_edge - right_width;
@@ -547,7 +548,7 @@ static void drawMenuRowColumns(int y, const std::string &label,
     if (required_width <= available_width) {
         showText(margin, y, label.c_str(), color, surface);
         if (!right_text.empty())
-            showText(right_x, y, right_text.c_str(), color, surface);
+            showText(right_x, y, right_text.c_str(), osd::valueColor(value ? value : "", color), surface);
     } else {
         const std::string complete_row = right_text.empty()
                                              ? label
@@ -559,8 +560,8 @@ static void drawMenuRowColumns(int y, const std::string &label,
 static void drawInfoRow(const std::string &label, const std::string &value,
                         rr_surface_t **surface)
 {
-    constexpr int margin = 12;
-    constexpr int glyph_width = 8;
+    const int margin = osd::theme().metrics.textMargin;
+    const int glyph_width = osd::theme().metrics.glyphWidth;
     const int row = getRowForText();
     const int value_width = static_cast<int>(value.size()) * glyph_width;
     const int value_x = INFO_MENU_WIDTH - margin - value_width;
@@ -569,11 +570,11 @@ static void drawInfoRow(const std::string &label, const std::string &value,
     const int available_width = INFO_MENU_WIDTH - margin * 2;
 
     if (required_width <= available_width) {
-        showText(margin, row, label.c_str(), DARKGREY, surface);
-        showText(value_x, row, value.c_str(), LIGHTGREY, surface);
+        showText(margin, row, label.c_str(), osd::theme().colors.label, surface);
+        showText(value_x, row, value.c_str(), osd::theme().colors.infoValue, surface);
     } else {
         const std::string complete_row = label + ": " + value;
-        showLongCenteredText(row, complete_row.c_str(), LIGHTGREY, surface);
+        showLongCenteredText(row, complete_row.c_str(), osd::theme().colors.infoValue, surface);
     }
 }
 
@@ -723,16 +724,16 @@ void showInfoDevice(rr_surface_t **surface)
     for (const auto &cpu_info : cpu_info_list)
     {
         drawInfoRow("CPU(s)", cpu_info.number_of_cpu + " " + cpu_info.cpu_name, surface);
-        // showCenteredText(getRowForText(), ("CPU(s) Model:"+cpu_info.cpu_name).c_str(), DARKGREY, surface);
-        // showCenteredText(getRowForText(), ("CPU(s) Thread per Core:"+cpu_info.thread_per_cpu).c_str(), DARKGREY, surface);
+        // showCenteredText(getRowForText(), ("CPU(s) Model:"+cpu_info.cpu_name).c_str(), osd::theme().colors.label, surface);
+        // showCenteredText(getRowForText(), ("CPU(s) Thread per Core:"+cpu_info.thread_per_cpu).c_str(), osd::theme().colors.label, surface);
     }
     // This will print the values of number_of_cpu, cpu_name, thread_per_cpu, and device_name for each element in the cpu_info_list vector.
 
-    // showCenteredText(getRowForText(), (tot_ram).c_str(), DARKGREY, surface);
+    // showCenteredText(getRowForText(), (tot_ram).c_str(), osd::theme().colors.label, surface);
 
     drawInfoRow("GPU", gpu_name, surface);
     drawInfoRow("RAM", tot_ram, surface);
-    // showCenteredText(getRowForText(), (procs).c_str(), DARKGREY, surface);
+    // showCenteredText(getRowForText(), (procs).c_str(), osd::theme().colors.label, surface);
 }
 
 void showInfoCore(rr_surface_t **surface)
@@ -887,95 +888,95 @@ void showCredits(rr_surface_t **surface)
     drawCreditLogo(currentY, surface);
     currentY += static_cast<int>(retrorun_logo.height) + stepCredits;
 
-    drawCreditLine(currentY, "RetroRun", ORANGE, surface);
+    drawCreditLine(currentY, "RetroRun", osd::theme().colors.heading, surface);
     currentY += stepCredits;
-    drawCreditLine(currentY, "Light libretro front-end", YELLOW, surface);
+    drawCreditLine(currentY, "Light libretro front-end", osd::theme().colors.subtitle, surface);
 
     currentY += stepCredits * 3;
-    drawCreditLine(currentY, "Developers", DARKGREY, surface);
+    drawCreditLine(currentY, "Developers", osd::theme().colors.label, surface);
     currentY += stepCredits;
-    drawCreditLine(currentY, "OtherCrashOverride", WHITE, surface);
+    drawCreditLine(currentY, "OtherCrashOverride", osd::theme().colors.primary, surface);
     currentY += stepCredits;
-    drawCreditLine(currentY, "navy1978", WHITE, surface);
+    drawCreditLine(currentY, "navy1978", osd::theme().colors.primary, surface);
 
     currentY += stepCredits * 3;
-    drawCreditLine(currentY, "js2xbox developers", DARKGREY, surface);
+    drawCreditLine(currentY, "js2xbox developers", osd::theme().colors.label, surface);
     currentY += stepCredits;
-    drawCreditLine(currentY, "Emanem", WHITE, surface);
+    drawCreditLine(currentY, "Emanem", osd::theme().colors.primary, surface);
     currentY += stepCredits;
-    drawCreditLine(currentY, "lualiliu", WHITE, surface);
+    drawCreditLine(currentY, "lualiliu", osd::theme().colors.primary, surface);
     currentY += stepCredits;
-    drawCreditLine(currentY, "christianhaitian", WHITE, surface);
+    drawCreditLine(currentY, "christianhaitian", osd::theme().colors.primary, surface);
     currentY += stepCredits;
-    drawCreditLine(currentY, "navy1978", WHITE, surface);
+    drawCreditLine(currentY, "navy1978", osd::theme().colors.primary, surface);
     
     currentY += stepCredits * 3;
-    drawCreditLine(currentY, "libgo2 developers", DARKGREY, surface);
+    drawCreditLine(currentY, "libgo2 developers", osd::theme().colors.label, surface);
     currentY += stepCredits;
-    drawCreditLine(currentY, "OtherCrashOverride", WHITE, surface);
+    drawCreditLine(currentY, "OtherCrashOverride", osd::theme().colors.primary, surface);
     currentY += stepCredits;
-    drawCreditLine(currentY, "navy1978", WHITE, surface);
+    drawCreditLine(currentY, "navy1978", osd::theme().colors.primary, surface);
 
     currentY += stepCredits * 3;
 
-    drawCreditLine(currentY, "RetroAchievements", DARKGREY, surface);
+    drawCreditLine(currentY, "RetroAchievements", osd::theme().colors.label, surface);
     currentY += stepCredits;
-    drawCreditLine(currentY, "rcheevos (MIT License)", WHITE, surface);
+    drawCreditLine(currentY, "rcheevos (MIT License)", osd::theme().colors.primary, surface);
 
     currentY += stepCredits * 3;
-    drawCreditLine(currentY, "Portable libraries", DARKGREY, surface);
+    drawCreditLine(currentY, "Portable libraries", osd::theme().colors.label, surface);
     currentY += stepCredits;
-    drawCreditLine(currentY, "SDL2 / libpng", WHITE, surface);
+    drawCreditLine(currentY, "SDL2 / libpng", osd::theme().colors.primary, surface);
     currentY += stepCredits;
-    drawCreditLine(currentY, "libcurl / zlib", WHITE, surface);
+    drawCreditLine(currentY, "libcurl / zlib", osd::theme().colors.primary, surface);
 
     currentY += stepCredits * 3;
-    drawCreditLine(currentY, "GO2 platform libraries", DARKGREY, surface);
+    drawCreditLine(currentY, "GO2 platform libraries", osd::theme().colors.label, surface);
     currentY += stepCredits;
-    drawCreditLine(currentY, "DRM / GBM / EGL", WHITE, surface);
+    drawCreditLine(currentY, "DRM / GBM / EGL", osd::theme().colors.primary, surface);
     currentY += stepCredits;
-    drawCreditLine(currentY, "OpenGL ES / RGA", WHITE, surface);
+    drawCreditLine(currentY, "OpenGL ES / RGA", osd::theme().colors.primary, surface);
     currentY += stepCredits;
-    drawCreditLine(currentY, "ALSA / OpenAL Soft", WHITE, surface);
+    drawCreditLine(currentY, "ALSA / OpenAL Soft", osd::theme().colors.primary, surface);
     currentY += stepCredits;
-    drawCreditLine(currentY, "libevdev", WHITE, surface);
+    drawCreditLine(currentY, "libevdev", osd::theme().colors.primary, surface);
 
     currentY += stepCredits * 3;
-    drawCreditLine(currentY, "Artwork", DARKGREY, surface);
+    drawCreditLine(currentY, "Artwork", osd::theme().colors.label, surface);
     currentY += stepCredits;
-    drawCreditLine(currentY, "Streamline Core Line Free", WHITE, surface);
+    drawCreditLine(currentY, "Streamline Core Line Free", osd::theme().colors.primary, surface);
     currentY += stepCredits;
-    drawCreditLine(currentY, "libretro/common-overlays", WHITE, surface);
+    drawCreditLine(currentY, "libretro/common-overlays", osd::theme().colors.primary, surface);
     currentY += stepCredits;
-    drawCreditLine(currentY, "CC BY 4.0", WHITE, surface);
+    drawCreditLine(currentY, "CC BY 4.0", osd::theme().colors.primary, surface);
 
     currentY += stepCredits * 3;
     
-    drawCreditLine(currentY, "Thanks to", DARKGREY, surface);
+    drawCreditLine(currentY, "Thanks to", osd::theme().colors.label, surface);
     currentY += stepCredits;
-    drawCreditLine(currentY, "Cebion", WHITE, surface);
+    drawCreditLine(currentY, "Cebion", osd::theme().colors.primary, surface);
     currentY += stepCredits;
-    drawCreditLine(currentY, "christianhaitian", WHITE, surface);
+    drawCreditLine(currentY, "christianhaitian", osd::theme().colors.primary, surface);
     currentY += stepCredits;
-    drawCreditLine(currentY, "dhwz", WHITE, surface);
+    drawCreditLine(currentY, "dhwz", osd::theme().colors.primary, surface);
     currentY += stepCredits;
-    drawCreditLine(currentY, "flyinghead", WHITE, surface);
+    drawCreditLine(currentY, "flyinghead", osd::theme().colors.primary, surface);
     currentY += stepCredits;
-    drawCreditLine(currentY, "madcat1990", WHITE, surface);
+    drawCreditLine(currentY, "madcat1990", osd::theme().colors.primary, surface);
     currentY += stepCredits;
-    drawCreditLine(currentY, "pkegg", WHITE, surface);
+    drawCreditLine(currentY, "pkegg", osd::theme().colors.primary, surface);
     currentY += stepCredits;
-    drawCreditLine(currentY, "SiTWulf", WHITE, surface);
+    drawCreditLine(currentY, "SiTWulf", osd::theme().colors.primary, surface);
     currentY += stepCredits;
-    drawCreditLine(currentY, "superdealloc", WHITE, surface);
+    drawCreditLine(currentY, "superdealloc", osd::theme().colors.primary, surface);
     currentY += stepCredits;
-    drawCreditLine(currentY, "Szalik", WHITE, surface);
+    drawCreditLine(currentY, "Szalik", osd::theme().colors.primary, surface);
 
     if (currentY < 0)
     {                                     // they are over
         std::string title = "Thank you!"; // The text to scroll
         int title_length = title.length();
-        showText(INFO_MENU_WIDTH / 2 - title_length * 8 / 2, INFO_MENU_HEIGHT / 2 - 8 / 2, title.c_str(), WHITE, surface);
+        showText(INFO_MENU_WIDTH / 2 - title_length * 8 / 2, INFO_MENU_HEIGHT / 2 - 8 / 2, title.c_str(), osd::theme().colors.primary, surface);
     }
 }
 
@@ -989,24 +990,25 @@ void showInfo(int w, rr_surface_t **surface)
     int posX = 0;
 
     std::string title = "RetroRun - " + release;
-    showMovingHeaderText(2, title.c_str(), WHITE, surface);
+    showMovingHeaderText(2, title.c_str(), osd::theme().colors.primary, surface);
 
-    showText(posX, getRowForText(), " ", ORANGE, surface);
-    showText(posX, getRowForText(), " ", ORANGE, surface);
+    showText(posX, getRowForText(), " ", osd::theme().colors.heading, surface);
+    showText(posX, getRowForText(), " ", osd::theme().colors.heading, surface);
 
     Menu &menu = menuManager.getCurrentMenu();
     std::string menuTitle = menu.getName();
     int menuTitle_length = menuTitle.length();
 
-    showText(INFO_MENU_WIDTH / 2 - menuTitle_length * size_char / 2, getRowForText(), (menu.getName()).c_str(), ORANGE, surface);
-    showText(posX, getRowForText(), " ", ORANGE, surface);
-    // showText(posX, getRowForText(), " ", ORANGE, surface);
-    // showText(posX, getRowForText(), " ", ORANGE, surface);
+    showText(INFO_MENU_WIDTH / 2 - menuTitle_length * size_char / 2, getRowForText(), (menu.getName()).c_str(), osd::theme().colors.heading, surface);
+    showText(posX, getRowForText(), " ", osd::theme().colors.heading, surface);
+    // showText(posX, getRowForText(), " ", osd::theme().colors.heading, surface);
+    // showText(posX, getRowForText(), " ", osd::theme().colors.heading, surface);
     int firstVisibleItem = 0;
     int lastVisibleItem = menu.getSize();
-    if (menuTitle == "Catalog")
+    if (menuTitle == "Catalog" || osd::theme().metrics.maxVisibleRows > 0)
     {
-        const int maxVisibleItems = 18;
+        const int maxVisibleItems = osd::theme().metrics.maxVisibleRows > 0
+            ? osd::theme().metrics.maxVisibleRows : 18;
         int selectedItem = 0;
         for (int i = 0; i < menu.getSize(); i++)
         {
@@ -1052,22 +1054,23 @@ void showInfo(int w, rr_surface_t **surface)
         {
             const int row = getRowForText();
             if (mi.isSelected()) drawSelectedMenuRow(row, surface);
-            showCenteredText(row, (tabSpaces + mi.get_name() + ": < " + mi.getValues()[mi.getValue()] + " >").c_str(), mi.isSelected() ? WHITE : DARKGREY, surface);
+            showCenteredText(row, (tabSpaces + mi.get_name() + ": < " + mi.getValues()[mi.getValue()] + " >").c_str(), mi.isSelected() ? osd::theme().colors.focusText : osd::theme().colors.normal, surface);
         }
         else if (mi.getMenu() != NULL)
         {
             const int row = getRowForText();
             if (mi.isSelected()) drawSelectedMenuRow(row, surface);
             drawMenuRowColumns(row, mi.get_name(), ">",
-                               mi.isSelected() ? WHITE : DARKGREY, surface);
+                               mi.isSelected() ? osd::theme().colors.focusText : osd::theme().colors.normal, surface);
         }
         else if (mi.m_valueCalculator != NULL)
         {
             const int row = getRowForText();
             if (mi.isSelected()) drawSelectedMenuRow(row, surface);
-            const std::string value = "< " + mi.getStringValue() + mi.getMisUnit() + " >";
+            const std::string raw_value = mi.getStringValue();
+            const std::string value = "< " + raw_value + mi.getMisUnit() + " >";
             drawMenuRowColumns(row, mi.get_name(), value,
-                               mi.isSelected() ? WHITE : DARKGREY, surface);
+                               mi.isSelected() ? osd::theme().colors.focusText : osd::theme().colors.normal, surface, raw_value.c_str());
         }
         else
         {
@@ -1075,15 +1078,18 @@ void showInfo(int w, rr_surface_t **surface)
             if (mi.isSelected()) drawSelectedMenuRow(row, surface);
             const MenuItem::Presentation presentation = mi.getPresentation();
             const auto color = presentation == MenuItem::Presentation::SectionHeader
-                                   ? ORANGE
+                                   ? osd::theme().colors.heading
                                    : (presentation == MenuItem::Presentation::Detail
-                                          ? WHITE
-                                          : (mi.isSelected() ? WHITE : DARKGREY));
+                                          ? osd::theme().colors.primary
+                                          : (mi.isSelected() ? osd::theme().colors.focusText : osd::theme().colors.normal));
             drawMenuRowColumns(row, mi.get_name(), "",
                                color, surface);
         }
     }
 
+    if (osd::theme().metrics.footerHint)
+        showCenteredText(INFO_MENU_HEIGHT - 22, osd::theme().metrics.footerHint,
+                         osd::theme().colors.secondary, surface);
     time_t curr_time;
     tm *curr_tm;
 
@@ -1113,24 +1119,24 @@ void showInfo(int w, rr_surface_t **surface)
     arr[i] = timeString.c_str();
     posX = INFO_MENU_WIDTH - 1 - timeString_length * size_char;
 
-    showText(posX, INFO_MENU_HEIGHT - 1 - size_char, arr[0].c_str(), WHITE, surface);
+    showText(posX, INFO_MENU_HEIGHT - 1 - size_char, arr[0].c_str(), osd::theme().colors.primary, surface);
     if (switchColor > 0)
     {
-        showText(posX + 2 * size_char, INFO_MENU_HEIGHT - 1 - size_char, ":", WHITE, surface);
+        showText(posX + 2 * size_char, INFO_MENU_HEIGHT - 1 - size_char, ":", osd::theme().colors.primary, surface);
     }
     else
     {
-        showText(posX + 2 * size_char, INFO_MENU_HEIGHT - 1 - size_char, " ", WHITE, surface);
+        showText(posX + 2 * size_char, INFO_MENU_HEIGHT - 1 - size_char, " ", osd::theme().colors.primary, surface);
         if (switchColor < -30)
         {
             switchColor = 30;
         }
     }
-    showText(posX + 3 * size_char, INFO_MENU_HEIGHT - 1 - size_char, arr[1].c_str(), WHITE, surface);
+    showText(posX + 3 * size_char, INFO_MENU_HEIGHT - 1 - size_char, arr[1].c_str(), osd::theme().colors.primary, surface);
     switchColor--;
 
     std::string bat = tabSpaces + "Battery:";
-    showText(1, INFO_MENU_HEIGHT - 1 - size_char, const_cast<char *>(bat.append(std::to_string(batteryState.level)).append("%").c_str()), WHITE, surface);
+    showText(1, INFO_MENU_HEIGHT - 1 - size_char, const_cast<char *>(bat.append(std::to_string(batteryState.level)).append("%").c_str()), osd::theme().colors.primary, surface);
 }
 
 std::string getCurrentTimeForFileName()
@@ -1162,7 +1168,7 @@ void showFPSImage()
         return;
 
     const std::string label = "FPS: " + std::to_string(displayed_fps);
-    const int horizontal_padding = large_handheld_fps ? 8 : 6;
+    const int horizontal_padding = large_handheld_fps ? osd::theme().metrics.largeFpsPadding : osd::theme().metrics.fpsPadding;
     const int glyph_width = large_handheld_fps ? 16 : 8;
     const int surface_height = large_handheld_fps ? 28 : 20;
     // Reserve three FPS digits from the first frame. If an unusually large
@@ -1193,35 +1199,35 @@ void showFPSImage()
     auto* destination = static_cast<uint16_t*>(rr_surface_map(status_surface_top_right));
     if (!destination) return;
     std::fill(destination, destination + stride * surface_height,
-              static_cast<uint16_t>(0x0000));
+              osd::theme().colors.fpsBackground);
     // Opaque two-tone bevel matching the menu and notification frame.
     std::fill(destination + 1 * stride + 3,
               destination + 1 * stride + surface_width - 3,
-              static_cast<uint16_t>(0x6b4d));
+              static_cast<uint16_t>(osd::theme().colors.bevelTop));
     std::fill(destination + 2 * stride + 2,
               destination + 2 * stride + surface_width - 2,
-              static_cast<uint16_t>(0x5acb));
+              static_cast<uint16_t>(osd::theme().colors.bevelLeft));
     std::fill(destination + (surface_height - 2) * stride + 3,
               destination + (surface_height - 2) * stride + surface_width - 2,
-              static_cast<uint16_t>(0x18e3));
+              static_cast<uint16_t>(osd::theme().colors.bevelBottom));
     for (int y = 3; y < surface_height - 2; ++y) {
-        destination[y * stride + 1] = 0x5acb;
-        destination[y * stride + surface_width - 2] = 0x2124;
+        destination[y * stride + 1] = osd::theme().colors.bevelLeft;
+        destination[y * stride + surface_width - 2] = osd::theme().colors.bevelRight;
     }
     if (large_handheld_fps) {
         basic_text_out16x16_nf_color_scaled_from_8x8(
             destination, stride, horizontal_padding + 1, 7,
-            label.c_str(), 0x4208);
+            label.c_str(), osd::theme().colors.fpsShadow);
         basic_text_out16x16_nf_color_scaled_from_8x8(
             destination, stride, horizontal_padding, 6,
-            label.c_str(), WHITE);
+            label.c_str(), osd::theme().colors.primary);
     } else {
         basic_text_out16_nf_color_clipped(destination, stride, surface_width,
                                           surface_height, horizontal_padding + 1, 7,
-                                          label.c_str(), 0x4208);
+                                          label.c_str(), osd::theme().colors.fpsShadow);
         basic_text_out16_nf_color_clipped(destination, stride, surface_width,
                                           surface_height, horizontal_padding, 6,
-                                          label.c_str(), WHITE);
+                                          label.c_str(), osd::theme().colors.primary);
     }
     rr_surface_unmap(status_surface_top_right);
 }
@@ -1395,48 +1401,18 @@ void makeScreenBlackCredits(rr_surface_t *rr_surface, int res_width, int res_hei
 
 void drawMenuInfoBackgroud(rr_surface_t *rr_surface, int res_width, int res_height)
 {
-    // this was intended to make the screen black but it contained an error, but I resued because it draws the menu context well
-    uint8_t *dst = (uint8_t *)rr_surface_map(rr_surface);
-    if (dst == nullptr)
-    {
-        return;
-    }
-    int yy = res_height;
-
-   
-
-   
-    while (yy > 0)
-    {
-
-        for (int x = 0; x < (short)res_width * 2; ++x)
-        {
-
-            int color = 74; // 162;
-
-            if (yy < 12)
-            {
-                dst[x] = color; // 33; // 42;
-            }
-            else if (yy > res_height - 12)
-            {
-                dst[x] = color; // 33;
-            }
-            else if (x < 2 || x >= (short)res_width * 2 - 2)
-            {
-                dst[x] = color; // 33; // set to any color you want
-            }
-            else
-            {
-
-                dst[x] = 0x000000;
-            }
+    auto* pixels = static_cast<uint16_t*>(rr_surface_map(rr_surface));
+    if (!pixels) return;
+    const int stride = rr_surface_stride_get(rr_surface) / 2;
+    const auto& theme = osd::theme();
+    for (int y = 0; y < res_height; ++y)
+        for (int x = 0; x < res_width; ++x) {
+            // Preserve Classic's historical 12 top / 11 bottom / 1 side pixels.
+            const bool frame = y < theme.metrics.frameHeight ||
+                y >= res_height - theme.metrics.frameHeight + 1 || x == 0 || x == res_width - 1;
+            pixels[y * stride + x] = frame ? theme.colors.menuFrame : theme.colors.menuBody;
         }
-        dst += rr_surface_stride_get(rr_surface);
-        --yy;
-    }
-
-    // col_increase++;
+    rr_surface_unmap(rr_surface);
 }
 
 void makeScreenBlack(rr_surface_t *rr_surface, int res_width, int res_height)

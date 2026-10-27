@@ -765,7 +765,7 @@ int rr_surface_save_as_png(rr_surface_t* surface, const char* filename) {
 }
 
 static void render_surface(rr_presenter_t* presenter, rr_surface_t* surface, const SDL_Rect* src,
-                           const SDL_Rect* dst, rr_rotation_t rotation) {
+                           const SDL_Rect* dst, rr_rotation_t rotation, uint8_t opacity = 255) {
     if (!presenter || !presenter->renderer || !surface) return;
     const Uint32 format = sdl_pixel_format(surface->format);
     auto& entry = presenter->textures[surface];
@@ -794,8 +794,17 @@ static void render_surface(rr_presenter_t* presenter, rr_surface_t* surface, con
         return;
     }
     entry.generation = surface->generation;
+    if (opacity != 255) {
+        SDL_SetTextureBlendMode(entry.texture, SDL_BLENDMODE_BLEND);
+        SDL_SetTextureAlphaMod(entry.texture, opacity);
+    }
     SDL_RenderCopyEx(presenter->renderer, entry.texture, src, dst,
                      90.0 * static_cast<int>(rotation), NULL, SDL_FLIP_NONE);
+    if (opacity != 255) {
+        SDL_SetTextureAlphaMod(entry.texture, 255);
+        SDL_SetTextureBlendMode(entry.texture, surface->format == RR_PIXEL_FORMAT_RGBA8888
+            ? SDL_BLENDMODE_BLEND : SDL_BLENDMODE_NONE);
+    }
 }
 
 rr_presenter_t* rr_presenter_create(rr_display_t* display, uint32_t, uint32_t background) {
@@ -894,7 +903,7 @@ void rr_presenter_post_multiple(rr_presenter_t* p, rr_surface_t* base, status* o
     auto overlay = [&](rr_surface_t* s, int x, int y, int w, int h) { SDL_Rect d={x,y,w,h}; render_surface(p,s,NULL,&d,RR_ROTATION_DEGREES_0); };
     if (o->show_full && o->full) {
         SDL_Rect full_destination={dx,dy,dw,dh};
-        render_surface(p, o->full, NULL, &full_destination, overlay_rotation);
+        render_surface(p, o->full, NULL, &full_destination, overlay_rotation, o->full_opacity);
     }
     if (o->show_top_left && o->top_left) overlay(o->top_left, 0, 0, o->top_left->width*scale, o->top_left->height*scale);
     if (o->show_top_right && o->top_right) overlay(o->top_right, p->display->width-o->top_right->width*scale, 0, o->top_right->width*scale, o->top_right->height*scale);
@@ -1280,7 +1289,7 @@ void rr_context_make_current(rr_context_t* context) {
 static void blit_overlay(rr_context_t* context, rr_surface_t* surface,
                          int x, int y, int width, int height,
                          int drawable_width, int drawable_height,
-                         rr_rotation_t rotation, int shader_mode = 0) {
+                         rr_rotation_t rotation, int shader_mode = 0, uint8_t opacity = 255) {
     if (!surface || width <= 0 || height <= 0) return;
 
     GLint previous_draw = 0;
@@ -1293,6 +1302,8 @@ static void blit_overlay(rr_context_t* context, rr_surface_t* surface,
     GLint previous_blend_src_rgb = 0, previous_blend_dst_rgb = 0;
     GLint previous_blend_src_alpha = 0, previous_blend_dst_alpha = 0;
     const GLboolean blend_was_enabled = glIsEnabled(GL_BLEND);
+    GLfloat previous_blend_color[4] = {};
+    if (opacity != 255) glGetFloatv(GL_BLEND_COLOR, previous_blend_color);
     GLint previous_viewport[4] = {};
     glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &previous_draw);
     glGetIntegerv(GL_CURRENT_PROGRAM, &previous_program);
@@ -1381,7 +1392,11 @@ static void blit_overlay(rr_context_t* context, rr_surface_t* surface,
     glUniform1i(context->uniform_shader_mode, shader_mode);
     glUniform1i(context->uniform_rotation, static_cast<int>(rotation));
     glBindVertexArray(context->post_vao);
-    if (surface->format == RR_PIXEL_FORMAT_RGBA8888) {
+    if (opacity != 255) {
+        glEnable(GL_BLEND);
+        glBlendColor(0.0f, 0.0f, 0.0f, opacity / 255.0f);
+        glBlendFunc(GL_CONSTANT_ALPHA, GL_ONE_MINUS_CONSTANT_ALPHA);
+    } else if (surface->format == RR_PIXEL_FORMAT_RGBA8888) {
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     } else {
@@ -1394,6 +1409,8 @@ static void blit_overlay(rr_context_t* context, rr_surface_t* surface,
     glUseProgram(static_cast<GLuint>(previous_program));
     glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(previous_texture));
     glPixelStorei(GL_UNPACK_ALIGNMENT, previous_unpack_alignment);
+    if (opacity != 255)
+        glBlendColor(previous_blend_color[0], previous_blend_color[1], previous_blend_color[2], previous_blend_color[3]);
     glBlendFuncSeparate(previous_blend_src_rgb, previous_blend_dst_rgb,
                         previous_blend_src_alpha, previous_blend_dst_alpha);
     if (blend_was_enabled) glEnable(GL_BLEND); else glDisable(GL_BLEND);
@@ -1409,12 +1426,12 @@ static void draw_overlays(rr_context_t* context, status* overlays,
                           rr_rotation_t rotation) {
     if (!overlays) return;
     const float scale = std::max(1.0f, context->display->width / 640.0f);
-    auto draw = [&](rr_surface_t* surface, int x, int y, int width, int height) {
+    auto draw = [&](rr_surface_t* surface, int x, int y, int width, int height, uint8_t opacity = 255) {
         blit_overlay(context, surface, x, y, width, height,
-                     drawable_width, drawable_height, rotation);
+                     drawable_width, drawable_height, rotation, 0, opacity);
     };
     if (overlays->show_full && overlays->full)
-        draw(overlays->full, game_x, game_y, game_width, game_height);
+        draw(overlays->full, game_x, game_y, game_width, game_height, overlays->full_opacity);
     if (overlays->show_top_left && overlays->top_left)
         draw(overlays->top_left, 0, 0, overlays->top_left->width * scale,
              overlays->top_left->height * scale);

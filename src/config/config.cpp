@@ -4,6 +4,7 @@ Copyright (C) 2020  OtherCrashOverride
 Copyright (C) 2021-present  navy1978
 */
 
+#include "osd-theme.h"
 #include "config.h"
 #include "config/config_file.h"
 #include "globals.h"
@@ -88,7 +89,7 @@ static const std::unordered_set<std::string> &knownRetroRunSettings()
         "retrorun_sdl_audio_stretch_low_ms",
         "retrorun_sdl_audio_stretch_percent", "retrorun_show_loading_screen",
         "retrorun_swap_l1r1_with_l2r2", "retrorun_swap_sticks",
-        "retrorun_tate_mode", "retrorun_ui_profile",
+        "retrorun_tate_mode", "retrorun_ui_profile", "retrorun_osd_theme",
         "retrorun_video_filter", "retrorun_video_multithread_mode",
         "retrorun_video_renderer",
         "retrorun_video_shader", "retrorun_vsync"
@@ -1096,6 +1097,10 @@ void initConfig()
             logger.log(Logger::DEB, "retrorun_ui_profile: %s", value.c_str());
         }
         catch (...) { logger.log(Logger::DEB, "retrorun_ui_profile parameter not found; using auto"); }
+
+        const auto osd_theme = conf_map.find("retrorun_osd_theme");
+        if (!osd::select(osd_theme == conf_map.end() ? "" : osd_theme->second))
+            logger.log(Logger::WARN, "Invalid retrorun_osd_theme; using classic");
 
         try
         {

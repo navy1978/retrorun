@@ -45,3 +45,8 @@ SDL2 compatibility depends on the device and distribution.
 - [UnofficialOS on RG353M](doc/UNOFFICIALOS_RG353M.md): integration and tested hardware.
 - [Porting](PORTING.md): backend API, source layout and current limitations.
 - [Credits](doc/CREDITS.md): contributors, libraries and artwork attribution.
+
+### OSD themes
+
+Classic remains the default OSD. Set `retrorun_osd_theme = retrorun` for the
+optional RetroRun OS palette. See [OSD theme configuration and renderer notes](docs/osd-themes.md).

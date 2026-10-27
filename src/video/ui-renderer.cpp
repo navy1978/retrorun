@@ -1,3 +1,4 @@
+#include "osd-theme.h"
 #include "ui-renderer.h"
 
 #include "globals.h"
@@ -36,17 +37,17 @@ enum class PopupIcon { Pause, FastForward, Camera, Exit, Save, Load, Success,
 
 class PopupMessage {
 public:
-    PopupMessage(PopupIcon icon, std::string text, uint16_t color = 0xffff,
+    PopupMessage(PopupIcon icon, std::string text, uint16_t color = osd::theme().colors.primary,
                  int progress = -1)
         : icon_(icon), text_(std::move(text)), color_(color), progress_(progress) {}
 
     int width() const {
-        constexpr int text_x = 48;
-        constexpr int glyph_width = 8;
-        constexpr int right_padding = 10;
-        return std::max(108, text_x + static_cast<int>(text_.size()) * glyph_width + right_padding);
+        const int text_x = osd::theme().metrics.popupTextX;
+        const int glyph_width = osd::theme().metrics.glyphWidth;
+        const int right_padding = osd::theme().metrics.popupPadding;
+        return std::max(osd::theme().metrics.popupMinimumWidth, text_x + static_cast<int>(text_.size()) * glyph_width + right_padding);
     }
-    static constexpr int height() { return 44; }
+    static int height() { return osd::theme().metrics.popupHeight; }
 
     void render(rr_surface_t* target) const {
         if (!target) return;
@@ -55,15 +56,17 @@ public:
         const int w = rr_surface_width_get(target);
         const int h = rr_surface_height_get(target);
         const int stride = rr_surface_stride_get(target) / 2;
+        const auto& metrics = osd::theme().metrics;
+        const int text_x = metrics.popupTextX, text_y = metrics.popupTextY;
         // Fully opaque RGB565 HUD. The rectangular surface is painted to
         // every edge: without an alpha channel, unused black corner pixels
         // would look like an accidental halo over the game.
-        constexpr uint16_t popup_background = 0x4a49;
+        const uint16_t popup_background = osd::theme().colors.popup;
         std::fill(pixels, pixels + stride * h, popup_background);
-        fillRect(pixels, stride, w, h, 0, 0, w - 1, 2, 0x6b4d);
-        fillRect(pixels, stride, w, h, 0, 3, 2, h - 1, 0x5acb);
-        fillRect(pixels, stride, w, h, 3, h - 3, w - 1, h - 1, 0x18e3);
-        fillRect(pixels, stride, w, h, w - 3, 3, w - 1, h - 4, 0x2124);
+        fillRect(pixels, stride, w, h, 0, 0, w - 1, 2, osd::theme().colors.bevelTop);
+        fillRect(pixels, stride, w, h, 0, 3, 2, h - 1, osd::theme().colors.bevelLeft);
+        fillRect(pixels, stride, w, h, 3, h - 3, w - 1, h - 1, osd::theme().colors.bevelBottom);
+        fillRect(pixels, stride, w, h, w - 3, 3, w - 1, h - 4, osd::theme().colors.bevelRight);
         // Keep the semantic colour attached to the symbol: a small pixel
         // frame integrates the icon without becoming a separator or a tile.
         const uint16_t accent = iconColor();
@@ -78,21 +81,21 @@ public:
         fillRect(pixels, stride, w, h, 36, 34, 37, 35, accent);
         fillRect(pixels, stride, w, h, 9, 36, 35, 37, accent);
         drawIcon(pixels, stride, w, h);
-        basic_text_out16_nf_color_clipped(pixels, stride, w, h, 49, 19,
-                                         text_.c_str(), 0x0000);
-        basic_text_out16_nf_color_clipped(pixels, stride, w, h, 48, 18,
+        basic_text_out16_nf_color_clipped(pixels, stride, w, h, text_x + 1, text_y + 1,
+                                         text_.c_str(), osd::theme().colors.shadow);
+        basic_text_out16_nf_color_clipped(pixels, stride, w, h, text_x, text_y,
                                          text_.c_str(), color_);
         if (progress_ >= 0) {
             const int clamped = std::clamp(progress_, 0, 100);
-            const int x0 = 48;
+            const int x0 = text_x;
             const int y0 = 34;
-            const int x1 = w - 10;
+            const int x1 = w - metrics.popupPadding;
             const int y1 = 39;
-            fillRect(pixels, stride, w, h, x0, y0, x1, y1, 0x2104);
-            fillRect(pixels, stride, w, h, x0 + 1, y0 + 1, x1 - 1, y1 - 1, 0x0000);
+            fillRect(pixels, stride, w, h, x0, y0, x1, y1, osd::theme().colors.track);
+            fillRect(pixels, stride, w, h, x0 + 1, y0 + 1, x1 - 1, y1 - 1, osd::theme().colors.shadow);
             const int fill = (x1 - x0 - 2) * clamped / 100;
             if (fill > 0)
-                fillRect(pixels, stride, w, h, x0 + 1, y0 + 1, x0 + fill, y1 - 1, 0xfbe4);
+                fillRect(pixels, stride, w, h, x0 + 1, y0 + 1, x0 + fill, y1 - 1, osd::theme().colors.popupAccent);
         }
         rr_surface_unmap(target);
     }
@@ -141,17 +144,17 @@ private:
     }
     uint16_t iconColor() const {
         switch (icon_) {
-        case PopupIcon::Success: return 0x47e8;
-        case PopupIcon::Error: return 0xf249;
+        case PopupIcon::Success: return osd::theme().colors.success;
+        case PopupIcon::Error: return osd::theme().colors.popupError;
         case PopupIcon::FastForward:
-        case PopupIcon::Pause: return 0xffe6;
-        default: return 0xfbe4;
+        case PopupIcon::Pause: return osd::theme().colors.warning;
+        default: return osd::theme().colors.popupAccent;
         }
     }
     void drawIcon(uint16_t* p, int stride, int w, int h) const {
-        const uint16_t c = icon_ == PopupIcon::Error ? iconColor() : 0xffff;
-        constexpr uint16_t hi = 0xd69a;
-        constexpr uint16_t bg = 0x4a49;
+        const uint16_t c = icon_ == PopupIcon::Error ? iconColor() : osd::theme().colors.primary;
+        const uint16_t hi = osd::theme().colors.iconHighlight;
+        const uint16_t bg = osd::theme().colors.popup;
         // The frame centre is (22, 21.5). Glyphs use a 24x26 design grid,
         // therefore this origin centres their visual bounds in both axes.
         const int ox = 10, oy = 8;
@@ -269,11 +272,17 @@ void renderFullOverlay(int width, int height) {
                       retrorun_logo.width, retrorun_logo.height,
                       retrorun_logo.pixel_data, &status_surface_full);
         showTextBigger(width / 2 - static_cast<int>(label.length()) * 4,
-                       116, label.c_str(), WHITE, &status_surface_full);
+                       116, label.c_str(), osd::theme().colors.primary, &status_surface_full);
     } else {
         drawMenuInfoBackgroud(status_surface_full, width, height);
         showInfo(gs_w, &status_surface_full);
     }
+    // Only the ordinary game menu is translucent. Loading, credits, keyboard,
+    // file browser and achievement detail pages remain self-contained pages.
+    overlays.full_opacity = input_info_requested && !showLoading &&
+        !input_credits_requested && !rr_keyboard_virtual_visible() &&
+        !rr_file_browser_visible() && !achievements_view_visible()
+            ? osd::theme().menuOpacity : 255;
     overlays.show_full = true;
 }
 
@@ -291,7 +300,7 @@ void renderStateMessage() {
     if (!overlays.show_bottom_center) return;
 
     std::string label;
-    unsigned short color = WHITE;
+    unsigned short color = osd::theme().colors.primary;
     PopupIcon icon = PopupIcon::Slot;
     if (input_slot_memory_load_done) {
         label = LoadStateStatusMessage();
@@ -302,12 +311,12 @@ void renderStateMessage() {
             icon = PopupIcon::Info;
         } else {
             icon = lastLoadSaveStateDoneOk ? PopupIcon::Success : PopupIcon::Error;
-            if (!lastLoadSaveStateDoneOk) color = RED;
+            if (!lastLoadSaveStateDoneOk) color = osd::theme().colors.error;
         }
     } else if (input_slot_memory_save_done) {
         label = lastLoadSaveStateDoneOk ? "Slot " + std::to_string(currentSlot) + " saved" : "Save failed";
         icon = lastLoadSaveStateDoneOk ? PopupIcon::Success : PopupIcon::Error;
-        if (!lastLoadSaveStateDoneOk) color = RED;
+        if (!lastLoadSaveStateDoneOk) color = osd::theme().colors.error;
     } else if (input_slot_memory_reset_done) {
         label = "Core reset";
         icon = PopupIcon::Reset;
@@ -315,11 +324,11 @@ void renderStateMessage() {
         label = LoadStateStatusMessage();
         if (label.empty())
             label = "Loading slot " + std::to_string(currentSlot) + "...";
-        color = ORANGE;
+        color = osd::theme().colors.heading;
         icon = PopupIcon::Load;
     } else if (input_slot_memory_save_requested) {
         label = "Saving slot " + std::to_string(currentSlot) + "...";
-        color = ORANGE;
+        color = osd::theme().colors.heading;
         icon = PopupIcon::Save;
     } else {
         label = "Slot " + std::to_string(currentSlot) + " selected";
@@ -351,6 +360,8 @@ bool uiRenderOverlays(const void* frame, unsigned width, unsigned height, size_t
         overlay_width = INFO_MENU_WIDTH;
         overlay_height = INFO_MENU_HEIGHT;
         renderFullOverlay(overlay_width, overlay_height);
+        if (overlays.full_opacity < 255 && !isOpenGL && frame)
+            drawNonOpenGL(frame, width, height, pitch);
         visible = true;
     } else {
         overlays.show_full = false;

@@ -922,7 +922,7 @@ static uint32_t go2_rkformat_get(uint32_t drm_fourcc)
 static void go2_surface_blit_internal(go2_surface_t *srcSurface, int srcX, int srcY,
                       int srcWidth, int srcHeight, go2_surface_t *dstSurface,
                       int dstX, int dstY, int dstWidth, int dstHeight,
-                      go2_rotation_t rotation, bool alpha_blend)
+                      go2_rotation_t rotation, bool alpha_blend, uint8_t opacity = 255)
 {
     rga_info_t dst = {0};
     dst.fd = go2_surface_prime_fd(dstSurface);
@@ -981,6 +981,9 @@ static void go2_surface_blit_internal(go2_surface_t *srcSurface, int srcX, int s
     src.rect.format = go2_rkformat_get(srcSurface->format);
     if (alpha_blend)
         src.blend = 0xff0405; // Source-over for straight (not premultiplied) RGBA artwork.
+    else if (opacity < 255)
+        // librga NormalRga.cpp: 0x0105 selects global-alpha source-over for RGB.
+        src.blend = (static_cast<unsigned>(opacity) << 16) | 0x0105;
 
 #if 0
     enum
@@ -1584,7 +1587,7 @@ static arc_status_rect arc_status_coordinates(int panel_width, int panel_height,
     }
 }
 
-void blit_surface_status(go2_presenter_t *presenter, go2_surface_t *source_surface, go2_surface_t *dest_surface, int dest_width, int dest_height, go2_rotation_t rotation, STATUS_POSITION position, bool isWideScreen)
+void blit_surface_status(go2_presenter_t *presenter, go2_surface_t *source_surface, go2_surface_t *dest_surface, int dest_width, int dest_height, go2_rotation_t rotation, STATUS_POSITION position, bool isWideScreen, uint8_t opacity = 255)
 {
 
     double dest_x = 0;
@@ -1758,7 +1761,7 @@ void blit_surface_status(go2_presenter_t *presenter, go2_surface_t *source_surfa
     // Blit the surface to the destination surface
     if (source_surface != nullptr)
     {
-        go2_surface_blit(source_surface, 0, 0, source_surface->width, source_surface->height, dest_surface, dest_x, dest_y, dest_width_scaled, dest_height_scaled, rotation);
+        go2_surface_blit_internal(source_surface, 0, 0, source_surface->width, source_surface->height, dest_surface, dest_x, dest_y, dest_width_scaled, dest_height_scaled, rotation, false, opacity);
     }
 }
 
@@ -1830,10 +1833,9 @@ void go2_presenter_post_multiple(go2_presenter_t *presenter, go2_surface_t *surf
         }
     }
 
-    // Full frontend pages are opaque. Do not blit the core underneath them:
-    // besides wasting an RGA operation, menu dimensions may differ from the
-    // core allocation (for example 320x240 over mGBA's 256x160 surface).
-    if (!status_obj->show_full)
+    // Opaque pages retain the original fast path. Translucent game menus
+    // need the core underneath; its source geometry remains the game allocation.
+    if (!status_obj->show_full || (status_obj->full_opacity > 0 && status_obj->full_opacity < 255))
         go2_surface_blit(surface1, srcX, srcY, srcWidth, srcHeight,
                          dstSurface, dstX, dstY, dstWidth, dstHeight, rotation);
 
@@ -1930,7 +1932,7 @@ void go2_presenter_post_multiple(go2_presenter_t *presenter, go2_surface_t *surf
         if (surface != nullptr)
         {
             // printf("status non è null!!!");
-            blit_surface_status(presenter, surface, dstSurface, dstWidth - 50, dstHeight - 50, blitRotation, FULL, isWideScreen);
+            blit_surface_status(presenter, surface, dstSurface, dstWidth - 50, dstHeight - 50, blitRotation, FULL, isWideScreen, status_obj->full_opacity ? status_obj->full_opacity : 255);
         }
     }
 
