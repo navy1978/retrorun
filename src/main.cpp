@@ -1555,6 +1555,14 @@ int retrorun_main(int argc, char *argv[])
                                pendingInfo.timing.fps, pendingInfo.timing.sample_rate);
                 }
             }
+            retro_game_geometry pendingGeometry{};
+            if(core_take_pending_geometry(&pendingGeometry)){
+                if(video_reconfigure_base_geometry(&pendingGeometry)){
+                    info.geometry.base_width=pendingGeometry.base_width;
+                    info.geometry.base_height=pendingGeometry.base_height;
+                    info.geometry.aspect_ratio=pendingGeometry.aspect_ratio;
+                }else logger.log(Logger::WARN,"Core geometry update exceeds the current allocation; ignored");
+            }
             if (profileFastForwardFrame) {
                 ++fastForwardCoreRuns;
                 fastForwardCoreTimeUs += duration_cast<microseconds>(

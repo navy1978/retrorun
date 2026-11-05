@@ -10,7 +10,7 @@ COMMON_FLAGS := $(CXXFLAGS) $(SANITIZER) $(INCLUDES) -pthread
 
 .PHONY: all run clean
 
-all: go2_scanlines_test startup_loading_animator_test vfs_test profile_settings_test osd_theme_test state_identity_test catalog_precedence_test state_preview_test archive_content_test benchmark_test audio_worker_test transition_test config_file_test flycast_game_catalog_test core_option_resolution_test video_multithread_mode_test
+all: pending_video_updates_test aspect_viewport_test go2_crt_test go2_scanlines_test startup_loading_animator_test vfs_test profile_settings_test osd_theme_test state_identity_test catalog_precedence_test state_preview_test archive_content_test benchmark_test audio_worker_test transition_test config_file_test flycast_game_catalog_test core_option_resolution_test video_multithread_mode_test
 
 state_identity_test: state_identity_test.cpp $(ROOT)/src/core/state_identity.h $(ROOT)/src/core/state_context.h
 	$(CXX) $(COMMON_FLAGS) state_identity_test.cpp -o $@
@@ -61,6 +61,9 @@ profile_settings_test: profile_settings_test.cpp $(ROOT)/src/config/profile_sett
 	$(CXX) $(COMMON_FLAGS) profile_settings_test.cpp -o $@
 
 run: all
+	./pending_video_updates_test
+	./aspect_viewport_test
+	./go2_crt_test
 	./go2_scanlines_test
 	./startup_loading_animator_test
 	./vfs_test
@@ -79,7 +82,7 @@ run: all
 	./video_multithread_mode_test
 
 clean:
-	rm -f go2_scanlines_test startup_loading_animator_test vfs_test profile_settings_test osd_theme_test state_identity_test catalog_precedence_test state_preview_test archive_content_test archive_unzip.o archive_ioapi.o benchmark_test audio_worker_test transition_test config_file_test flycast_game_catalog_test core_option_resolution_test video_multithread_mode_test benchmark-result-1.json benchmark-result-2.json transition-test.state
+	rm -f pending_video_updates_test aspect_viewport_test go2_crt_test go2_scanlines_test startup_loading_animator_test vfs_test profile_settings_test osd_theme_test state_identity_test catalog_precedence_test state_preview_test archive_content_test archive_unzip.o archive_ioapi.o benchmark_test audio_worker_test transition_test config_file_test flycast_game_catalog_test core_option_resolution_test video_multithread_mode_test benchmark-result-1.json benchmark-result-2.json transition-test.state
 
 archive_unzip.o: $(ROOT)/deps/minizip/unzip.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(SANITIZER) -std=c99 -D_POSIX_C_SOURCE=200809L -DNOUNCRYPT -c $< -o $@
@@ -95,3 +98,12 @@ startup_loading_animator_test: startup_loading_animator_test.cpp $(ROOT)/src/vid
 
 go2_scanlines_test: go2_scanlines_test.cpp fixtures/go2_scanlines_legacy.h $(ROOT)/src/video/go2_scanlines.h
 	$(CXX) $(COMMON_FLAGS) go2_scanlines_test.cpp -o $@
+
+go2_crt_test: go2_crt_test.cpp fixtures/go2_crt_scalar.h $(ROOT)/src/video/go2_crt.h $(ROOT)/src/video/go2_scanlines.h
+	$(CXX) $(COMMON_FLAGS) go2_crt_test.cpp -o $@
+
+aspect_viewport_test: aspect_viewport_test.cpp $(ROOT)/src/video/aspect_viewport.h
+	$(CXX) $(COMMON_FLAGS) aspect_viewport_test.cpp -o $@
+
+pending_video_updates_test: pending_video_updates_test.cpp $(ROOT)/src/core/pending_video_updates.h
+	$(CXX) $(COMMON_FLAGS) pending_video_updates_test.cpp -o $@

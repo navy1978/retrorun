@@ -38,6 +38,7 @@ void video_stop_startup_loading();
 void video_configure(struct retro_game_geometry* geom);
 void video_prepare_core_unload();
 void video_synchronize();
+bool video_reconfigure_base_geometry(const struct retro_game_geometry* geom);
 bool video_reconfigure_geometry(const struct retro_game_geometry* geom);
 void video_deinit();
 void resetCredisPosition();

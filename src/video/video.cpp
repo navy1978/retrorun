@@ -23,9 +23,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "runtime_exit.h"
 #include "ui-renderer.h"
 #include "osd-theme.h"
+#include "aspect_viewport.h"
 #ifndef RR_PLATFORM_SDL
 #include "startup_loading_animator.h"
 #include "go2_scanlines.h"
+#include "go2_crt.h"
 #include "go2_software_profile.h"
 #endif
 #include "decoration.h"
@@ -291,7 +293,7 @@ void video_configure(struct retro_game_geometry *geom)
     if (opt_aspect == 0.0f)
     {
         logger.log(Logger::DEB, "Using original game aspect ratio.");
-        aspect_ratio = geom->aspect_ratio; // dont print the value here because is wrong
+        aspect_ratio = rr::resolvedAspect(0,geom->aspect_ratio,geom->base_width,geom->base_height);
         // for PC games (the default apsect ratio should be 4:3)
         if (isDosBox())
         {
@@ -304,7 +306,7 @@ void video_configure(struct retro_game_geometry *geom)
         logger.log(Logger::DEB, "Forcing aspect ratio to: %f.", opt_aspect);
         aspect_ratio = opt_aspect;
     }
-    game_aspect_ratio = geom->aspect_ratio;
+    game_aspect_ratio = rr::resolvedAspect(0,geom->aspect_ratio,geom->base_width,geom->base_height);
     logger.log(Logger::DEB, "Display info: width=%d, height=%d", display_width, display_height);
     
     // some games like Resident Evil 2 for Flycast has an ovescan issue in 640x480
@@ -475,13 +477,28 @@ bool video_reconfigure_geometry(const struct retro_game_geometry* geom)
     base_height = static_cast<int>(geom->base_height);
     max_width = requested_max_width;
     max_height = requested_max_height;
-    game_aspect_ratio = geom->aspect_ratio;
-    if (opt_aspect == 0.0f && geom->aspect_ratio > 0.0f)
-        aspect_ratio = geom->aspect_ratio;
+    game_aspect_ratio = rr::resolvedAspect(0,geom->aspect_ratio,geom->base_width,geom->base_height);
+    if (opt_aspect == 0.0f)
+        aspect_ratio = game_aspect_ratio;
     first_video_refresh = true;
     logger.log(Logger::INF,
                "Runtime video geometry applied: %dx%d max=%dx%d aspect=%.6f",
                base_width, base_height, max_width, max_height, game_aspect_ratio);
+    return true;
+}
+
+bool video_reconfigure_base_geometry(const struct retro_game_geometry* geom)
+{
+    if(!geom || !geom->base_width || !geom->base_height ||
+       geom->base_width>static_cast<unsigned>(max_width) || geom->base_height>static_cast<unsigned>(max_height))return false;
+    const float coreAspect=rr::resolvedAspect(0,geom->aspect_ratio,geom->base_width,geom->base_height);
+    if(base_width==static_cast<int>(geom->base_width) && base_height==static_cast<int>(geom->base_height) && game_aspect_ratio==coreAspect)return true;
+    // SET_GEOMETRY only changes nominal dimensions/DAR, never allocation,
+    // presenter ownership, core context, audio timing or framebuffer storage.
+    base_width=geom->base_width;base_height=geom->base_height;game_aspect_ratio=coreAspect;
+    if(opt_aspect==0.f)aspect_ratio=game_aspect_ratio;
+    first_video_refresh=true;
+    logger.log(Logger::INF,"Runtime base geometry applied: %dx%d aspect=%.6f",base_width,base_height,game_aspect_ratio);
     return true;
 }
 
@@ -617,6 +634,17 @@ void prepareScreen(int width, int height, bool apply_pixel_perfect)
             prepareScreenPixelPerfect(width,height);
             return;
         }
+
+#ifndef RR_PLATFORM_SDL
+    // Native landscape panels (MP/V/RK3566): fit the display aspect, not its
+    // reciprocal. The old narrow-Auto branch divided width by the core ratio.
+    if(hasDeviceRotatedScreen() && !isTate() && game_aspect_ratio>=1.f){
+        aspect_ratio=rr::resolvedAspect(aspect_ratio,game_aspect_ratio,width,height);
+        const auto viewport=rr::fitAspect(rr_display_width_get(display),rr_display_height_get(display),aspect_ratio);
+        x=viewport.x;y=viewport.y;w=viewport.width;h=viewport.height;isGameVertical=false;
+        return;
+    }
+#endif
 
 #ifdef RR_PLATFORM_SDL
     // Desktop windows can change size at any time (maximize/fullscreen/drag).
@@ -817,6 +845,19 @@ void drawNonOpenGL(const void *data, unsigned width, unsigned height, size_t pit
     {
         return;
     }
+#if !defined(RR_PLATFORM_SDL) && !defined(RR_GO2_LEGACY_CRT)
+    if (videoShader == RR_VIDEO_SHADER_CRT &&
+        width <= static_cast<unsigned>(rr_surface_width_get(surface)) &&
+        height <= static_cast<unsigned>(rr_surface_height_get(surface))) {
+        static go2_crt::Plan crt;
+        go2_profile::Timer upload(go2_profile::Stage::FusedUpload);
+        const bool copied=crt.copy(mapped,rr_surface_stride_get(surface),data,width,height,pitch,
+            rr_surface_format_get(surface),color_format==RR_PIXEL_FORMAT_RGBA5551,
+            videoFilter!=RR_VIDEO_FILTER_NEAREST);
+        upload.stop();
+        if(copied){go2_profile::Timer unmapping(go2_profile::Stage::Unmap);rr_surface_unmap(surface);return;}
+    }
+#endif
 #if !defined(RR_PLATFORM_SDL) && !defined(RR_GO2_LEGACY_SCANLINES)
     if (videoShader == RR_VIDEO_SHADER_SCANLINES &&
         width <= static_cast<unsigned>(rr_surface_width_get(surface)) &&
@@ -1215,6 +1256,11 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
 {
     if (!core_callbacks_enabled())
         return;
+#ifndef RR_PLATFORM_SDL
+    // Keep the incoming libretro validity, before menu rendering substitutes
+    // lastData. Paused menu callbacks must not capture an already filtered frame.
+    const bool new_hardware_frame = data == RETRO_HW_FRAME_BUFFER_VALID;
+#endif
     const bool measureBenchmark = benchmark_collecting();
     if (measureBenchmark)
         benchmark_video_callback_begin();
@@ -1448,7 +1494,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         return;
 #else
         rr_context_swap_buffers(context3D, width, height, x, y, w, h, nullptr,
-                                getRotation());
+                                getRotation(), new_hardware_frame);
 
         gles_surface = rr_context_surface_lock(context3D);
 

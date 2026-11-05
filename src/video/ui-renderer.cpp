@@ -485,7 +485,7 @@ bool uiRenderOverlays(const void* frame, unsigned width, unsigned height, size_t
             rr_surface_t* base = isOpenGL ? gles_surface : surface;
             const int source_y = isOpenGL ? gs_h - static_cast<int>(height) : 0;
             rr_presenter_post_multiple(presenter, base, &overlays,
-                                       0, source_y, overlay_width, overlay_height,
+                                       0, source_y, width, height,
                                        x, y, w, h, getRotation(), getBlitRotation(), isWideScreen);
         }
         if (overlay_cleanup_frames > 0) --overlay_cleanup_frames;

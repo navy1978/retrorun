@@ -216,7 +216,7 @@ void rr_context_destroy(rr_context_t* context);
 void rr_context_make_current(rr_context_t* context);
 void rr_context_swap_buffers(rr_context_t* context, int source_width, int source_height,
                              int dest_x, int dest_y, int dest_width, int dest_height,
-                             status* overlays, rr_rotation_t rotation);
+                             status* overlays, rr_rotation_t rotation, bool new_frame = true);
 uintptr_t rr_context_framebuffer_get(rr_context_t* context);
 // Borrow the most recently completed GO2 frame without locking another GBM
 // buffer. Valid only while the context lives and rendering is synchronized.

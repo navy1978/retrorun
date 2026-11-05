@@ -1488,7 +1488,7 @@ static void blit_decoration_damage(rr_context_t* context, rr_surface_t* surface,
 
 void rr_context_swap_buffers(rr_context_t* context, int source_width, int source_height,
                              int dest_x, int dest_y, int dest_width, int dest_height,
-                             status* overlays, rr_rotation_t rotation) {
+                             status* overlays, rr_rotation_t rotation, bool /*new_frame*/) {
     if (!context) return;
     rr_context_make_current(context);
 

@@ -98,6 +98,10 @@ ifeq ($(GO2_LEGACY_SCANLINES),1)
   DEFINES += -DRR_GO2_LEGACY_SCANLINES
 endif
 
+ifeq ($(GO2_LEGACY_CRT),1)
+  DEFINES += -DRR_GO2_LEGACY_CRT
+endif
+
 OBJECTS := \
 	$(OBJDIR)/diagnostics/logger.o \
 	$(OBJDIR)/platform/platform_go2.o \

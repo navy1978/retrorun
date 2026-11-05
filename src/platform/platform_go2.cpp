@@ -8,6 +8,7 @@
 #include "status.h"
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
+#include "go2_gl_state.h"
 #include <cstdio>
 
 #ifndef GL_DEPTH24_STENCIL8
@@ -27,12 +28,15 @@ struct rr_context {
     rr_surface_t last_frame{};
     int width;
     int height;
-    GLuint framebuffer;
     GLuint color_texture;
-    GLuint depth_buffer;
-    GLuint stencil_buffer;
+    GLenum color_texture_format;
+    GLenum color_texture_type;
     GLuint post_program;
     GLuint post_vbo;
+    GLuint post_vao;
+    bool gles3;
+    bool snapshot_valid;
+    int snapshot_width, snapshot_height;
     GLint uniform_frame_texture;
     GLint uniform_source_size;
     GLint uniform_texture_scale;
@@ -297,39 +301,18 @@ static GLuint create_go2_post_program() {
     return 0;
 }
 
-static bool create_go2_post_framebuffer(rr_context_t* context) {
+static bool create_go2_post_pipeline(rr_context_t* context) {
+    Go2GlState state(context->gles3);
+    state.prepare();
     glGenTextures(1, &context->color_texture);
     glBindTexture(GL_TEXTURE_2D, context->color_texture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, context->width, context->height,
-                 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, context->color_texture_format, context->width, context->height,
+                 0, context->color_texture_format, context->color_texture_type, NULL);
 
-    glGenFramebuffers(1, &context->framebuffer);
-    glBindFramebuffer(GL_FRAMEBUFFER, context->framebuffer);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
-                           context->color_texture, 0);
-    // Mali's GLES driver rejects separate depth and stencil renderbuffers for
-    // this color target. A single packed allocation is also what hardware
-    // cores requesting 24-bit depth plus 8-bit stencil expect.
-    glGenRenderbuffers(1, &context->depth_buffer);
-    glBindRenderbuffer(GL_RENDERBUFFER, context->depth_buffer);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8,
-                          context->width, context->height);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
-                              GL_RENDERBUFFER, context->depth_buffer);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT,
-                              GL_RENDERBUFFER, context->depth_buffer);
-    const GLenum framebuffer_status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-    if (framebuffer_status != GL_FRAMEBUFFER_COMPLETE) {
-        std::fprintf(stderr,
-                     "RetroRun GO2 post-processing framebuffer is incomplete "
-                     "(status=0x%04x); shader disabled\n",
-                     static_cast<unsigned>(framebuffer_status));
-        return false;
-    }
     context->post_program = create_go2_post_program();
     if (!context->post_program)
         return false;
@@ -346,6 +329,7 @@ static bool create_go2_post_framebuffer(rr_context_t* context) {
         -1.0f,-1.0f, 0.0f,0.0f,  1.0f,-1.0f, 1.0f,0.0f,
         -1.0f, 1.0f, 0.0f,1.0f,  1.0f, 1.0f, 1.0f,1.0f
     };
+    if(context->gles3){glGenVertexArrays(1,&context->post_vao);glBindVertexArray(context->post_vao);}
     glGenBuffers(1, &context->post_vbo);
     glBindBuffer(GL_ARRAY_BUFFER, context->post_vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
@@ -353,19 +337,16 @@ static bool create_go2_post_framebuffer(rr_context_t* context) {
     return true;
 }
 
-static void destroy_go2_post_framebuffer(rr_context_t* context) {
+static void destroy_go2_post_pipeline(rr_context_t* context) {
     if (context->post_program) glDeleteProgram(context->post_program);
     if (context->post_vbo) glDeleteBuffers(1, &context->post_vbo);
-    if (context->stencil_buffer) glDeleteRenderbuffers(1, &context->stencil_buffer);
-    if (context->depth_buffer) glDeleteRenderbuffers(1, &context->depth_buffer);
-    if (context->framebuffer) glDeleteFramebuffers(1, &context->framebuffer);
+    if (context->post_vao) glDeleteVertexArrays(1, &context->post_vao);
+    context->post_vao=0;
     if (context->color_texture) glDeleteTextures(1, &context->color_texture);
     context->post_program = 0;
     context->post_vbo = 0;
-    context->stencil_buffer = 0;
-    context->depth_buffer = 0;
-    context->framebuffer = 0;
     context->color_texture = 0;
+    context->snapshot_valid=false;
 }
 
 rr_context_t* rr_context_create(rr_display_t* display, int width, int height,
@@ -381,9 +362,15 @@ rr_context_t* rr_context_create(rr_display_t* display, int width, int height,
     context->native = native_context;
     context->width = width;
     context->height = height;
-    if (video_shader != RR_VIDEO_SHADER_OFF && !create_go2_post_framebuffer(context)) {
+    context->gles3 = attributes->major >= 3;
+    // CopyTexSubImage cannot add alpha to a native RGB565 color buffer on
+    // Mali. Match both its components and precision, rather than assuming RGBA.
+    context->color_texture_format=attributes->alpha_bits>0?GL_RGBA:GL_RGB;
+    context->color_texture_type=attributes->alpha_bits==0 && attributes->red_bits==5 &&
+        attributes->green_bits==6 && attributes->blue_bits==5?GL_UNSIGNED_SHORT_5_6_5:GL_UNSIGNED_BYTE;
+    if (video_shader != RR_VIDEO_SHADER_OFF && !create_go2_post_pipeline(context)) {
         context->post_framebuffer_failed = true;
-        destroy_go2_post_framebuffer(context);
+        destroy_go2_post_pipeline(context);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
     return context;
@@ -392,43 +379,39 @@ rr_context_t* rr_context_create(rr_display_t* display, int width, int height,
 void rr_context_destroy(rr_context_t* context) {
     if (!context) return;
     go2_context_make_current(context->native);
-    destroy_go2_post_framebuffer(context);
+    destroy_go2_post_pipeline(context);
     go2_context_destroy(context->native);
     delete context;
 }
 void rr_context_make_current(rr_context_t* context) { go2_context_make_current(context->native); }
-void rr_context_swap_buffers(rr_context_t* context, int source_width, int source_height, int, int, int, int, status*, rr_rotation_t) {
-    // Shader selection can change from the RetroRun menu after the core
-    // context has already been created. Lazily allocate the off-screen target
-    // so scanlines/CRT become effective without restarting the frontend.
-    if (video_shader != RR_VIDEO_SHADER_OFF && !context->post_framebuffer_failed &&
-        (!context->framebuffer || !context->post_program)) {
-        destroy_go2_post_framebuffer(context);
-        if (!create_go2_post_framebuffer(context)) {
-            context->post_framebuffer_failed = true;
-            destroy_go2_post_framebuffer(context);
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        }
+void rr_context_swap_buffers(rr_context_t* context, int source_width, int source_height, int, int, int, int, status*, rr_rotation_t, bool new_frame) {
+    if(source_width<=0 || source_height<=0 || source_width>context->width || source_height>context->height){
+        go2_context_swap_buffers(context->native);return;
     }
-    if (!context->framebuffer || !context->post_program) {
-        go2_context_swap_buffers(context->native);
-        return;
+    // Keep libretro's native target stable at 0 throughout OFF/ON changes.
+    // Several cores cache the target and cannot follow a lazy replacement FBO.
+    // OFF on a real core frame remains the original no-post-processing path.
+    if(video_shader==RR_VIDEO_SHADER_OFF && (new_frame || !context->snapshot_valid)){
+        context->snapshot_valid=false;go2_context_swap_buffers(context->native);return;
     }
+    if(video_shader!=RR_VIDEO_SHADER_OFF && !context->post_framebuffer_failed && !context->post_program){
+        destroy_go2_post_pipeline(context);
+        if(!create_go2_post_pipeline(context)){context->post_framebuffer_failed=true;destroy_go2_post_pipeline(context);}
+    }
+    if(!context->post_program){go2_context_swap_buffers(context->native);return;}
 
-    GLint previous_framebuffer = 0;
-    GLint previous_program = 0;
-    GLint previous_array_buffer = 0;
-    GLint previous_active_texture = 0;
-    GLint previous_texture = 0;
-    GLint previous_viewport[4] = {};
-    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &previous_framebuffer);
-    glGetIntegerv(GL_CURRENT_PROGRAM, &previous_program);
-    glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &previous_array_buffer);
-    glGetIntegerv(GL_ACTIVE_TEXTURE, &previous_active_texture);
-    glActiveTexture(GL_TEXTURE0);
-    glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous_texture);
-    glGetIntegerv(GL_VIEWPORT, previous_viewport);
-
+    Go2GlState state(context->gles3);
+    state.prepare(context->post_vao);
+    // Snapshot framebuffer 0 on the GPU. Core-private bindings at callback
+    // entry are restored afterwards and do not determine the source image.
+    // Paused menus/dupes reuse the original snapshot without repeated filtering.
+    if(new_frame || !context->snapshot_valid ||
+        context->snapshot_width!=source_width || context->snapshot_height!=source_height){
+        glBindFramebuffer(GL_FRAMEBUFFER,0);
+        glBindTexture(GL_TEXTURE_2D,context->color_texture);
+        glCopyTexSubImage2D(GL_TEXTURE_2D,0,0,0,0,0,source_width,source_height);
+        context->snapshot_valid=true;context->snapshot_width=source_width;context->snapshot_height=source_height;
+    }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(0, 0, source_width, source_height);
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -461,15 +444,11 @@ void rr_context_swap_buffers(rr_context_t* context, int source_width, int source
     glDisableVertexAttribArray(0);
     glDisableVertexAttribArray(1);
     go2_context_swap_buffers(context->native);
-
-    glUseProgram(static_cast<GLuint>(previous_program));
-    glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(previous_array_buffer));
-    glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(previous_texture));
-    glActiveTexture(static_cast<GLenum>(previous_active_texture));
-    glViewport(previous_viewport[0], previous_viewport[1], previous_viewport[2], previous_viewport[3]);
-    glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(previous_framebuffer));
 }
-uintptr_t rr_context_framebuffer_get(rr_context_t* context) { return context ? context->framebuffer : 0; }
+uintptr_t rr_context_framebuffer_get(rr_context_t*) {
+    // Stable target: never redirect a running core when the user toggles effects.
+    return 0;
+}
 rr_surface_t* rr_context_surface_lock(rr_context_t* context) { go2_surface_t* native = go2_context_surface_lock(context->native); if (!native) return NULL; rr_surface_t* s = new rr_surface_t; s->native=native; context->last_frame.native=native; return s; }
 rr_surface_t* rr_context_surface_last(rr_context_t* context) { return context && context->last_frame.native ? &context->last_frame : nullptr; }
 void rr_context_surface_unlock(rr_context_t* context, rr_surface_t* surface) { go2_context_surface_unlock(context->native, surface->native); delete surface; }

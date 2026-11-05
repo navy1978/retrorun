@@ -23,9 +23,10 @@ queue synchronization, RGA scaling/rotation, overlays and bezels are unchanged.
 Therefore the RGA input pixels are equivalent at every viewport/scaling mode;
 scanlines have not been redefined as display-space alternating rows.
 
-Shader OFF and CRT retain their previous paths. CRT still uses its existing
-vignette, grille and gain map. No persistent mapping, SIMD intrinsics, GL path,
-new dependency or device-specific pixel/stride assumption is introduced.
+Shader OFF retains its previous path. CRT has a separate curved CPU upload;
+see [GO2 effects](go2-effects.md). The scanline optimization introduces no
+persistent mapping, SIMD intrinsics, GL path, new dependency or device-specific
+pixel/stride assumption.
 
 ## Optional diagnostics
 

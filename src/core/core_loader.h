@@ -64,6 +64,7 @@ void core_close();
 void core_disable_callbacks();
 bool core_callbacks_enabled();
 bool core_take_pending_av_info(struct retro_system_av_info* info);
+bool core_take_pending_geometry(struct retro_game_geometry* geometry);
 void core_clear_pending_av_info();
 bool core_reset_synchronized();
 

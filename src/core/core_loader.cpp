@@ -13,6 +13,7 @@ Copyright (C) 2021-present  navy1978
 #include "core_option_resolution.h"
 #include "globals.h"
 #include "config.h"
+#include "pending_video_updates.h"
 #include "keyboard.h"
 #include "disk_control.h"
 #include "achievements.h"
@@ -61,9 +62,7 @@ void core_discard_prepared_content() noexcept {game_archive.reset();}
 
 typedef std::map<std::string, std::string> varmap_t;
 static varmap_t variables;
-static std::mutex pending_av_mutex;
-static struct retro_system_av_info pending_av_info = {};
-static bool pending_av_info_valid = false;
+static rr::PendingVideoUpdates pending_video;
 
 static bool registerCoreOptions(
     const struct retro_core_option_definition *options)
@@ -465,20 +464,18 @@ bool core_environment(unsigned cmd, void *data)
     {
         if (!data)
             return false;
-        {
-            std::lock_guard<std::mutex> lock(pending_av_mutex);
-            pending_av_info = *static_cast<retro_system_av_info*>(data);
-            pending_av_info_valid = true;
-        }
+        const auto& av=*static_cast<retro_system_av_info*>(data);
+        pending_video.stageAv(av);
         logger.log(Logger::DEB,
                    "RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO staged: %ux%u max=%ux%u fps=%.6f sample_rate=%.3f",
-                   pending_av_info.geometry.base_width,
-                   pending_av_info.geometry.base_height,
-                   pending_av_info.geometry.max_width,
-                   pending_av_info.geometry.max_height,
-                   pending_av_info.timing.fps,
-                   pending_av_info.timing.sample_rate);
+                   av.geometry.base_width,av.geometry.base_height,av.geometry.max_width,av.geometry.max_height,
+                   av.timing.fps,av.timing.sample_rate);
         return true;
+    }
+
+    case RETRO_ENVIRONMENT_SET_GEOMETRY:
+    {
+        return data && pending_video.stageGeometry(*static_cast<retro_game_geometry*>(data));
     }
 
     case RETRO_ENVIRONMENT_GET_TARGET_REFRESH_RATE:
@@ -922,21 +919,15 @@ bool core_callbacks_enabled()
 
 bool core_take_pending_av_info(struct retro_system_av_info* info)
 {
-    if (!info)
-        return false;
-    std::lock_guard<std::mutex> lock(pending_av_mutex);
-    if (!pending_av_info_valid)
-        return false;
-    *info = pending_av_info;
-    pending_av_info_valid = false;
-    return true;
+    return pending_video.takeAv(info);
 }
-
+bool core_take_pending_geometry(struct retro_game_geometry* geometry)
+{
+    return pending_video.takeGeometry(geometry);
+}
 void core_clear_pending_av_info()
 {
-    std::lock_guard<std::mutex> lock(pending_av_mutex);
-    pending_av_info_valid = false;
-    pending_av_info = {};
+    pending_video.clear();
 }
 
 bool core_reset_synchronized()
