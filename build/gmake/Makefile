@@ -89,6 +89,15 @@ ifeq ($(config),release)
   endef
 endif
 
+# Optional native software-pipeline diagnostics; compiled out of normal builds.
+ifeq ($(GO2_SOFTWARE_PROFILE),1)
+  DEFINES += -DRR_GO2_SOFTWARE_PROFILE
+endif
+# Benchmark-only control: run the unchanged historical two-pass scanline path.
+ifeq ($(GO2_LEGACY_SCANLINES),1)
+  DEFINES += -DRR_GO2_LEGACY_SCANLINES
+endif
+
 OBJECTS := \
 	$(OBJDIR)/diagnostics/logger.o \
 	$(OBJDIR)/platform/platform_go2.o \

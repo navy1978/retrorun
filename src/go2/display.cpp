@@ -27,6 +27,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include "queue.h"
 #include "../globals.h"
 #include "diagnostics/benchmark.h"
+#include "video/go2_software_profile.h"
 
 #include <xf86drm.h>
 #include <xf86drmMode.h>
@@ -996,7 +997,9 @@ static void go2_surface_blit_internal(go2_surface_t *srcSurface, int srcX, int s
 #endif
     src.scale_mode = 4;
 
+    go2_profile::Timer scaling(go2_profile::Stage::RgaBlit);
     int ret = c_RkRgaBlit(&src, &dst, NULL);
+    scaling.stop();
     if (ret)
     {
         logger.log(Logger::ERR,"c_RkRgaBlit failed.\n");
@@ -1443,6 +1446,8 @@ void go2_presenter_drain(go2_presenter_t *presenter)
 
 void go2_presenter_post(go2_presenter_t *presenter, go2_surface_t *surface, int srcX, int srcY, int srcWidth, int srcHeight, int dstX, int dstY, int dstWidth, int dstHeight, go2_rotation_t rotation)
 {
+    go2_profile::Timer submit(go2_profile::Stage::Submit);
+    go2_profile::Timer queueWait(go2_profile::Stage::QueueWait);
     // During fast-forward the core must never be paced by the display queue.
     // If all scanout buffers are busy, discard this presentation attempt and
     // let retro_run() continue immediately. Normal gameplay remains blocking.
@@ -1465,6 +1470,7 @@ void go2_presenter_post(go2_presenter_t *presenter, go2_surface_t *surface, int 
         return;
     }
 
+    queueWait.stop();
     go2_surface_t *dstSurface = go2_frame_buffer_surface_get(dstFrameBuffer);
     dstFrameBuffer->benchmark_generation = benchmark_capture_generation();
 
@@ -1772,6 +1778,8 @@ void blit_surface_status(go2_presenter_t *presenter, go2_surface_t *source_surfa
 
 void go2_presenter_post_multiple(go2_presenter_t *presenter, go2_surface_t *surface1, go2_status_t *status_obj, int srcX, int srcY, int srcWidth, int srcHeight, int dstX, int dstY, int dstWidth, int dstHeight, go2_rotation_t rotation, go2_rotation_t blitRotation, bool isWideScreen)
 {
+    go2_profile::Timer submit(go2_profile::Stage::Submit);
+    go2_profile::Timer queueWait(go2_profile::Stage::QueueWait);
 
     //printf("Name of rotation: %s\n", rotation_names[rotation]);
     //printf("Name of blitRotation: %s\n", rotation_names[blitRotation]);
@@ -1805,6 +1813,7 @@ void go2_presenter_post_multiple(go2_presenter_t *presenter, go2_surface_t *surf
         return;
     }
 
+    queueWait.stop();
     go2_surface_t *dstSurface = go2_frame_buffer_surface_get(dstFrameBuffer);
     dstFrameBuffer->benchmark_generation = benchmark_capture_generation();
     const bool rotated_canvas = rotation == GO2_ROTATION_DEGREES_90 ||

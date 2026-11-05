@@ -25,6 +25,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "osd-theme.h"
 #ifndef RR_PLATFORM_SDL
 #include "startup_loading_animator.h"
+#include "go2_scanlines.h"
+#include "go2_software_profile.h"
 #endif
 #include "decoration.h"
 #include "keyboard.h"
@@ -485,6 +487,9 @@ bool video_reconfigure_geometry(const struct retro_game_geometry* geom)
 
 void video_deinit()
 {
+#ifndef RR_PLATFORM_SDL
+    go2_profile::finish();
+#endif
     video_stop_startup_loading();
 #ifndef RR_PLATFORM_SDL
     video_worker_stop();
@@ -798,14 +803,34 @@ inline void presenter_post(int width, int height)
 
 void drawNonOpenGL(const void *data, unsigned width, unsigned height, size_t pitch)
 {
+#ifndef RR_PLATFORM_SDL
+    go2_profile::Timer mapping(go2_profile::Stage::Map);
+#endif
 
     uint8_t *src = (uint8_t *)data;
     uint8_t *mapped = (uint8_t *)rr_surface_map(surface);
     uint8_t *dst = mapped;
+#ifndef RR_PLATFORM_SDL
+    mapping.stop();
+#endif
     if (dst == nullptr)
     {
         return;
     }
+#if !defined(RR_PLATFORM_SDL) && !defined(RR_GO2_LEGACY_SCANLINES)
+    if (videoShader == RR_VIDEO_SHADER_SCANLINES &&
+        width <= static_cast<unsigned>(rr_surface_width_get(surface)) &&
+        height <= static_cast<unsigned>(rr_surface_height_get(surface))) {
+        go2_profile::Timer upload(go2_profile::Stage::FusedUpload);
+        const bool copied=go2_scanlines::copy(mapped,rr_surface_stride_get(surface),data,pitch,width,height,
+            rr_surface_format_get(surface),color_format==RR_PIXEL_FORMAT_RGBA5551);
+        upload.stop();
+        if(copied){go2_profile::Timer unmapping(go2_profile::Stage::Unmap);rr_surface_unmap(surface);return;}
+    }
+#endif
+#ifndef RR_PLATFORM_SDL
+    go2_profile::Timer copying(go2_profile::Stage::Copy);
+#endif
     int bpp = rr_pixel_format_bpp(rr_surface_format_get(surface)) / 8;
 
     int yy = height;
@@ -833,8 +858,14 @@ void drawNonOpenGL(const void *data, unsigned width, unsigned height, size_t pit
         --yy;
     }
 
+#ifndef RR_PLATFORM_SDL
+    copying.stop();
+#endif
     if (videoShader != RR_VIDEO_SHADER_OFF)
     {
+#ifndef RR_PLATFORM_SDL
+        go2_profile::Timer effect(go2_profile::Stage::Effect);
+#endif
         const uint32_t format = rr_surface_format_get(surface);
         const int stride = rr_surface_stride_get(surface);
         const bool crt = videoShader == RR_VIDEO_SHADER_CRT;
@@ -928,6 +959,9 @@ void drawNonOpenGL(const void *data, unsigned width, unsigned height, size_t pit
             }
         }
     }
+#ifndef RR_PLATFORM_SDL
+    go2_profile::Timer unmapping(go2_profile::Stage::Unmap);
+#endif
     rr_surface_unmap(surface);
 }
 int timeCorrectFrame =0;
@@ -946,6 +980,9 @@ static void finishLoadingScreenWhenReady(const char *frame_type)
 
 inline void core_video_refresh_NON_OPENGL(const void *data, unsigned width, unsigned height, size_t pitch)
 {
+#ifndef RR_PLATFORM_SDL
+    go2_profile::Frame softwareFrame(width,height,color_format,static_cast<unsigned>(videoShader));
+#endif
     static std::vector<uint16_t> black_frame;
     if (!data)
     {
