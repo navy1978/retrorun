@@ -8,20 +8,14 @@
                  -= Light Libretro Front-end =-
 
 =================================
-Unreleased
+Version 3.2.5 (Nov 5, 2026)
 ---------------------------------
-- Keep automatic latest-session states separate from manual slots 1-3; add
-  --resume-slot 4 for the latest session and preserve legacy manual filenames.
-- Record bounded core/content/platform and integrity sidecars. Refuse known
-  mismatches and unverified automatic loads while retaining explicit legacy loads.
-- Associate newly captured screenshots with the actual ROM through identity
-  sidecars, without inferring game identity from screenshot filenames.
-- Preserve explicit launcher system/game settings and core choices when applying
-  optional Flycast performance catalog recommendations.
-- Allow an independently configured hotkey button, retaining device defaults
-  when the setting is absent or invalid.
-- Extend disk-backed ZIP regression coverage to supported cartridge families,
-  native multi-file archives and bounded memory use for large members.
+- Add opt-in game/system/core/global settings; preserve legacy persistence.
+- Fix Stella controller metadata and provide libretro VFS v3.
+- Return stable error codes and keep managed logs beside the base config.
+- Separate automatic states from manual slots; validate state identity/integrity.
+- Identify screenshots by ROM and preserve explicit launcher settings.
+- Add configurable hotkeys and extend ZIP regression coverage.
 
 =================================
 Version 3.2.4 (Oct 22, 2026)
