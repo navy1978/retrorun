@@ -5,6 +5,9 @@ Copyright (C) 2021-present  navy1978
 */
 
 #include "core_loader.h"
+#include "vfs.h"
+#include "runtime_exit.h"
+#include <sys/stat.h>
 #include "archive_content.h"
 #include <memory>
 #include "core_option_resolution.h"
@@ -54,6 +57,7 @@ retro_hw_context_reset_t retro_context_destroy;
 static struct retro_perf_counter *perf_counters[MAX_COUNTERS];
 static int perf_counter_count = 0;
 static rr::ArchiveContent game_archive;
+void core_discard_prepared_content() noexcept {game_archive.reset();}
 
 typedef std::map<std::string, std::string> varmap_t;
 static varmap_t variables;
@@ -176,7 +180,7 @@ void runloop_perf_log(void)
         if (!((*(void **)&V) = dlsym(g_retro.handle, #S)))                     \
         {                                                                      \
             logger.log(Logger::ERR,"[noarch] Failed to load symbol '" #S "'': %s", dlerror()); \
-            exit(1);                                                           \
+            rr_runtime_fail(RR_EXIT_CORE_ABI);                                                           \
         }                                                                      \
     } while (0)
 
@@ -268,6 +272,9 @@ bool core_environment(unsigned cmd, void *data)
         }
         return true;
     }
+
+    case RETRO_ENVIRONMENT_GET_VFS_INTERFACE:
+        return rr::vfs::provide(static_cast<retro_vfs_interface_info*>(data));
 
     case RETRO_ENVIRONMENT_GET_LOG_INTERFACE:
     {
@@ -559,10 +566,12 @@ bool core_environment(unsigned cmd, void *data)
     case RETRO_ENVIRONMENT_SET_CONTROLLER_INFO:
     {
         const struct retro_controller_info *arg = (retro_controller_info *)data;
+        if(!arg || !arg->types || arg->num_types>256)return false;
         logger.log(Logger::DEB, "Controllers Available:");
         for (unsigned x = 0; x < arg->num_types; x++)
         {
             const struct retro_controller_description *type = &arg->types[x];
+            if(!type->desc || !*type->desc)continue;
             logger.log(Logger::DEB, " -\t%s: %u", type->desc, type->id);
             controllerMap[type->id] = type->desc;
         }
@@ -658,7 +667,7 @@ void core_load(const char *sofile)
     if (!g_retro.handle)
     {
         logger.log(Logger::ERR, "Failed to load core: %s", dlerror());
-        throw std::exception();
+        rr_runtime_fail(RR_EXIT_CORE_LOAD);
     }
 
     dlerror();
@@ -698,7 +707,9 @@ void core_load(const char *sofile)
     set_audio_sample_batch(core_audio_sample_batch);
 
     g_retro.callbacks_enabled = true;
-    g_retro.retro_init();
+    try{g_retro.retro_init();}catch(const std::exception& error){
+        logger.log(Logger::ERR,"Core initialization failed: %s",error.what());rr_runtime_fail(RR_EXIT_CORE_INIT);
+    }
     g_retro.initialized = true;
     logger.log(Logger::DEB, "Core loaded.");
 
@@ -780,6 +791,10 @@ void core_load_game(const char *filename)
     struct retro_system_av_info av = {geom, timing};
     struct retro_system_info system = {0, 0, 0, false, false};
     g_retro.retro_get_system_info(&system);
+    struct stat contentStat{};
+    if(!filename || stat(filename,&contentStat) || !S_ISREG(contentStat.st_mode) || contentStat.st_size<=0){
+        logger.log(Logger::ERR,"Content is missing, empty or not a readable regular file");rr_runtime_fail(RR_EXIT_CONTENT_READ);
+    }
     std::string archiveError;
     if (!game_archive.prepare(filename, system.valid_extensions,
                               system.block_extract, archiveError, opt_savedir))
@@ -787,7 +802,7 @@ void core_load_game(const char *filename)
         logger.log(Logger::ERR, "Failed to prepare content '%s': %s",
                    filename, archiveError.c_str());
         game_archive.reset();
-        exit(1);
+        rr_runtime_fail(RR_EXIT_ARCHIVE);
     }
     if (game_archive.extracted())
         logger.log(Logger::INF, "ZIP content extracted to temporary file '%s'",
@@ -796,6 +811,7 @@ void core_load_game(const char *filename)
     std::unique_ptr<FILE, decltype(&fclose)> file(fopen(info.path, "rb"), &fclose);
     std::unique_ptr<void, decltype(&free)> data(nullptr, &free);
     bool loaded = false;
+    bool contentRead = false;
     if (file && fseek(file.get(), 0, SEEK_END) == 0)
     {
         const long length = ftell(file.get());
@@ -807,27 +823,29 @@ void core_load_game(const char *filename)
                 // libretro requires a memory buffer for these cores. ZIP inflation
                 // itself uses only 32 KiB; this buffer is released after load_game.
                 data.reset(malloc(info.size));
+                if(!data){logger.log(Logger::ERR,"Cannot allocate content buffer");rr_runtime_fail(RR_EXIT_MEMORY);}
                 if (data && fread(data.get(), 1, info.size, file.get()) == info.size)
                     info.data = data.get();
             }
-            if (system.need_fullpath || info.data)
-                loaded = g_retro.retro_load_game(&info);
+            contentRead=system.need_fullpath || info.data;
+            if(contentRead)loaded = g_retro.retro_load_game(&info);
         }
     }
     file.reset();
     data.reset();
+    if(!contentRead){game_archive.reset();logger.log(Logger::ERR,"Cannot read content file");rr_runtime_fail(RR_EXIT_CONTENT_READ);}
     if (!loaded)
     {
         game_archive.reset();
         logger.log(Logger::ERR, "The core failed to load content '%s'.", filename);
-        exit(1);
+        rr_runtime_fail(RR_EXIT_CONTENT_REJECTED);
     }
     g_retro.game_loaded = true;
 
     g_retro.retro_get_system_av_info(&av);
     core_clear_pending_av_info();
-    video_configure(&av.geometry);
-    audio_init(av.timing.sample_rate, av.timing.fps);
+    try{video_configure(&av.geometry);}catch(const std::exception& error){logger.log(Logger::ERR,"Video initialization failed: %s",error.what());rr_runtime_fail(RR_EXIT_VIDEO);}
+    try{audio_init(av.timing.sample_rate, av.timing.fps);}catch(const std::exception& error){logger.log(Logger::ERR,"Audio initialization failed: %s",error.what());rr_runtime_fail(RR_EXIT_AUDIO);}
     return;
 
 }

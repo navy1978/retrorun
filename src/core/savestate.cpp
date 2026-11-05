@@ -488,7 +488,7 @@ void SaveSram(const char *saveName)
 
     if (size < 1)
     {
-        logger.log(Logger::ERR, "nothing to save in srm file!, %zu", size);
+        logger.log(size?Logger::ERR:Logger::DEB, size?"Core SRAM buffer is unavailable (%zu bytes)":"Core has no battery-backed SRAM (%zu bytes)",size);
         return;
     }
 

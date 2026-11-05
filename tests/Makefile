@@ -10,7 +10,7 @@ COMMON_FLAGS := $(CXXFLAGS) $(SANITIZER) $(INCLUDES) -pthread
 
 .PHONY: all run clean
 
-all: osd_theme_test state_identity_test catalog_precedence_test state_preview_test archive_content_test benchmark_test audio_worker_test transition_test config_file_test flycast_game_catalog_test core_option_resolution_test video_multithread_mode_test
+all: vfs_test profile_settings_test osd_theme_test state_identity_test catalog_precedence_test state_preview_test archive_content_test benchmark_test audio_worker_test transition_test config_file_test flycast_game_catalog_test core_option_resolution_test video_multithread_mode_test
 
 state_identity_test: state_identity_test.cpp $(ROOT)/src/core/state_identity.h $(ROOT)/src/core/state_context.h
 	$(CXX) $(COMMON_FLAGS) state_identity_test.cpp -o $@
@@ -54,7 +54,15 @@ catalog_precedence_test: catalog_precedence_test.cpp $(ROOT)/src/config/catalog_
 osd_theme_test: osd_theme_test.cpp $(ROOT)/src/video/osd-theme.h
 	$(CXX) $(COMMON_FLAGS) osd_theme_test.cpp -o $@
 
+vfs_test: vfs_test.cpp $(ROOT)/src/core/vfs.h
+	$(CXX) $(COMMON_FLAGS) vfs_test.cpp -o $@
+
+profile_settings_test: profile_settings_test.cpp $(ROOT)/src/config/profile_settings.h
+	$(CXX) $(COMMON_FLAGS) profile_settings_test.cpp -o $@
+
 run: all
+	./vfs_test
+	./profile_settings_test
 	./osd_theme_test
 	./state_identity_test
 	./catalog_precedence_test
@@ -69,7 +77,7 @@ run: all
 	./video_multithread_mode_test
 
 clean:
-	rm -f osd_theme_test state_identity_test catalog_precedence_test state_preview_test archive_content_test archive_unzip.o archive_ioapi.o benchmark_test audio_worker_test transition_test config_file_test flycast_game_catalog_test core_option_resolution_test video_multithread_mode_test benchmark-result-1.json benchmark-result-2.json transition-test.state
+	rm -f vfs_test profile_settings_test osd_theme_test state_identity_test catalog_precedence_test state_preview_test archive_content_test archive_unzip.o archive_ioapi.o benchmark_test audio_worker_test transition_test config_file_test flycast_game_catalog_test core_option_resolution_test video_multithread_mode_test benchmark-result-1.json benchmark-result-2.json transition-test.state
 
 archive_unzip.o: $(ROOT)/deps/minizip/unzip.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(SANITIZER) -std=c99 -D_POSIX_C_SOURCE=200809L -DNOUNCRYPT -c $< -o $@

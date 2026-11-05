@@ -6,6 +6,7 @@ Copyright (C) 2021-present  navy1978
 
 #include "osd-theme.h"
 #include "config.h"
+#include "profile_settings.h"
 #include "config/config_file.h"
 #include "globals.h"
 #include "video-helper.h"
@@ -58,6 +59,7 @@ static bool coreVariablesUpdated = false;
 static const std::unordered_set<std::string> &knownRetroRunSettings()
 {
     static const std::unordered_set<std::string> settings = {
+        "retrorun_profile_base", "retrorun_profile_mode", "retrorun_profile_helper", "retrorun_profile_systems", "retrorun_profile_preferences", "retrorun_profile_system", "retrorun_profile_rom", "retrorun_profile_core",
         "retrorun_achievements_enabled", "retrorun_achievements_encore",
         "retrorun_achievements_password", "retrorun_achievements_token",
         "retrorun_achievements_unofficial", "retrorun_achievements_username",
@@ -460,9 +462,9 @@ int configValueInteger(const std::string &setting, int fallback,
     return parsed;
 }
 
-bool persistConfigSetting(const std::string &setting, const std::string &value)
+static bool persistConfigFileSetting(const std::string& configFile,const std::string& setting,const std::string& value)
 {
-    std::ifstream input(activeConfigFile);
+    std::ifstream input(configFile);
     if (!input.good()) return false;
 
     const std::string encodedValue = rr::config::encodeValue(value);
@@ -482,7 +484,7 @@ bool persistConfigSetting(const std::string &setting, const std::string &value)
     if (!replaced)
         lines.push_back(setting + (encodedValue.empty() ? " =" : " = " + encodedValue));
 
-    const std::string temporary = activeConfigFile + ".tmp";
+    const std::string temporary = configFile + ".tmp";
     std::ofstream output(temporary, std::ios::trunc);
     if (!output.good()) return false;
     for (const std::string &entry : lines) output << entry << '\n';
@@ -493,7 +495,7 @@ bool persistConfigSetting(const std::string &setting, const std::string &value)
     }
 
     struct stat configStat = {};
-    if (stat(activeConfigFile.c_str(), &configStat) == 0) {
+    if (stat(configFile.c_str(), &configStat) == 0) {
         if (chmod(temporary.c_str(), configStat.st_mode & 07777) != 0)
             logger.log(Logger::WARN, "Unable to preserve permissions for '%s': %s",
                        temporary.c_str(), std::strerror(errno));
@@ -505,14 +507,34 @@ bool persistConfigSetting(const std::string &setting, const std::string &value)
 #endif
     }
 #ifdef _WIN32
-    std::remove(activeConfigFile.c_str());
+    std::remove(configFile.c_str());
 #endif
-    if (std::rename(temporary.c_str(), activeConfigFile.c_str()) != 0) {
+    if (std::rename(temporary.c_str(), configFile.c_str()) != 0) {
         std::remove(temporary.c_str());
         return false;
     }
     conf_map[setting] = value;
     return true;
+}
+
+unsigned managedProfileScope=0;
+bool managedProfileSaveFailed=false;
+bool managedProfileSettings(){return rr::profiles::managed(conf_map);}
+bool persistConfigSetting(const std::string &setting,const std::string &value)
+{
+    if(!managedProfileSettings())return persistConfigFileSetting(activeConfigFile,setting,value);
+    // Account identity is global; retain legacy credential storage and never
+    // pass secrets through helper arguments or game/core preferences.
+    if(setting=="retrorun_achievements_username" || setting=="retrorun_achievements_password" || setting=="retrorun_achievements_token"){
+        const auto base=conf_map.find("retrorun_profile_base");
+        return base!=conf_map.end() && !base->second.empty() && base->second.front()=='/' && persistConfigFileSetting(base->second,setting,value);
+    }
+    static const char* scopes[]={"game","system","core","global"};
+    const bool saved=managedProfileScope<4 && rr::profiles::save(conf_map,scopes[managedProfileScope],setting,value);
+    managedProfileSaveFailed=!saved;
+    if(saved)conf_map[setting]=value;
+    else logger.log(Logger::ERR,"Unable to save managed profile setting '%s'; base configuration untouched",setting.c_str());
+    return saved;
 }
 
 bool persistVideoSetting(const std::string &setting, const std::string &value)
@@ -566,7 +588,7 @@ void initConfig()
             if (logToFile)
             {
                 const std::filesystem::path configLogPath =
-                    std::filesystem::path(activeConfigFile).parent_path() / "retrorun.log";
+                    rr::profiles::logPath(conf_map,activeConfigFile);
 
                 logFilePath = configLogPath.string();
                 logFileReady = logger.enableFileLogging(logFilePath);

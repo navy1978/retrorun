@@ -20,6 +20,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include "globals.h"
 #include "video.h"
+#include "runtime_exit.h"
 #include "ui-renderer.h"
 #include "decoration.h"
 #include "keyboard.h"
@@ -301,7 +302,7 @@ void video_configure(struct retro_game_geometry *geom)
         presenter = rr_presenter_create(display, RR_PIXEL_FORMAT_RGB888, 0xff080808);
 #endif
         if (surface)
-            exit(1);
+            rr_runtime_fail(RR_EXIT_VIDEO);
 
         int aw = ALIGN(getGeom_max_width(geom), 32);
         int ah = ALIGN(getGeom_max_height(geom), 32);

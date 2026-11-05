@@ -23,6 +23,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "config/flycast_game_catalog.h"
 #include "config/catalog_precedence.h"
 #include "core_loader.h"
+#include "runtime_exit.h"
+#include <cstdio>
+#include <cstdlib>
+#include <new>
 #include "savestate.h"
 #include "core/state_context.h"
 #include "menu_setup.h"
@@ -635,7 +639,7 @@ static void applyFlycastGameCatalog(const char *executable,
 
 // --- Main ---
 
-int main(int argc, char *argv[])
+int retrorun_main(int argc, char *argv[])
 {
     main_thread_id = pthread_self();
     printf("\n");
@@ -700,7 +704,7 @@ int main(int argc, char *argv[])
             if (!parseDuration(optarg, false, &benchmarkOptions.duration_seconds))
             {
                 std::fprintf(stderr, "Invalid --benchmark duration '%s'.\n", optarg);
-                return EXIT_FAILURE;
+                return RR_EXIT_ARGUMENTS;
             }
             break;
         case 1001:
@@ -708,7 +712,7 @@ int main(int argc, char *argv[])
             if (!parseDuration(optarg, true, &benchmarkOptions.warmup_seconds))
             {
                 std::fprintf(stderr, "Invalid --benchmark-warmup duration '%s'.\n", optarg);
-                return EXIT_FAILURE;
+                return RR_EXIT_ARGUMENTS;
             }
             break;
         case 1002:
@@ -724,7 +728,7 @@ int main(int argc, char *argv[])
             if (!parsePositiveUint64(optarg, &benchmarkOptions.core_frames))
             {
                 std::fprintf(stderr, "Invalid --benchmark-frames count '%s'.\n", optarg);
-                return EXIT_FAILURE;
+                return RR_EXIT_ARGUMENTS;
             }
             break;
         case 1006:
@@ -733,17 +737,17 @@ int main(int argc, char *argv[])
         case 1005:
             if (!optarg || optarg[0]<'1' || optarg[0]>'4' || optarg[1]) {
                 std::fprintf(stderr, "--resume-slot must be 1, 2, 3 or 4 (latest session).\n");
-                return EXIT_FAILURE;
+                return RR_EXIT_ARGUMENTS;
             }
             resumeSlot=optarg[0]-'0';
             break;
         default:
             logger.log(Logger::ERR, "Unknown option. '%s'", longopts[option_index].name);
-            exit(EXIT_FAILURE);
+            rr_runtime_fail(RR_EXIT_ARGUMENTS);
         }
     }
 
-    if(resumeSlot && opt_restart){std::fprintf(stderr,"--restart and --resume-slot conflict.\n");return EXIT_FAILURE;}
+    if(resumeSlot && opt_restart){std::fprintf(stderr,"--restart and --resume-slot conflict.\n");return RR_EXIT_ARGUMENTS;}
     getDeviceName();
     initConfig();
     // A fresh session may update only the independent automatic state; manual slots are preserved.
@@ -751,7 +755,7 @@ int main(int argc, char *argv[])
     if (benchmarkModifierSeen && !benchmarkOptionSeen)
     {
         std::fprintf(stderr, "--benchmark-warmup, --benchmark-json, --benchmark-set and --benchmark-frames require --benchmark.\n");
-        return EXIT_FAILURE;
+        return RR_EXIT_ARGUMENTS;
     }
 
     if (benchmarkOptionSeen)
@@ -760,7 +764,7 @@ int main(int argc, char *argv[])
         if (!benchmark_configure(benchmarkOptions, &benchmarkError))
         {
             logger.log(Logger::ERR, "%s", benchmarkError.c_str());
-            return EXIT_FAILURE;
+            return RR_EXIT_ARGUMENTS;
         }
         // Benchmark runs are non-persistent by default. A diagnostic state
         // capture may be requested explicitly after measurement has stopped;
@@ -779,7 +783,7 @@ int main(int argc, char *argv[])
             {
                 logger.log(Logger::ERR, "Invalid --benchmark-set '%s': %s.",
                            setting.c_str(), settingError.c_str());
-                return EXIT_FAILURE;
+                return RR_EXIT_ARGUMENTS;
             }
             logger.log(Logger::INF, "Benchmark override (not persisted): %s", setting.c_str());
         }
@@ -797,7 +801,7 @@ int main(int argc, char *argv[])
             logger.log(Logger::ERR,
                        "Invalid --analog-to-digital mode '%s' (expected none, left, right, left_forced or right_forced).",
                        analogModeOverride.c_str());
-            exit(EXIT_FAILURE);
+            rr_runtime_fail(RR_EXIT_ARGUMENTS);
         }
         logger.log(Logger::INF, "Command-line analog-to-digital mode: %s.",
                    analogToDigitalModeName(analogToDigital));
@@ -819,7 +823,7 @@ int main(int argc, char *argv[])
                    "Usage: %s [--benchmark seconds] [--benchmark-warmup seconds] [--benchmark-json file] "
                    "[--benchmark-frames count] [--benchmark-set NAME=VALUE] core rom",
                    argv[0]);
-        exit(EXIT_FAILURE);
+        rr_runtime_fail(RR_EXIT_ARGUMENTS);
     }
 
     if (optind < argc)
@@ -833,8 +837,7 @@ int main(int argc, char *argv[])
     arg_core = argv[remaining_index++];
     arg_rom = argv[remaining_index++];
 
-    rr_platform_preinit();
-    input_gamepad_read();
+    try{rr_platform_preinit();input_gamepad_read();}catch(const std::exception& error){logger.log(Logger::ERR,"Platform initialization failed: %s",error.what());return RR_EXIT_PLATFORM;}
 
     core_load(arg_core);
 
@@ -854,7 +857,7 @@ int main(int argc, char *argv[])
                 logger.log(Logger::ERR,
                            "Unable to reapply benchmark override '%s' after catalog resolution: %s.",
                            setting.c_str(), settingError.c_str());
-                return EXIT_FAILURE;
+                return RR_EXIT_ARGUMENTS;
             }
         }
     }
@@ -910,7 +913,7 @@ int main(int argc, char *argv[])
     free(manualPath);
     if(resumeSlot && !fileExists(startupState.c_str())) {
         logger.log(Logger::ERR,"Selected save slot %d is unavailable; refusing to start a new game.",resumeSlot);
-        return EXIT_FAILURE;
+        return RR_EXIT_STATE;
     }
     if (opt_restart)
     {
@@ -1210,6 +1213,10 @@ int main(int argc, char *argv[])
         MenuItem("RetroAchievements", &menuAchievements, fake),
         MenuItem("Diagnostics", &menuDiagnostics, fake),
         MenuItem("Reset Core", &menuResetCore, fake)};
+    if(managedProfileSettings())itemsSettings.insert(itemsSettings.begin(),MenuItem([]{
+        static const char* scopes[]={"Game","System","Core","General"};
+        return std::string(managedProfileSaveFailed?"Save failed - ":"Save changes to: ")+scopes[managedProfileScope%4];
+    },[](int button){if(button==LEFT)managedProfileScope=(managedProfileScope+3)%4;else if(button==RIGHT)managedProfileScope=(managedProfileScope+1)%4;}));
     Menu menuSettings = Menu("Settings", itemsSettings);
 
     std::vector<MenuItem> device = {MenuItem(SHOW_DEVICE, NULL)};
@@ -1878,10 +1885,22 @@ int main(int argc, char *argv[])
         logger.log(Logger::WARN,
                    "Legacy Flycast shutdown complete; exiting without dlclose to avoid hanging ELF finalizers");
         std::fflush(nullptr);
-        std::_Exit(benchmarkOk ? 0 : EXIT_FAILURE);
+        std::_Exit(benchmarkOk ? 0 : RR_EXIT_RUNTIME);
     }
     core_close();
     logger.log(Logger::DEB, "Shutdown: core library closed");
 
-    return benchmarkOk ? 0 : EXIT_FAILURE;
+    return benchmarkOk ? 0 : RR_EXIT_RUNTIME;
+}
+
+[[noreturn]] void rr_runtime_fail(int code){
+    core_discard_prepared_content();
+    std::fflush(nullptr);
+    std::_Exit(code);
+}
+int main(int argc,char* argv[]){
+    try{const int result=retrorun_main(argc,argv);if(result)rr_runtime_fail(result);return result;}
+    catch(const std::bad_alloc&){logger.log(Logger::ERR,"Runtime memory allocation failed");rr_runtime_fail(RR_EXIT_MEMORY);}
+    catch(const std::exception& error){logger.log(Logger::ERR,"Unhandled runtime error: %s",error.what());rr_runtime_fail(RR_EXIT_RUNTIME);}
+    catch(...){logger.log(Logger::ERR,"Unhandled runtime error");rr_runtime_fail(RR_EXIT_RUNTIME);}
 }

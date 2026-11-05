@@ -80,3 +80,6 @@ bool core_environment(unsigned cmd, void *data);
 // HW render callbacks (set by core_environment)
 extern retro_hw_context_reset_t retro_context_reset;
 extern retro_hw_context_reset_t retro_context_destroy;
+
+// Discard only frontend-owned extracted content on fatal process exit.
+void core_discard_prepared_content() noexcept;

@@ -68,3 +68,8 @@ extern bool auto_load;
 
 extern rr_video_filter_t videoFilter;
 extern rr_video_shader_t videoShader;
+
+// Managed profile mode is enabled only by an explicit launcher parameter.
+bool managedProfileSettings();
+extern unsigned managedProfileScope;
+extern bool managedProfileSaveFailed;
