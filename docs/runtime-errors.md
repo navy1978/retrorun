@@ -46,3 +46,7 @@ VFS v3 callbacks. Native tests cover version negotiation, read/write/update,
 truncate, 64-bit file sizes and directory iteration. An original synthetic Atari
 ROM reproduces the previous controller crash and exercises the corrected load /
 run / unload lifecycle without game assets.
+
+The frontend polls input once after retro_run only if the core omitted its input callback, keeping hotkeys available on core error screens.
+
+Managed GO2 sessions animate the shared loading artwork before content loading; SDL keeps graphics work on its owning thread.

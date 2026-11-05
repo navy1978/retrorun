@@ -3,6 +3,12 @@
 #include "libretro.h"
 #include <cstdint>
 #include <cstring>
+#if PREVIEW_TEST_SLOW_LOAD
+#include <unistd.h>
+#endif
+#if PREVIEW_TEST_NO_INPUT_POLL
+#include <dlfcn.h>
+#endif
 #if PREVIEW_TEST_HW
 #include <GLES2/gl2.h>
 #endif
@@ -31,6 +37,12 @@ void retro_get_system_av_info(retro_system_av_info* info){*info={{640,480,640,48
 void retro_set_controller_port_device(unsigned,unsigned){}
 void retro_reset(){frames=0;}
 bool retro_load_game(const retro_game_info*){
+#if PREVIEW_TEST_SLOW_LOAD
+    retro_log_callback log{};
+    if(environment(RETRO_ENVIRONMENT_GET_LOG_INTERFACE,&log))
+        log.log(RETRO_LOG_INFO,"Original fixture: content load entered");
+    usleep(300000);
+#endif
 #if PREVIEW_TEST_HW
     hardware.context_type=RETRO_HW_CONTEXT_OPENGLES2;hardware.context_reset=resetContext;hardware.bottom_left_origin=true;
     return environment(RETRO_ENVIRONMENT_SET_HW_RENDER,&hardware);
@@ -42,7 +54,17 @@ bool retro_load_game(const retro_game_info*){
 bool retro_load_game_special(unsigned,const retro_game_info*,size_t){return false;}
 void retro_unload_game(){}
 void retro_run(){
+#if PREVIEW_TEST_NO_INPUT_POLL
+    // Simulate a core error screen that never calls its input callback.
+    ++frames;
+    if(frames==1){
+        struct Event { std::uint32_t type; unsigned char rest[52]; } event{0x100,{}};
+        auto push=reinterpret_cast<int(*)(void*)>(dlsym(RTLD_DEFAULT,"SDL_PushEvent"));
+        if(push)push(&event);
+    }
+#else
     if(poll)poll();++frames;
+#endif
 #if PREVIEW_TEST_HW
     glBindFramebuffer(GL_FRAMEBUFFER,static_cast<GLuint>(hardware.get_current_framebuffer()));
     glViewport(0,0,640,480);glClearColor(0.125f,0.75f,0.25f,1.0f);glClear(GL_COLOR_BUFFER_BIT);

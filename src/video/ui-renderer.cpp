@@ -26,7 +26,6 @@ status overlays = {};
 bool last_menu_frame = false;
 const int clear_frame_count = 6;
 int clear_frames_left = clear_frame_count;
-int loading_frame = 0;
 bool loading_overlay_logged = false;
 unsigned previous_overlay_mask = 0;
 int overlay_cleanup_frames = 0;
@@ -266,21 +265,7 @@ void renderFullOverlay(int width, int height) {
             logger.log(Logger::DEB, "Loading screen: presenting the first loading overlay frame");
             loading_overlay_logged = true;
         }
-        makeScreenBlack(status_surface_full, width, height);
-        if(osd::theme().minimalLoading){
-            const auto started=loading_started_ns.load();
-            const auto milliseconds=started?std::max<int64_t>(0,(steadyNowNs()-started)/1000000):0;
-            const std::string label="Loading"+std::string((milliseconds/350)%4,'.');
-            // Reserve all three dots so the word stays stationary as they appear.
-            showTextBigger(width/2-10*4,height/2-4,label.c_str(),osd::theme().colors.primary,&status_surface_full);
-        }else{
-            const std::string label = (++loading_frame % 30 > 15) ? ". Please wait ." : "  Please wait  ";
-            showFullImage((width - static_cast<int>(retrorun_logo.width)) / 2, 18,
-                          retrorun_logo.width, retrorun_logo.height,
-                          retrorun_logo.pixel_data, &status_surface_full);
-            showTextBigger(width / 2 - static_cast<int>(label.length()) * 4,
-                           116, label.c_str(), osd::theme().colors.primary, &status_surface_full);
-        }
+        uiDrawLoadingSurface(status_surface_full, width, height);
     } else {
         drawMenuInfoBackgroud(status_surface_full, width, height);
         showInfo(gs_w, &status_surface_full);
@@ -352,6 +337,23 @@ void renderStateMessage() {
     }
 }
 } // namespace
+
+void uiDrawLoadingSurface(rr_surface_t* target, int width, int height) {
+    makeScreenBlack(target, width, height);
+    const auto started=loading_started_ns.load();
+    const auto milliseconds=started?std::max<int64_t>(0,(steadyNowNs()-started)/1000000):0;
+    const std::string dots(1+(milliseconds/350)%3,'.');
+    if(osd::theme().minimalLoading){
+        const std::string label="Loading"+dots;
+        showTextBigger(width/2-10*4,height/2-4,label.c_str(),osd::theme().colors.primary,&target);
+    }else{
+        const std::string label="Please wait"+dots;
+        showFullImage((width - static_cast<int>(retrorun_logo.width)) / 2, 18,
+                      retrorun_logo.width, retrorun_logo.height,
+                      retrorun_logo.pixel_data, &target);
+        showTextBigger(width/2-14*4,116,label.c_str(),osd::theme().colors.primary,&target);
+    }
+}
 
 bool uiRenderOverlays(const void* frame, unsigned width, unsigned height, size_t pitch) {
     bool visible = false;

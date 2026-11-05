@@ -1,3 +1,4 @@
+#include <atomic>
 /*
 retrorun-go2 - libretro frontend for the ODROID-GO Advance
 Copyright (C) 2020  OtherCrashOverride
@@ -641,8 +642,13 @@ void manageMenu()
 
 
 
+namespace { std::atomic<bool> inputPolledThisFrame{false}; }
+void core_input_begin_frame(void) { inputPolledThisFrame.store(false, std::memory_order_relaxed); }
+void core_input_poll_fallback(void) { if (!inputPolledThisFrame.load(std::memory_order_relaxed)) core_input_poll(); }
+
 void core_input_poll(void)
 {
+    inputPolledThisFrame.store(true, std::memory_order_relaxed);
 
     if (!input)
     {

@@ -10,6 +10,8 @@
 =================================
 Version 3.2.5 (Nov 5, 2026)
 ---------------------------------
+- Keep menu/exit hotkeys usable when a core skips input polling.
+- Share themed loading artwork and animate native startup loading.
 - Add opt-in game/system/core/global settings; preserve legacy persistence.
 - Fix Stella controller metadata and provide libretro VFS v3.
 - Return stable error codes and keep managed logs beside the base config.

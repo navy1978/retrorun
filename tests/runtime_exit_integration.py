@@ -1,6 +1,6 @@
 """Trusted-core SDL integration using original ROM bytes, no game/BIOS assets.
 
-Usage: runtime_exit_integration.py RUNTIME STELLA_CORE [ABI_FIXTURE_LIBRARY]
+Usage: runtime_exit_integration.py RUNTIME STELLA_CORE [ABI_FIXTURE_LIBRARY [NO_INPUT_POLL_CORE]]
 RR_TEST_LOADER / RR_TEST_LIBRARY_PATH optionally select the target SDK loader.
 Requires SDL dummy video and ALSA null support, or equivalent host drivers.
 """
@@ -23,5 +23,6 @@ with tempfile.TemporaryDirectory(prefix='rr-exit-integration-') as temporary:
  run(67,content=root/'missing.a26');run(67,content=empty);run(68,content=bad);run(69,content=rejected)
  run(71,environment=dict(env,SDL_AUDIODRIVER='rr-invalid-driver'))
  run(72,extra=['--resume-slot','2'])
+ if len(sys.argv)>4:run(0,selected=str(Path(sys.argv[4]).resolve()))
  success=run(0,extra=['--benchmark','1','--benchmark-warmup','0']);record=next(line.split(':',1)[1] for line in success.stdout.splitlines() if line.startswith('BENCHMARK_JSON:'));frames=json.loads(record)['counters']['core_frames'];assert frames>0
  print('Actual runtime exit codes 64/65/'+('66/' if abi else '')+'67/68/69/71/72 verified; original Atari ROM completed '+str(frames)+' frames and clean exit')

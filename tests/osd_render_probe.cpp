@@ -186,10 +186,16 @@ int main(int argc,char** argv) {
     showLoading=true;isOpenGL=true;input_info_requested=false;input_fps_requested=false;
     uiRenderOverlays(nullptr,320,240,640);
     capture(uiCurrentOverlays()->full,std::string(argv[1])+"/loading-a.ppm");
+    auto* startupLoading=rr_surface_create(nullptr,INFO_MENU_WIDTH,INFO_MENU_HEIGHT,format_565);
+    uiDrawLoadingSurface(startupLoading,INFO_MENU_WIDTH,INFO_MENU_HEIGHT);
+    capture(startupLoading,std::string(argv[1])+"/loading-startup.ppm");
+    const auto pixels=[](const std::string& path){std::ifstream f(path,std::ios::binary);return std::string(std::istreambuf_iterator<char>(f),{});};
+    assert(pixels(std::string(argv[1])+"/loading-startup.ppm")==pixels(std::string(argv[1])+"/loading-a.ppm"));
+    rr_surface_destroy(startupLoading);
     uiNotifyLoadingPresented();SDL_Delay(380);
     uiRenderOverlays(nullptr,320,240,640);
     capture(uiCurrentOverlays()->full,std::string(argv[1])+"/loading-b.ppm");
-    if(osd::theme().minimalLoading){
+    {
         const auto read=[](const std::string& path){std::ifstream f(path,std::ios::binary);return std::string(std::istreambuf_iterator<char>(f),{});};
         assert(read(std::string(argv[1])+"/loading-a.ppm")!=read(std::string(argv[1])+"/loading-b.ppm"));
     }

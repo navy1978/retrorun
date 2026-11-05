@@ -874,6 +874,8 @@ int retrorun_main(int argc, char *argv[])
     if (isSwanStation() && (isRG351V() || isRG351MP()))
         opt_aspect = 0.75f;
 
+    if (managedProfileSettings() && !benchmark_requested())
+        video_show_startup_loading();
     core_load_game(arg_rom);
     const std::string flycastFrameSkipping = flycastFrameSkippingMode();
     const bool reportFlycastAudioQueuePressure =
@@ -1513,7 +1515,10 @@ int retrorun_main(int argc, char *argv[])
                 g_retro.flycast_retrorun_set_audio_queue_status_v1(
                     queue.queued_frames, queue.capacity_frames);
             }
+            core_input_begin_frame();
             g_retro.retro_run();
+            // Core error screens may skip their input callback entirely.
+            core_input_poll_fallback();
             if (measureBenchmarkFrame)
                 benchmark_core_end();
             PumpLoadStateAsync();

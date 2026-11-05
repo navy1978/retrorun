@@ -33,6 +33,8 @@ extern int hasStencil;
 
 
 
+bool video_show_startup_loading();
+void video_stop_startup_loading();
 void video_configure(struct retro_game_geometry* geom);
 void video_prepare_core_unload();
 void video_synchronize();

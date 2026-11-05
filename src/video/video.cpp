@@ -22,6 +22,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "video.h"
 #include "runtime_exit.h"
 #include "ui-renderer.h"
+#include "osd-theme.h"
+#ifndef RR_PLATFORM_SDL
+#include "startup_loading_animator.h"
+#endif
 #include "decoration.h"
 #include "keyboard.h"
 #include "file_browser.h"
@@ -141,9 +145,88 @@ namespace { void video_worker_drain(); }
 
 
 
+#ifndef RR_PLATFORM_SDL
+namespace {
+rr_surface_t* startupLoadingSurface = nullptr;
+StartupLoadingAnimator startupAnimator;
+}
+#endif
+
+void video_stop_startup_loading()
+{
+#ifndef RR_PLATFORM_SDL
+    if (!startupLoadingSurface) return;
+    startupAnimator.stop();
+    if (startupAnimator.failed()) logger.log(Logger::WARN, "Startup loading animation stopped after a drawing error");
+    logger.log(Logger::DEB, "Startup loading: animation frames=%u", startupAnimator.frames());
+    rr_presenter_drain(presenter);
+    rr_surface_destroy(startupLoadingSurface);
+    startupLoadingSurface = nullptr;
+#endif
+}
+
+bool video_show_startup_loading()
+{
+    video_stop_startup_loading();
+    rr_surface_t* loading = nullptr;
+    try {
+        if (!display) display = rr_display_create();
+        if (!display) throw std::runtime_error("startup display unavailable");
+        if (!presenter) presenter = rr_presenter_create(display, RR_PIXEL_FORMAT_RGB888, 0xff080808);
+        if (!presenter) throw std::runtime_error("startup presenter unavailable");
+        const int width = INFO_MENU_WIDTH, height = INFO_MENU_HEIGHT;
+        loading = rr_surface_create(display, width, height, format_565);
+        if (!loading) throw std::runtime_error("startup surface unavailable");
+        if (!rr_surface_map(loading)) throw std::runtime_error("startup surface mapping failed");
+        uiDrawLoadingSurface(loading, width, height);
+        rr_surface_unmap(loading);
+        rr_presenter_post(presenter, loading, 0, 0, width, height, 0, 0,
+                          rr_display_width_get(display), rr_display_height_get(display), getRotation());
+        rr_presenter_drain(presenter);
+        uiNotifyLoadingPresented();
+#ifndef RR_PLATFORM_SDL
+        startupLoadingSurface = loading;
+        loading = nullptr;
+        // Native RGA presentation is independent of the core's GL context.
+        // SDL rendering stays on its owning thread.
+        std::atexit(video_stop_startup_loading);
+        startupAnimator.start([width,height,destinationWidth=rr_display_width_get(display),
+                               destinationHeight=rr_display_height_get(display),rotation=getRotation()]{
+            uiDrawLoadingSurface(startupLoadingSurface, width, height);
+            rr_surface_unmap(startupLoadingSurface);
+            rr_presenter_post(presenter, startupLoadingSurface, 0, 0, width, height, 0, 0,
+                              destinationWidth, destinationHeight, rotation);
+            rr_presenter_drain(presenter);
+        });
+#else
+        rr_surface_destroy(loading);
+        loading = nullptr;
+#endif
+        logger.log(Logger::DEB, "Startup loading: shown before content load");
+        return true;
+    } catch (const std::exception& error) {
+        video_stop_startup_loading();
+        if (presenter) rr_presenter_drain(presenter);
+        if (loading) rr_surface_destroy(loading);
+        if (presenter) rr_presenter_destroy(presenter);
+        if (display) rr_display_destroy(display);
+        presenter = nullptr; display = nullptr;
+        logger.log(Logger::WARN, "Startup loading unavailable: %s", error.what());
+        return false;
+    }
+}
+
 void video_configure(struct retro_game_geometry *geom)
 {
+    video_stop_startup_loading();
     logger.log(Logger::DEB, "Configuring video...");
+#ifdef RR_PLATFORM_SDL
+    if (isOpenGL && presenter) {
+        rr_presenter_drain(presenter);
+        rr_presenter_destroy(presenter);
+        presenter = nullptr;
+    }
+#endif
     if (isMiniloongPocket1())
         logger.log(Logger::INF, "Miniloong Pocket 1 detected: using portrait-panel rotation.");
     if (isPPSSPP() && geom->base_height == 0)
@@ -166,11 +249,11 @@ void video_configure(struct retro_game_geometry *geom)
         geom->base_width = 960;
         geom->max_height = 544;
         geom->max_width = 960;*/
-        display = rr_display_create();
+        if (!display) display = rr_display_create();
         display_width = rr_display_width_get(display);
         display_height = rr_display_height_get(display);
     }else {
-        display = rr_display_create();
+        if (!display) display = rr_display_create();
         display_width = rr_display_height_get(display);
         display_height = rr_display_width_get(display);
     }
@@ -190,7 +273,7 @@ void video_configure(struct retro_game_geometry *geom)
     }
 
 #ifndef RR_PLATFORM_SDL
-    presenter = rr_presenter_create(display, RR_PIXEL_FORMAT_RGB888, 0xff080808); // ABGR
+    if (!presenter) presenter = rr_presenter_create(display, RR_PIXEL_FORMAT_RGB888, 0xff080808); // ABGR
 #endif
 
     if (opt_backlight > -1)
@@ -299,7 +382,7 @@ void video_configure(struct retro_game_geometry *geom)
     else
     {
 #ifdef RR_PLATFORM_SDL
-        presenter = rr_presenter_create(display, RR_PIXEL_FORMAT_RGB888, 0xff080808);
+        if (!presenter) presenter = rr_presenter_create(display, RR_PIXEL_FORMAT_RGB888, 0xff080808);
 #endif
         if (surface)
             rr_runtime_fail(RR_EXIT_VIDEO);
@@ -402,6 +485,7 @@ bool video_reconfigure_geometry(const struct retro_game_geometry* geom)
 
 void video_deinit()
 {
+    video_stop_startup_loading();
 #ifndef RR_PLATFORM_SDL
     video_worker_stop();
     if (presenter)
