@@ -19,6 +19,9 @@ retro_input_poll_t poll;
 retro_audio_sample_batch_t audio;
 retro_hw_render_callback hardware{};
 std::uint64_t frames=0;
+#if PREVIEW_TEST_SRAM
+unsigned char sram[16]{};
+#endif
 std::uint32_t pixels[640*480];
 void resetContext(){}
 }
@@ -54,6 +57,10 @@ bool retro_load_game(const retro_game_info*){
 bool retro_load_game_special(unsigned,const retro_game_info*,size_t){return false;}
 void retro_unload_game(){}
 void retro_run(){
+#if PREVIEW_TEST_SRAM
+    std::memcpy(sram,"RR-SHUTDOWN-SRAM",16);
+    if(!frames){retro_log_callback log{};if(environment(RETRO_ENVIRONMENT_GET_LOG_INTERFACE,&log))log.log(RETRO_LOG_INFO,"Shutdown fixture ready");}
+#endif
 #if PREVIEW_TEST_NO_INPUT_POLL
     // Simulate a core error screen that never calls its input callback.
     ++frames;
@@ -81,6 +88,18 @@ bool retro_unserialize(const void* data,size_t size){if(size!=sizeof(frames))ret
 void retro_cheat_reset(){}
 void retro_cheat_set(unsigned,bool,const char*){}
 unsigned retro_get_region(){return RETRO_REGION_NTSC;}
-void* retro_get_memory_data(unsigned){return nullptr;}
-size_t retro_get_memory_size(unsigned){return 0;}
+void* retro_get_memory_data(unsigned kind){
+#if PREVIEW_TEST_SRAM
+    return kind==RETRO_MEMORY_SAVE_RAM?sram:nullptr;
+#else
+    (void)kind;return nullptr;
+#endif
+}
+size_t retro_get_memory_size(unsigned kind){
+#if PREVIEW_TEST_SRAM
+    return kind==RETRO_MEMORY_SAVE_RAM?sizeof sram:0;
+#else
+    (void)kind;return 0;
+#endif
+}
 }

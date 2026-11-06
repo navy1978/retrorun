@@ -1,3 +1,4 @@
+#include "diagnostics/input_trace.h"
 #include <atomic>
 /*
 retrorun-go2 - libretro frontend for the ODROID-GO Advance
@@ -21,6 +22,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include "input.h"
 #include "button_names.h"
+#include "async_input_snapshot.h"
+#include <thread>
 
 #include "globals.h"
 #include "video.h"
@@ -490,6 +493,7 @@ void initButtons(){
 
 void input_gamepad_read()
 {
+    rr_input_trace::hit(rr_input_trace::Update);
 
     if (!input)
     {
@@ -642,11 +646,32 @@ void manageMenu()
 
 
 
-namespace { std::atomic<bool> inputPolledThisFrame{false}; }
-void core_input_begin_frame(void) { inputPolledThisFrame.store(false, std::memory_order_relaxed); }
+namespace {
+std::atomic<bool> inputPolledThisFrame{false};
+bool earlyThreadedInput=false; // Configured before load_game starts core workers.
+std::thread::id inputOwner;
+rr::AsyncInputSnapshot asyncInput;
+void frontend_input_update();
+void publish_async_input();
+}
+void core_input_configure_early(bool enabled) {
+    inputOwner=std::this_thread::get_id();
+    earlyThreadedInput=enabled;
+    if(enabled) logger.log(Logger::INF,"Threaded Mupen64Plus-Next: early frontend input with lock-free core snapshots");
+}
+void core_input_begin_frame(void) {
+    inputPolledThisFrame.store(false,std::memory_order_relaxed);
+    if(earlyThreadedInput) { frontend_input_update(); publish_async_input(); }
+}
 void core_input_poll_fallback(void) { if (!inputPolledThisFrame.load(std::memory_order_relaxed)) core_input_poll(); }
-
-void core_input_poll(void)
+void core_input_poll(void) {
+    rr_input_trace::hit(rr_input_trace::Poll);
+    if(earlyThreadedInput && std::this_thread::get_id()!=inputOwner) return;
+    frontend_input_update();
+    if(earlyThreadedInput) publish_async_input();
+}
+namespace {
+void frontend_input_update()
 {
     inputPolledThisFrame.store(true, std::memory_order_relaxed);
 
@@ -1043,7 +1068,7 @@ if (elapsed >= 0.5)
 }
 
 }
-
+} // namespace
 
 rr_button_state_t getInputUp(){
     if (!isTate()){
@@ -1391,7 +1416,7 @@ static bool frontendCapturesCoreInput()
 }
 
 
-int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigned id)
+static int16_t core_input_state_live(unsigned port, unsigned device, unsigned index, unsigned id)
 {
     if (drmDirectScanoutDiagnosticActive || frontendCapturesCoreInput())
         return 0;
@@ -1644,4 +1669,27 @@ int16_t core_input_state(unsigned port, unsigned device, unsigned index, unsigne
     }
 
     return 0;
+}
+
+namespace {
+void publish_async_input() {
+    for(unsigned port=0;port<4;++port) {
+        int16_t axes[2][2]{};
+        for(unsigned stick=0;stick<2;++stick) for(unsigned axis=0;axis<2;++axis)
+            axes[stick][axis]=core_input_state_live(port,RETRO_DEVICE_ANALOG,stick,axis);
+        uint16_t joy=0;
+        for(unsigned id=0;id<16;++id)
+            if(core_input_state_live(port,RETRO_DEVICE_JOYPAD,0,id)) joy|=uint16_t(1u<<id);
+        asyncInput.publish(port,joy,axes[0][0],axes[0][1],axes[1][0],axes[1][1]);
+    }
+}
+}
+int16_t core_input_state(unsigned port,unsigned device,unsigned index,unsigned id) {
+    rr_input_trace::hit(rr_input_trace::State);
+    int16_t result=0;
+    if(!earlyThreadedInput) result=core_input_state_live(port,device,index,id);
+    else if(device==RETRO_DEVICE_JOYPAD && index==0) result=asyncInput.joy(port,id);
+    else if(device==RETRO_DEVICE_ANALOG) result=asyncInput.analog(port,index,id);
+    if(result) rr_input_trace::hit(rr_input_trace::NonzeroState);
+    return result;
 }

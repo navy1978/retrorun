@@ -1,3 +1,4 @@
+#include "diagnostics/input_trace.h"
 /*
 libgo2 - Support library for the ODROID-GO Advance
 Copyright (C) 2020 OtherCrashOverride
@@ -229,6 +230,8 @@ static void *input_task(void *arg)
 
      //printf("abs: x_max=%d, y_max=%d\n", abs_x_max, abs_y_max);
 
+    // Publish initial state under the same lock used by all readers.
+    pthread_mutex_lock(&input->gamepadMutex);
     // Get current state
     input->current_state.buttons[Go2InputButton_DPadUp] = libevdev_get_event_value(input->dev, EV_KEY, BTN_DPAD_UP) ? ButtonState_Pressed : ButtonState_Released;
     input->current_state.buttons[Go2InputButton_DPadDown] = libevdev_get_event_value(input->dev, EV_KEY, BTN_DPAD_DOWN) ? ButtonState_Pressed : ButtonState_Released;
@@ -278,6 +281,9 @@ static void *input_task(void *arg)
     input->current_state.thumbs[Go2InputThumbstick_Right].x = libevdev_get_event_value(input->dev, EV_ABS, ABS_RX) / (float)abs_rx_max;
     input->current_state.thumbs[Go2InputThumbstick_Right].y = libevdev_get_event_value(input->dev, EV_ABS, ABS_RY) / (float)abs_ry_max;
 
+    input->pending_state = input->current_state;
+    pthread_mutex_unlock(&input->gamepadMutex);
+
     // Events
     while (!input->terminating)
     {
@@ -286,6 +292,7 @@ static void *input_task(void *arg)
         int rc = libevdev_next_event(input->dev, LIBEVDEV_READ_FLAG_BLOCKING, &ev);
         if (rc == 0)
         {
+            rr_input_trace::hit(rr_input_trace::Evdev);
 #if 0 
                    printf("Gamepad Event: %s-%s(%d)=%d\n",
 			       libevdev_event_type_get_name(ev.type),
@@ -430,6 +437,7 @@ static void *input_task(void *arg)
                 pthread_mutex_lock(&input->gamepadMutex);
 
                 input->current_state = input->pending_state;
+                rr_input_trace::hit(rr_input_trace::EvdevPublish);
 
                 pthread_mutex_unlock(&input->gamepadMutex);
             }
@@ -492,9 +500,13 @@ go2_input_t *go2_input_create(const char *device)
         //     libevdev_get_id_vendor(result->dev),
         //     libevdev_get_id_product(result->dev));
 
-        if (pthread_create(&result->thread_id, NULL, input_task, (void *)result) < 0)
+        if (pthread_mutex_init(&result->gamepadMutex, nullptr) != 0) {
+            libevdev_free(result->dev); close(result->fd); free(result); return nullptr;
+        }
+        if (pthread_create(&result->thread_id, NULL, input_task, (void *)result) != 0)
         {
             logger.log(Logger::ERR,"could not create input_task thread\n");
+            pthread_mutex_destroy(&result->gamepadMutex);
             libevdev_free(result->dev);
             close(result->fd);
             free(result);
@@ -536,6 +548,7 @@ void go2_input_destroy(go2_input_t *input)
     pthread_join(input->battery_thread, NULL);
     pthread_join(input->brightness_thread, NULL);
 
+    pthread_mutex_destroy(&input->gamepadMutex);
     libevdev_free(input->dev);
     close(input->fd);
     free(input);
@@ -644,7 +657,9 @@ go2_input_feature_flags_t go2_input_features_get(go2_input_t *input)
 
 void go2_input_state_read(go2_input_t *input, go2_input_state_t *outState)
 {
+    pthread_mutex_lock(&input->gamepadMutex);
     *outState = input->current_state;
+    pthread_mutex_unlock(&input->gamepadMutex);
 }
 
 go2_input_state_t *go2_input_state_create()

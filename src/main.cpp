@@ -1,3 +1,4 @@
+#include "diagnostics/input_trace.h"
 /*
 retrorun - libretro frontend for Anbernic Devices
 Copyright (C) 2020  OtherCrashOverride
@@ -24,6 +25,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "config/catalog_precedence.h"
 #include "core_loader.h"
 #include "runtime_exit.h"
+#include "shutdown_signal.h"
 #include <cstdio>
 #include <cstdlib>
 #include <new>
@@ -838,6 +840,9 @@ int retrorun_main(int argc, char *argv[])
     arg_rom = argv[remaining_index++];
 
     try{rr_platform_preinit();input_gamepad_read();}catch(const std::exception& error){logger.log(Logger::ERR,"Platform initialization failed: %s",error.what());return RR_EXIT_PLATFORM;}
+    // Native controller discovery installs legacy signal handlers; the main
+    // loop must own shutdown only after that initialization has completed.
+    rr_shutdown::Signals shutdownSignals;
 
     core_load(arg_core);
 
@@ -876,6 +881,12 @@ int retrorun_main(int argc, char *argv[])
 
     if (managedProfileSettings() && !benchmark_requested())
         video_show_startup_loading();
+    const auto threadedN64=conf_map.find("mupen64plus-ThreadedRenderer");
+    const auto n64Rdp=conf_map.find("mupen64plus-rdp-plugin");
+    const bool earlyThreadedN64=coreName=="Mupen64Plus-Next" &&
+        threadedN64!=conf_map.end() && threadedN64->second=="True" &&
+        (n64Rdp==conf_map.end() || n64Rdp->second=="gliden64");
+    core_input_configure_early(earlyThreadedN64);
     core_load_game(arg_rom);
     const std::string flycastFrameSkipping = flycastFrameSkippingMode();
     const bool reportFlycastAudioQueuePressure =
@@ -937,7 +948,9 @@ int retrorun_main(int argc, char *argv[])
             if (isParalleln64() || isDosBox() || isFlycast2021())
             {
                 sleep(1);
+                rr_input_trace::hit(rr_input_trace::RunEnter);
                 g_retro.retro_run();
+                rr_input_trace::hit(rr_input_trace::RunExit);
             }
             if(resumeSlot>0 && resumeSlot<=3)currentSlot=resumeSlot;
             StartLoadStateAsync(startupState.c_str(), resumeSlot, resumeSlot==0);
@@ -1389,8 +1402,10 @@ int retrorun_main(int argc, char *argv[])
     if (benchmark_requested())
         benchmark_begin_warmup();
 
-    while (isRunning)
+    while (isRunning && !rr_shutdown::requested)
     {
+        rr_input_trace::hit(rr_input_trace::Loop);
+        rr_input_trace::report();
         if (benchmark_requested())
         {
             if (benchmark_deadline_reached())
@@ -1516,7 +1531,9 @@ int retrorun_main(int argc, char *argv[])
                     queue.queued_frames, queue.capacity_frames);
             }
             core_input_begin_frame();
+            rr_input_trace::hit(rr_input_trace::RunEnter);
             g_retro.retro_run();
+            rr_input_trace::hit(rr_input_trace::RunExit);
             // Core error screens may skip their input callback entirely.
             core_input_poll_fallback();
             if (measureBenchmarkFrame)
@@ -1863,6 +1880,9 @@ int retrorun_main(int argc, char *argv[])
 
     core_disable_callbacks();
     logger.log(Logger::DEB, "Shutdown: core callbacks disabled");
+    // Threaded GLideN64 joins its emulation thread and drains GL commands in
+    // unload_game. Keep its EGL context and audio objects alive until then.
+    if (earlyThreadedN64) core_unload_game();
     audio_deinit();
     logger.log(Logger::DEB, "Shutdown: audio stopped");
     video_prepare_core_unload();

@@ -226,6 +226,14 @@ static void log_unhandled_environment_once(unsigned cmd)
         logger.log(Logger::DEB, "Unhandled env #%u (further occurrences suppressed)", cmd);
 }
 
+// Mupen64Plus-Next requests RetroArch's private wait-cancellation hook even
+// on other frontends, then invokes it without checking for null on unload.
+// RetroRun has no RetroArch runloop/audio wait gates. Its synchronous GO2
+// submission and owned audio worker are stopped by the normal lifecycle.
+static bool clear_retroarch_thread_waits(unsigned command, void*) {
+    return command==0 || command==1;
+}
+
 // --- Environment callback ---
 
 bool core_environment(unsigned cmd, void *data)
@@ -233,6 +241,10 @@ bool core_environment(unsigned cmd, void *data)
     bool *bval;
     switch (cmd)
     {
+    case 0x800003: // RETRO_ENVIRONMENT_GET_CLEAR_ALL_THREAD_WAITS_CB (RetroArch private)
+        if (!data) return false;
+        *static_cast<retro_environment_t*>(data)=clear_retroarch_thread_waits;
+        return true;
     case RETRO_ENVIRONMENT_GET_FASTFORWARDING:
     {
         bval = (bool *)data;
