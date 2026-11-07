@@ -8,6 +8,21 @@ before render workers start; changing the file requires restarting RetroRun.
 The option participates in the existing frontend configuration override mechanism.
 There is no external theme parser, resource directory or new dependency.
 
+## Launcher synchronization and neon variants
+
+`retrorun_osd_theme = retrorun-blue` and `retrorun-green` select the matching
+RetroRun OS neon palettes, with the same dark focus and lavender/cyan accent.
+They reuse the RetroRun metrics, opacity and rendering paths. Error colors and
+Classic remain unchanged. Theme selection adds no per-frame processing.
+
+RetroRun Launcher exports `RETRORUN_OSD_THEME` when applying a native theme.
+The supervised session inherits it: `neon-blue` maps to `retrorun-blue`,
+`neon-green` to `retrorun-green`, and other native themes retain `retrorun`.
+A recognized inherited theme takes precedence over the configuration for that
+launch only. Unknown or empty environment values are ignored. Standalone runs
+continue using `retrorun_osd_theme`; no global, core or ROM configuration is
+rewritten by synchronization. Changes take effect on the next game launch.
+
 ## Existing rendering architecture
 
 - `src/video/video-helper.cpp`: `showInfo`, `drawSelectedMenuRow`,

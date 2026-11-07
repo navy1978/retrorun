@@ -68,12 +68,27 @@ inline constexpr Theme retrorun = [] {
     t.menuOpacity = 220; t.emphasizeValues = true; t.minimalLoading = true;
     return t;
 }();
+// Same focus/accent values as the launcher's bundled neon palettes.
+constexpr Theme neonTheme(const char* name,uint16_t focus,uint16_t accent){
+    Theme t=retrorun;t.name=name;auto& c=t.colors;
+    c.focusSDL=c.focusGO2=c.cursor=focus;
+    c.active=c.popupAccent=c.success=c.warning=c.bevelTop=accent;
+    return t;
+}
+inline constexpr Theme neonBlue=neonTheme("retrorun-blue",rgb565(18,105,174),rgb565(185,162,242));
+inline constexpr Theme neonGreen=neonTheme("retrorun-green",rgb565(22,143,76),rgb565(100,184,221));
+inline bool validName(std::string_view name){return name=="classic" || name=="retrorun" || name=="retrorun-blue" || name=="retrorun-green";}
 // Selected once during config loading, before render/audio workers start.
 inline const Theme* current = &classic;
 inline const Theme& theme() { return *current; }
 inline bool select(std::string_view name) {
-    current = name == "retrorun" ? &retrorun : &classic;
-    return name.empty() || name == "classic" || name == "retrorun";
+    current = name=="retrorun-blue"?&neonBlue:name=="retrorun-green"?&neonGreen:name=="retrorun"?&retrorun:&classic;
+    return name.empty() || validName(name);
+}
+// The launcher exports a fixed built-in ID through the supervised session.
+// Standalone runs keep config semantics; malformed inherited values are ignored.
+inline bool selectForLaunch(std::string_view configured,std::string_view launcher){
+    return select(validName(launcher)?launcher:configured);
 }
 inline uint16_t valueColor(std::string_view value, uint16_t normal) {
     if (!theme().emphasizeValues) return normal;

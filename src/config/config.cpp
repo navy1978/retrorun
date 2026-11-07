@@ -19,6 +19,7 @@ Copyright (C) 2021-present  navy1978
 #include <sstream>
 #include <iostream>
 #include <cstring>
+#include <cstdlib>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <ctime>
@@ -1121,8 +1122,10 @@ void initConfig()
         catch (...) { logger.log(Logger::DEB, "retrorun_ui_profile parameter not found; using auto"); }
 
         const auto osd_theme = conf_map.find("retrorun_osd_theme");
-        if (!osd::select(osd_theme == conf_map.end() ? "" : osd_theme->second))
+        const char* launcherTheme=std::getenv("RETRORUN_OSD_THEME");
+        if (!osd::selectForLaunch(osd_theme == conf_map.end() ? "" : osd_theme->second,launcherTheme?launcherTheme:""))
             logger.log(Logger::WARN, "Invalid retrorun_osd_theme; using classic");
+        logger.log(Logger::DEB, "OSD theme: %s",osd::theme().name);
 
         try
         {

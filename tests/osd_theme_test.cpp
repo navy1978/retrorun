@@ -24,4 +24,16 @@ int main() {
     assert(select("retrorun"));
     assert(!select("unknown") && &theme()==&classic);
     assert(select("") && &theme()==&classic);
+    assert(select("retrorun-blue") && &theme()==&neonBlue);
+    assert(focusFill(true)==rgb565(18,105,174) && theme().colors.active==rgb565(185,162,242));
+    assert(valueColor("On",0)==theme().colors.active && theme().colors.error==retrorun.colors.error);
+    assert(select("retrorun-green") && &theme()==&neonGreen);
+    assert(focusFill(false)==rgb565(22,143,76) && theme().colors.active==rgb565(100,184,221));
+    assert(theme().metrics.handheldWidth==retrorun.metrics.handheldWidth && theme().minimalLoading);
+    assert(selectForLaunch("classic","retrorun-blue") && &theme()==&neonBlue);
+    assert(selectForLaunch("retrorun","retrorun-green") && &theme()==&neonGreen);
+    assert(selectForLaunch("retrorun-blue","") && &theme()==&neonBlue);
+    assert(selectForLaunch("retrorun-green","bad value") && &theme()==&neonGreen);
+    assert(selectForLaunch("classic","classic") && &theme()==&classic);
+    assert(!selectForLaunch("invalid","") && &theme()==&classic);
 }
