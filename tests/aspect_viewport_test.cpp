@@ -2,6 +2,7 @@
 #include <cassert>
 #include <limits>
 int main(){
+ const auto dosMenu=rr::fitAspect(640,480,768.f/528.f);assert(dosMenu.x==0 && dosMenu.y==20 && dosMenu.width==640 && dosMenu.height==440);
  const auto nes=rr::fitAspect(640,480,rr::resolvedAspect(0,8.f/7.f,256,224));
  assert(nes.width==549 && nes.height==480 && nes.x==45 && nes.y==0);
  const auto md=rr::fitAspect(640,480,rr::resolvedAspect(0,10.f/7.f,320,224));

@@ -612,6 +612,15 @@ bool core_environment(unsigned cmd, void *data)
     case RETRO_ENVIRONMENT_GET_VARIABLE:
     {
         retro_variable *var = (retro_variable *)data;
+        // Cores may query internal options without an exported key. A failed
+        // lookup must return false, never construct std::string from nullptr.
+        if (!var || !var->key) {
+            if (var) var->value = nullptr;
+            static bool reported = false;
+            if (!reported) { logger.log(Logger::WARN, "GET_VARIABLE without an option key; returning unavailable"); reported = true; }
+            return false;
+        }
+        var->value = nullptr;
         bool found = false;
 
         std::map<std::string, std::string>::iterator it = conf_map.find(var->key);

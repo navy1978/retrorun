@@ -594,6 +594,16 @@ void prepareScreenPixelPerfect(int width, int height) {
 #endif
     
 
+#ifndef RR_PLATFORM_SDL
+    // No positive integer scale fits oversized software-core menus. RGA cannot
+    // present a negative destination: use a contained fractional fit instead.
+    if (w > display_width || h > display_height) {
+        const auto fitted = rr::fitAspect(display_width, display_height, float(w) / h);
+        x=fitted.x; y=fitted.y; w=fitted.width; h=fitted.height;
+    }
+
+#endif
+
     if (first_video_refresh) {
         logger.log(Logger::DEB,
             "Pixel perfect mode enabled: max_scaling=%d, x=%d, y=%d, w=%d, h=%d",

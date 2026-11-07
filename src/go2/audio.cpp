@@ -1,3 +1,4 @@
+#include "prebuffer_policy.h"
 /*
 libgo2 - Support library for the ODROID-GO Advance
 Copyright (C) 2020 OtherCrashOverride
@@ -664,8 +665,8 @@ inline bool playAudio(go2_audio_t *audio, const short *data, int frames)
     alGetSourcei(audio->source, AL_SOURCE_STATE, &state);
     if (state != AL_PLAYING &&
         !audio->paused.load(std::memory_order_relaxed) &&
-        audio->queue_order.size() >= 2 &&
-        queued_after >= audio->playback_target_frames)
+        go2_audio_policy::prebufferReady(queued_after, audio->playback_target_frames,
+            audio->queue_order.size(), audio->free_buffers.empty()))
     {
         alSourcePlay(audio->source);
         audio->prebuffering = false;
