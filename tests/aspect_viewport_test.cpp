@@ -2,6 +2,17 @@
 #include <cassert>
 #include <limits>
 int main(){
+ rr::AspectViewport native;
+ assert(rr::fitNativePanel(true,false,640,480,0,.75f,224,384,native));
+ assert(native.x==140 && native.y==0 && native.width==360 && native.height==480);
+ assert(rr::fitNativePanel(true,false,640,480,0,224.f/384.f,224,384,native));
+ assert(native.x==180 && native.width==280 && native.height==480);
+ assert(rr::fitNativePanel(true,false,640,480,16.f/9.f,.75f,224,384,native));
+ assert(native.width==640 && native.height==360);
+ assert(rr::fitNativePanel(true,false,640,480,0,4.f/3.f,384,224,native));
+ assert(native.width==640 && native.height==480);
+ assert(!rr::fitNativePanel(true,true,640,480,0,.75f,224,384,native));
+ assert(!rr::fitNativePanel(false,false,640,480,0,.75f,224,384,native));
  const auto dosMenu=rr::fitAspect(640,480,768.f/528.f);assert(dosMenu.x==0 && dosMenu.y==20 && dosMenu.width==640 && dosMenu.height==440);
  const auto nes=rr::fitAspect(640,480,rr::resolvedAspect(0,8.f/7.f,256,224));
  assert(nes.width==549 && nes.height==480 && nes.x==45 && nes.y==0);

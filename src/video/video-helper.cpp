@@ -220,6 +220,13 @@ rr_rotation_t getRotation()
                                  : RR_ROTATION_DEGREES_90;
 #endif
 
+    // SET_ROTATION is declined by this frontend. MAME 2003-Plus consequently
+    // rotates its software frame internally; applying the legacy portrait
+    // quarter-turn here rotates it twice. Keep only the panel transform when
+    // the user has not explicitly requested Tate.
+    if(!isTate() && coreName=="MAME 2003-Plus")
+        return hasDeviceRotatedScreen()?RR_ROTATION_DEGREES_0:RR_ROTATION_DEGREES_270;
+
     if (isGameVertical) // portrait
     {
         if (!isTate())

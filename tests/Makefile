@@ -68,6 +68,7 @@ run: all
 	./shutdown_signal_test
 	./pending_video_updates_test
 	./aspect_viewport_test
+	python3 portrait_rotation_test.py
 	./openal_prebuffer_test
 	./go2_crt_test
 	./go2_scanlines_test

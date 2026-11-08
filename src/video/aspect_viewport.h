@@ -24,4 +24,13 @@ inline AspectViewport fitAspect(int width,int height,float aspect){
     else r.height=std::clamp(int(std::lround(width/aspect)),1,height);
     r.x=(width-r.width)/2;r.y=(height-r.height)/2;return r;
 }
+// Native landscape-panel fitting applies to portrait games too. In particular,
+// a 3:4 game must not fall through a legacy reciprocal-aspect equality gap.
+inline bool fitNativePanel(bool nativePanel,bool tate,int displayWidth,int displayHeight,
+                           float requested,float core,int frameWidth,int frameHeight,
+                           AspectViewport& result){
+    if(!nativePanel || tate)return false;
+    result=fitAspect(displayWidth,displayHeight,resolvedAspect(requested,core,frameWidth,frameHeight));
+    return true;
+}
 }

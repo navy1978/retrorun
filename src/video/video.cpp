@@ -646,12 +646,14 @@ void prepareScreen(int width, int height, bool apply_pixel_perfect)
         }
 
 #ifndef RR_PLATFORM_SDL
-    // Native landscape panels (MP/V/RK3566): fit the display aspect, not its
-    // reciprocal. The old narrow-Auto branch divided width by the core ratio.
-    if(hasDeviceRotatedScreen() && !isTate() && game_aspect_ratio>=1.f){
+    // Native panels must fit both landscape and portrait games. The legacy
+    // portrait branch left a zero viewport when core/display ratios were equal.
+    rr::AspectViewport viewport;
+    if(rr::fitNativePanel(hasDeviceRotatedScreen(),isTate(),
+            rr_display_width_get(display),rr_display_height_get(display),
+            aspect_ratio,game_aspect_ratio,width,height,viewport)){
         aspect_ratio=rr::resolvedAspect(aspect_ratio,game_aspect_ratio,width,height);
-        const auto viewport=rr::fitAspect(rr_display_width_get(display),rr_display_height_get(display),aspect_ratio);
-        x=viewport.x;y=viewport.y;w=viewport.width;h=viewport.height;isGameVertical=false;
+        x=viewport.x;y=viewport.y;w=viewport.width;h=viewport.height;isGameVertical=game_aspect_ratio<1.f;
         return;
     }
 #endif
