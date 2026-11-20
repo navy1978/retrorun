@@ -72,4 +72,15 @@ inline bool provide(retro_vfs_interface_info* info){
     static retro_vfs_interface api{path,open,close,size,tell,seek,read,write,flush,remove,rename,truncate,stat,mkdir,opendir,readdir,name,isDirectory,closedir};
     info->required_interface_version=3;info->iface=&api;return true;
 }
+// PCSX-ReARMed's legacy stdio adapter treats VFS seek's returned position as
+// an fseeko status. Decline this optional interface so unmodified distributed
+// cores use their internal file implementation. Keep VFS semantics for others.
+inline bool provideForCore(const char* libraryName,retro_vfs_interface_info* info){
+    if(libraryName && !std::strcmp(libraryName,"PCSX-ReARMed")){
+        if(info)info->iface=nullptr;
+        return false;
+    }
+    return provide(info);
+}
+
 }

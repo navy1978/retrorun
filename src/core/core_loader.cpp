@@ -58,6 +58,7 @@ retro_hw_context_reset_t retro_context_destroy;
 static struct retro_perf_counter *perf_counters[MAX_COUNTERS];
 static int perf_counter_count = 0;
 static rr::ArchiveContent game_archive;
+static std::string vfsCoreLibraryName;
 void core_discard_prepared_content() noexcept {game_archive.reset();}
 
 typedef std::map<std::string, std::string> varmap_t;
@@ -285,7 +286,8 @@ bool core_environment(unsigned cmd, void *data)
     }
 
     case RETRO_ENVIRONMENT_GET_VFS_INTERFACE:
-        return rr::vfs::provide(static_cast<retro_vfs_interface_info*>(data));
+        return rr::vfs::provideForCore(vfsCoreLibraryName.c_str(),
+            static_cast<retro_vfs_interface_info*>(data));
 
     case RETRO_ENVIRONMENT_GET_LOG_INTERFACE:
     {
@@ -679,6 +681,7 @@ void core_load(const char *sofile)
     void (*set_audio_sample)(retro_audio_sample_t) = NULL;
     void (*set_audio_sample_batch)(retro_audio_sample_batch_t) = NULL;
 
+    vfsCoreLibraryName.clear();
     memset(&g_retro, 0, sizeof(g_retro));
     g_retro.handle = dlopen(sofile, RTLD_LAZY);
 
@@ -717,6 +720,13 @@ void core_load(const char *sofile)
     load_optional_retro_sym(g_retro.flycast_retrorun_core_variant_v1,
                             "flycast_retrorun_core_variant_v1");
 
+    // Decide optional VFS compatibility before any core callbacks can request
+    // it, including retro_set_environment itself. Use identity, not filenames.
+    struct retro_system_info compatibilityInfo{};
+    g_retro.retro_get_system_info(&compatibilityInfo);
+    vfsCoreLibraryName=compatibilityInfo.library_name?compatibilityInfo.library_name:"";
+    if(vfsCoreLibraryName=="PCSX-ReARMed")
+        logger.log(Logger::INF,"PCSX-ReARMed uses its internal file I/O for legacy stdio compatibility");
     set_environment(core_environment);
     set_video_refresh(core_video_refresh);
     set_input_poll(core_input_poll);

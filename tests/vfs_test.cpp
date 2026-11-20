@@ -9,6 +9,13 @@ int main(){
  char temp[]="/tmp/rr-vfs-test-XXXXXX";const auto* folder=mkdtemp(temp);check(folder);const std::filesystem::path root=folder;
  try{
   retro_vfs_interface_info request{4,nullptr};check(!rr::vfs::provide(&request) && !request.iface);request.required_interface_version=1;check(rr::vfs::provide(&request) && request.required_interface_version==3);auto& v=*request.iface;
+  retro_vfs_interface_info legacy{1,request.iface};
+  check(!rr::vfs::provideForCore("PCSX-ReARMed",&legacy) && !legacy.iface);
+  check(!rr::vfs::provideForCore("PCSX-ReARMed",nullptr));
+  check(rr::vfs::provideForCore("Stella",&legacy) && legacy.iface);
+  check(rr::vfs::provideForCore("Flycast",&legacy) && legacy.iface);
+  check(rr::vfs::provideForCore(nullptr,&legacy) && legacy.iface);
+  check(rr::vfs::provideForCore("Unknown user core",&legacy) && legacy.iface);
   const auto path=(root/"ROM with spaces.a26").string();auto* f=v.open(path.c_str(),RETRO_VFS_FILE_ACCESS_READ_WRITE,0);check(f);check(std::string(v.get_path(f))==path);
   check(v.write(f,"abcd",4)==4 && v.size(f)==4 && v.tell(f)==4);check(v.seek(f,1,RETRO_VFS_SEEK_POSITION_START)==1);char bytes[8]{};check(v.read(f,bytes,2)==2 && std::string(bytes,2)=="bc");check(v.close(f)==0);
   f=v.open(path.c_str(),RETRO_VFS_FILE_ACCESS_WRITE|RETRO_VFS_FILE_ACCESS_UPDATE_EXISTING,0);check(f && v.size(f)==4);check(v.write(f,"XY",2)==2 && v.flush(f)==0);check(v.truncate(f,3)==0 && v.size(f)==3);check(v.close(f)==0);
