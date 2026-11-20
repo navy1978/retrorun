@@ -1343,7 +1343,12 @@ bool gameScreenshot(const char* path,bool thumbnail){
             if(isOpenGL)sy=height-activeHeight;
             height=activeHeight;
         }
-        ok=captureSurfacePng(display,source,0,sy,width,height,path,thumbnail?320:0,thumbnail?240:0,getBlitRotation());
+        rr_rotation_t panelRotation=RR_ROTATION_DEGREES_0;
+#ifndef RR_PLATFORM_SDL
+        panelRotation=hasDeviceRotatedScreen()?RR_ROTATION_DEGREES_0:RR_ROTATION_DEGREES_270;
+#endif
+        const auto artworkRotation=logicalCaptureRotation(getBlitRotation(),panelRotation);
+        ok=captureSurfacePng(display,source,0,sy,width,height,path,thumbnail?320:0,thumbnail?240:0,artworkRotation);
     }
 #ifdef RR_PLATFORM_SDL
     if(captured)rr_context_surface_unlock(context3D,captured);

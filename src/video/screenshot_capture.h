@@ -4,6 +4,15 @@
 #include <cmath>
 #include <cstring>
 
+// The presentation rotation includes the physical panel transform on GO2.
+// Artwork is independent of that panel: retain only the logical game/Tate turn.
+inline rr_rotation_t logicalCaptureRotation(rr_rotation_t presentation,rr_rotation_t panel){
+    static_assert(RR_ROTATION_DEGREES_0==0 && RR_ROTATION_DEGREES_90==1 &&
+                  RR_ROTATION_DEGREES_180==2 && RR_ROTATION_DEGREES_270==3);
+    if(presentation>RR_ROTATION_DEGREES_270 || panel>RR_ROTATION_DEGREES_270)return presentation;
+    return static_cast<rr_rotation_t>((int(presentation)-int(panel)+4)%4);
+}
+
 // Existing platform conversion/PNG writer, with bounded buffers only during a
 // capture. CPU rotation is applied to the small RGB snapshot, never the game
 // surface; physical panel rotation does not belong in an artwork file.

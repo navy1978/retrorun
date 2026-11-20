@@ -65,6 +65,7 @@ profile_settings_test: profile_settings_test.cpp $(ROOT)/src/config/profile_sett
 
 run: all
 	./core_run_boundary_test
+	python3 screenshot_rotation_test.py
 	./async_input_snapshot_test
 	./shutdown_signal_test
 	./pending_video_updates_test

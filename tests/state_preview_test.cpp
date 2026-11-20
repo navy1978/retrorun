@@ -54,6 +54,24 @@ int main(){
     assert(captureSurfacePng(&display,&source,0,0,2,3,"fixture",320,240,RR_ROTATION_DEGREES_90));assert(saved.width==3 && saved.height==2 && saved.bytes[0]==5 && saved.bytes[6]==1);
     assert(captureSurfacePng(&display,&source,0,0,2,3,"fixture",320,240,RR_ROTATION_DEGREES_270));assert(saved.bytes[0]==2 && saved.bytes[6]==6);
     assert(captureSurfacePng(&display,&source,0,1,2,2,"fixture",320,240,RR_ROTATION_DEGREES_0));assert(saved.bytes[0]==3);
+    // The same logical frame must produce the same PNG on P/M's rotated
+    // panel and MP/native or SDL panels. Exercise actual RGB conversion,
+    // thumbnail geometry and pixel ordering for every logical quarter-turn.
+    for(const auto logical:{RR_ROTATION_DEGREES_0,RR_ROTATION_DEGREES_90,RR_ROTATION_DEGREES_180,RR_ROTATION_DEGREES_270}){
+        assert(captureSurfacePng(&display,&source,0,0,2,3,"fixture",320,240,logical));
+        const auto expected=saved;
+        for(const auto panel:{RR_ROTATION_DEGREES_0,RR_ROTATION_DEGREES_270}){
+            const auto presentation=static_cast<rr_rotation_t>((int(logical)+int(panel))%4);
+            assert(captureSurfacePng(&display,&source,0,0,2,3,"fixture",320,240,logicalCaptureRotation(presentation,panel)));
+            assert(saved.width==expected.width && saved.height==expected.height && saved.bytes==expected.bytes);
+            assert(allocations==0);
+        }
+    }
+    assert(logicalCaptureRotation(RR_ROTATION_DEGREES_270,RR_ROTATION_DEGREES_270)==RR_ROTATION_DEGREES_0); // P default
+    assert(logicalCaptureRotation(RR_ROTATION_DEGREES_0,RR_ROTATION_DEGREES_0)==RR_ROTATION_DEGREES_0); // MP/SDL default
+    assert(logicalCaptureRotation(RR_ROTATION_DEGREES_180,RR_ROTATION_DEGREES_270)==RR_ROTATION_DEGREES_270); // P Tate
+    assert(logicalCaptureRotation(RR_ROTATION_DEGREES_270,RR_ROTATION_DEGREES_0)==RR_ROTATION_DEGREES_270); // MP Tate
+    assert(logicalCaptureRotation(RR_ROTATION_DEGREES_0,RR_ROTATION_DEGREES_270)==RR_ROTATION_DEGREES_90); // P reverse Tate
     failWrite=true;assert(!captureSurfacePng(&display,&source,0,0,2,3,"fixture",320,240,RR_ROTATION_DEGREES_0));assert(allocations==0);
     assert(!captureSurfacePng(&display,nullptr,0,0,2,3,"fixture",320,240,RR_ROTATION_DEGREES_0));
     std::cout<<"Atomic state/preview, slot isolation, failed capture, bounds, aspect, rotation and cleanup passed\n";
