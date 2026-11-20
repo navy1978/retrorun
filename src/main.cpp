@@ -48,6 +48,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "menu/menu_item.h"
 #include "menu/menu_manager.h"
 #include "benchmark.h"
+#include "core/run_boundary.h"
 
 #ifdef RR_PLATFORM_SDL
 #include <SDL.h>
@@ -949,7 +950,7 @@ int retrorun_main(int argc, char *argv[])
             {
                 sleep(1);
                 rr_input_trace::hit(rr_input_trace::RunEnter);
-                g_retro.retro_run();
+                rr::runCoreFrame(g_retro.retro_run);
                 rr_input_trace::hit(rr_input_trace::RunExit);
             }
             if(resumeSlot>0 && resumeSlot<=3)currentSlot=resumeSlot;
@@ -1532,7 +1533,7 @@ int retrorun_main(int argc, char *argv[])
             }
             core_input_begin_frame();
             rr_input_trace::hit(rr_input_trace::RunEnter);
-            g_retro.retro_run();
+            rr::runCoreFrame(g_retro.retro_run);
             rr_input_trace::hit(rr_input_trace::RunExit);
             // Core error screens may skip their input callback entirely.
             core_input_poll_fallback();
