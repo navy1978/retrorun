@@ -77,12 +77,28 @@ constexpr Theme neonTheme(const char* name,uint16_t focus,uint16_t accent){
 }
 inline constexpr Theme neonBlue=neonTheme("retrorun-blue",rgb565(18,105,174),rgb565(185,162,242));
 inline constexpr Theme neonGreen=neonTheme("retrorun-green",rgb565(22,143,76),rgb565(100,184,221));
-inline bool validName(std::string_view name){return name=="classic" || name=="retrorun" || name=="retrorun-blue" || name=="retrorun-green";}
+constexpr Theme launcherTheme(const char* name, uint16_t background, uint16_t text,
+        uint16_t label, uint16_t heading, uint16_t focus, uint16_t active,
+        uint16_t disabled, uint16_t panel, uint16_t separator, uint16_t track, bool brightFocus){
+    Theme t=retrorun;t.name=name;auto& c=t.colors;
+    c.background=c.menuBody=c.fpsBackground=c.trackInside=background;
+    c.primary=c.normal=c.infoValue=c.keyText=text;c.secondary=c.label=c.subtitle=c.iconHighlight=label;
+    c.heading=heading;c.focusSDL=c.focusGO2=c.cursor=focus;c.focusText=brightFocus?rgb565(0,0,0):text;
+    c.active=c.popupAccent=c.success=c.warning=c.bevelTop=active;c.disabled=disabled;
+    c.keyPanel=c.keyFocus=c.popup=c.bevelLeft=c.bevelBottom=c.bevelRight=panel;
+    c.menuFrame=separator;c.track=track;
+    return t;
+}
+inline constexpr Theme blackWhite=[]{
+    auto t=launcherTheme("black-white",rgb565(11,11,11),rgb565(242,242,242),rgb565(176,176,176),rgb565(255,255,255),rgb565(204,204,204),rgb565(255,255,255),rgb565(115,115,115),rgb565(23,23,23),rgb565(70,70,70),rgb565(98,98,98),true);
+    t.colors.error=t.colors.popupError=rgb565(255,255,255);return t;
+}();
+inline bool validName(std::string_view name){return name=="black-white" || name=="classic" || name=="retrorun" || name=="retrorun-blue" || name=="retrorun-green";}
 // Selected once during config loading, before render/audio workers start.
 inline const Theme* current = &classic;
 inline const Theme& theme() { return *current; }
 inline bool select(std::string_view name) {
-    current = name=="retrorun-blue"?&neonBlue:name=="retrorun-green"?&neonGreen:name=="retrorun"?&retrorun:&classic;
+    current = name=="black-white"?&blackWhite:name=="retrorun-blue"?&neonBlue:name=="retrorun-green"?&neonGreen:name=="retrorun"?&retrorun:&classic;
     return name.empty() || validName(name);
 }
 // The launcher exports a fixed built-in ID through the supervised session.

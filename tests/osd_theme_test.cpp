@@ -36,4 +36,8 @@ int main() {
     assert(selectForLaunch("retrorun-green","bad value") && &theme()==&neonGreen);
     assert(selectForLaunch("classic","classic") && &theme()==&classic);
     assert(!selectForLaunch("invalid","") && &theme()==&classic);
+    assert(selectForLaunch("classic","black-white") && &theme()==&blackWhite);
+    assert(theme().colors.focusText==rgb565(0,0,0));
+    assert(theme().colors.focusGO2==rgb565(204,204,204));
+    assert(theme().colors.error==rgb565(255,255,255));
 }
