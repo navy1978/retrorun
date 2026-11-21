@@ -48,6 +48,8 @@ struct rr_audio {
     std::vector<short> mix_buffer;
     std::vector<short> silence_buffer;
 };
+#include "gl_capture.h"
+
 struct rr_display { SDL_Window* window; int width; int height; int brightness; };
 struct rr_surface {
     rr_display_t* display;
@@ -100,6 +102,7 @@ struct rr_context {
     GLint post_texture_filter;
     bool post_pipeline_failed;
     bool default_framebuffer;
+    bool raw_snapshot_valid=false;
 };
 
 static SDL_GameController* active_controller = NULL;
@@ -1488,7 +1491,7 @@ static void blit_decoration_damage(rr_context_t* context, rr_surface_t* surface,
 
 void rr_context_swap_buffers(rr_context_t* context, int source_width, int source_height,
                              int dest_x, int dest_y, int dest_width, int dest_height,
-                             status* overlays, rr_rotation_t rotation, bool /*new_frame*/) {
+                             status* overlays, rr_rotation_t rotation, bool new_frame) {
     if (!context) return;
     rr_context_make_current(context);
 
@@ -1520,8 +1523,10 @@ void rr_context_swap_buffers(rr_context_t* context, int source_width, int source
             // same Scanlines/CRT program used by the frontend-FBO path.
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, context->color_texture);
-            glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0,
-                                source_width, source_height);
+            if(new_frame || !context->raw_snapshot_valid){
+                glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0,source_width,source_height);
+                context->raw_snapshot_valid=true;
+            }
             glViewport(0, 0, drawable_width, drawable_height);
             glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
@@ -1668,6 +1673,13 @@ rr_surface_t* rr_context_surface_lock(rr_context_t* context) {
     return surface;
 }
 void rr_context_surface_unlock(rr_context_t*, rr_surface_t* surface) { delete surface; }
+rr_surface_t* rr_context_capture_clean(rr_context_t* context,int width,int height){
+    if(!context)return nullptr;
+    rr_context_make_current(context);
+    if(context->default_framebuffer && (video_shader==RR_VIDEO_SHADER_OFF || !context->raw_snapshot_valid))return rr_context_surface_lock(context);
+    return captureGlTexture(context->display,context->color_texture,
+        std::min(width,context->framebuffer_width),std::min(height,context->framebuffer_height),true);
+}
 void* rr_context_get_proc_address(const char* symbol) { return SDL_GL_GetProcAddress(symbol); }
 void rr_video_sync() {
     // State loading did not require an explicit GPU synchronization on the

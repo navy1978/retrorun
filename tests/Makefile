@@ -10,7 +10,7 @@ COMMON_FLAGS := $(CXXFLAGS) $(SANITIZER) $(INCLUDES) -pthread
 
 .PHONY: all run clean
 
-all: core_run_boundary_test openal_prebuffer_test async_input_snapshot_test shutdown_signal_test pending_video_updates_test aspect_viewport_test go2_crt_test go2_scanlines_test startup_loading_animator_test vfs_test profile_settings_test osd_theme_test state_identity_test catalog_precedence_test state_preview_test archive_content_test benchmark_test audio_worker_test transition_test config_file_test flycast_game_catalog_test core_option_resolution_test video_multithread_mode_test
+all: gl_capture_test core_run_boundary_test openal_prebuffer_test async_input_snapshot_test shutdown_signal_test pending_video_updates_test aspect_viewport_test go2_crt_test go2_scanlines_test startup_loading_animator_test vfs_test profile_settings_test osd_theme_test state_identity_test catalog_precedence_test state_preview_test archive_content_test benchmark_test audio_worker_test transition_test config_file_test flycast_game_catalog_test core_option_resolution_test video_multithread_mode_test
 
 shutdown_signal_test: shutdown_signal_test.cpp $(ROOT)/src/platform/shutdown_signal.h
 	$(CXX) $(COMMON_FLAGS) shutdown_signal_test.cpp -o $@
@@ -64,6 +64,8 @@ profile_settings_test: profile_settings_test.cpp $(ROOT)/src/config/profile_sett
 	$(CXX) $(COMMON_FLAGS) profile_settings_test.cpp -o $@
 
 run: all
+	./gl_capture_test
+	python3 software_capture_test.py
 	./core_run_boundary_test
 	python3 screenshot_rotation_test.py
 	./async_input_snapshot_test
@@ -91,7 +93,7 @@ run: all
 	./video_multithread_mode_test
 
 clean:
-	rm -f core_run_boundary_test openal_prebuffer_test async_input_snapshot_test shutdown_signal_test pending_video_updates_test aspect_viewport_test go2_crt_test go2_scanlines_test startup_loading_animator_test vfs_test profile_settings_test osd_theme_test state_identity_test catalog_precedence_test state_preview_test archive_content_test archive_unzip.o archive_ioapi.o benchmark_test audio_worker_test transition_test config_file_test flycast_game_catalog_test core_option_resolution_test video_multithread_mode_test benchmark-result-1.json benchmark-result-2.json transition-test.state
+	rm -f gl_capture_test core_run_boundary_test openal_prebuffer_test async_input_snapshot_test shutdown_signal_test pending_video_updates_test aspect_viewport_test go2_crt_test go2_scanlines_test startup_loading_animator_test vfs_test profile_settings_test osd_theme_test state_identity_test catalog_precedence_test state_preview_test archive_content_test archive_unzip.o archive_ioapi.o benchmark_test audio_worker_test transition_test config_file_test flycast_game_catalog_test core_option_resolution_test video_multithread_mode_test benchmark-result-1.json benchmark-result-2.json transition-test.state
 
 archive_unzip.o: $(ROOT)/deps/minizip/unzip.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(SANITIZER) -std=c99 -D_POSIX_C_SOURCE=200809L -DNOUNCRYPT -c $< -o $@
@@ -125,3 +127,6 @@ openal_prebuffer_test: openal_prebuffer_test.cpp $(ROOT)/src/go2/prebuffer_polic
 
 core_run_boundary_test: core_run_boundary_test.cpp ../src/core/run_boundary.h
 	$(CXX) $(COMMON_FLAGS) core_run_boundary_test.cpp -o $@
+
+gl_capture_test: gl_capture_test.cpp $(ROOT)/src/platform/gl_capture.h
+	$(CXX) $(COMMON_FLAGS) gl_capture_test.cpp -o $@

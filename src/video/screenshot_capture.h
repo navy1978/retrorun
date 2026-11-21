@@ -1,5 +1,6 @@
 #pragma once
 #include "platform.h"
+#include "aspect_viewport.h"
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -18,11 +19,21 @@ inline rr_rotation_t logicalCaptureRotation(rr_rotation_t presentation,rr_rotati
 // surface; physical panel rotation does not belong in an artwork file.
 inline bool captureSurfacePng(rr_display_t* display,rr_surface_t* source,
     int sx,int sy,int width,int height,const char* path,int maxWidth,int maxHeight,
-    rr_rotation_t rotation){
+    rr_rotation_t rotation,float displayAspect=0.f){
     if(!display || !source || !path || !*path || width<=0 || height<=0)return false;
     const bool sideways=rotation==RR_ROTATION_DEGREES_90 || rotation==RR_ROTATION_DEGREES_270;
-    const double scale=maxWidth>0 && maxHeight>0 ? std::min({1.0,double(maxWidth)/(sideways?height:width),double(maxHeight)/(sideways?width:height)}):1.0;
-    const int sw=std::max(1,int(width*scale)),sh=std::max(1,int(height*scale));
+    // Libretro raster dimensions can use non-square pixels (e.g. PSX
+    // 368x480 is still a landscape 4:3 picture). Normalize pixel shape before
+    // logical rotation and thumbnail fitting; never bake panel rotation in.
+    double squareWidth=width,squareHeight=height;
+    if(rr::validAspect(displayAspect)){
+        if(double(displayAspect)>double(width)/height)squareWidth=height*double(displayAspect);
+        else squareHeight=width/double(displayAspect);
+    }
+    double scale=std::min(1.0,8192.0/std::max(squareWidth,squareHeight));
+    if(maxWidth>0 && maxHeight>0)
+        scale=std::min({scale,double(maxWidth)/(sideways?squareHeight:squareWidth),double(maxHeight)/(sideways?squareWidth:squareHeight)});
+    const int sw=std::max(1,int(std::lround(squareWidth*scale))),sh=std::max(1,int(std::lround(squareHeight*scale)));
     auto* image=rr_surface_create(display,sw,sh,RR_PIXEL_FORMAT_RGB888);if(!image)return false;
     rr_surface_blit_pixels(source,sx,sy,width,height,image,0,0,sw,sh);
     rr_surface_t* rotated=nullptr;

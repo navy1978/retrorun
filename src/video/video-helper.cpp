@@ -21,8 +21,11 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 #include "globals.h"
+#include "config.h"
 #include "video-helper.h"
 #include "screenshot_capture.h"
+#include "go2_scanlines.h"
+#include "go2_crt.h"
 #include <algorithm>
 #include <cctype>
 #include <ctime>
@@ -1322,37 +1325,62 @@ void showImage(Image img, rr_surface_t **surface)
 
 
 namespace {
+#ifdef RR_PLATFORM_SDL
+rr_surface_t* screenshotEffect(rr_surface_t* source,int sy,int width,int height){
+    auto* raw=rr_surface_create(display,width,height,RR_PIXEL_FORMAT_RGB888);
+    auto* result=rr_surface_create(display,width,height,RR_PIXEL_FORMAT_RGB888);
+    if(!raw || !result){if(raw)rr_surface_destroy(raw);if(result)rr_surface_destroy(result);return nullptr;}
+    rr_surface_blit_pixels(source,0,sy,width,height,raw,0,0,width,height);
+    auto* src=rr_surface_map(raw);auto* dst=rr_surface_map(result);bool ok=false;
+    if(src && dst){
+        if(videoShader==RR_VIDEO_SHADER_CRT){go2_crt::Plan plan;ok=plan.copy(dst,rr_surface_stride_get(result),src,width,height,rr_surface_stride_get(raw),RR_PIXEL_FORMAT_RGB888,false,videoFilter!=RR_VIDEO_FILTER_NEAREST);}
+        else ok=go2_scanlines::copy(dst,rr_surface_stride_get(result),src,rr_surface_stride_get(raw),width,height,RR_PIXEL_FORMAT_RGB888);
+    }
+    if(src)rr_surface_unmap(raw);if(dst)rr_surface_unmap(result);rr_surface_destroy(raw);
+    if(!ok){rr_surface_destroy(result);return nullptr;}return result;
+}
+#endif
 bool gameScreenshot(const char* path,bool thumbnail){
     if(thumbnail && (!currentWidth || !currentHeight))return false;
-    rr_surface_t* source=surface;
+    rr_surface_t* source=surface;rr_surface_t* captured=nullptr;
+    if(thumbnail && !isOpenGL){captured=video_capture_software_frame();source=captured;}
+    if(isOpenGL && context3D){
+        if(thumbnail)captured=rr_context_capture_clean(context3D,currentWidth,currentHeight);
 #ifdef RR_PLATFORM_SDL
-    rr_surface_t* captured=nullptr;
-    if(isOpenGL && context3D){captured=rr_context_surface_lock(context3D);source=captured;}
+        else captured=rr_context_surface_lock(context3D);
+        source=captured;
 #else
-    // gles_surface's wrapper is released after presentation. The context keeps
-    // a non-owning view of its native BO, valid after video_synchronize(), so
-    // saving a state never dereferences that released wrapper or locks GBM twice.
-    if(isOpenGL)source=thumbnail?rr_context_surface_last(context3D):gles_surface;
+        // A raw GPU snapshot is available when post-processing is active.
+        // Without effects the synchronized borrowed frame is already clean.
+        source=captured?captured:thumbnail?(videoShader==RR_VIDEO_SHADER_OFF?rr_context_surface_last(context3D):nullptr):gles_surface;
 #endif
+    }
     bool ok=false;
     if(source){
         int width=rr_surface_width_get(source),height=rr_surface_height_get(source),sy=0;
-        if((thumbnail || !isOpenGL) && currentWidth && currentHeight){
+        if(currentWidth && currentHeight){
             width=std::min(width,static_cast<int>(currentWidth));
             const int activeHeight=std::min(height,static_cast<int>(currentHeight));
             if(isOpenGL)sy=height-activeHeight;
             height=activeHeight;
         }
+#ifdef RR_PLATFORM_SDL
+        // SDL hardware effects are composed after the manual screenshot hook.
+        // Reuse the software effect kernels for the captured game pixels only.
+        if(!thumbnail && isOpenGL && videoShader!=RR_VIDEO_SHADER_OFF){
+            auto* processed=screenshotEffect(source,sy,width,height);
+            if(captured)rr_surface_destroy(captured);captured=processed;source=captured;sy=0;
+        }
+#endif
         rr_rotation_t panelRotation=RR_ROTATION_DEGREES_0;
 #ifndef RR_PLATFORM_SDL
         panelRotation=hasDeviceRotatedScreen()?RR_ROTATION_DEGREES_0:RR_ROTATION_DEGREES_270;
 #endif
         const auto artworkRotation=logicalCaptureRotation(getBlitRotation(),panelRotation);
-        ok=captureSurfacePng(display,source,0,sy,width,height,path,thumbnail?320:0,thumbnail?240:0,artworkRotation);
+        const auto captureAspect=rr::resolvedAspect(aspect_ratio,game_aspect_ratio,width,height);
+        if(source)ok=captureSurfacePng(display,source,0,sy,width,height,path,thumbnail?320:0,thumbnail?240:0,artworkRotation,captureAspect);
     }
-#ifdef RR_PLATFORM_SDL
-    if(captured)rr_context_surface_unlock(context3D,captured);
-#endif
+    if(captured)rr_surface_destroy(captured);
     return ok;
 }
 }

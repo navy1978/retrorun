@@ -9,6 +9,7 @@
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
 #include "go2_gl_state.h"
+#include "gl_capture.h"
 #include <cstdio>
 
 #ifndef GL_DEPTH24_STENCIL8
@@ -25,6 +26,7 @@ struct rr_surface { go2_surface_t* native; };
 struct rr_presenter { go2_presenter_t* native; };
 struct rr_context {
     go2_context_t* native;
+    rr_display_t* display;
     rr_surface_t last_frame{};
     int width;
     int height;
@@ -360,6 +362,7 @@ rr_context_t* rr_context_create(rr_display_t* display, int width, int height,
 
     rr_context_t* context = new rr_context_t{};
     context->native = native_context;
+    context->display = display;
     context->width = width;
     context->height = height;
     context->gles3 = attributes->major >= 3;
@@ -452,6 +455,12 @@ uintptr_t rr_context_framebuffer_get(rr_context_t*) {
 rr_surface_t* rr_context_surface_lock(rr_context_t* context) { go2_surface_t* native = go2_context_surface_lock(context->native); if (!native) return NULL; rr_surface_t* s = new rr_surface_t; s->native=native; context->last_frame.native=native; return s; }
 rr_surface_t* rr_context_surface_last(rr_context_t* context) { return context && context->last_frame.native ? &context->last_frame : nullptr; }
 void rr_context_surface_unlock(rr_context_t* context, rr_surface_t* surface) { go2_context_surface_unlock(context->native, surface->native); delete surface; }
+rr_surface_t* rr_context_capture_clean(rr_context_t* context,int width,int height){
+    if(!context || !context->snapshot_valid)return nullptr;
+    go2_context_make_current(context->native);
+    return captureGlTexture(context->display,context->color_texture,
+        std::min(width,context->snapshot_width),std::min(height,context->snapshot_height),context->gles3);
+}
 void* rr_context_get_proc_address(const char* symbol) { return reinterpret_cast<void*>(eglGetProcAddress(symbol)); }
 void rr_video_sync() {
     glFinish();

@@ -222,6 +222,8 @@ uintptr_t rr_context_framebuffer_get(rr_context_t* context);
 // buffer. Valid only while the context lives and rendering is synchronized.
 rr_surface_t* rr_context_surface_last(rr_context_t* context);
 rr_surface_t* rr_context_surface_lock(rr_context_t* context);
+// Owned, top-down game pixels before post-processing; destroy with surface_destroy.
+rr_surface_t* rr_context_capture_clean(rr_context_t* context,int width,int height);
 void rr_context_surface_unlock(rr_context_t* context, rr_surface_t* surface);
 void* rr_context_get_proc_address(const char* symbol);
 // Wait for platform graphics commands that must complete before core state is

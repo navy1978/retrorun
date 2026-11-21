@@ -50,6 +50,18 @@ int main(){
     assert(captureSurfacePng(&display,&source,0,0,640,480,"fixture",320,240,RR_ROTATION_DEGREES_0));assert(saved.width==320 && saved.height==240 && allocations==0);
     source={240,480,std::vector<unsigned char>(240*480*3)};
     assert(captureSurfacePng(&display,&source,0,0,240,480,"fixture",320,240,RR_ROTATION_DEGREES_0));assert(saved.width==120 && saved.height==240);
+    // PSX interlaced/non-square-pixel modes must keep their display aspect,
+    // not the raw raster ratio, in both full screenshots and state previews.
+    source={368,480,std::vector<unsigned char>(368*480*3,120)};
+    assert(captureSurfacePng(&display,&source,0,0,368,480,"fixture",0,0,RR_ROTATION_DEGREES_0,4.f/3.f));assert(saved.width==640 && saved.height==480);
+    assert(captureSurfacePng(&display,&source,0,0,368,480,"fixture",320,240,RR_ROTATION_DEGREES_0,4.f/3.f));assert(saved.width==320 && saved.height==240);
+    assert(captureSurfacePng(&display,&source,0,0,368,480,"fixture",0,0,RR_ROTATION_DEGREES_0,3.f/2.f));assert(saved.width==720 && saved.height==480);
+    assert(captureSurfacePng(&display,&source,0,0,368,480,"fixture",320,240,RR_ROTATION_DEGREES_270,4.f/3.f));assert(saved.width==180 && saved.height==240);
+    source={640,240,std::vector<unsigned char>(640*240*3,120)};
+    assert(captureSurfacePng(&display,&source,0,0,640,240,"fixture",0,0,RR_ROTATION_DEGREES_0,4.f/3.f));assert(saved.width==640 && saved.height==480);
+    assert(captureSurfacePng(&display,&source,0,0,640,240,"fixture",320,240,RR_ROTATION_DEGREES_0,4.f/3.f));assert(saved.width==320 && saved.height==240);
+    source={240,320,std::vector<unsigned char>(240*320*3,120)};
+    assert(captureSurfacePng(&display,&source,0,0,240,320,"fixture",320,240,RR_ROTATION_DEGREES_270,3.f/4.f));assert(saved.width==320 && saved.height==240);
     source={2,3,std::vector<unsigned char>(18)};for(int i=0;i<6;++i)source.bytes[i*3]=static_cast<unsigned char>(i+1);
     assert(captureSurfacePng(&display,&source,0,0,2,3,"fixture",320,240,RR_ROTATION_DEGREES_90));assert(saved.width==3 && saved.height==2 && saved.bytes[0]==5 && saved.bytes[6]==1);
     assert(captureSurfacePng(&display,&source,0,0,2,3,"fixture",320,240,RR_ROTATION_DEGREES_270));assert(saved.bytes[0]==2 && saved.bytes[6]==6);

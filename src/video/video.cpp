@@ -841,50 +841,52 @@ inline void presenter_post(int width, int height)
                        getRotation());
 }
 
-void drawNonOpenGL(const void *data, unsigned width, unsigned height, size_t pitch)
+bool drawNonOpenGL(const void *data, unsigned width, unsigned height, size_t pitch, rr_surface_t* target, bool effects)
 {
+    rr_surface_t* output=target?target:surface;
+    const auto shader=effects?videoShader:RR_VIDEO_SHADER_OFF;
 #ifndef RR_PLATFORM_SDL
     go2_profile::Timer mapping(go2_profile::Stage::Map);
 #endif
 
     uint8_t *src = (uint8_t *)data;
-    uint8_t *mapped = (uint8_t *)rr_surface_map(surface);
+    uint8_t *mapped = (uint8_t *)rr_surface_map(output);
     uint8_t *dst = mapped;
 #ifndef RR_PLATFORM_SDL
     mapping.stop();
 #endif
     if (dst == nullptr)
     {
-        return;
+        return false;
     }
 #if !defined(RR_PLATFORM_SDL) && !defined(RR_GO2_LEGACY_CRT)
-    if (videoShader == RR_VIDEO_SHADER_CRT &&
-        width <= static_cast<unsigned>(rr_surface_width_get(surface)) &&
-        height <= static_cast<unsigned>(rr_surface_height_get(surface))) {
+    if (shader == RR_VIDEO_SHADER_CRT &&
+        width <= static_cast<unsigned>(rr_surface_width_get(output)) &&
+        height <= static_cast<unsigned>(rr_surface_height_get(output))) {
         static go2_crt::Plan crt;
         go2_profile::Timer upload(go2_profile::Stage::FusedUpload);
-        const bool copied=crt.copy(mapped,rr_surface_stride_get(surface),data,width,height,pitch,
-            rr_surface_format_get(surface),color_format==RR_PIXEL_FORMAT_RGBA5551,
+        const bool copied=crt.copy(mapped,rr_surface_stride_get(output),data,width,height,pitch,
+            rr_surface_format_get(output),color_format==RR_PIXEL_FORMAT_RGBA5551,
             videoFilter!=RR_VIDEO_FILTER_NEAREST);
         upload.stop();
-        if(copied){go2_profile::Timer unmapping(go2_profile::Stage::Unmap);rr_surface_unmap(surface);return;}
+        if(copied){go2_profile::Timer unmapping(go2_profile::Stage::Unmap);rr_surface_unmap(output);return true;}
     }
 #endif
 #if !defined(RR_PLATFORM_SDL) && !defined(RR_GO2_LEGACY_SCANLINES)
-    if (videoShader == RR_VIDEO_SHADER_SCANLINES &&
-        width <= static_cast<unsigned>(rr_surface_width_get(surface)) &&
-        height <= static_cast<unsigned>(rr_surface_height_get(surface))) {
+    if (shader == RR_VIDEO_SHADER_SCANLINES &&
+        width <= static_cast<unsigned>(rr_surface_width_get(output)) &&
+        height <= static_cast<unsigned>(rr_surface_height_get(output))) {
         go2_profile::Timer upload(go2_profile::Stage::FusedUpload);
-        const bool copied=go2_scanlines::copy(mapped,rr_surface_stride_get(surface),data,pitch,width,height,
-            rr_surface_format_get(surface),color_format==RR_PIXEL_FORMAT_RGBA5551);
+        const bool copied=go2_scanlines::copy(mapped,rr_surface_stride_get(output),data,pitch,width,height,
+            rr_surface_format_get(output),color_format==RR_PIXEL_FORMAT_RGBA5551);
         upload.stop();
-        if(copied){go2_profile::Timer unmapping(go2_profile::Stage::Unmap);rr_surface_unmap(surface);return;}
+        if(copied){go2_profile::Timer unmapping(go2_profile::Stage::Unmap);rr_surface_unmap(output);return true;}
     }
 #endif
 #ifndef RR_PLATFORM_SDL
     go2_profile::Timer copying(go2_profile::Stage::Copy);
 #endif
-    int bpp = rr_pixel_format_bpp(rr_surface_format_get(surface)) / 8;
+    int bpp = rr_pixel_format_bpp(rr_surface_format_get(output)) / 8;
 
     int yy = height;
     while (yy > 0)
@@ -907,21 +909,21 @@ void drawNonOpenGL(const void *data, unsigned width, unsigned height, size_t pit
         }
 
         src += pitch;
-        dst += rr_surface_stride_get(surface);
+        dst += rr_surface_stride_get(output);
         --yy;
     }
 
 #ifndef RR_PLATFORM_SDL
     copying.stop();
 #endif
-    if (videoShader != RR_VIDEO_SHADER_OFF)
+    if (shader != RR_VIDEO_SHADER_OFF)
     {
 #ifndef RR_PLATFORM_SDL
         go2_profile::Timer effect(go2_profile::Stage::Effect);
 #endif
-        const uint32_t format = rr_surface_format_get(surface);
-        const int stride = rr_surface_stride_get(surface);
-        const bool crt = videoShader == RR_VIDEO_SHADER_CRT;
+        const uint32_t format = rr_surface_format_get(output);
+        const int stride = rr_surface_stride_get(output);
+        const bool crt = shader == RR_VIDEO_SHADER_CRT;
         // Rebuild the effect map only when geometry or mode changes. Q8 gains
         // remove floating point, division and vignette math from every frame.
         static std::vector<uint16_t> effect_gain;
@@ -1015,7 +1017,8 @@ void drawNonOpenGL(const void *data, unsigned width, unsigned height, size_t pit
 #ifndef RR_PLATFORM_SDL
     go2_profile::Timer unmapping(go2_profile::Stage::Unmap);
 #endif
-    rr_surface_unmap(surface);
+    rr_surface_unmap(output);
+    return true;
 }
 int timeCorrectFrame =0;
 
@@ -1263,16 +1266,21 @@ static void video_worker_stop()
 
 const void *lastData;
 size_t lastPitch;
+rr_surface_t* video_capture_software_frame(){
+    if(isOpenGL || !lastData || lastData==RETRO_HW_FRAME_BUFFER_VALID || !currentWidth || !currentHeight || !surface)return nullptr;
+    auto* image=rr_surface_create(display,currentWidth,currentHeight,rr_surface_format_get(surface));
+    if(!image)return nullptr;
+    if(!drawNonOpenGL(lastData,currentWidth,currentHeight,lastPitch,image,false)){rr_surface_destroy(image);return nullptr;}
+    return image;
+}
+
 //bool lastPixelPerfect= pixel_perfect;
 void core_video_refresh(const void *data, unsigned width, unsigned height, size_t pitch)
 {
     if (!core_callbacks_enabled())
         return;
-#ifndef RR_PLATFORM_SDL
-    // Keep the incoming libretro validity, before menu rendering substitutes
-    // lastData. Paused menu callbacks must not capture an already filtered frame.
+    // Keep validity before menu rendering substitutes lastData.
     const bool new_hardware_frame = data == RETRO_HW_FRAME_BUFFER_VALID;
-#endif
     const bool measureBenchmark = benchmark_collecting();
     if (measureBenchmark)
         benchmark_video_callback_begin();
@@ -1353,8 +1361,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
     else
     {
 
-        lastData = data;
-        lastPitch = pitch;
+        if(data){lastData = data;lastPitch = pitch;}
         if ((forceVideoMultithread ||
              videoMultithreadMode == rr::VideoMultithreadMode::Enabled) &&
             !supportsVideoMultithread()) {
@@ -1500,7 +1507,7 @@ void core_video_refresh(const void *data, unsigned width, unsigned height, size_
         const bool overlays_visible = uiRenderOverlays(data, width, height, pitch);
         rr_context_swap_buffers(context3D, width, height, x, y, w, h,
                                 overlays_visible ? uiCurrentOverlays() : nullptr,
-                                getRotation());
+                                getRotation(),new_hardware_frame);
         if (overlays_visible && showLoading)
             uiNotifyLoadingPresented();
         return;
